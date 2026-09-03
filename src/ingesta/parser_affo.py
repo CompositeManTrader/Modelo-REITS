@@ -61,7 +61,7 @@ _ORDEN_PRIORIDAD = (
 
 _PATRONES: list[tuple[str, re.Pattern]] = []
 for _clave in _ORDEN_PRIORIDAD:
-    _linea = next((l for l in TODAS_LAS_LINEAS if l.clave == _clave), None)
+    _linea = next((ln for ln in TODAS_LAS_LINEAS if ln.clave == _clave), None)
     if _linea is None or not _linea.patrones:
         continue
     _PATRONES.append((_clave, re.compile("|".join(f"(?:{p})" for p in _linea.patrones), re.I)))
@@ -228,7 +228,7 @@ class ConciliacionExtraida:
 
     def filas_conciliacion(self) -> list[dict]:
         """Filas listas para la tabla ``conciliacion``."""
-        orden = {l.clave: i for i, l in enumerate(TODAS_LAS_LINEAS)}
+        orden = {ln.clave: i for i, ln in enumerate(TODAS_LAS_LINEAS)}
         salida = []
         for clave, valor in self.lineas.items():
             salida.append(

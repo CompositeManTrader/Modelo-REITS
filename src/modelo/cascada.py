@@ -307,8 +307,8 @@ SUBTOTALES: tuple[Linea, ...] = (
 TODAS_LAS_LINEAS: tuple[Linea, ...] = (
     LINEAS_NOI + LINEAS_FFO + LINEAS_FFO_NORMALIZADO + LINEAS_AFFO + SUBTOTALES
 )
-LINEA_POR_CLAVE: dict[str, Linea] = {l.clave: l for l in TODAS_LAS_LINEAS}
-CLAVES_TRAMPA: frozenset[str] = frozenset(l.clave for l in TODAS_LAS_LINEAS if l.es_trampa)
+LINEA_POR_CLAVE: dict[str, Linea] = {ln.clave: ln for ln in TODAS_LAS_LINEAS}
+CLAVES_TRAMPA: frozenset[str] = frozenset(ln.clave for ln in TODAS_LAS_LINEAS if ln.es_trampa)
 
 
 # --------------------------------------------------------------------------------------

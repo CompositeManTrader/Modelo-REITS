@@ -241,7 +241,7 @@ def derivar_trimestres_desde_acumulados(df: pd.DataFrame, concepto: str) -> pd.D
     sub["anio"] = pd.to_datetime(sub["fecha_dato"]).dt.year
     salida: list[dict] = []
     orden = {"Q": 1, "H1": 2, "9M": 3, "FY": 4}
-    for (_ticker, anio), grupo in sub.groupby(["ticker", "anio"]):
+    for (_ticker, _anio), grupo in sub.groupby(["ticker", "anio"]):
         acumulados = {}
         for tipo in ("H1", "9M", "FY"):
             g = grupo[grupo["periodo_tipo"] == tipo]

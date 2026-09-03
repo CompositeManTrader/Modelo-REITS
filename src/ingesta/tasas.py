@@ -30,8 +30,8 @@ from src.config import (
     SERIE_MBONO10,
     SERIE_UDIBONO10,
     SERIE_UDIBONO30,
-    SERIE_UST10,
     SERIE_USDMXN,
+    SERIE_UST10,
     Fuente,
 )
 
