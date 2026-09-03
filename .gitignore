@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Base de datos generada y cachés de ingesta. El esquema y las semillas sí se versionan.
+data/reit.db
+data/reit.db-journal
+data/cache/
+data/exportes/
+
+# Salidas locales
+*.xlsx
+!tests/fixtures/*.xlsx
+.DS_Store
+.streamlit/secrets.toml

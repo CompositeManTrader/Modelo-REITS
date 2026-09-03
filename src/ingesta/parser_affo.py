@@ -1,0 +1,476 @@
+"""Extracción de la conciliación de AFFO desde el Exhibit 99.1 del 8-K.
+
+El AFFO no está en XBRL: es una medida no-GAAP. Vive en las tablas
+"Reconciliation of Net Income to FFO and AFFO" del comunicado de resultados.
+Este módulo las localiza, normaliza sus etiquetas contra la taxonomía de
+``modelo.cascada`` y devuelve filas listas para validar y persistir.
+
+Reconstrucción de trimestres
+----------------------------
+Las tablas "HISTORICAL FFO AND AFFO" traen cinco años del **mismo** trimestre.
+Un reporte de Q2 da Q2 y H1 de cinco años; uno de Q4 da Q4 y el año completo.
+Con los reportes de Q2 y Q4 de un año se reconstruyen los cuatro trimestres de
+cinco años::
+
+    Q1 = H1 − Q2
+    Q3 = FY − H1 − Q4
+
+La ``fecha_publicacion`` de un trimestre reconstruido es la **más tardía** de las
+publicaciones que lo componen: antes de esa fecha el número no era deducible.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import re
+from dataclasses import dataclass
+
+from bs4 import BeautifulSoup
+
+from src.config import Fuente
+from src.modelo.cascada import TODAS_LAS_LINEAS
+
+# --------------------------------------------------------------------------------------
+# Normalización de etiquetas
+# --------------------------------------------------------------------------------------
+
+# Se compilan una vez. El orden importa: las claves más específicas van primero para
+# que "normalized FFO" no se coma con el patrón genérico de "FFO".
+_ORDEN_PRIORIDAD = (
+    "ffo_normalizado",
+    "affo",
+    "ffo",
+    "noi",
+    "capex_mantenimiento",
+    "renta_linea_recta",
+    "revaluacion_valor_razonable",
+    "comisiones_arrendamiento",
+    "amortizacion_costos_financieros",
+    "compensacion_en_acciones",
+    "depreciacion_mobiliario",
+    "depreciacion_inmuebles",
+    "ganancia_venta_inmuebles",
+    "deterioro",
+    "no_consolidadas_y_minoritarios",
+    "partidas_no_recurrentes",
+    "otros_ajustes_no_efectivo",
+    "utilidad_neta",
+    "ingreso_rentas",
+    "gastos_operativos_inmueble",
+)
+
+_PATRONES: list[tuple[str, re.Pattern]] = []
+for _clave in _ORDEN_PRIORIDAD:
+    _linea = next((l for l in TODAS_LAS_LINEAS if l.clave == _clave), None)
+    if _linea is None or not _linea.patrones:
+        continue
+    _PATRONES.append((_clave, re.compile("|".join(f"(?:{p})" for p in _linea.patrones), re.I)))
+
+
+def normalizar_etiqueta(texto: str) -> str | None:
+    """Mapea la etiqueta del emisor a una clave de la cascada. ``None`` si no aplica."""
+    limpio = re.sub(r"\s+", " ", texto or "").strip().lower()
+    if not limpio or len(limpio) > 200:
+        return None
+    limpio = re.sub(r"^\(?\d+\)?[\.\)]\s*", "", limpio)  # numeración de notas al pie
+    limpio = limpio.replace("–", "-").replace("—", "-")
+    for clave, patron in _PATRONES:
+        if patron.search(limpio):
+            return clave
+    return None
+
+
+# --------------------------------------------------------------------------------------
+# Parseo de números
+# --------------------------------------------------------------------------------------
+
+_GUIONES = {"-", "—", "–", "‒", "―", "n/a", "na", "nm", ""}
+
+
+def parsear_numero(texto: str) -> float | None:
+    """Convierte una celda de reporte financiero a float.
+
+    Maneja las convenciones del oficio: paréntesis para negativo, símbolo de
+    moneda, separador de miles, guion largo para cero, y notas al pie pegadas.
+    """
+    if texto is None:
+        return None
+    s = str(texto).strip()
+    s = s.replace("\xa0", " ").replace(" ", " ").strip()
+    if s.lower() in _GUIONES:
+        return None
+    negativo = s.startswith("(") and s.endswith(")")
+    s = s.strip("()")
+    s = re.sub(r"[\$\s,%]", "", s)
+    s = s.replace("—", "").replace("–", "")
+    if not s or not re.fullmatch(r"-?\d*\.?\d+", s):
+        return None
+    valor = float(s)
+    return -valor if negativo else valor
+
+
+# --------------------------------------------------------------------------------------
+# Detección de periodos en los encabezados
+# --------------------------------------------------------------------------------------
+
+_MESES = {
+    "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
+    "july": 7, "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
+}
+
+_RE_FECHA = re.compile(
+    r"(january|february|march|april|may|june|july|august|september|october|november|december)"
+    r"\s+(\d{1,2})\s*,?\s*(\d{4})",
+    re.I,
+)
+_RE_ANIO = re.compile(r"\b(19|20)\d{2}\b")
+
+_DURACIONES = (
+    (r"(?:three|3)\s+months", "Q"),
+    (r"(?:six|6)\s+months", "H1"),
+    (r"(?:nine|9)\s+months", "9M"),
+    (r"(?:twelve|12)\s+months|year\s+ended|full\s+year|annual", "FY"),
+)
+
+
+@dataclass(frozen=True)
+class Periodo:
+    tipo: str  # 'Q' | 'H1' | '9M' | 'FY'
+    fin: dt.date
+
+    @property
+    def etiqueta(self) -> str:
+        return f"{self.tipo} {self.fin.isoformat()}"
+
+
+def detectar_periodos(texto_encabezado: str) -> list[Periodo]:
+    """Extrae los periodos de un encabezado de tabla.
+
+    Un encabezado típico dice "Three Months Ended June 30, 2026 and 2025"; de ahí
+    salen dos periodos trimestrales con el mismo día y mes y distinto año.
+    """
+    t = re.sub(r"\s+", " ", texto_encabezado or "").strip()
+    if not t:
+        return []
+    tipo = None
+    for patron, etiqueta in _DURACIONES:
+        if re.search(patron, t, re.I):
+            tipo = etiqueta
+            break
+    fechas: list[dt.date] = []
+    for m in _RE_FECHA.finditer(t):
+        mes = _MESES[m.group(1).lower()]
+        dia, anio = int(m.group(2)), int(m.group(3))
+        try:
+            fechas.append(dt.date(anio, mes, dia))
+        except ValueError:
+            continue
+    if fechas and tipo:
+        # "June 30, 2026 and 2025": el mismo día repetido en varios años.
+        anios = [int(a.group(0)) for a in _RE_ANIO.finditer(t)]
+        base = fechas[0]
+        vistos = {f.year: f for f in fechas}
+        for anio in anios:
+            if anio not in vistos:
+                try:
+                    vistos[anio] = dt.date(anio, base.month, base.day)
+                except ValueError:
+                    continue
+        return [Periodo(tipo, f) for f in sorted(vistos.values(), reverse=True)]
+    if fechas:
+        return [Periodo("Q", f) for f in fechas]
+    return []
+
+
+# --------------------------------------------------------------------------------------
+# Parseo de tablas HTML
+# --------------------------------------------------------------------------------------
+
+
+def _texto_celda(celda) -> str:
+    return re.sub(r"\s+", " ", celda.get_text(" ", strip=True)).strip()
+
+
+def _tabla_a_matriz(tabla) -> list[list[str]]:
+    filas = []
+    for tr in tabla.find_all("tr"):
+        celdas = tr.find_all(["td", "th"])
+        if not celdas:
+            continue
+        filas.append([_texto_celda(c) for c in celdas])
+    return filas
+
+
+def _es_tabla_de_conciliacion(matriz: list[list[str]]) -> bool:
+    texto = " ".join(" ".join(f) for f in matriz).lower()
+    tiene_ffo = "ffo" in texto or "funds from operations" in texto
+    tiene_affo = "affo" in texto or "adjusted funds from operations" in texto
+    return tiene_ffo and tiene_affo
+
+
+def _numeros_de_fila(fila: list[str]) -> list[float]:
+    valores = [parsear_numero(c) for c in fila[1:]]
+    return [v for v in valores if v is not None]
+
+
+@dataclass
+class ConciliacionExtraida:
+    """Resultado del parseo de una tabla de conciliación."""
+
+    ticker: str
+    periodo: Periodo
+    lineas: dict[str, float]
+    etiquetas: dict[str, str]
+    fecha_publicacion: dt.date
+    url_filing: str
+    escala: float = 1.0
+    advertencias: tuple[str, ...] = ()
+
+    def filas_conciliacion(self) -> list[dict]:
+        """Filas listas para la tabla ``conciliacion``."""
+        orden = {l.clave: i for i, l in enumerate(TODAS_LAS_LINEAS)}
+        salida = []
+        for clave, valor in self.lineas.items():
+            salida.append(
+                {
+                    "ticker": self.ticker,
+                    "periodo_tipo": self.periodo.tipo,
+                    "fecha_dato": self.periodo.fin,
+                    "fecha_publicacion": self.fecha_publicacion,
+                    "orden": orden.get(clave, 999),
+                    "linea": clave,
+                    "etiqueta": self.etiquetas.get(clave, clave),
+                    "valor": valor,
+                    "fuente": Fuente.SEC_8K,
+                    "url_filing": self.url_filing,
+                }
+            )
+        return sorted(salida, key=lambda d: d["orden"])
+
+    def filas_hechos(self) -> list[dict]:
+        """Filas listas para la tabla ``hechos`` (los subtotales de la cascada)."""
+        salida = []
+        for clave in ("noi", "ffo", "ffo_normalizado", "affo", "affo_por_accion"):
+            if clave not in self.lineas:
+                continue
+            salida.append(
+                {
+                    "ticker": self.ticker,
+                    "concepto": clave,
+                    "periodo_tipo": self.periodo.tipo,
+                    "fecha_dato": self.periodo.fin,
+                    "fecha_publicacion": self.fecha_publicacion,
+                    "valor": self.lineas[clave],
+                    "unidad": "USD",
+                    "fuente": Fuente.SEC_8K,
+                    "es_primario": True,
+                    "url_filing": self.url_filing,
+                }
+            )
+        return salida
+
+
+def detectar_escala(html_o_texto: str) -> float:
+    """Detecta si la tabla está en miles o millones. Un factor mal leído es 1000x."""
+    t = html_o_texto.lower()
+    if re.search(r"in\s+thousands|\(thousands\)|amounts?\s+in\s+thousands", t):
+        return 1_000.0
+    if re.search(r"in\s+millions|\(millions\)|amounts?\s+in\s+millions", t):
+        return 1_000_000.0
+    return 1.0
+
+
+def parsear_conciliacion(
+    html: str,
+    ticker: str,
+    fecha_publicacion: dt.date,
+    url_filing: str = "",
+    *,
+    aplicar_escala: bool = True,
+) -> list[ConciliacionExtraida]:
+    """Encuentra y parsea todas las tablas de conciliación FFO/AFFO del documento.
+
+    Devuelve una extracción por (tabla, columna de periodo). Cuando el encabezado
+    no permite identificar el periodo, la tabla se descarta con advertencia: un
+    número sin periodo es peor que ningún número.
+    """
+    sopa = BeautifulSoup(html, "lxml")
+    escala_doc = detectar_escala(sopa.get_text(" ")) if aplicar_escala else 1.0
+    salida: list[ConciliacionExtraida] = []
+
+    for tabla in sopa.find_all("table"):
+        matriz = _tabla_a_matriz(tabla)
+        if len(matriz) < 3 or not _es_tabla_de_conciliacion(matriz):
+            continue
+
+        contexto = _contexto_previo(tabla)
+        encabezado = " ".join(" ".join(f) for f in matriz[: min(3, len(matriz))])
+        periodos = detectar_periodos(contexto + " " + encabezado)
+        if not periodos:
+            continue
+
+        escala = detectar_escala(contexto + " " + encabezado) if aplicar_escala else 1.0
+        if escala == 1.0:
+            escala = escala_doc
+
+        # Mapea cada columna numérica a un periodo, en el orden en que aparecen.
+        columnas = _mapear_columnas(matriz, periodos)
+        if not columnas:
+            continue
+
+        for idx_col, periodo in columnas.items():
+            lineas: dict[str, float] = {}
+            etiquetas: dict[str, str] = {}
+            for fila in matriz:
+                if len(fila) < 2:
+                    continue
+                clave = normalizar_etiqueta(fila[0])
+                if clave is None or clave in lineas:
+                    continue
+                valores = _valores_alineados(fila)
+                if idx_col >= len(valores) or valores[idx_col] is None:
+                    continue
+                bruto = valores[idx_col]
+                es_por_accion = _es_por_accion(fila[0])
+                lineas[clave] = bruto if es_por_accion else bruto * escala
+                etiquetas[clave] = fila[0]
+
+            if "affo" not in lineas and "ffo" not in lineas:
+                continue
+            advertencias = []
+            if escala == 1.0:
+                advertencias.append(
+                    "No se detectó la escala del reporte (miles/millones); se asumió unidades."
+                )
+            salida.append(
+                ConciliacionExtraida(
+                    ticker=ticker,
+                    periodo=periodo,
+                    lineas=lineas,
+                    etiquetas=etiquetas,
+                    fecha_publicacion=fecha_publicacion,
+                    url_filing=url_filing,
+                    escala=escala,
+                    advertencias=tuple(advertencias),
+                )
+            )
+    return salida
+
+
+def _es_por_accion(etiqueta: str) -> bool:
+    return bool(re.search(r"per\s+(?:common\s+)?share|per\s+diluted", etiqueta or "", re.I))
+
+
+def _contexto_previo(tabla, caracteres: int = 400) -> str:
+    """Texto que precede a la tabla: ahí suele estar el periodo y la escala."""
+    piezas: list[str] = []
+    nodo = tabla
+    for _ in range(6):
+        nodo = nodo.find_previous(["p", "div", "span", "b", "font", "td"])
+        if nodo is None:
+            break
+        t = re.sub(r"\s+", " ", nodo.get_text(" ", strip=True))
+        if t:
+            piezas.append(t)
+        if sum(len(p) for p in piezas) > caracteres:
+            break
+    return " ".join(reversed(piezas))
+
+
+def _valores_alineados(fila: list[str]) -> list[float | None]:
+    """Extrae los numéricos de la fila descartando celdas de puro adorno.
+
+    Los comunicados de la SEC están llenos de celdas con solo "$" o ")" por el
+    formateo en columnas. Si no se filtran, las columnas se desalinean.
+    """
+    valores: list[float | None] = []
+    for celda in fila[1:]:
+        limpia = celda.strip()
+        if limpia in {"$", ")", "(", "%", ""}:
+            continue
+        valores.append(parsear_numero(limpia))
+    return valores
+
+
+def _mapear_columnas(matriz: list[list[str]], periodos: list[Periodo]) -> dict[int, Periodo]:
+    """Asocia índices de columna numérica con periodos.
+
+    Cuenta cuántas columnas de datos tiene la fila modal y las reparte entre los
+    periodos detectados. Si no cuadra, prefiere no adivinar y usa las primeras.
+    """
+    conteos = [len(_valores_alineados(f)) for f in matriz if len(f) > 1]
+    conteos = [c for c in conteos if c > 0]
+    if not conteos:
+        return {}
+    ancho = max(set(conteos), key=conteos.count)
+    n = min(ancho, len(periodos))
+    return {i: periodos[i] for i in range(n)}
+
+
+# --------------------------------------------------------------------------------------
+# Reconstrucción de trimestres a partir de acumulados
+# --------------------------------------------------------------------------------------
+
+
+def reconstruir_trimestres(
+    observaciones: dict[str, tuple[float, dt.date]],
+) -> dict[str, tuple[float, dt.date, str]]:
+    """Reconstruye Q1 y Q3 desde acumulados.
+
+    ``observaciones`` mapea ``'Q1'|'Q2'|'Q3'|'Q4'|'H1'|'FY'`` a ``(valor, fecha_publicacion)``.
+    Devuelve solo lo reconstruido, con la fecha de publicación **máxima** de sus
+    componentes y la fórmula usada.
+
+    ``Q1 = H1 − Q2``  y  ``Q3 = FY − H1 − Q4``.
+    """
+    salida: dict[str, tuple[float, dt.date, str]] = {}
+
+    if "Q1" not in observaciones and {"H1", "Q2"} <= observaciones.keys():
+        (h1, f_h1), (q2, f_q2) = observaciones["H1"], observaciones["Q2"]
+        salida["Q1"] = (h1 - q2, max(f_h1, f_q2), "Q1 = H1 − Q2")
+
+    if "Q3" not in observaciones and {"FY", "H1", "Q4"} <= observaciones.keys():
+        (fy, f_fy), (h1, f_h1), (q4, f_q4) = (
+            observaciones["FY"],
+            observaciones["H1"],
+            observaciones["Q4"],
+        )
+        salida["Q3"] = (fy - h1 - q4, max(f_fy, f_h1, f_q4), "Q3 = FY − H1 − Q4")
+
+    return salida
+
+
+def fin_de_trimestre(anio: int, trimestre: int) -> dt.date:
+    """Último día del trimestre calendario."""
+    fines = {1: (3, 31), 2: (6, 30), 3: (9, 30), 4: (12, 31)}
+    mes, dia = fines[trimestre]
+    return dt.date(anio, mes, dia)
+
+
+def filas_reconstruidas(
+    ticker: str,
+    concepto: str,
+    anio: int,
+    reconstruido: dict[str, tuple[float, dt.date, str]],
+    url_filing: str = "",
+) -> list[dict]:
+    """Convierte la salida de ``reconstruir_trimestres`` en filas de ``hechos``."""
+    salida = []
+    for etiqueta, (valor, publicacion, formula) in reconstruido.items():
+        trimestre = int(etiqueta[1])
+        salida.append(
+            {
+                "ticker": ticker,
+                "concepto": concepto,
+                "periodo_tipo": "Q",
+                "fecha_dato": fin_de_trimestre(anio, trimestre),
+                "fecha_publicacion": publicacion,
+                "valor": valor,
+                "unidad": "USD",
+                "fuente": Fuente.RECONSTRUIDO,
+                "es_primario": False,
+                "url_filing": url_filing,
+                "nota_validacion": formula,
+            }
+        )
+    return salida

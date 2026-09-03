@@ -1,0 +1,12 @@
+# Dependencias de ejecución (Streamlit Cloud lee este archivo)
+pandas>=2.0
+numpy>=1.26
+scipy>=1.11
+statsmodels>=0.14
+SQLAlchemy>=2.0
+openpyxl>=3.1
+plotly>=5.18
+streamlit>=1.30
+requests>=2.31
+lxml>=5.0
+beautifulsoup4>=4.12

@@ -1,0 +1,51 @@
+[project]
+name = "modelo-reits"
+version = "0.1.0"
+description = "Plataforma de valuación de REITs y construcción de portafolio para inversionista mexicano"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.0",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "statsmodels>=0.14",
+    "SQLAlchemy>=2.0",
+    "openpyxl>=3.1",
+    "plotly>=5.18",
+    "streamlit>=1.30",
+    "requests>=2.31",
+    "lxml>=5.0",
+    "beautifulsoup4>=4.12",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "ruff>=0.4"]
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "red: pruebas que requieren acceso a internet (SEC/FRED). Se omiten por omisión.",
+    "libreoffice: pruebas que requieren LibreOffice headless instalado.",
+    "lento: pruebas de simulación pesadas.",
+]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [".venv", "data", "build"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+ignore = [
+    "E501",   # el largo de línea lo controla el formateador
+    "B008",   # llamadas en argumentos por omisión (usado en Streamlit)
+    "SIM108", # ternarios forzados dañan la legibilidad de fórmulas financieras
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E402"]
+"app/*" = ["E402"]
