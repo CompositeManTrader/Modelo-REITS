@@ -375,3 +375,39 @@ def test_la_comparacion_es_despues_de_impuestos():
     detalle = rendimiento_real_despues_de_impuestos(0.055, 0.02, 0.045)
     assert detalle["yield_neto"] == pytest.approx(0.055 * 0.80)
     assert detalle["real_despues_de_impuestos"] < detalle["nominal_despues_de_impuestos"]
+
+
+def test_la_puerta_de_calidad_no_aprueba_por_falta_de_datos():
+    """Un criterio que no falla porque no se pudo medir no es un criterio aprobado.
+
+    Es la tentación más fácil del sistema: con tres de cinco criterios en blanco,
+    los dos que quedan pasan y la puerta diría VERDE. Eso convertiría «no sé» en
+    «aprobado», que es lo contrario de lo que el proyecto exige en todos lados.
+    """
+    casi_vacio = {"payout_affo": 0.73, "deuda_neta_ebitdare": 5.4}
+    resultado = puerta_calidad(casi_vacio)
+    assert resultado.pasa is None
+    assert resultado.luz == Luz.SIN_DATOS
+    assert "INCONCLUSO" in resultado.mensaje
+
+    semaforo = evaluar_semaforo("SINDATOS", dt.date(2026, 6, 30), casi_vacio, 0.95, 40, pd.DataFrame())
+    assert semaforo.accion == Accion.INCONCLUSO, (
+        "Percentil de prima en 95 y aun así INCONCLUSO: sin calidad verificable no hay compra."
+    )
+
+
+def test_con_datos_suficientes_la_puerta_si_dictamina():
+    """El umbral no puede volver la puerta inservible: con tres criterios ya opina."""
+    con_tres = {
+        "payout_affo": 0.73,
+        "deuda_neta_ebitdare": 5.4,
+        "crecimiento_affo_por_accion_yoy": 0.03,
+    }
+    resultado = puerta_calidad(con_tres)
+    assert resultado.pasa is True
+    assert resultado.luz == Luz.VERDE
+
+    reprobado = con_tres | {"payout_affo": 0.97}
+    assert puerta_calidad(reprobado).pasa is False, (
+        "Un solo criterio reprobado descarta, aunque los demás pasen."
+    )

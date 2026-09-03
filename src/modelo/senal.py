@@ -181,6 +181,12 @@ class Accion(StrEnum):
     INCONCLUSO = "INCONCLUSO"
 
 
+# Mínimo de criterios de calidad que tienen que ser medibles para que la Puerta 1
+# emita un veredicto. Con menos, dice SIN DATOS: un criterio que no falla porque no
+# se pudo medir no es un criterio aprobado.
+UMBRALES_CALIDAD_MIN_EVALUABLES = 3
+
+
 @dataclass
 class ResultadoPuerta:
     """Una puerta evaluada, con el detalle de cada criterio."""
@@ -270,12 +276,25 @@ def puerta_calidad(
 
     criterios = pd.DataFrame(filas)
     evaluables = criterios["cumple"].dropna()
-    if evaluables.empty:
+    faltan = int(criterios["cumple"].isna().sum())
+
+    # Un criterio que no falla porque no se pudo medir no es un criterio aprobado.
+    # Si la mayoría no es evaluable, la puerta no dice "pasa": dice que no sabe.
+    # Es la misma regla que en todo el sistema — sin evidencia suficiente el
+    # veredicto es INCONCLUSO — aplicada donde más tienta el atajo contrario.
+    if len(evaluables) < UMBRALES_CALIDAD_MIN_EVALUABLES:
         return ResultadoPuerta(
-            "Calidad", None, Luz.SIN_DATOS, criterios, "Faltan datos para evaluar la calidad."
+            "Calidad",
+            None,
+            Luz.SIN_DATOS,
+            criterios,
+            f"Solo {len(evaluables)} de {len(criterios)} criterios de calidad son evaluables "
+            f"({faltan} sin datos). INCONCLUSO: no hay base para decir que pasa ni que falla. "
+            "Consigue el balance del emisor antes de tomar esta pantalla como aprobación.",
         )
+
+    # Con datos suficientes, un solo criterio reprobado descarta al emisor.
     pasa = bool(evaluables.all())
-    faltan = criterios["cumple"].isna().sum()
     mensaje = (
         "Pasa todos los criterios de calidad."
         if pasa
