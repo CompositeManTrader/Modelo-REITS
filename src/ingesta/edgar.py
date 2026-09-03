@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import re
 import threading
 import time
 from collections.abc import Iterable
@@ -226,33 +227,96 @@ class ClienteEdgar:
         datos = self.obtener_json(url)
         return datos.get("directory", {}).get("item", [])
 
-    def documento_resultados(self, filing: Filing) -> tuple[str, str] | None:
-        """Devuelve ``(url, html)`` del Exhibit 99.1 del 8-K de resultados, si existe.
+    def exhibits_declarados(self, filing: Filing) -> list[dict]:
+        """Lee el índice del filing y devuelve los exhibits con su **tipo declarado**.
 
-        La conciliación "Reconciliation of Net Income to FFO and AFFO" vive ahí,
-        no en el cuerpo del 8-K ni en XBRL.
+        Hay que ir al índice y no adivinar por el nombre del archivo. Realty Income
+        nombra su Exhibit 99.1 ``o-991q22026.htm``, sin la cadena "ex99" en ningún
+        lado; una heurística basada en el nombre lo pierde en silencio, que es la
+        peor forma de perder un dato. El índice sí declara ``EX-99.1``.
         """
+        url = f"{filing.url_carpeta}/{filing.accession}-index.html"
         try:
-            items = self.indice_filing(filing)
+            html = self.obtener(url)
         except ErrorEdgar:
-            return None
-        candidatos = [
-            it["name"]
-            for it in items
-            if isinstance(it, dict)
-            and str(it.get("name", "")).lower().endswith((".htm", ".html"))
-            and ("ex99" in str(it.get("name", "")).lower() or "ex-99" in str(it.get("name", "")).lower())
-        ]
-        candidatos.sort()
-        for nombre in candidatos:
-            url = f"{filing.url_carpeta}/{nombre}"
+            return []
+
+        from bs4 import BeautifulSoup
+
+        sopa = BeautifulSoup(html, "lxml")
+        salida: list[dict] = []
+        for tabla in sopa.find_all("table"):
+            encabezado = " ".join(th.get_text(" ", strip=True).lower() for th in tabla.find_all("th"))
+            if "type" not in encabezado or "document" not in encabezado:
+                continue
+            columnas = [th.get_text(" ", strip=True).lower() for th in tabla.find_all("th")]
             try:
-                html = self.obtener(url)
+                i_doc, i_tipo = columnas.index("document"), columnas.index("type")
+            except ValueError:
+                continue
+            i_desc = columnas.index("description") if "description" in columnas else None
+            for tr in tabla.find_all("tr"):
+                celdas = tr.find_all("td")
+                if len(celdas) <= max(i_doc, i_tipo):
+                    continue
+                enlace = celdas[i_doc].find("a")
+                if enlace is None or not enlace.get("href"):
+                    continue
+                nombre = enlace.get_text(" ", strip=True)
+                salida.append(
+                    {
+                        "nombre": nombre,
+                        "tipo": celdas[i_tipo].get_text(" ", strip=True).upper(),
+                        "descripcion": (
+                            celdas[i_desc].get_text(" ", strip=True) if i_desc is not None else ""
+                        ),
+                        # El href de EDGAR trae el parámetro de "iXBRL viewer"; se limpia.
+                        "url": f"{filing.url_carpeta}/{nombre.split('/')[-1]}",
+                    }
+                )
+        return salida
+
+    def documentos_resultados(self, filing: Filing) -> list[tuple[str, str]]:
+        """Todos los exhibits EX-99 del filing que parecen comunicado de resultados.
+
+        Se devuelven **todos** porque el 99.1 trae el comunicado y el 99.2 suele traer
+        el paquete suplementario con las tablas "HISTORICAL FFO AND AFFO" de cinco
+        años, que es de donde salen los trimestres reconstruidos.
+        """
+        exhibits = self.exhibits_declarados(filing)
+        candidatos = [
+            e for e in exhibits
+            if e["tipo"].startswith("EX-99") and e["nombre"].lower().endswith((".htm", ".html"))
+        ]
+        if not candidatos:
+            # Respaldo por nombre, para filings viejos sin índice bien formado.
+            try:
+                items = self.indice_filing(filing)
+            except ErrorEdgar:
+                return []
+            candidatos = [
+                {"nombre": it["name"], "url": f"{filing.url_carpeta}/{it['name']}", "tipo": "?"}
+                for it in items
+                if isinstance(it, dict)
+                and str(it.get("name", "")).lower().endswith((".htm", ".html"))
+                and re.search(r"(ex-?99|99\d|press|earnings|suppl)", str(it.get("name", "")), re.I)
+            ]
+
+        candidatos.sort(key=lambda e: (e.get("tipo", ""), e["nombre"]))
+        salida: list[tuple[str, str]] = []
+        for e in candidatos:
+            try:
+                html = self.obtener(e["url"])
             except ErrorEdgar:
                 continue
             if _parece_comunicado_resultados(html):
-                return url, html
-        return None
+                salida.append((e["url"], html))
+        return salida
+
+    def documento_resultados(self, filing: Filing) -> tuple[str, str] | None:
+        """El primer exhibit de resultados del filing, o ``None`` si no hay."""
+        docs = self.documentos_resultados(filing)
+        return docs[0] if docs else None
 
 
 # --------------------------------------------------------------------------------------

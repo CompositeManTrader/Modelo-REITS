@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import datetime as dt
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from bs4 import BeautifulSoup
 
@@ -37,6 +37,13 @@ from src.modelo.cascada import TODAS_LAS_LINEAS
 # Se compilan una vez. El orden importa: las claves más específicas van primero para
 # que "normalized FFO" no se coma con el patrón genérico de "FFO".
 _ORDEN_PRIORIDAD = (
+    # Los ajustes específicos van antes que los subtotales que los contienen como
+    # subcadena: "FFO adjustments allocable to noncontrolling interests" tiene que
+    # resolverse a minoritarios, no a FFO.
+    "no_consolidadas_y_minoritarios",
+    # Antes que "ffo_normalizado": "Cumulative adjustments to calculate Normalized
+    # FFO" es el puente agregado, no el subtotal.
+    "ajustes_acumulados_ffo_normalizado",
     "ffo_normalizado",
     "affo",
     "ffo",
@@ -47,11 +54,10 @@ _ORDEN_PRIORIDAD = (
     "comisiones_arrendamiento",
     "amortizacion_costos_financieros",
     "compensacion_en_acciones",
-    "depreciacion_mobiliario",
     "depreciacion_inmuebles",
+    "depreciacion_mobiliario",
     "ganancia_venta_inmuebles",
     "deterioro",
-    "no_consolidadas_y_minoritarios",
     "partidas_no_recurrentes",
     "otros_ajustes_no_efectivo",
     "utilidad_neta",
@@ -67,6 +73,34 @@ for _clave in _ORDEN_PRIORIDAD:
     _PATRONES.append((_clave, re.compile("|".join(f"(?:{p})" for p in _linea.patrones), re.I)))
 
 
+# Filas que contienen una etiqueta reconocible pero NO son un monto de la cascada.
+# Sin este filtro, "Property expenses (non-reimbursable) (% of total revenue)" entra
+# como ingreso por rentas con valor 1.4, que es un porcentaje disfrazado de millones.
+_RE_NO_ES_MONTO = re.compile(
+    r"%\s*of\b|\(\s*%\s*\)|as\s+a\s+%|percent(?:age)?\s+of|margin\b|ratio\b|"
+    r"\bcoverage\b|\byield\b|"
+    # "Weighted average diluted shares outstanding - FFO, Normalized FFO" es un
+    # conteo de acciones, no una línea de la conciliación.
+    r"weighted\s+average\b.{0,40}\b(?:shares|units)\b|"
+    r"dividends?\s+(?:paid|declared)\s+per\b|"
+    # Estas van DEBAJO del subtotal de AFFO: son el puente al AFFO diluido y a la
+    # cobertura del dividendo, no partidas de la conciliación.
+    r"^affo\s+allocable\s+to|^diluted\s+affo|affo\s+after\s+distributions|"
+    r"distributions?\s+paid\s+to",
+    re.I,
+)
+
+
+# Conceptos que pueden venir repartidos en varias filas del reporte y hay que sumar.
+# Las bases (utilidad neta, ingresos) y los subtotales se toman una sola vez.
+CLAVES_ACUMULABLES: frozenset[str] = frozenset(
+    ln.clave
+    for ln in TODAS_LAS_LINEAS
+    if ln.signo != 0
+    and ln.clave not in {"utilidad_neta", "ingreso_rentas", "gastos_operativos_inmueble"}
+)
+
+
 def normalizar_etiqueta(texto: str) -> str | None:
     """Mapea la etiqueta del emisor a una clave de la cascada. ``None`` si no aplica."""
     limpio = re.sub(r"\s+", " ", texto or "").strip().lower()
@@ -74,6 +108,8 @@ def normalizar_etiqueta(texto: str) -> str | None:
         return None
     limpio = re.sub(r"^\(?\d+\)?[\.\)]\s*", "", limpio)  # numeración de notas al pie
     limpio = limpio.replace("–", "-").replace("—", "-")
+    if _RE_NO_ES_MONTO.search(limpio):
+        return None
     for clave, patron in _PATRONES:
         if patron.search(limpio):
             return clave
@@ -225,6 +261,10 @@ class ConciliacionExtraida:
     url_filing: str
     escala: float = 1.0
     advertencias: tuple[str, ...] = ()
+    # Posición de cada línea dentro de la tabla del emisor. Es lo que permite
+    # cuadrar respetando SU estructura en vez de imponerle la nuestra: qué partidas
+    # caen entre un subtotal y el siguiente lo dice la tabla, no nuestra taxonomía.
+    orden: dict[str, int] = field(default_factory=dict)
 
     def filas_conciliacion(self) -> list[dict]:
         """Filas listas para la tabla ``conciliacion``."""
@@ -305,60 +345,266 @@ def parsear_conciliacion(
 
         contexto = _contexto_previo(tabla)
         encabezado = " ".join(" ".join(f) for f in matriz[: min(3, len(matriz))])
-        periodos = detectar_periodos(contexto + " " + encabezado)
-        if not periodos:
-            continue
 
         escala = detectar_escala(contexto + " " + encabezado) if aplicar_escala else 1.0
         if escala == 1.0:
             escala = escala_doc
 
-        # Mapea cada columna numérica a un periodo, en el orden en que aparecen.
-        columnas = _mapear_columnas(matriz, periodos)
-        if not columnas:
-            continue
-
-        for idx_col, periodo in columnas.items():
-            lineas: dict[str, float] = {}
-            etiquetas: dict[str, str] = {}
-            for fila in matriz:
-                if len(fila) < 2:
-                    continue
-                clave = normalizar_etiqueta(fila[0])
-                if clave is None or clave in lineas:
-                    continue
-                valores = _valores_alineados(fila)
-                if idx_col >= len(valores) or valores[idx_col] is None:
-                    continue
-                bruto = valores[idx_col]
-                es_por_accion = _es_por_accion(fila[0])
-                lineas[clave] = bruto if es_por_accion else bruto * escala
-                etiquetas[clave] = fila[0]
-
-            if "affo" not in lineas and "ffo" not in lineas:
+        for periodos, filas in _secciones(matriz, contexto, encabezado):
+            # Mapea cada columna numérica a un periodo, en el orden en que aparecen.
+            columnas = _mapear_columnas(filas, periodos)
+            if not columnas:
                 continue
-            advertencias = []
-            if escala == 1.0:
-                advertencias.append(
-                    "No se detectó la escala del reporte (miles/millones); se asumió unidades."
-                )
-            salida.append(
-                ConciliacionExtraida(
-                    ticker=ticker,
-                    periodo=periodo,
-                    lineas=lineas,
-                    etiquetas=etiquetas,
-                    fecha_publicacion=fecha_publicacion,
-                    url_filing=url_filing,
-                    escala=escala,
-                    advertencias=tuple(advertencias),
+            salida.extend(
+                _extraer_columnas(
+                    filas, columnas, ticker, fecha_publicacion, url_filing, escala
                 )
             )
     return salida
 
 
+# La tabla "HISTORICAL FFO AND AFFO" mete el trimestre y el semestre en el MISMO
+# <table>, separados por una fila de encabezado interna. Tratarla como un solo
+# periodo asigna cifras semestrales a un trimestre — un error de 2x que cuadra
+# consigo mismo y por eso no lo caza ninguna validación aritmética.
+_RE_ENCABEZADO_PERIODO = re.compile(
+    r"(?:for\s+the\s+)?(?:three|six|nine|twelve|3|6|9|12)\s+months\s+ended|"
+    r"(?:for\s+the\s+)?(?:year|quarter)s?\s+ended",
+    re.I,
+)
+
+
+def _secciones(
+    matriz: list[list[str]], contexto: str, encabezado: str
+) -> list[tuple[list[Periodo], list[list[str]]]]:
+    """Parte la tabla en bloques, cada uno con su propio conjunto de periodos."""
+    indices = [
+        i for i, fila in enumerate(matriz)
+        if fila and _RE_ENCABEZADO_PERIODO.search(" ".join(fila))
+    ]
+    if not indices:
+        periodos = detectar_periodos(contexto + " " + encabezado)
+        return [(periodos, matriz)] if periodos else []
+
+    secciones: list[tuple[list[Periodo], list[list[str]]]] = []
+    for k, inicio in enumerate(indices):
+        fin = indices[k + 1] if k + 1 < len(indices) else len(matriz)
+        periodos = detectar_periodos(" ".join(matriz[inicio]))
+        if not periodos:
+            periodos = detectar_periodos(contexto + " " + " ".join(matriz[inicio]))
+        if periodos:
+            secciones.append((periodos, matriz[inicio + 1 : fin]))
+    return secciones
+
+
+def _extraer_columnas(
+    filas: list[list[str]],
+    columnas: dict[int, Periodo],
+    ticker: str,
+    fecha_publicacion: dt.date,
+    url_filing: str,
+    escala: float,
+) -> list[ConciliacionExtraida]:
+    salida: list[ConciliacionExtraida] = []
+    for idx_col, periodo in columnas.items():
+        lineas: dict[str, float] = {}
+        etiquetas: dict[str, str] = {}
+        orden: dict[str, int] = {}
+        for n_fila, fila in enumerate(filas):
+            if len(fila) < 2:
+                continue
+            clave = normalizar_etiqueta(fila[0])
+            if clave is None:
+                continue
+            valores = _valores_alineados(fila)
+            if idx_col >= len(valores) or valores[idx_col] is None:
+                continue
+            # Las magnitudes por acción van a su propia clave. Mezclarlas con los
+            # totales produce una "conciliación" donde el AFFO son 2.22 dólares y la
+            # depreciación 644 millones, que no cuadra ni puede cuadrar.
+            if _es_por_accion(fila[0]):
+                clave, valor = f"{clave}_por_accion", valores[idx_col]
+            else:
+                valor = valores[idx_col] * escala
+            if clave in lineas:
+                # Un mismo concepto puede venir repartido en varias filas. Realty
+                # Income reporta "Proportionate share of adjustments for
+                # unconsolidated entities" y "FFO adjustments allocable to
+                # noncontrolling interests" por separado, y el FFO solo cuadra si
+                # se suman. Los subtotales y las bases se toman una sola vez.
+                if clave in CLAVES_ACUMULABLES:
+                    lineas[clave] += valor
+                    etiquetas[clave] += f" + {fila[0]}"
+                continue
+            lineas[clave] = valor
+            etiquetas[clave] = fila[0]
+            orden[clave] = n_fila
+
+        if "affo" not in lineas and "ffo" not in lineas:
+            continue
+        advertencias = []
+        if escala == 1.0:
+            advertencias.append(
+                "No se detectó la escala del reporte (miles/millones); se asumió unidades."
+            )
+        salida.append(
+            ConciliacionExtraida(
+                ticker=ticker,
+                periodo=periodo,
+                lineas=lineas,
+                etiquetas=etiquetas,
+                fecha_publicacion=fecha_publicacion,
+                url_filing=url_filing,
+                escala=escala,
+                advertencias=tuple(advertencias),
+                orden=orden,
+            )
+        )
+    return salida
+
+
 def _es_por_accion(etiqueta: str) -> bool:
     return bool(re.search(r"per\s+(?:common\s+)?share|per\s+diluted", etiqueta or "", re.I))
+
+
+# --------------------------------------------------------------------------------------
+# Consolidación: quedarse con la tabla que de verdad concilia
+# --------------------------------------------------------------------------------------
+
+_CLAVES_SUBTOTAL = ("noi", "ffo", "ffo_normalizado", "affo")
+
+
+def consolidar_extracciones(
+    extracciones: list[ConciliacionExtraida],
+) -> list[ConciliacionExtraida]:
+    """Se queda con una extracción por periodo: la de la tabla que más concilia.
+
+    Un comunicado de resultados repite las mismas cifras en varias tablas — el
+    resumen ejecutivo en millones, la conciliación completa en miles, la tabla por
+    acción. Quedarse con todas mete el mismo periodo tres veces con escalas
+    distintas; quedarse con la primera es una lotería.
+
+    El criterio es la tabla con **más líneas de detalle**: es la conciliación de
+    verdad, la única contra la que el cuadre del AFFO puede correr. Las magnitudes
+    por acción se recogen de las demás tablas del mismo periodo y se anexan, porque
+    ahí sí viven.
+
+    Cuando dos tablas del mismo periodo reportan el mismo subtotal con una
+    diferencia de tres órdenes de magnitud, se levanta advertencia: eso es un
+    problema de escala mal detectada, no un dato distinto.
+    """
+    if not extracciones:
+        return []
+
+    por_periodo: dict[tuple[str, dt.date], list[ConciliacionExtraida]] = {}
+    for e in extracciones:
+        por_periodo.setdefault((e.periodo.tipo, e.periodo.fin), []).append(e)
+
+    salida: list[ConciliacionExtraida] = []
+    for candidatas in por_periodo.values():
+        def detalle(e: ConciliacionExtraida) -> int:
+            return sum(
+                1 for k in e.lineas
+                if k not in _CLAVES_SUBTOTAL and not k.endswith("_por_accion")
+            )
+
+        mejor = max(candidatas, key=detalle)
+        lineas = dict(mejor.lineas)
+        etiquetas = dict(mejor.etiquetas)
+        orden = dict(mejor.orden)
+        advertencias = list(mejor.advertencias)
+
+        for otra in candidatas:
+            if otra is mejor:
+                continue
+            for clave, valor in otra.lineas.items():
+                if clave.endswith("_por_accion") and clave not in lineas:
+                    lineas[clave] = valor
+                    etiquetas[clave] = otra.etiquetas.get(clave, clave)
+                    orden[clave] = 10_000 + otra.orden.get(clave, 0)
+            for clave in _CLAVES_SUBTOTAL:
+                if clave not in lineas or clave not in otra.lineas:
+                    continue
+                a, b = lineas[clave], otra.lineas[clave]
+                if a and b and 100 < abs(a / b) < 100_000:
+                    advertencias.append(
+                        f"Dos tablas reportan '{clave}' con {abs(a / b):,.0f}x de diferencia "
+                        f"({a:,.0f} contra {b:,.0f}). La escala de alguna está mal detectada; "
+                        "el cuadre del AFFO lo va a marcar."
+                    )
+
+        salida.append(
+            ConciliacionExtraida(
+                ticker=mejor.ticker,
+                periodo=mejor.periodo,
+                lineas=lineas,
+                etiquetas=etiquetas,
+                fecha_publicacion=mejor.fecha_publicacion,
+                url_filing=mejor.url_filing,
+                escala=mejor.escala,
+                advertencias=tuple(dict.fromkeys(advertencias)),
+                orden=orden,
+            )
+        )
+    return sorted(salida, key=lambda e: (e.periodo.fin, e.periodo.tipo))
+
+
+def reescalar_contra_referencia(
+    extraccion: ConciliacionExtraida,
+    clave: str,
+    valor_referencia: float,
+    *,
+    tolerancia: float = 0.02,
+) -> ConciliacionExtraida:
+    """Corrige la escala de una extracción usando un valor de fuente primaria.
+
+    Si la utilidad neta parseada del comunicado difiere de la de XBRL por un factor
+    limpio de 1,000 o 1,000,000, el problema es la escala del comunicado y no el
+    dato. Se reescala toda la tabla y se deja constancia. Cualquier otra diferencia
+    NO se toca: reescalar por un factor arbitrario sería fabricar un número.
+    """
+    actual = extraccion.lineas.get(clave)
+    if not actual or not valor_referencia:
+        return extraccion
+    razon = valor_referencia / actual
+    if abs(razon - 1.0) <= tolerancia:
+        return extraccion
+
+    for factor in (1_000.0, 1_000_000.0, 0.001, 0.000001):
+        if abs(razon / factor - 1.0) <= tolerancia:
+            lineas = {
+                k: (v if k.endswith("_por_accion") else v * factor)
+                for k, v in extraccion.lineas.items()
+            }
+            return ConciliacionExtraida(
+                ticker=extraccion.ticker,
+                periodo=extraccion.periodo,
+                lineas=lineas,
+                etiquetas=extraccion.etiquetas,
+                fecha_publicacion=extraccion.fecha_publicacion,
+                url_filing=extraccion.url_filing,
+                escala=extraccion.escala * factor,
+                advertencias=(
+                    *extraccion.advertencias,
+                    f"Escala corregida por factor {factor:,.0f} al contrastar '{clave}' "
+                    f"contra el valor de XBRL ({valor_referencia:,.0f}).",
+                ),
+            )
+    return ConciliacionExtraida(
+        ticker=extraccion.ticker,
+        periodo=extraccion.periodo,
+        lineas=extraccion.lineas,
+        etiquetas=extraccion.etiquetas,
+        fecha_publicacion=extraccion.fecha_publicacion,
+        url_filing=extraccion.url_filing,
+        escala=extraccion.escala,
+        advertencias=(
+            *extraccion.advertencias,
+            f"'{clave}' parseado ({actual:,.0f}) no coincide con XBRL "
+            f"({valor_referencia:,.0f}) y la diferencia no es un factor de escala limpio. "
+            "El registro queda sospechoso: hay que revisarlo a mano.",
+        ),
+    )
 
 
 def _contexto_previo(tabla, caracteres: int = 400) -> str:
@@ -382,13 +628,27 @@ def _valores_alineados(fila: list[str]) -> list[float | None]:
 
     Los comunicados de la SEC están llenos de celdas con solo "$" o ")" por el
     formateo en columnas. Si no se filtran, las columnas se desalinean.
+
+    Ojo con el paréntesis del negativo: EDGAR con frecuencia lo parte en celdas
+    separadas — "(", "38,260", ")" — así que descartar los paréntesis a secas
+    convierte una ganancia por venta de −38,260 en +38,260. En una conciliación
+    aditiva eso es un error de dos veces la partida y, como el subtotal reportado
+    no cambia, se manifiesta como un descuadre que parece venir de otro lado.
     """
     valores: list[float | None] = []
+    negativo_pendiente = False
     for celda in fila[1:]:
         limpia = celda.strip()
-        if limpia in {"$", ")", "(", "%", ""}:
+        if limpia == "(":
+            negativo_pendiente = True
             continue
-        valores.append(parsear_numero(limpia))
+        if limpia in {"$", ")", "%", ""}:
+            continue
+        valor = parsear_numero(limpia)
+        if valor is not None and negativo_pendiente:
+            valor = -abs(valor)
+        negativo_pendiente = False
+        valores.append(valor)
     return valores
 
 

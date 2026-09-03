@@ -23,7 +23,7 @@ from src.config import (
     TOLERANCIA_CUADRE_RELATIVA,
     Estado,
 )
-from src.modelo.cascada import calcular_cascada
+from src.modelo.cascada import MAGNITUD, calcular_cascada
 
 
 @dataclass
@@ -53,15 +53,26 @@ def cuadrar_affo(
     sector: str | None = None,
     tolerancia_absoluta: float = TOLERANCIA_CUADRE_AFFO,
     tolerancia_relativa: float = TOLERANCIA_CUADRE_RELATIVA,
+    signos: str = MAGNITUD,
 ) -> ResultadoCuadre:
     """Recalcula el AFFO sumando la conciliación y lo compara contra el reportado.
+
+    ``signos`` tiene que coincidir con la convención de los componentes: los que
+    salen del parser del Exhibit 99.1 vienen en convención ``"reporte"`` (ya
+    signados para sumarse), y los que teclea el usuario en ``"magnitud"``. Cuadrar
+    con la convención equivocada produce un descuadre de exactamente el doble de
+    cada partida negativa, que es fácil de confundir con una línea faltante.
 
     La tolerancia es doble a propósito: absoluta para cifras chicas y relativa
     para cifras en millones, donde el emisor redondea cada línea antes de sumarla
     y el total legítimamente difiere en unos cuantos miles.
     """
-    componentes = {k: v for k, v in componentes.items() if k not in ("affo", "affo_por_accion")}
-    resultado = calcular_cascada(componentes, sector=sector)
+    componentes = {
+        k: v
+        for k, v in componentes.items()
+        if k not in ("affo", "affo_por_accion") and not k.endswith("_por_accion")
+    }
+    resultado = calcular_cascada(componentes, sector=sector, signos=signos)
     recalculado = resultado.affo
 
     if recalculado is None:
@@ -317,12 +328,13 @@ def validar_registro(
     *,
     sector: str | None = None,
     metricas: dict[str, float | None] | None = None,
+    signos: str = MAGNITUD,
 ) -> Veredicto:
     """Corre toda la validación bloqueante sobre un registro trimestral."""
     motivos: list[str] = []
     banderas: list[str] = []
 
-    res_cuadre = cuadrar_affo(componentes, affo_reportado, sector=sector)
+    res_cuadre = cuadrar_affo(componentes, affo_reportado, sector=sector, signos=signos)
     if not res_cuadre.cuadra:
         motivos.append(res_cuadre.motivo)
     banderas.extend(res_cuadre.banderas)
@@ -339,3 +351,241 @@ def validar_registro(
         banderas=banderas,
         cuadre=res_cuadre,
     )
+
+
+# --------------------------------------------------------------------------------------
+# Cuadre respetando la estructura de la tabla del emisor
+# --------------------------------------------------------------------------------------
+
+
+@dataclass
+class TramoConciliacion:
+    """Un tramo entre dos subtotales de la conciliación tal como la publica el emisor."""
+
+    subtotal: str
+    base: str | None
+    valor_base: float | None
+    partidas: list[str]
+    suma_partidas: float
+    esperado: float
+    reportado: float
+    diferencia: float
+    diferencia_relativa: float
+    cuadra: bool
+    # Un tramo sin partidas itemizadas NO se puede verificar. Marcarlo como
+    # "no cuadra" confundiría "no pude comprobarlo" con "está mal", que son cosas
+    # distintas: la tabla histórica de cinco años salta del FFO normalizado al AFFO
+    # sin desglosar el tramo, y eso no hace falso al AFFO que el emisor reporta.
+    verificable: bool = True
+
+
+@dataclass
+class ResultadoConciliacion:
+    """Veredicto tramo por tramo. ``cuadra`` exige que TODOS los tramos cuadren."""
+
+    cuadra: bool
+    tramos: list[TramoConciliacion] = field(default_factory=list)
+    partidas_ignoradas: list[str] = field(default_factory=list)
+    motivo: str = ""
+
+    @property
+    def tramos_verificados(self) -> list[TramoConciliacion]:
+        return [t for t in self.tramos if t.verificable]
+
+    @property
+    def tramos_no_verificables(self) -> list[TramoConciliacion]:
+        return [t for t in self.tramos if not t.verificable]
+
+    def como_tabla(self) -> pd.DataFrame:
+        return pd.DataFrame([t.__dict__ for t in self.tramos])
+
+    def como_texto(self) -> str:
+        if not self.tramos:
+            return "No hay subtotales reportados contra los cuales cuadrar."
+        if self.cuadra:
+            texto = (
+                f"Cuadra: {len(self.tramos_verificados)} tramo(s) verificados contra los "
+                "subtotales que el propio emisor publica."
+            )
+            faltantes = self.tramos_no_verificables
+            if faltantes:
+                texto += (
+                    " Sin verificar: "
+                    + ", ".join(t.subtotal for t in faltantes)
+                    + " (la tabla no desglosa ese tramo; el subtotal se toma como lo reporta "
+                    "el emisor y se marca como no verificado)."
+                )
+            return texto
+        return self.motivo
+
+
+ORDEN_SUBTOTALES = ("noi", "ffo", "ffo_normalizado", "affo")
+
+
+def cuadrar_conciliacion(
+    lineas: dict[str, float],
+    orden: dict[str, int],
+    *,
+    tolerancia_relativa: float = TOLERANCIA_CUADRE_RELATIVA,
+    tolerancia_absoluta: float = TOLERANCIA_CUADRE_AFFO,
+) -> ResultadoConciliacion:
+    """Cuadra la conciliación usando el **orden de las filas del emisor**.
+
+    Es una verificación más fuerte y más honesta que imponer nuestros bloques a
+    priori. Los emisores no siguen todos la misma estructura: Realty Income
+    presenta el puente de utilidad neta a FFO normalizado como una sola línea
+    agregada, y luego itemiza el tramo de FFO normalizado a AFFO — con la
+    participación en no consolidadas y la severancia ejecutiva **dentro** de ese
+    tramo, no del anterior. Nuestra taxonomía las clasifica en bloques distintos,
+    y cuadrar con esa clasificación fallaría por la suma de esas dos partidas.
+
+    Aquí, en cambio, cada tramo se define por lo que hay entre dos subtotales
+    reportados. La aritmética que se verifica es la que el emisor afirma.
+
+    Los valores deben venir en convención de **reporte** (ya signados para
+    sumarse), que es como los entrega el parser del Exhibit 99.1.
+    """
+    presentes = [
+        (s, orden[s]) for s in ORDEN_SUBTOTALES if s in lineas and s in orden
+    ]
+    presentes.sort(key=lambda x: x[1])
+    if not presentes:
+        return ResultadoConciliacion(
+            False, [], [], "La tabla no reporta ningún subtotal (NOI, FFO, FFO normalizado o AFFO)."
+        )
+
+    ignoradas: list[str] = []
+    tramos: list[TramoConciliacion] = []
+    subtotales = {s for s, _ in presentes}
+    # Ingresos y gastos del inmueble son insumos del NOI, no del puente hacia el FFO.
+    # Si la tabla no reporta un subtotal de NOI, esas filas están ahí de contexto y
+    # sumarlas al tramo del FFO mete el ingreso trimestral completo en la ecuación.
+    contexto_noi = set() if "noi" in subtotales else {"ingreso_rentas", "gastos_operativos_inmueble"}
+    base_clave: str | None = None
+    base_valor: float | None = None
+    inicio = -1
+
+    for subtotal, fila_subtotal in presentes:
+        partidas = [
+            c
+            for c, f in orden.items()
+            if inicio < f < fila_subtotal
+            and c not in subtotales
+            and c not in contexto_noi
+            and not c.endswith("_por_accion")
+        ]
+        suma = sum(float(lineas[c]) for c in partidas)
+        esperado = suma + (base_valor or 0.0)
+        reportado = float(lineas[subtotal])
+        dif = esperado - reportado
+        rel = abs(dif) / (abs(reportado) if reportado else 1.0)
+        verificable = bool(partidas)
+        tramos.append(
+            TramoConciliacion(
+                subtotal=subtotal,
+                base=base_clave,
+                valor_base=base_valor,
+                partidas=partidas,
+                suma_partidas=suma,
+                esperado=esperado,
+                reportado=reportado,
+                diferencia=dif,
+                diferencia_relativa=rel,
+                cuadra=verificable
+                and (abs(dif) <= tolerancia_absoluta or rel <= tolerancia_relativa),
+                verificable=verificable,
+            )
+        )
+        base_clave, base_valor, inicio = subtotal, reportado, fila_subtotal
+
+    # Partidas que quedaron después del último subtotal: no participan en ningún tramo.
+    ignoradas = [
+        c
+        for c, f in orden.items()
+        if f > presentes[-1][1]
+        and c not in subtotales
+        and c not in contexto_noi
+        and not c.endswith("_por_accion")
+    ]
+
+    fallidos = [t for t in tramos if t.verificable and not t.cuadra]
+    if not fallidos:
+        if not any(t.verificable for t in tramos):
+            return ResultadoConciliacion(
+                False,
+                tramos,
+                ignoradas,
+                "Ningún tramo de la conciliación es verificable: la tabla reporta subtotales "
+                "pero no desglosa ninguna partida. El registro no puede validarse.",
+            )
+        return ResultadoConciliacion(True, tramos, ignoradas)
+
+    detalle = "; ".join(
+        f"{t.subtotal}: reportado {t.reportado:,.0f} contra "
+        f"{'' if t.base is None else t.base + ' + '}partidas = {t.esperado:,.0f} "
+        f"(diferencia {t.diferencia:,.0f}, {t.diferencia_relativa:.2%})"
+        for t in fallidos
+    )
+    return ResultadoConciliacion(
+        False,
+        tramos,
+        ignoradas,
+        f"La conciliación del emisor no cuadra en {len(fallidos)} tramo(s): {detalle}. "
+        "O el parser perdió una fila o el reporte tiene una partida fuera de la taxonomía.",
+    )
+
+
+def elegir_mejor_conciliacion(extracciones: list) -> list:
+    """Entre varias tablas del mismo periodo, se queda con la que **cuadra**.
+
+    Un comunicado repite las mismas cifras en tablas con estructuras distintas: un
+    resumen, la conciliación completa y la tabla histórica de cinco años. Elegir
+    "la que tenga más filas" no basta, porque la tabla histórica tiene muchas filas
+    y salta del FFO normalizado al AFFO sin itemizar el tramo intermedio.
+
+    El criterio correcto es el único objetivo disponible: cuántos tramos de la
+    conciliación cierran contra los subtotales que el propio emisor publica. Una
+    tabla que cuadra en tres de tres tramos es la conciliación de verdad; una que
+    cuadra en dos de tres tiene un tramo sin itemizar.
+
+    Las magnitudes por acción se recogen de las demás tablas del mismo periodo,
+    porque ahí sí viven.
+    """
+    if not extracciones:
+        return []
+
+    from dataclasses import replace
+
+    por_periodo: dict[tuple, list] = {}
+    for e in extracciones:
+        por_periodo.setdefault((e.periodo.tipo, e.periodo.fin), []).append(e)
+
+    salida = []
+    for candidatas in por_periodo.values():
+        def puntaje(e):
+            r = cuadrar_conciliacion(e.lineas, e.orden)
+            cuadrando = sum(1 for tr in r.tramos if tr.cuadra)
+            fallidos = sum(1 for tr in r.tramos if tr.verificable and not tr.cuadra)
+            detalle = sum(
+                1 for k in e.lineas
+                if k not in ORDEN_SUBTOTALES and not k.endswith("_por_accion")
+            )
+            # Primero que no falle ningún tramo verificable, luego cuántos verifica,
+            # y al final cuánto detalle trae. Contar tramos totales sería premiar a la
+            # tabla que declara más subtotales sin desglosar ninguno.
+            return (-fallidos, cuadrando, detalle)
+
+        mejor = max(candidatas, key=puntaje)
+        lineas = dict(mejor.lineas)
+        etiquetas = dict(mejor.etiquetas)
+        orden = dict(mejor.orden)
+        for otra in candidatas:
+            if otra is mejor:
+                continue
+            for clave, valor in otra.lineas.items():
+                if clave.endswith("_por_accion") and clave not in lineas:
+                    lineas[clave] = valor
+                    etiquetas[clave] = otra.etiquetas.get(clave, clave)
+                    orden[clave] = 10_000 + otra.orden.get(clave, 0)
+        salida.append(replace(mejor, lineas=lineas, etiquetas=etiquetas, orden=orden))
+    return sorted(salida, key=lambda e: (e.periodo.fin, e.periodo.tipo))

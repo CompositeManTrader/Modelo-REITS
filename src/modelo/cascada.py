@@ -113,7 +113,9 @@ LINEAS_FFO: tuple[Linea, ...] = (
         +1,
         Bloque.FFO,
         patrones=(
-            r"depreciation\s+and\s+amortization",
+            # "Depreciation and amortization, net of furniture, fixtures and equipment"
+            # ES la depreciación de inmuebles: el "net of" ya excluyó el mobiliario.
+            r"^depreciation\s+and\s+amortization",
             r"real\s+estate\s+depreciation",
             r"depreciation.*real\s+estate",
         ),
@@ -128,7 +130,12 @@ LINEAS_FFO: tuple[Linea, ...] = (
         "Depreciación de mobiliario y equipo",
         -1,
         Bloque.FFO,
-        patrones=(r"(?:non[- ]real\s+estate|corporate)\s+depreciation", r"furniture.*fixtures"),
+        patrones=(
+            r"(?:non[- ]real\s+estate|corporate)\s+(?:depreciation|amortization)",
+            # Solo cuando la línea ES la depreciación del mobiliario, no cuando dice
+            # "net of furniture, fixtures and equipment", que es lo contrario.
+            r"(?:depreciation|amortization)\s+of\s+furniture",
+        ),
         explicacion=(
             "Esta sí es un gasto económico real: el mobiliario y el equipo de cómputo "
             "efectivamente se agotan. Se resta del ajuste anterior."
@@ -159,6 +166,12 @@ LINEAS_FFO: tuple[Linea, ...] = (
         +1,
         Bloque.FFO,
         patrones=(
+            # Esta va primero y es específica: "FFO adjustments allocable to
+            # noncontrolling interests" es un ajuste, NO el subtotal de FFO.
+            # Ojo: "AFFO allocable to dilutive noncontrolling interests" NO entra
+            # aquí — está DEBAJO del subtotal de AFFO, es el puente al AFFO diluido.
+            r"(?:ffo|affo)\s+adjustments?\s+allocable",
+            r"proportionate\s+share\s+of\s+adjustments",
             r"unconsolidated\s+(?:entities|joint\s+ventures)",
             r"noncontrolling\s+interests?",
             r"equity\s+in\s+(?:earnings|income)",
@@ -175,6 +188,18 @@ LINEAS_FFO: tuple[Linea, ...] = (
 # --------------------------------------------------------------------------------------
 
 LINEAS_FFO_NORMALIZADO: tuple[Linea, ...] = (
+    Linea(
+        "ajustes_acumulados_ffo_normalizado",
+        "Ajustes acumulados para llegar al FFO Normalizado",
+        +1,
+        Bloque.FFO_NORMALIZADO,
+        patrones=(r"cumulative\s+adjustments?\s+to\s+calculate\s+normalized",),
+        explicacion=(
+            "Algunos emisores presentan el puente de utilidad neta a FFO normalizado como "
+            "una sola línea agregada en vez de itemizarlo. Cuando es así, el detalle vive "
+            "en el suplemento y aquí solo entra el total."
+        ),
+    ),
     Linea(
         "partidas_no_recurrentes",
         "Partidas no recurrentes",
@@ -206,8 +231,10 @@ LINEAS_AFFO: tuple[Linea, ...] = (
         +1,
         Bloque.AFFO,
         patrones=(
-            r"amortization\s+of\s+(?:deferred\s+)?financing\s+costs?",
-            r"amortization\s+of\s+debt\s+(?:discount|premium)",
+            # "Amortization of net debt discounts and deferred financing costs":
+            # el "net" en medio rompía el patrón y la línea se perdía completa.
+            r"amortization\s+of\s+(?:net\s+)?(?:deferred\s+)?(?:debt\s+)?(?:discounts?|premiums?)",
+            r"deferred\s+financing\s+costs?",
         ),
         explicacion="Cargo contable sin salida de efectivo. Se suma.",
     ),
@@ -280,27 +307,57 @@ LINEAS_AFFO: tuple[Linea, ...] = (
         "Otros ajustes no-efectivo",
         +1,
         Bloque.AFFO,
-        patrones=(r"other\s+(?:non[- ]cash|adjustments)", r"amortization\s+of\s+(?:above|below)[- ]market"),
+        patrones=(
+            r"other\s+(?:non[- ]cash|adjustments)",
+            r"(?:above|below)[- ]market\s+lease",
+            r"interest\s+rate\s+swap",
+            r"provisions?\s+for\s+credit\s+losses",
+            r"deferred\s+tax\s+(?:expense|benefit)",
+        ),
         explicacion="Amortización de rentas sobre y bajo mercado, y demás partidas de papel.",
     ),
 )
 
 SUBTOTALES: tuple[Linea, ...] = (
     Linea("noi", "NOI (Net Operating Income)", 0, Bloque.NOI, patrones=(r"net\s+operating\s+income",)),
-    Linea("ffo", "FFO (definición Nareit)", 0, Bloque.FFO, patrones=(r"^\s*ffo\b", r"funds\s+from\s+operations")),
+    Linea(
+        "ffo",
+        "FFO (definición Nareit)",
+        0,
+        Bloque.FFO,
+        # Solo el subtotal: "FFO available to common stockholders", "FFO per share",
+        # o "FFO" a secas. Nunca "FFO adjustments allocable to ...".
+        patrones=(
+            r"^\s*ffo\s*$",
+            r"^\s*(?:total\s+)?ffo\s+(?:available|attributable|per)\b",
+            r"funds\s+from\s+operations\s+(?:available|attributable|per)\b",
+            r"^\s*funds\s+from\s+operations\s*$",
+        ),
+    ),
     Linea(
         "ffo_normalizado",
         "FFO Normalizado",
         0,
         Bloque.FFO_NORMALIZADO,
-        patrones=(r"normalized\s+ffo", r"core\s+ffo", r"adjusted\s+ffo\s+\(normalized\)"),
+        patrones=(
+            r"normalized\s+ffo\s+(?:available|attributable|per)\b",
+            r"^\s*normalized\s+ffo\s*$",
+            r"normalized\s+funds\s+from\s+operations",
+            r"core\s+ffo\s+(?:available|attributable|per)\b",
+            r"^\s*core\s+ffo\s*$",
+        ),
     ),
     Linea(
         "affo",
         "AFFO",
         0,
         Bloque.AFFO,
-        patrones=(r"\baffo\b", r"adjusted\s+funds\s+from\s+operations"),
+        patrones=(
+            r"^\s*affo\s*$",
+            r"^\s*affo\s+(?:available|attributable|per)\b",
+            r"adjusted\s+funds\s+from\s+operations\s+(?:available|attributable|per)\b",
+            r"^\s*adjusted\s+funds\s+from\s+operations\s*$",
+        ),
     ),
 )
 
@@ -337,18 +394,37 @@ class ResultadoCascada:
         }
 
 
+MAGNITUD = "magnitud"
+REPORTE = "reporte"
+
+
 def calcular_cascada(
     componentes: dict[str, float],
     *,
     sector: str | None = None,
     acciones_diluidas: float | None = None,
+    signos: str = MAGNITUD,
 ) -> ResultadoCascada:
     """Recalcula NOI, FFO, FFO normalizado y AFFO desde los componentes.
 
-    Los valores de entrada se dan **con su signo natural de reporte** (positivos);
-    el signo de la línea decide si suma o resta. Así, ``renta_linea_recta: 25.0``
-    significa "25 millones de renta en línea recta", que la cascada resta.
+    Hay dos convenciones de signo en circulación y confundirlas produce un error
+    de exactamente el doble de la partida, que además cuadra consigo mismo:
+
+    ``signos="magnitud"`` (por omisión)
+        Los valores son magnitudes positivas y el signo de la línea decide si suma
+        o resta. ``renta_linea_recta: 25.0`` significa "25 millones de renta en
+        línea recta", que la cascada resta. Es lo que teclea un analista en la hoja
+        de Inputs del Excel.
+
+    ``signos="reporte"``
+        Los valores vienen **como los presenta el emisor**, ya listos para sumarse:
+        la ganancia por venta viene en −38,260 porque en el reporte está entre
+        paréntesis. Es lo que entrega el parser del Exhibit 99.1, y sumarlos tal
+        cual es la única forma de reproducir el subtotal que el emisor publica.
     """
+    if signos not in (MAGNITUD, REPORTE):
+        raise ValueError(f"Convención de signo desconocida: {signos!r}")
+
     filas: list[dict] = []
     faltantes: list[str] = []
     banderas: list[str] = []
@@ -362,7 +438,7 @@ def calcular_cascada(
                     faltantes.append(linea.clave)
                 continue
             valor = float(componentes[linea.clave])
-            aporte = linea.signo * valor
+            aporte = valor if signos == REPORTE else linea.signo * valor
             total += aporte
             hubo = True
             filas.append(
