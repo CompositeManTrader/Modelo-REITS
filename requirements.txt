@@ -6,7 +6,7 @@ statsmodels>=0.14
 SQLAlchemy>=2.0
 openpyxl>=3.1
 plotly>=5.18
-streamlit>=1.30
+streamlit>=1.49  # width="stretch" reemplaza use_container_width
 requests>=2.31
 lxml>=5.0
 beautifulsoup4>=4.12
