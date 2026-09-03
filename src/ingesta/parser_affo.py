@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from bs4 import BeautifulSoup
 
 from src.config import Fuente
-from src.modelo.cascada import TODAS_LAS_LINEAS
+from src.modelo.cascada import SEPARADOR_SEGMENTO, TODAS_LAS_LINEAS
 
 # --------------------------------------------------------------------------------------
 # Normalización de etiquetas
@@ -51,15 +51,21 @@ _ORDEN_PRIORIDAD = (
     "capex_mantenimiento",
     "renta_linea_recta",
     "revaluacion_valor_razonable",
+    # Antes de comisiones: "Amortization of lease intangibles - in-place leases and
+    # leasing costs" es un ajuste no-efectivo, no una comisión efectivamente pagada.
+    "otros_ajustes_no_efectivo",
     "comisiones_arrendamiento",
     "amortizacion_costos_financieros",
     "compensacion_en_acciones",
-    "depreciacion_inmuebles",
+    # "Non-real estate depreciation" contiene "real estate depreciation" como
+    # subcadena, así que la clave específica tiene que evaluarse primero o la
+    # depreciación de mobiliario acaba sumándose como si fuera de inmuebles.
     "depreciacion_mobiliario",
+    "depreciacion_inmuebles",
+    "dividendos_preferentes",
     "ganancia_venta_inmuebles",
     "deterioro",
     "partidas_no_recurrentes",
-    "otros_ajustes_no_efectivo",
     "utilidad_neta",
     "ingreso_rentas",
     "gastos_operativos_inmueble",
@@ -237,11 +243,24 @@ def _tabla_a_matriz(tabla) -> list[list[str]]:
     return filas
 
 
+# Varios emisores no usan la palabra "AFFO": Prologis publica "Core FFO" y Agree
+# Realty escribe "Adjusted Funds from Operations" completo. Exigir la sigla literal
+# descartaba sus tablas antes de siquiera intentar parsearlas.
+_TERMINOS_AJUSTADO = (
+    "affo",
+    "adjusted funds from operations",
+    "core ffo",
+    "core funds from operations",
+    "normalized ffo",
+    "normalized funds from operations",
+)
+
+
 def _es_tabla_de_conciliacion(matriz: list[list[str]]) -> bool:
     texto = " ".join(" ".join(f) for f in matriz).lower()
     tiene_ffo = "ffo" in texto or "funds from operations" in texto
-    tiene_affo = "affo" in texto or "adjusted funds from operations" in texto
-    return tiene_ffo and tiene_affo
+    tiene_ajustado = any(term in texto for term in _TERMINOS_AJUSTADO)
+    return tiene_ffo and tiene_ajustado
 
 
 def _numeros_de_fila(fila: list[str]) -> list[float]:
@@ -420,6 +439,12 @@ def _extraer_columnas(
         lineas: dict[str, float] = {}
         etiquetas: dict[str, str] = {}
         orden: dict[str, int] = {}
+        # Un mismo concepto puede aparecer en tramos distintos de la conciliación:
+        # Agree Realty amortiza intangibles de arrendamiento antes del FFO y rentas
+        # sobre y bajo mercado antes del Core FFO, y ambas caen en "otros ajustes".
+        # Acumularlas juntas mete el segundo monto en el tramo del primero y deja el
+        # siguiente sin partidas que verificar. El segmento las mantiene separadas.
+        segmento = 0
         for n_fila, fila in enumerate(filas):
             if len(fila) < 2:
                 continue
@@ -435,13 +460,18 @@ def _extraer_columnas(
             if _es_por_accion(fila[0]):
                 clave, valor = f"{clave}_por_accion", valores[idx_col]
             else:
-                valor = valores[idx_col] * escala
+                valor = valores[idx_col] * escala * _signo_de_la_etiqueta(fila[0])
+
+            es_subtotal = clave in _CLAVES_SUBTOTAL
+            if not es_subtotal and segmento and clave in CLAVES_ACUMULABLES:
+                clave = f"{clave}{SEPARADOR_SEGMENTO}{segmento}"
+
             if clave in lineas:
-                # Un mismo concepto puede venir repartido en varias filas. Realty
-                # Income reporta "Proportionate share of adjustments for
-                # unconsolidated entities" y "FFO adjustments allocable to
-                # noncontrolling interests" por separado, y el FFO solo cuadra si
-                # se suman. Los subtotales y las bases se toman una sola vez.
+                # Un mismo concepto puede venir repartido en varias filas DEL MISMO
+                # tramo. Realty Income reporta "Proportionate share of adjustments
+                # for unconsolidated entities" y "FFO adjustments allocable to
+                # noncontrolling interests" por separado, y el FFO solo cuadra si se
+                # suman. Los subtotales y las bases se toman una sola vez.
                 if clave in CLAVES_ACUMULABLES:
                     lineas[clave] += valor
                     etiquetas[clave] += f" + {fila[0]}"
@@ -450,7 +480,19 @@ def _extraer_columnas(
             etiquetas[clave] = fila[0]
             orden[clave] = n_fila
 
-        if "affo" not in lineas and "ffo" not in lineas:
+            if es_subtotal:
+                # A partir de aquí empieza otro tramo. Las partidas que sigan van a
+                # un segmento nuevo aunque sean del mismo concepto que las anteriores.
+                segmento += 1
+
+        if not any(k in lineas for k in ("ffo", "ffo_normalizado", "affo", "noi")):
+            continue
+        if periodo.fin > fecha_publicacion:
+            # Un filing no puede reportar cifras REALIZADAS de un periodo que aún
+            # no termina: esa es la tabla de GUÍA. Extra Space Storage publica su
+            # guía del año en el mismo comunicado que su trimestre, y tratarla como
+            # realizada mete una proyección dentro de la serie histórica. La guía
+            # tiene su propia tabla en la base, con su propio versionado (P1).
             continue
         advertencias = []
         if escala == 1.0:
@@ -473,6 +515,21 @@ def _extraer_columnas(
     return salida
 
 
+_RE_RESTA_EN_LA_ETIQUETA = re.compile(r"^\s*(?:less|menos|deduct)\b[:\s]", re.I)
+
+
+def _signo_de_la_etiqueta(etiqueta: str) -> int:
+    """Devuelve −1 cuando la etiqueta lleva el signo en la palabra, no en el número.
+
+    Agree Realty escribe "Less Series A preferred stock dividends" con el monto en
+    positivo. En una conciliación aditiva, sumar ese positivo desplaza el subtotal
+    por el doble de la partida y el descuadre parece venir de otra línea.
+    """
+    return -1 if _RE_RESTA_EN_LA_ETIQUETA.search(etiqueta or "") else 1
+
+
+_CLAVES_SUBTOTAL = ("noi", "ffo", "ffo_normalizado", "affo")
+
 def _es_por_accion(etiqueta: str) -> bool:
     return bool(re.search(r"per\s+(?:common\s+)?share|per\s+diluted", etiqueta or "", re.I))
 
@@ -480,9 +537,6 @@ def _es_por_accion(etiqueta: str) -> bool:
 # --------------------------------------------------------------------------------------
 # Consolidación: quedarse con la tabla que de verdad concilia
 # --------------------------------------------------------------------------------------
-
-_CLAVES_SUBTOTAL = ("noi", "ffo", "ffo_normalizado", "affo")
-
 
 def consolidar_extracciones(
     extracciones: list[ConciliacionExtraida],

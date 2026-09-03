@@ -14,6 +14,7 @@ python scripts/sembrar.py        # datos de DEMOSTRACIÓN, para recorrer la app
 streamlit run app/Inicio.py
 
 python scripts/ingesta.py        # datos de fuente primaria desde la SEC
+python scripts/cobertura.py      # cuánto parsea y valida el sistema, por emisor
 pytest -q                        # las ocho pruebas obligatorias y el resto
 ```
 
@@ -72,7 +73,7 @@ src/
 ├── export/excel.py      Libro con fórmulas VIVAS
 └── servicio.py          Capa que arma los paneles de la interfaz
 app/                     Streamlit: Inicio + seis páginas
-scripts/                 sembrar.py, ingesta.py, humo_app.py
+scripts/                 sembrar.py, ingesta.py, cobertura.py, humo_app.py
 tests/                   Las ocho obligatorias, los principios, e integración
 ```
 
@@ -206,6 +207,19 @@ sintética habría revelado:
 5. **El encabezado viene partido en dos filas** — la duración en una, los años en
    la siguiente. Buscar la fecha completa en una sola fila perdía tablas enteras.
 
+Y probar contra los demás emisores del universo encontró tres más:
+
+6. **El signo puede venir en la palabra, no en el número.** Agree Realty escribe
+   "Less Series A preferred stock dividends" con el monto en positivo. Sumarlo
+   desplaza el subtotal por el doble de la partida.
+7. **Un mismo concepto aparece en tramos distintos.** Agree amortiza intangibles
+   de arrendamiento antes del FFO y rentas sobre y bajo mercado antes del Core FFO;
+   ambas caen en "otros ajustes no-efectivo". Acumularlas juntas mete el segundo
+   monto en el tramo del primero y deja al siguiente sin nada que verificar.
+8. **Las tablas de guía se colaban como resultados.** Extra Space Storage publica
+   su guía del año en el mismo comunicado que su trimestre. Lo cachó la restricción
+   `fecha_publicacion >= fecha_dato` del esquema — la última barrera funcionando.
+
 De ahí salieron dos decisiones de diseño:
 
 **Dos convenciones de signo, explícitas.** Los valores del parser vienen ya
@@ -239,11 +253,29 @@ que el propio emisor publica.
 
 ### Limitaciones conocidas
 
-- **El parser cubre bien el formato de Realty Income.** Los demás emisores del
-  universo usan etiquetas parecidas pero no idénticas; lo que no cuadra queda
-  marcado `sospechoso` y no entra a los cálculos, que es el comportamiento
-  diseñado, pero significa que ampliar la cobertura es trabajo pendiente. La
-  validación avisa cuándo pasa.
+**Cobertura del parser: medida, no estimada.** Corriendo contra los 8-K de la SEC
+de 2026 (`python scripts/cobertura.py`):
+
+| Emisor | Periodos extraídos | Válidos | Sospechosos |
+|---|---:|---:|---:|
+| O | 15 | 15 | 0 |
+| ADC | 4 | 4 | 0 |
+| EXR | 6 | 1 | 5 |
+| NNN | 5 | 0 | 5 |
+| WPC | 6 | 0 | 6 |
+| PSA | 2 | 0 | 2 |
+| WELL | 2 | 0 | 2 |
+| EPRT, GNL, PLD | 0 | 0 | 0 |
+
+Cada emisor reporta su conciliación de AFFO con etiquetas ligeramente distintas y
+con su propia estructura de tramos. Las causas que quedan **no comparten remedio**:
+a W. P. Carey le faltan líneas entre FFO y AFFO, a Welltower una antes del FFO
+normalizado, y NNN publica solo subtotales en la tabla que el sistema elige.
+Ampliar la cobertura es trabajo de taxonomía emisor por emisor.
+
+Lo importante es que el sistema **se comporta bien cuando no puede**: lo que no
+cuadra se guarda marcado `sospechoso`, no entra a ningún cálculo, y la interfaz lo
+dice. Prefiere no tener el dato a tenerlo mal.
 - **Los identificadores de series del SIE de Banxico están sin verificar contra su
   catálogo.** Son configurables por variable de entorno y el ingestor valida la
   forma de la respuesta antes de escribir, pero conviene confirmarlos.
@@ -254,6 +286,10 @@ que el propio emisor publica.
   no estimadas de una regresión.
 - **El suplemento de algunos emisores viene en imágenes**, así que las tablas
   "HISTORICAL FFO AND AFFO" de cinco años no siempre son parseables.
+- **Las tablas de guía se descartan, no se ingieren.** Un filing no puede reportar
+  cifras realizadas de un periodo que aún no termina, así que el parser filtra los
+  periodos que cierran después de la fecha del filing. La guía tiene su propia
+  tabla con su propio versionado, pero por ahora se captura a mano.
 
 ---
 

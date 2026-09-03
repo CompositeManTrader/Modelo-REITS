@@ -23,7 +23,7 @@ from src.config import (
     TOLERANCIA_CUADRE_RELATIVA,
     Estado,
 )
-from src.modelo.cascada import MAGNITUD, calcular_cascada
+from src.modelo.cascada import MAGNITUD, calcular_cascada, clave_base
 
 
 @dataclass
@@ -488,8 +488,8 @@ def cuadrar_conciliacion(
             c
             for c, f in orden.items()
             if inicio < f < fila_subtotal
-            and c not in subtotales
-            and c not in contexto_noi
+            and clave_base(c) not in subtotales
+            and clave_base(c) not in contexto_noi
             and not c.endswith("_por_accion")
         ]
         suma = sum(float(lineas[c]) for c in partidas)
@@ -521,8 +521,8 @@ def cuadrar_conciliacion(
         c
         for c, f in orden.items()
         if f > presentes[-1][1]
-        and c not in subtotales
-        and c not in contexto_noi
+        and clave_base(c) not in subtotales
+        and clave_base(c) not in contexto_noi
         and not c.endswith("_por_accion")
     ]
 
@@ -586,7 +586,7 @@ def elegir_mejor_conciliacion(extracciones: list) -> list:
             fallidos = sum(1 for tr in r.tramos if tr.verificable and not tr.cuadra)
             detalle = sum(
                 1 for k in e.lineas
-                if k not in ORDEN_SUBTOTALES and not k.endswith("_por_accion")
+                if clave_base(k) not in ORDEN_SUBTOTALES and not k.endswith("_por_accion")
             )
             # Primero que no falle ningún tramo verificable, luego cuántos verifica,
             # y al final cuánto detalle trae. Contar tramos totales sería premiar a la

@@ -273,3 +273,106 @@ def test_serie_de_consenso_sospechosamente_lisa():
     resultado = prueba_suavidad_consenso(con_saltos, reportes)
     assert not resultado.sospechosa, resultado.motivo
     assert resultado.razon_concentracion >= 2.0
+
+
+# --------------------------------------------------------------------------------------
+# Convenciones de presentación que rompen conciliaciones si se ignoran
+# --------------------------------------------------------------------------------------
+
+
+def test_el_signo_puede_venir_en_la_palabra_no_en_el_numero():
+    """"Less Series A preferred stock dividends" trae el monto en positivo.
+
+    Agree Realty pone el signo en la palabra "Less". Sumar ese positivo desplaza el
+    subtotal por el DOBLE de la partida, y el descuadre parece venir de otra línea.
+    """
+    from src.ingesta.parser_affo import _signo_de_la_etiqueta
+
+    assert _signo_de_la_etiqueta("Less Series A preferred stock dividends") == -1
+    assert _signo_de_la_etiqueta("Menos: dividendos preferentes") == -1
+    assert _signo_de_la_etiqueta("Depreciation and amortization") == 1
+    assert _signo_de_la_etiqueta("Lessee improvements") == 1, (
+        "«Lessee» empieza con «Less» pero no es una resta: el patrón exige límite de palabra."
+    )
+
+
+def test_un_concepto_repetido_en_dos_tramos_no_se_mezcla():
+    """El mismo concepto puede aparecer antes del FFO y antes del Core FFO.
+
+    Agree Realty amortiza intangibles de arrendamiento antes del FFO y rentas sobre
+    y bajo mercado antes del Core FFO; ambas caen en "otros ajustes no-efectivo".
+    Sumarlas juntas mete el segundo monto en el tramo del primero y deja al
+    siguiente sin partidas que verificar.
+    """
+    html = """
+    <html><body>
+    <p>(in thousands) Three months ended June 30,</p>
+    <p>2026</p>
+    <table>
+      <tr><td>Three months ended June 30,</td><td>2026</td></tr>
+      <tr><td>Net income</td><td>100</td></tr>
+      <tr><td>Depreciation of rental real estate assets</td><td>200</td></tr>
+      <tr><td>Amortization of lease intangibles</td><td>50</td></tr>
+      <tr><td>Funds from Operations - common unitholders</td><td>350</td></tr>
+      <tr><td>Amortization of above (below) market lease intangibles, net</td><td>25</td></tr>
+      <tr><td>Core Funds from Operations - common unitholders</td><td>375</td></tr>
+      <tr><td>Straight-line accrued rent</td><td>(15)</td></tr>
+      <tr><td>Adjusted Funds from Operations - common unitholders</td><td>360</td></tr>
+    </table>
+    </body></html>
+    """
+    extracciones = parsear_conciliacion(html, "TEST", dt.date(2026, 8, 5), "fixture")
+    assert extracciones
+    e = extracciones[0]
+
+    claves = set(e.lineas)
+    assert "otros_ajustes_no_efectivo" in claves
+    assert any(k.startswith("otros_ajustes_no_efectivo#") for k in claves), (
+        "El ajuste posterior al FFO tiene que quedar en su propio segmento."
+    )
+
+    resultado = cuadrar_conciliacion(e.lineas, e.orden)
+    assert resultado.cuadra, resultado.motivo
+    assert len(resultado.tramos_verificados) == 3, (
+        "Los tres tramos tienen que tener partidas propias que verificar."
+    )
+
+
+def test_la_cascada_suma_los_segmentos_del_mismo_concepto():
+    """Los segmentos son un detalle de la tabla del emisor, no conceptos distintos."""
+    componentes = {
+        "utilidad_neta": 100.0,
+        "depreciacion_inmuebles": 200.0,
+        "otros_ajustes_no_efectivo": 50.0,
+        "otros_ajustes_no_efectivo#1": 25.0,
+    }
+    resultado = calcular_cascada(componentes, signos=REPORTE)
+    assert resultado.affo == pytest.approx(375.0)
+
+
+def test_una_tabla_de_guia_no_entra_como_cifra_realizada():
+    """Un filing no puede reportar cifras realizadas de un periodo que no ha terminado.
+
+    Extra Space Storage publica su guía del año en el mismo comunicado que su
+    trimestre. Tratarla como realizada mete una proyección dentro de la serie
+    histórica, que es lookahead disfrazado de dato.
+    """
+    html = """
+    <html><body>
+    <p>(in thousands) Twelve months ended December 31,</p>
+    <table>
+      <tr><td>Twelve months ended December 31,</td><td>2026</td></tr>
+      <tr><td>Net income</td><td>1000</td></tr>
+      <tr><td>Depreciation and amortization</td><td>2000</td></tr>
+      <tr><td>FFO available to common stockholders</td><td>3000</td></tr>
+      <tr><td>Straight-line rent</td><td>(100)</td></tr>
+      <tr><td>AFFO available to common stockholders</td><td>2900</td></tr>
+    </table>
+    </body></html>
+    """
+    # El filing se presenta en julio; el periodo cierra en diciembre. Es guía.
+    extracciones = parsear_conciliacion(html, "TEST", dt.date(2026, 7, 28), "fixture")
+    assert not extracciones, (
+        "Una tabla cuyo periodo termina DESPUÉS de la fecha del filing es guía, "
+        "no resultados. La guía tiene su propia tabla con su propio versionado."
+    )

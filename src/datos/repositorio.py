@@ -28,6 +28,15 @@ from src.datos import esquema
 Fecha = dt.date | str | pd.Timestamp
 
 
+class RegistroRechazado(ValueError):
+    """El esquema rechazó una fila por violar una restricción de integridad.
+
+    La más común es ``fecha_publicacion >= fecha_dato``: un filing no puede
+    reportar cifras realizadas de un periodo que aún no termina. Cuando salta, casi
+    siempre significa que el parser tomó una tabla de guía por una de resultados.
+    """
+
+
 # --------------------------------------------------------------------------------------
 # Utilidades
 # --------------------------------------------------------------------------------------
@@ -197,8 +206,16 @@ class Repositorio:
                     cx.execute(insert(tabla), [fila])
                     insertadas += 1
                 except Exception as exc:  # noqa: BLE001 - duplicado idempotente
-                    if "UNIQUE constraint" in str(exc) or "duplicate key" in str(exc).lower():
+                    mensaje = str(exc)
+                    if "UNIQUE constraint" in mensaje or "duplicate key" in mensaje.lower():
                         continue
+                    if "CHECK constraint" in mensaje:
+                        # El esquema rechazó la fila. Es la barrera funcionando, no un
+                        # fallo del programa: se convierte en un error legible que el
+                        # llamador puede registrar sin tumbar toda la ingesta.
+                        raise RegistroRechazado(
+                            f"El esquema rechazó la fila {fila!r}: {mensaje.splitlines()[0]}"
+                        ) from exc
                     raise
         return insertadas
 

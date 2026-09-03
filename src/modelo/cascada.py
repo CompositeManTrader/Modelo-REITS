@@ -31,6 +31,18 @@ import pandas as pd
 
 from src.config import CAPEX_ESPERADO_POR_SECTOR
 
+SEPARADOR_SEGMENTO = "#"
+
+
+def clave_base(clave: str) -> str:
+    """Quita el sufijo de segmento: ``otros_ajustes_no_efectivo#1`` → la clave base.
+
+    Un mismo concepto puede aparecer en dos tramos distintos de la conciliación de
+    un emisor. El parser los guarda con sufijo para no mezclarlos; todo lo que
+    razona sobre el concepto usa la clave base.
+    """
+    return clave.split(SEPARADOR_SEGMENTO, 1)[0]
+
 
 class Bloque:
     NOI = "NOI"
@@ -161,6 +173,17 @@ LINEAS_FFO: tuple[Linea, ...] = (
         ),
     ),
     Linea(
+        "dividendos_preferentes",
+        "Dividendos de acciones preferentes",
+        -1,
+        Bloque.FFO,
+        patrones=(r"preferred\s+(?:stock\s+)?dividends?", r"preferred\s+unit\s+distributions?"),
+        explicacion=(
+            "Puente de la utilidad neta total a la que corresponde al accionista común. "
+            "Sin esta línea, la conciliación de varios emisores no cierra."
+        ),
+    ),
+    Linea(
         "no_consolidadas_y_minoritarios",
         "Participación en no consolidadas y minoritarios",
         +1,
@@ -234,6 +257,7 @@ LINEAS_AFFO: tuple[Linea, ...] = (
             # "Amortization of net debt discounts and deferred financing costs":
             # el "net" en medio rompía el patrón y la línea se perdía completa.
             r"amortization\s+of\s+(?:net\s+)?(?:deferred\s+)?(?:debt\s+)?(?:discounts?|premiums?)",
+            r"amortization\s+of\s+(?:deferred\s+)?financing\s+costs?",
             r"deferred\s+financing\s+costs?",
         ),
         explicacion="Cargo contable sin salida de efectivo. Se suma.",
@@ -272,7 +296,10 @@ LINEAS_AFFO: tuple[Linea, ...] = (
         "Ajuste de renta en línea recta",
         -1,
         Bloque.AFFO,
-        patrones=(r"straight[- ]line\s+rent", r"straight\s*line\s+rental"),
+        patrones=(
+            r"straight[- ]line\s+(?:\w+\s+){0,2}rent",
+            r"straight\s*line\s+rental",
+        ),
         es_trampa=True,
         explicacion=(
             "TRAMPA. La contabilidad promedia toda la renta del contrato, así que "
@@ -309,7 +336,11 @@ LINEAS_AFFO: tuple[Linea, ...] = (
         Bloque.AFFO,
         patrones=(
             r"other\s+(?:non[- ]cash|adjustments)",
+            # "Amortization of above (below) market lease intangibles, net": el
+            # paréntesis en medio rompía el patrón.
+            r"above\s*\(?\s*(?:and\s+|/)?\s*below\)?[- ]?\s*market",
             r"(?:above|below)[- ]market\s+lease",
+            r"amortization\s+of\s+(?:\w+\s+){0,3}intangibles",
             r"interest\s+rate\s+swap",
             r"provisions?\s+for\s+credit\s+losses",
             r"deferred\s+tax\s+(?:expense|benefit)",
@@ -329,8 +360,8 @@ SUBTOTALES: tuple[Linea, ...] = (
         # o "FFO" a secas. Nunca "FFO adjustments allocable to ...".
         patrones=(
             r"^\s*ffo\s*$",
-            r"^\s*(?:total\s+)?ffo\s+(?:available|attributable|per)\b",
-            r"funds\s+from\s+operations\s+(?:available|attributable|per)\b",
+            r"^\s*(?:total\s+)?ffo\s*(?:available|attributable|per|[-–—])\b",
+            r"^\s*funds\s+from\s+operations\s*(?:available|attributable|per|[-–—])",
             r"^\s*funds\s+from\s+operations\s*$",
         ),
     ),
@@ -340,11 +371,10 @@ SUBTOTALES: tuple[Linea, ...] = (
         0,
         Bloque.FFO_NORMALIZADO,
         patrones=(
-            r"normalized\s+ffo\s+(?:available|attributable|per)\b",
-            r"^\s*normalized\s+ffo\s*$",
+            r"normalized\s+ffo\b",
             r"normalized\s+funds\s+from\s+operations",
-            r"core\s+ffo\s+(?:available|attributable|per)\b",
-            r"^\s*core\s+ffo\s*$",
+            r"^\s*core\s+ffo\b",
+            r"^\s*core\s+funds\s+from\s+operations",
         ),
     ),
     Linea(
@@ -354,8 +384,8 @@ SUBTOTALES: tuple[Linea, ...] = (
         Bloque.AFFO,
         patrones=(
             r"^\s*affo\s*$",
-            r"^\s*affo\s+(?:available|attributable|per)\b",
-            r"adjusted\s+funds\s+from\s+operations\s+(?:available|attributable|per)\b",
+            r"^\s*affo\s*(?:available|attributable|per|[-–—])\b",
+            r"^\s*adjusted\s+funds\s+from\s+operations\s*(?:available|attributable|per|[-–—])",
             r"^\s*adjusted\s+funds\s+from\s+operations\s*$",
         ),
     ),
@@ -433,11 +463,18 @@ def calcular_cascada(
         total = 0.0 if base is None else base
         hubo = base is not None
         for linea in lineas:
-            if linea.clave not in componentes or componentes[linea.clave] is None:
+            # Se suman todos los segmentos del mismo concepto: 'otros_ajustes' y
+            # 'otros_ajustes#1' son la misma línea de la cascada, repartida por el
+            # emisor en dos tramos de su tabla.
+            partes = [
+                v for k, v in componentes.items()
+                if clave_base(k) == linea.clave and v is not None
+            ]
+            if not partes:
                 if not linea.opcional:
                     faltantes.append(linea.clave)
                 continue
-            valor = float(componentes[linea.clave])
+            valor = float(sum(partes))
             aporte = valor if signos == REPORTE else linea.signo * valor
             total += aporte
             hubo = True

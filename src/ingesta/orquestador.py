@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from src.config import EMISOR_POR_TICKER, UNIVERSO_INICIAL, Estado, Fuente
-from src.datos.repositorio import Repositorio
+from src.datos.repositorio import RegistroRechazado, Repositorio
 from src.ingesta import xbrl
 from src.ingesta.edgar import ClienteEdgar, ErrorEdgar
 from src.ingesta.parser_affo import (
@@ -142,8 +142,14 @@ def _guardar_extraccion(repo: Repositorio, extraccion, resumen: ResumenIngesta, 
                 "nota_validacion": nota[:500],
             }
         )
-    resumen.hechos_guardados += repo.guardar_hechos(filas_hechos)
-    resumen.lineas_guardadas += repo.guardar_conciliacion(extraccion.filas_conciliacion())
+    try:
+        resumen.hechos_guardados += repo.guardar_hechos(filas_hechos)
+        resumen.lineas_guardadas += repo.guardar_conciliacion(extraccion.filas_conciliacion())
+    except RegistroRechazado as exc:
+        # El esquema es la última barrera. Que rechace una fila es la señal de que el
+        # parser leyó algo que no era: se registra y la corrida continúa con el resto.
+        resumen.sospechosos += 1
+        resumen.errores.append(f"{extraccion.ticker} {extraccion.periodo.etiqueta}: {exc}"[:300])
     _ = sector
 
 
