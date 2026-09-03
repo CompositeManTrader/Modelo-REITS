@@ -243,9 +243,10 @@ def validar_rangos(valores: dict[str, float | None]) -> list[str]:
 @dataclass
 class ResultadoSuavidad:
     sospechosa: bool
-    proporcion_saltos: float
-    saltos_esperados: int
-    saltos_observados: int
+    razon_concentracion: float
+    cambio_en_reportes: float
+    cambio_fuera_de_reportes: float
+    n_reportes: int
     motivo: str = ""
 
 
@@ -253,49 +254,66 @@ def prueba_suavidad_consenso(
     serie: pd.Series,
     fechas_reporte: pd.DatetimeIndex | list,
     *,
-    umbral_salto: float = 0.002,
-    proporcion_minima: float = 0.5,
+    dias_ventana: int = 3,
+    razon_minima: float = 2.0,
 ) -> ResultadoSuavidad:
     """Detecta una serie de consenso sospechosamente lisa.
 
     Una serie de AFFO consenso **real** salta en las fechas de reporte: los
-    analistas actualizan sus estimados cuando sale el número. Si la serie es
-    suave a través de esas fechas, casi seguro es la serie reexpresada — es decir,
-    el consenso de hoy proyectado hacia atrás, que es lookahead puro.
+    analistas actualizan sus estimados cuando sale el número, y entre reportes
+    la serie apenas se mueve. Si la serie no distingue las fechas de reporte del
+    resto del calendario, casi seguro es la serie reexpresada — el consenso de hoy
+    proyectado hacia atrás, que es lookahead puro.
+
+    Lo que se mide es **concentración**, no magnitud absoluta. Preguntar si hay un
+    salto mayor a cierto umbral cerca de cada reporte no sirve: una serie con
+    tendencia suave supera cualquier umbral fijo en todas partes y pasaría la
+    prueba sin tener un solo salto informativo. La pregunta correcta es si los
+    cambios en las fechas de reporte son **más grandes que los de cualquier otro
+    día**, y por cuánto.
     """
-    if serie.empty or len(serie) < 4:
-        return ResultadoSuavidad(False, 0.0, 0, 0, "Serie demasiado corta para evaluar.")
+    if serie.empty or len(serie) < 8:
+        return ResultadoSuavidad(False, float("nan"), 0.0, 0.0, 0,
+                                 "Serie demasiado corta para evaluar.")
 
     s = serie.copy()
     s.index = pd.to_datetime(s.index)
     s = s.sort_index()
     cambios = s.pct_change().abs().dropna()
     fechas = pd.DatetimeIndex(pd.to_datetime(list(fechas_reporte)))
+    if len(fechas) == 0 or cambios.empty:
+        return ResultadoSuavidad(False, float("nan"), 0.0, 0.0, 0,
+                                 "Sin fechas de reporte para contrastar.")
 
-    if len(fechas) == 0:
-        return ResultadoSuavidad(False, 0.0, 0, 0, "Sin fechas de reporte para contrastar.")
-
-    saltos_en_reporte = 0
+    ventana = pd.Timedelta(days=dias_ventana)
+    en_reporte = pd.Series(False, index=cambios.index)
     for f in fechas:
-        ventana = cambios[(cambios.index >= f - pd.Timedelta(days=3)) & (cambios.index <= f + pd.Timedelta(days=3))]
-        if not ventana.empty and float(ventana.max()) >= umbral_salto:
-            saltos_en_reporte += 1
+        en_reporte |= (cambios.index >= f - ventana) & (cambios.index <= f + ventana)
 
-    esperados = len(fechas)
-    proporcion = saltos_en_reporte / esperados if esperados else 0.0
-    sospechosa = proporcion < proporcion_minima
+    dentro = cambios[en_reporte]
+    fuera = cambios[~en_reporte]
+    if dentro.empty or fuera.empty:
+        return ResultadoSuavidad(False, float("nan"), 0.0, 0.0, len(fechas),
+                                 "No hay observaciones dentro y fuera de las ventanas de reporte.")
+
+    m_dentro, m_fuera = float(dentro.median()), float(fuera.median())
+    razon = m_dentro / m_fuera if m_fuera > 0 else float("inf")
+    sospechosa = razon < razon_minima
+
     return ResultadoSuavidad(
         sospechosa=sospechosa,
-        proporcion_saltos=proporcion,
-        saltos_esperados=esperados,
-        saltos_observados=saltos_en_reporte,
+        razon_concentracion=razon,
+        cambio_en_reportes=m_dentro,
+        cambio_fuera_de_reportes=m_fuera,
+        n_reportes=len(fechas),
         motivo=(
             ""
             if not sospechosa
             else (
-                f"Solo {saltos_en_reporte} de {esperados} fechas de reporte muestran un salto "
-                f"en la serie. Una serie de consenso real salta cuando sale el número; esta no. "
-                "Probablemente es la serie reexpresada y usarla sería lookahead."
+                f"Los cambios en las fechas de reporte son solo {razon:.1f} veces los de "
+                f"cualquier otro día (mínimo esperado {razon_minima:.1f}). Una serie de consenso "
+                "real se mueve cuando sale el número y casi no se mueve entre reportes. Esta no "
+                "los distingue: probablemente es la serie reexpresada, y usarla sería lookahead."
             )
         ),
     )

@@ -1,0 +1,95 @@
+name: Ingesta
+
+# Corre diario durante las ventanas de reportes trimestrales, detecta 8-K nuevos
+# por CIK, parsea la conciliación de AFFO, valida y escribe.
+#
+# La base se versiona como artefacto y no como commit: los datos de mercado no
+# pertenecen al historial de git, y un commit automático diario haría ilegible
+# el log del repositorio.
+
+on:
+  schedule:
+    # Ventanas de reportes: las primeras tres semanas de febrero, mayo, agosto y
+    # noviembre, de lunes a viernes a las 11:00 UTC (después del cierre de EDGAR
+    # para presentaciones de la mañana).
+    - cron: "0 11 1-21 2,5,8,11 1-5"
+  workflow_dispatch:
+    inputs:
+      tickers:
+        description: "Emisores separados por comas (vacío = todo el universo)"
+        required: false
+        default: ""
+      desde:
+        description: "Fecha mínima de presentación (AAAA-MM-DD)"
+        required: false
+        default: ""
+
+jobs:
+  ingesta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      # La SEC exige un User-Agent identificable con correo de contacto.
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+      BANXICO_TOKEN: ${{ secrets.BANXICO_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Recuperar la base de la corrida anterior
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: reit-db
+          path: data/
+
+      - name: Verificar el User-Agent de la SEC
+        run: |
+          if [ -z "$SEC_USER_AGENT" ]; then
+            echo "Falta el secreto SEC_USER_AGENT. La SEC exige un User-Agent"
+            echo "identificable con correo de contacto; sin él, bloquea las solicitudes."
+            exit 1
+          fi
+
+      - name: Ingesta
+        run: |
+          python scripts/ingesta.py \
+            ${{ github.event.inputs.tickers && format('--tickers {0}', github.event.inputs.tickers) || '' }} \
+            ${{ github.event.inputs.desde && format('--desde {0}', github.event.inputs.desde) || '' }} \
+            | tee ingesta.log
+
+      - name: Fallar si hay registros sospechosos sin revisar
+        # Un registro sospechoso no tumba la corrida — el dato queda guardado y
+        # marcado — pero sí tiene que ser visible. Si el parser empieza a fallar
+        # en silencio, este paso lo saca a la luz.
+        run: |
+          if grep -q "SOSPECHOSOS" ingesta.log; then
+            echo "::warning::La ingesta dejó registros marcados sospechosos. Revísalos"
+            echo "::warning::en la página de Valuación antes de usar los datos."
+          fi
+
+      - name: Guardar la base
+        uses: actions/upload-artifact@v4
+        with:
+          name: reit-db
+          path: data/reit.db
+          retention-days: 90
+
+      - name: Guardar la bitácora
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bitacora-ingesta
+          path: ingesta.log
+          retention-days: 30

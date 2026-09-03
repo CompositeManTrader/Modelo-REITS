@@ -389,9 +389,19 @@ def _secciones(
     secciones: list[tuple[list[Periodo], list[list[str]]]] = []
     for k, inicio in enumerate(indices):
         fin = indices[k + 1] if k + 1 < len(indices) else len(matriz)
-        periodos = detectar_periodos(" ".join(matriz[inicio]))
+        # El encabezado suele venir partido en dos filas: una con la duración
+        # ("Three months ended June 30,") y la siguiente con los años ("2026 2025").
+        # Buscar la fecha completa en una sola fila pierde esas tablas por completo,
+        # y en silencio: la tabla simplemente no aparece entre las candidatas.
+        encabezado = " ".join(matriz[inicio])
+        periodos = detectar_periodos(encabezado)
+        for extra in range(1, 3):
+            if periodos or inicio + extra >= fin:
+                break
+            encabezado += " " + " ".join(matriz[inicio + extra])
+            periodos = detectar_periodos(encabezado)
         if not periodos:
-            periodos = detectar_periodos(contexto + " " + " ".join(matriz[inicio]))
+            periodos = detectar_periodos(contexto + " " + encabezado)
         if periodos:
             secciones.append((periodos, matriz[inicio + 1 : fin]))
     return secciones

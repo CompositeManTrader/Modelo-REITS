@@ -47,5 +47,8 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["E402"]
+# SIM300: las comparaciones encadenadas (a < umbral < b) son el idioma natural
+# para afirmar que un umbral cae ENTRE dos valores, que es justo lo que varias
+# pruebas verifican. Partirlas en dos aserciones pierde esa lectura.
+"tests/*" = ["E402", "SIM300"]
 "app/*" = ["E402"]

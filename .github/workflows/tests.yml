@@ -1,0 +1,50 @@
+name: Pruebas
+
+# El CI falla si alguna de las ocho pruebas obligatorias no pasa. Ninguna de
+# ellas depende de la red: el fixture del 8-K de Realty Income está versionado
+# en el repositorio, así que el parser se prueba contra un documento que la SEC
+# efectivamente publicó, sin depender de que EDGAR responda.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar LibreOffice Calc
+        # Necesario para la prueba obligatoria 5: recalcular el libro generado y
+        # verificar cero errores de fórmula. Sin Calc, LibreOffice no abre .xlsx.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends libreoffice-calc
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check src app scripts tests
+
+      - name: Pruebas obligatorias y suite completa
+        run: pytest -q --durations=10
+
+      - name: Verificar que la interfaz corre
+        # Un lint no ve que una página se rompe por una columna inexistente.
+        run: |
+          python scripts/sembrar.py --tickers O,PLD,GNL
+          python scripts/humo_app.py
