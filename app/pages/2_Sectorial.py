@@ -229,9 +229,18 @@ st.divider()
 st.header("Dispersión sectorial: por qué no extrapolar de un solo nombre")
 c1, c2 = st.columns([1, 1])
 with c1:
+    # El formato "%.1f%%" solo PEGA el símbolo: no escala. Con 0.252 mostraría
+    # "0.3%" en vez de "25.2%". La escala va en el dato, nunca en el formato.
+    dispersion = DISPERSION_SECTORIAL.copy()
+    dispersion["rendimiento"] = dispersion["rendimiento"] * 100.0
     st.dataframe(
-        DISPERSION_SECTORIAL, hide_index=True, width="stretch",
-        column_config={"rendimiento": st.column_config.NumberColumn("Rendimiento", format="%.1f%%")},
+        dispersion, hide_index=True, width="stretch",
+        column_config={
+            "sector": st.column_config.TextColumn("Sector"),
+            "periodo": st.column_config.TextColumn("Periodo"),
+            "rendimiento": st.column_config.NumberColumn("Rendimiento", format="%.1f%%"),
+            "lugar": st.column_config.TextColumn("Nota"),
+        },
     )
 with c2:
     for item in CONTEXTO_HISTORICO:

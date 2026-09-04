@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 
 from src.config import UMBRALES, UmbralesDeterioro
+from src.modelo.senal import numero_o_nulo
 
 
 @dataclass
@@ -73,20 +74,27 @@ def evaluar_kill(
     filas: list[dict] = []
     disparadores: list[str] = []
 
+    # `umbral` y `persistencia` van separados a propósito. Antes eran la misma
+    # columna con dos significados —el nivel numérico cuando faltaban datos, y el
+    # texto "2 trimestre(s)" cuando sí había— y una columna que cambia de sentido
+    # según la fila no se puede leer ni tipar: pandas la degrada a `object` y la
+    # tabla revienta al dibujarse.
     def evaluar(nombre: str, condicion: pd.Series | None, umbral, explicacion: str, consecutivos: bool = True):
+        requerida = n if consecutivos else 1
+        persistencia = f"{requerida} trimestre(s)" if consecutivos else "inmediato"
         if condicion is None:
             filas.append(
                 {
                     "criterio": nombre,
                     "racha": None,
-                    "umbral": umbral,
+                    "umbral": numero_o_nulo(umbral),
+                    "persistencia": persistencia,
                     "dispara": None,
                     "explicacion": f"{explicacion} (sin datos)",
                 }
             )
             return
         racha = _racha_final(condicion) if consecutivos else int(bool(condicion.iloc[-1]))
-        requerida = n if consecutivos else 1
         dispara = racha >= requerida
         if dispara:
             disparadores.append(nombre)
@@ -94,7 +102,8 @@ def evaluar_kill(
             {
                 "criterio": nombre,
                 "racha": racha,
-                "umbral": f"{requerida} trimestre(s)" if consecutivos else "inmediato",
+                "umbral": numero_o_nulo(umbral),
+                "persistencia": persistencia,
                 "dispara": dispara,
                 "explicacion": explicacion,
             }

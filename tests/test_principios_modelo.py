@@ -30,6 +30,7 @@ from src.modelo.senal import (
     evaluar_semaforo,
     percentil_expandible,
     puerta_calidad,
+    puerta_deterioro,
     puerta_valuacion,
 )
 from src.modelo.valuacion import (
@@ -394,6 +395,74 @@ def test_la_puerta_de_calidad_no_aprueba_por_falta_de_datos():
     assert semaforo.accion == Accion.INCONCLUSO, (
         "Percentil de prima en 95 y aun así INCONCLUSO: sin calidad verificable no hay compra."
     )
+
+
+def test_las_tablas_de_criterios_no_mezclan_tipos_en_una_columna():
+    """Una columna que guarda 0.95 en una fila y `True` en otra no se puede dibujar.
+
+    Pandas la degrada a ``object`` y Arrow no la serializa. Streamlit no truena:
+    aplica su propia conversión y sigue, así que la tabla que ve el usuario no es
+    la que se construyó y nada lo avisa. Ocurría en las dos puertas a la vez,
+    porque el grado de inversión es binario y convivía con umbrales numéricos.
+    """
+    pa = pytest.importorskip("pyarrow")
+
+    metricas = {
+        "payout_affo": 0.73,
+        "deuda_neta_ebitdare": 5.4,
+        "crecimiento_affo_por_accion_yoy": 0.03,
+        "grado_inversion": True,
+    }
+    historial = pd.DataFrame(
+        {
+            "fecha_dato": pd.date_range("2025-03-31", periods=4, freq="QE"),
+            "payout_affo": [0.72, 0.73, 0.74, 0.73],
+            "grado_inversion": [True, True, True, True],
+        }
+    )
+
+    for puerta in (puerta_calidad(metricas), puerta_deterioro(historial)):
+        tabla = puerta.criterios
+        assert not tabla.empty
+        for columna in ("valor", "umbral"):
+            if columna in tabla:
+                assert tabla[columna].map(lambda v: isinstance(v, bool)).sum() == 0, (
+                    f"La columna '{columna}' de la puerta {puerta.nombre} trae booleanos "
+                    "mezclados con números."
+                )
+        pa.Table.from_pandas(tabla, preserve_index=False)
+
+
+def test_la_puerta_de_deterioro_sin_historial_no_pinta_verde():
+    """No disparar venta por falta de datos es prudente; llamarlo sano es mentir.
+
+    Son dos cosas separadas y la puerta las separa: el veredicto de venta sigue
+    siendo negativo —nadie vende porque le falte información— pero la luz reporta
+    la evidencia, y no hay ninguna. Es el mismo defecto que la puerta de calidad
+    tenía y que se corrigió allá: convertir «no sé» en «aprobado», justo en la
+    pantalla donde el usuario decide.
+    """
+    resultado = puerta_deterioro(pd.DataFrame())
+    assert resultado.luz == Luz.SIN_DATOS
+    assert resultado.pasa is True, "Sin evidencia no se vende: eso no cambia."
+    assert "tampoco hay base para declarar sano" in resultado.mensaje
+
+
+def test_la_puerta_de_deterioro_con_historial_si_dictamina():
+    """Control de la prueba anterior: con datos medibles la puerta vuelve a opinar."""
+    sano = pd.DataFrame(
+        {
+            "fecha_dato": pd.date_range("2024-03-31", periods=6, freq="QE"),
+            "payout_affo": [0.72, 0.73, 0.74, 0.73, 0.72, 0.71],
+            "crecimiento_affo_por_accion_yoy": [0.04, 0.03, 0.05, 0.04, 0.03, 0.04],
+            "deuda_neta_ebitdare": [5.2, 5.3, 5.1, 5.2, 5.0, 5.1],
+        }
+    )
+    assert puerta_deterioro(sano).luz == Luz.VERDE
+
+    roto = sano.copy()
+    roto["payout_affo"] = [0.72, 0.73, 0.74, 0.73, 1.15, 1.22]
+    assert puerta_deterioro(roto).luz == Luz.ROJO
 
 
 def test_con_datos_suficientes_la_puerta_si_dictamina():

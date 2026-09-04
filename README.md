@@ -15,7 +15,7 @@ streamlit run app/Inicio.py
 
 python scripts/ingesta.py        # datos de fuente primaria desde la SEC
 python scripts/cobertura.py      # cuánto parsea y valida el sistema, por emisor
-pytest -q                        # las ocho pruebas obligatorias y el resto
+pytest -q                        # las nueve obligatorias y el resto
 ```
 
 > Esto es una herramienta de análisis, no asesoría de inversión. Los cálculos
@@ -74,7 +74,7 @@ src/
 └── servicio.py          Capa que arma los paneles de la interfaz
 app/                     Streamlit: Inicio + seis páginas
 scripts/                 sembrar.py, ingesta.py, cobertura.py, humo_app.py
-tests/                   Las ocho obligatorias, los principios, e integración
+tests/                   Las nueve obligatorias, los principios, e integración
 ```
 
 `src/datos/` y `src/servicio.py` no están en el esquema original del proyecto. El
@@ -103,8 +103,48 @@ Udibono desde el SIE de Banxico, que sí requiere un token gratuito
 (`BANXICO_TOKEN`). Sin token, esas series se cargan de la semilla y se marcan como
 demostración.
 
-**Precios:** cierre **sin ajustar**. Toda serie se valida contra al menos tres
-cierres verificables antes de usarse, y si el error supera 2% se rechaza.
+Cada identificador del SIE se verifica **contra el catálogo**, no contra los datos,
+antes de bajar nada. Un identificador equivocado no falla: entrega una serie
+perfectamente válida de otro instrumento. Tres de los identificadores originales de
+este proyecto estaban mal, y el peor traía la **TIIE a 91 días bajo el nombre de
+Udibono** — es decir, P10 comparaba contra una tasa interbancaria nominal en lugar
+de contra una tasa real a 10 años. Ningún dato lo habría delatado: 6.8% es creíble
+para las dos cosas. Solo el título de la serie lo dice.
+
+| Serie | Identificador | Qué es realmente |
+|---|---|---|
+| INPC | `SP1` | Índice nacional de precios al consumidor |
+| Cetes 28d | `SF43936` | Tasa de rendimiento, subasta semanal |
+| Mbono 10a | `SF44071` | Bono tasa fija 10 años, nominal |
+| Udibono 10a | `SF43924` | Udibonos 10 años, tasa **real** |
+| Udibono 30a | `SF60639` | Udibonos 30 años, tasa **real** |
+
+**Precios:** cierre **sin ajustar**, con dos verificaciones complementarias.
+
+1. *Contra anclas capturadas a mano.* Al menos tres cierres verificables, con
+   tolerancia de 2%. Es la más fuerte, pero solo existe donde hay anclas.
+2. *Contra la aritmética de la propia respuesta.* El proveedor entrega el cierre
+   crudo y el ajustado en la misma fila, y eso permite exigir la identidad
+
+   ```
+   ajustado_t / crudo_t  =  Π (1 − dividendo_i / cierre_i)   sobre los dividendos con ex > t
+   ```
+
+   que es exacta por construcción del ajuste. Si la columna cruda viniera ya
+   ajustada, el cociente sería 1.00 en todas partes y el producto no. Se corre
+   sobre los diez emisores sin depender de ninguna ancla.
+
+El **signo** de la desviación separa dos causas que no se deben confundir. Menos
+ajuste del que los dividendos obligan acusa a la columna cruda, y eso es P2. Más
+ajuste del que explican los dividendos conocidos no la acusa: confirma que está
+cruda y señala un reparto fuera del historial. Realty Income (escisión de Orion,
+2021) y W. P. Carey (NLOP, 2023) salen exactamente así, y sus series se usan.
+
+> **Stooq, la fuente original, dejó de servir.** Ahora responde con una página que
+> exige verificación por JavaScript, así que devuelve HTTP 200 con HTML donde antes
+> había CSV. Un parser ingenuo lo toma por datos. No se reintenta ni se resuelve con
+> un navegador headless: se cambió de proveedor, y el detector de "esto es HTML, no
+> datos" quedó como prueba.
 
 ### Lo que está marcado como demostración
 
@@ -149,7 +189,7 @@ necesario para recuperarlo en dos años.
 
 ---
 
-## Las ocho pruebas obligatorias
+## Las nueve pruebas obligatorias
 
 ```bash
 pytest -q                                   # todo
@@ -167,6 +207,7 @@ pytest -q -k "not libreoffice"              # sin LibreOffice instalado
 | 6 | Unidades: una prima de 100 bps se muestra como 100, no como 0 | `test_5_6_excel.py` |
 | 7 | Control negativo: sobre ruido puro, nunca GO | `test_7_8_backtest.py` |
 | 8 | Lag de ejecución: la señal de `t` se ejecuta en `t+1` | `test_7_8_backtest.py` |
+| 9 | La serie de precios es cruda y cada serie del SIE es el instrumento declarado | `test_9_precios_y_series_macro.py` |
 
 Cada prueba obligatoria viene con su **control**, porque una prueba que no puede
 fallar no prueba nada:
@@ -179,6 +220,11 @@ fallar no prueba nada:
 - La prueba 7 corre también un **control positivo** con un edge plantado y exige
   que la maquinaria lo detecte: un sistema que siempre dice NO-GO parecería
   riguroso cuando en realidad solo está roto.
+- La prueba 9 entrega la serie **ajustada en la columna cruda** y exige que se
+  detecte. Es el error de Macrotrends reproducido a propósito: sin ese control, la
+  verificación de coherencia podría estar aprobando cualquier cosa. Su gemela le da
+  a `verificar_series_banxico` una TIIE bajo el nombre de Udibono y exige que
+  repruebe.
 
 El fixture del 8-K de Realty Income (`tests/fixtures/`) es un extracto del
 Exhibit 99.1 que la SEC publicó el 5 de agosto de 2026. Las pruebas del parser
@@ -276,9 +322,12 @@ Ampliar la cobertura es trabajo de taxonomía emisor por emisor.
 Lo importante es que el sistema **se comporta bien cuando no puede**: lo que no
 cuadra se guarda marcado `sospechoso`, no entra a ningún cálculo, y la interfaz lo
 dice. Prefiere no tener el dato a tenerlo mal.
-- **Los identificadores de series del SIE de Banxico están sin verificar contra su
-  catálogo.** Son configurables por variable de entorno y el ingestor valida la
-  forma de la respuesta antes de escribir, pero conviene confirmarlos.
+**La cobertura de precios sí es completa.** Los diez emisores traen cinco años de
+cierres sin ajustar y su historial de dividendos, y los diez pasan la verificación
+de coherencia del ajuste (ocho con error 0.00%; O y W. P. Carey con la reserva por
+escisión descrita arriba). Es un eje independiente del de fundamentales: se puede
+tener precio verificado y AFFO sospechoso, y en ocho de los diez es justo el caso.
+
 - **La tarifa del ISR es la del ejercicio 2024.** Se actualiza cada año por
   inflación; está en `fiscal/mexico.py` con la constante `ANIO_TARIFA` a la vista.
 - **Las betas de estrés sectorial del replay histórico están calibradas
@@ -305,7 +354,37 @@ valida y escribe. La base viaja como artefacto entre corridas, no como commit: l
 datos de mercado no pertenecen al historial de git.
 
 Secretos que hay que configurar: `SEC_USER_AGENT` (obligatorio) y `BANXICO_TOKEN`
-(opcional).
+(opcional, gratuito, se obtiene en el portal del SIE).
+
+---
+
+## Despliegue en Streamlit Cloud
+
+Archivo principal: **`app/Inicio.py`**. Python **3.11**, que es la versión con la
+que corre CI.
+
+En **Settings → Secrets**:
+
+```toml
+SEC_USER_AGENT = "Modelo-REITS tu-correo@ejemplo.com"
+BANXICO_TOKEN  = "tu-token-del-SIE"
+```
+
+Sin `BANXICO_TOKEN` la aplicación levanta igual, pero la portada —la comparación
+contra el Udibono, que es P10— se queda sin su serie de referencia.
+
+**La primera carga ingesta sola.** En una computadora personal la base se crea con
+`python scripts/ingesta.py`; en Streamlit Cloud no hay terminal, y el sistema de
+archivos es efímero, así que cada reinicio del contenedor la borra. Por eso
+`exigir_base()` construye la base desde fuente primaria en el primer arranque, con
+barra de progreso. Tarda alrededor de dos minutos y ocurre una vez por arranque del
+servidor, no por visita: la ingesta está detrás de `st.cache_resource`, así que dos
+personas que abran la aplicación recién desplegada al mismo tiempo comparten la
+misma corrida en vez de lanzar dos descargas contra la SEC.
+
+Si la ingesta falla, la pantalla dice qué falló. Si termina con advertencias, las
+muestra desglosadas: lo que no se pudo verificar queda marcado y no entra a ningún
+cálculo.
 
 ---
 

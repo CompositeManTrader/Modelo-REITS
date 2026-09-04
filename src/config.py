@@ -210,6 +210,10 @@ TOLERANCIA_CUADRE_AFFO = 0.01  # dólares; la conciliación debe cuadrar exactam
 TOLERANCIA_CUADRE_RELATIVA = 0.001  # 0.1% para cifras en millones con redondeo del emisor
 TOLERANCIA_ANCLA_PRECIO = 0.02  # 2% máximo de error contra cierre conocido (P2)
 MIN_ANCLAS_PRECIO = 3  # al menos tres cierres verificables (P2)
+# La identidad ajustado/crudo = Π(1 − div/cierre) es exacta salvo redondeo del
+# proveedor. Se deja 1% porque una serie ajustada disfrazada de cruda falla por
+# 20% o más: el umbral no necesita ser fino para separar las dos cosas.
+TOLERANCIA_COHERENCIA_AJUSTE = 0.01
 
 RANGO_PAYOUT_AFFO = (0.0, 2.0)
 RANGO_OCUPACION = (0.0, 1.0)
