@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from bs4 import BeautifulSoup
 
 from src.config import Fuente
-from src.modelo.cascada import SEPARADOR_SEGMENTO, TODAS_LAS_LINEAS
+from src.modelo.cascada import SEPARADOR_SEGMENTO, TODAS_LAS_LINEAS, clave_base
 
 # --------------------------------------------------------------------------------------
 # Normalización de etiquetas
@@ -208,17 +208,36 @@ def detectar_periodos(texto_encabezado: str) -> list[Periodo]:
         except ValueError:
             continue
     if fechas and tipo:
-        # "June 30, 2026 and 2025": el mismo día repetido en varios años.
-        anios = [int(a.group(0)) for a in _RE_ANIO.finditer(t)]
+        # El orden de las fechas en el encabezado ES el orden de las columnas, y así
+        # se conserva. Ordenarlas por fecha rompe cualquier tabla que no venga de la
+        # más reciente a la más vieja, y el error no se ve: las cifras entran a un
+        # periodo que existe, solo que al equivocado.
+        #
+        # Tampoco se deduplica por AÑO. Esa era la trampa: el idioma "June 30, 2026
+        # and 2025" invita a indexar por año, pero W. P. Carey publica tres columnas
+        # —trimestre actual, trimestre anterior y mismo trimestre del año pasado— y
+        # dos son del mismo año. Indexar por año colapsaba 30 de junio y 31 de marzo
+        # de 2026 en una sola, y el corrimiento resultante le ponía al primer
+        # trimestre las cifras del segundo.
+        periodos: list[dt.date] = []
+        for f in fechas:
+            if f not in periodos:
+                periodos.append(f)
+
+        # Los años sueltos SÍ se expanden, pero solo los que ninguna fecha explícita
+        # cubre ya: son el "and 2025" que sigue a una fecha completa.
+        anios_cubiertos = {f.year for f in periodos}
         base = fechas[0]
-        vistos = {f.year: f for f in fechas}
-        for anio in anios:
-            if anio not in vistos:
-                try:
-                    vistos[anio] = dt.date(anio, base.month, base.day)
-                except ValueError:
-                    continue
-        return [Periodo(tipo, f) for f in sorted(vistos.values(), reverse=True)]
+        for anio in (int(a.group(0)) for a in _RE_ANIO.finditer(t)):
+            if anio in anios_cubiertos:
+                continue
+            try:
+                candidato = dt.date(anio, base.month, base.day)
+            except ValueError:
+                continue
+            periodos.append(candidato)
+            anios_cubiertos.add(anio)
+        return [Periodo(tipo, f) for f in periodos]
     if fechas:
         return [Periodo("Q", f) for f in fechas]
     return []
@@ -472,7 +491,15 @@ def _extraer_columnas(
                 # for unconsolidated entities" y "FFO adjustments allocable to
                 # noncontrolling interests" por separado, y el FFO solo cuadra si se
                 # suman. Los subtotales y las bases se toman una sola vez.
-                if clave in CLAVES_ACUMULABLES:
+                #
+                # La pregunta va sobre la clave BASE, no sobre la segmentada: arriba
+                # ya se le pegó el sufijo "#1", que por construcción nunca está en el
+                # conjunto de acumulables. Preguntarlo con el sufijo hacía que en
+                # todo tramo posterior al primero solo sobreviviera la PRIMERA fila
+                # de cada concepto y las demás se perdieran en silencio. W. P. Carey
+                # mete cuatro filas de "otros ajustes" y dos de participación
+                # proporcional en el tramo del AFFO: se guardaba una de cada una.
+                if clave_base(clave) in CLAVES_ACUMULABLES:
                     lineas[clave] += valor
                     etiquetas[clave] += f" + {fila[0]}"
                 continue

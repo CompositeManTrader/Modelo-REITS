@@ -299,6 +299,9 @@ LINEAS_AFFO: tuple[Linea, ...] = (
         patrones=(
             r"straight[- ]line\s+(?:\w+\s+){0,2}rent",
             r"straight\s*line\s+rental",
+            # "Straight-line and other leasing and financing adjustments" (W. P.
+            # Carey) no contiene la palabra "rent" en ningún lado.
+            r"^\s*straight[- ]line\b",
         ),
         es_trampa=True,
         explicacion=(
@@ -336,9 +339,22 @@ LINEAS_AFFO: tuple[Linea, ...] = (
         Bloque.AFFO,
         patrones=(
             r"other\s+(?:non[- ]cash|adjustments)",
+            # "Other amortization and non-cash items": la palabra "amortization"
+            # entre "other" y "non-cash" rompía el patrón de arriba.
+            r"^\s*other\s+amortization",
+            # "Other (gains) and losses": no es la ganancia por venta de inmuebles
+            # —esa vive en el tramo del FFO— sino el saldo de partidas no operativas.
+            r"^\s*other\s+\(?gains?\)?\s+and\s+\(?losses?\)?",
+            # W. P. Carey escribe esta misma línea de tres formas según el trimestre
+            # —"Tax expense –", "Tax expense (benefit) –", "Tax (benefit) expense –"—
+            # así que el paréntesis se admite a cualquiera de los dos lados. Es la
+            # clase de variación que no se descubre leyendo un solo filing.
+            r"tax\s+(?:\([^)]*\)\s*)?(?:expense|benefit)s?\s*(?:\([^)]*\)\s*)?[-–—]\s*deferred",
             # "Amortization of above (below) market lease intangibles, net": el
-            # paréntesis en medio rompía el patrón.
-            r"above\s*\(?\s*(?:and\s+|/)?\s*below\)?[- ]?\s*market",
+            # paréntesis en medio rompía el patrón. Y "Above- and below-market rent
+            # intangible lease amortization" mete un guion inmediatamente tras
+            # "above", que el patrón tampoco admitía.
+            r"above[-\s]*\(?\s*(?:and\s+|/)?\s*below\)?[- ]?\s*market",
             r"(?:above|below)[- ]market\s+lease",
             r"amortization\s+of\s+(?:\w+\s+){0,3}intangibles",
             r"interest\s+rate\s+swap",
@@ -360,8 +376,13 @@ SUBTOTALES: tuple[Linea, ...] = (
         # o "FFO" a secas. Nunca "FFO adjustments allocable to ...".
         patrones=(
             r"^\s*ffo\s*$",
-            r"^\s*(?:total\s+)?ffo\s*(?:available|attributable|per|[-–—])\b",
-            r"^\s*funds\s+from\s+operations\s*(?:available|attributable|per|[-–—])",
+            # W. P. Carey escribe "FFO (as defined by NAREIT) Attributable to
+            # W. P. Carey": el paréntesis se mete entre la sigla y el calificador y
+            # tumbaba el subtotal entero. Sin subtotal de FFO no hay frontera de
+            # tramo, así que TODA la conciliación quedaba en un solo tramo y el
+            # descuadre aparecía en el AFFO, lejos de su causa.
+            r"^\s*(?:total\s+)?ffo\s*(?:\([^)]*\)\s*)?(?:available|attributable|per|[-–—])\b",
+            r"^\s*funds\s+from\s+operations\s*(?:\([^)]*\)\s*)?(?:available|attributable|per|[-–—])",
             r"^\s*funds\s+from\s+operations\s*$",
         ),
     ),
@@ -384,8 +405,9 @@ SUBTOTALES: tuple[Linea, ...] = (
         Bloque.AFFO,
         patrones=(
             r"^\s*affo\s*$",
-            r"^\s*affo\s*(?:available|attributable|per|[-–—])\b",
-            r"^\s*adjusted\s+funds\s+from\s+operations\s*(?:available|attributable|per|[-–—])",
+            r"^\s*affo\s*(?:\([^)]*\)\s*)?(?:available|attributable|per|[-–—])\b",
+            r"^\s*adjusted\s+funds\s+from\s+operations\s*(?:\([^)]*\)\s*)?"
+            r"(?:available|attributable|per|[-–—])",
             r"^\s*adjusted\s+funds\s+from\s+operations\s*$",
         ),
     ),

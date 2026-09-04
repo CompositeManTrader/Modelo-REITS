@@ -22,7 +22,9 @@ from comun import (  # noqa: E402
     dinero,
     exigir_base,
     explicar,
+    numero,
     pct,
+    positivo,
     selector_de_corte,
     selector_de_emisor,
     semaforo_html,
@@ -260,10 +262,10 @@ with n2:
         fila = ultima.iloc[0]
         ins = InsumosValuacion(
             ticker=ticker,
-            precio=panel.precio or 0.0,
-            acciones_diluidas=float(fila.get("acciones_diluidas") or 1.0),
-            noi_trimestral=float(fila.get("noi") or 0.0) or None,
-            affo_por_accion_ttm=float(fila.get("affo_por_accion_ttm") or 0.0) or None,
+            precio=numero(panel.precio, 0.0),
+            acciones_diluidas=positivo(fila.get("acciones_diluidas"), 1.0),
+            noi_trimestral=positivo(fila.get("noi")),
+            affo_por_accion_ttm=positivo(fila.get("affo_por_accion_ttm")),
             dividendo_ttm_por_accion=panel.dividendo_ttm,
             sector=panel.sector,
         )
@@ -336,15 +338,20 @@ if st.button("Generar libro de Excel", type="primary"):
         st.error("No hay un trimestre completo para exportar.")
     else:
         fila = ultima.iloc[0]
+        # Anualizar el trimestre por cuatro es una aproximación, y se marca como
+        # tal: solo se usa para el contraste entre AFFO, FFO y utilidad neta, no
+        # para valuar. Si el trimestre falta, el resultado es faltante, no cero.
+        ffo_trimestral = positivo(fila.get("ffo"))
+        utilidad_trimestral = positivo(fila.get("utilidad_neta"))
         ins = InsumosValuacion(
             ticker=ticker,
-            precio=panel.precio or 0.0,
-            acciones_diluidas=float(fila.get("acciones_diluidas") or 1.0),
-            noi_trimestral=float(fila.get("noi") or 0.0) or None,
-            affo_ttm=float(fila.get("affo_ttm") or 0.0) or None,
-            affo_por_accion_ttm=float(fila.get("affo_por_accion_ttm") or 0.0) or None,
-            ffo_ttm=float(fila.get("ffo") or 0.0) * 4 or None,
-            utilidad_neta_ttm=float(fila.get("utilidad_neta") or 0.0) * 4 or None,
+            precio=numero(panel.precio, 0.0),
+            acciones_diluidas=positivo(fila.get("acciones_diluidas"), 1.0),
+            noi_trimestral=positivo(fila.get("noi")),
+            affo_ttm=positivo(fila.get("affo_ttm")),
+            affo_por_accion_ttm=positivo(fila.get("affo_por_accion_ttm")),
+            ffo_ttm=None if ffo_trimestral is None else ffo_trimestral * 4,
+            utilidad_neta_ttm=None if utilidad_trimestral is None else utilidad_trimestral * 4,
             dividendo_ttm_por_accion=panel.dividendo_ttm,
             sector=panel.sector,
         )

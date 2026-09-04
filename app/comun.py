@@ -362,6 +362,46 @@ def explicar(*conceptos: str, expandido: bool = False) -> None:
 
 
 # --------------------------------------------------------------------------------------
+# Coerción numérica
+# --------------------------------------------------------------------------------------
+
+
+def numero(valor, defecto: float | None = None) -> float | None:
+    """Convierte a float lo que venga de un DataFrame, o devuelve ``defecto``.
+
+    Existe porque ``float(fila.get("noi") or 0.0)`` es una trampa: cuando la celda
+    trae ``pd.NA`` —que es lo normal en una columna que quedó sin datos— evaluar su
+    valor de verdad lanza «boolean value of NA is ambiguous» y tumba la página. Y
+    el ``or`` además convierte un cero legítimo en el valor por omisión, que es un
+    error distinto y más silencioso.
+
+    ``defecto`` se devuelve tal cual, incluido ``None``: la diferencia entre «no
+    hay dato» y «el dato es cero» importa en todo este sistema.
+    """
+    if valor is None:
+        return defecto
+    try:
+        if pd.isna(valor):
+            return defecto
+    except (TypeError, ValueError):
+        pass
+    try:
+        return float(valor)
+    except (TypeError, ValueError):
+        return defecto
+
+
+def positivo(valor, defecto: float | None = None) -> float | None:
+    """Como ``numero``, pero un cero también cuenta como ausencia.
+
+    Para magnitudes donde el cero no es un valor plausible sino la huella de un
+    dato faltante: un NOI de cero o un número de acciones de cero no existen.
+    """
+    v = numero(valor, None)
+    return defecto if v is None or v == 0 else v
+
+
+# --------------------------------------------------------------------------------------
 # Formato
 # --------------------------------------------------------------------------------------
 

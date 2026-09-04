@@ -42,6 +42,18 @@ class RegistroRechazado(ValueError):
 # --------------------------------------------------------------------------------------
 
 
+def serie_vacia(nombre: str | None = None) -> pd.Series:
+    """Serie vacía **indexada por fecha**, no por posición.
+
+    Una ``pd.Series`` vacía nace con un índice entero, y cualquier consumidor que
+    la rebane por fecha —``s[s.index <= corte]``, que es lo que hace medio
+    sistema— truena con un TypeError en vez de devolver vacío. El error solo
+    aparece cuando la serie está vacía, o sea justo en el primer arranque, cuando
+    todavía no hay datos: el peor momento para descubrirlo.
+    """
+    return pd.Series(dtype="float64", index=pd.DatetimeIndex([], name="fecha_dato"), name=nombre)
+
+
 def a_fecha(valor: Fecha) -> dt.date:
     """Normaliza cualquier representación razonable de fecha a ``datetime.date``."""
     if isinstance(valor, dt.datetime):
@@ -274,7 +286,7 @@ class Repositorio:
             incluir_sospechosos=incluir_sospechosos,
         )
         if df.empty:
-            return pd.Series(dtype="float64", name=concepto)
+            return serie_vacia(concepto)
         s = df.set_index("fecha_dato")["valor"].astype(float)
         s.name = concepto
         return s.sort_index()
@@ -369,7 +381,7 @@ class Repositorio:
     def serie_precio(self, ticker: str, *, asof: Fecha, desde: Fecha | None = None) -> pd.Series:
         df = self.precios(ticker, asof=asof, desde=desde)
         if df.empty:
-            return pd.Series(dtype="float64", name="cierre_crudo")
+            return serie_vacia("cierre_crudo")
         s = df.set_index("fecha_dato")["cierre_crudo"].astype(float)
         s.name = "cierre_crudo"
         return s.sort_index()
@@ -416,7 +428,7 @@ class Repositorio:
         with self.motor.connect() as cx:
             df = pd.read_sql(q, cx, parse_dates=["fecha_dato", "fecha_publicacion"])
         if df.empty:
-            return pd.Series(dtype="float64", name=serie)
+            return serie_vacia(serie)
         df = _ultima_version(df, ["serie", "fecha_dato"])
         s = df.set_index("fecha_dato")["valor"].astype(float).sort_index()
         s.name = serie
@@ -425,6 +437,11 @@ class Repositorio:
     def valor_tasa(self, serie: str, *, asof: Fecha, desde: Fecha | None = None) -> float | None:
         """Último valor de la serie observable al corte."""
         s = self.tasa(serie, asof=asof, desde=desde)
+        if s.empty:
+            # Sin dato no hay valor, y preguntarlo no es un error: una serie macro
+            # puede no existir todavía (falta el token de Banxico, la ingesta va a
+            # medias). Quien llama ya distingue None de cero.
+            return None
         s = s[s.index <= pd.Timestamp(exigir_corte(asof))]
         return None if s.empty else float(s.iloc[-1])
 
