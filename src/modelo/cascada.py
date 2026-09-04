@@ -115,7 +115,13 @@ LINEAS_FFO: tuple[Linea, ...] = (
         "Utilidad neta",
         +1,
         Bloque.FFO,
-        patrones=(r"net\s+income(?:\s+\(loss\))?(?:\s+available)?", r"net\s+(?:income|loss)"),
+        patrones=(
+            r"net\s+income(?:\s+\(loss\))?(?:\s+available)?",
+            r"net\s+(?:income|loss)",
+            # NNN encabeza su conciliación con "Net earnings". Sin este patrón la
+            # utilidad neta no entraba y el FFO descuadraba por su monto exacto.
+            r"^\s*net\s+earnings\b",
+        ),
         opcional=False,
         explicacion="Punto de partida GAAP. Está deprimida por depreciación no-efectiva.",
     ),
@@ -356,6 +362,14 @@ LINEAS_AFFO: tuple[Linea, ...] = (
             # "above", que el patrón tampoco admitía.
             r"above[-\s]*\(?\s*(?:and\s+|/)?\s*below\)?[- ]?\s*market",
             r"(?:above|below)[- ]market\s+lease",
+            # "Below-market rent amortization": el patrón de arriba exigía la
+            # palabra "lease", que NNN no usa.
+            r"(?:above|below)[- ]market\s+rent",
+            r"^\s*net\s+capital\s+lease\s+rent",
+            # Es la bolsa general de la cascada, no una afirmación sobre el
+            # carácter no-efectivo de la partida: el interés capitalizado sí es
+            # salida de caja, y el AFFO lo resta por eso mismo.
+            r"^\s*capitalized\s+interest",
             r"amortization\s+of\s+(?:\w+\s+){0,3}intangibles",
             r"interest\s+rate\s+swap",
             r"provisions?\s+for\s+credit\s+losses",
