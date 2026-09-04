@@ -166,9 +166,19 @@ _RE_FECHA = re.compile(
     re.I,
 )
 _RE_ANIO = re.compile(r"\b(19|20)\d{2}\b")
+# Mes y día sin año: "Quarter Ended June 30," con los años en la fila de abajo.
+_RE_MES_DIA = re.compile(
+    r"(january|february|march|april|may|june|july|august|september|october|november|december)"
+    r"\s+(\d{1,2})\s*,",
+    re.I,
+)
 
 _DURACIONES = (
-    (r"(?:three|3)\s+months", "Q"),
+    # "Quarter ended" es tan común como "three months ended" y no estaba: NNN lo
+    # usa, y como su encabezado también dice "Six Months Ended", la única duración
+    # que el parser reconocía era la del semestre. Sus cuatro columnas —dos
+    # trimestres y dos semestres— quedaban las cuatro etiquetadas como semestre.
+    (r"(?:three|3)\s+months|quarter\s+ended|(?:first|second|third|fourth)\s+quarter", "Q"),
     (r"(?:six|6)\s+months", "H1"),
     (r"(?:nine|9)\s+months", "9M"),
     (r"(?:twelve|12)\s+months|year\s+ended|full\s+year|annual", "FY"),
@@ -185,20 +195,46 @@ class Periodo:
         return f"{self.tipo} {self.fin.isoformat()}"
 
 
+def _duraciones_en_orden(t: str) -> list[str]:
+    """Tipos de periodo que menciona el encabezado, en el orden en que aparecen.
+
+    Devuelve más de uno cuando la tabla pone dos grupos de columnas bajo el mismo
+    encabezado, que es la forma en que NNN reporta::
+
+        Quarter Ended June 30,        Six Months Ended June 30,
+             2026   |   2025               2026   |   2025
+
+    Las repeticiones consecutivas del mismo tipo se colapsan: "three months ended
+    June 30, 2026 and three months ended June 30, 2025" es UN grupo, no dos.
+    """
+    encontrados: list[tuple[int, str]] = []
+    for patron, etiqueta in _DURACIONES:
+        for m in re.finditer(patron, t, re.I):
+            encontrados.append((m.start(), etiqueta))
+    encontrados.sort()
+
+    tipos: list[str] = []
+    for _, etiqueta in encontrados:
+        if not tipos or tipos[-1] != etiqueta:
+            tipos.append(etiqueta)
+    return tipos
+
+
 def detectar_periodos(texto_encabezado: str) -> list[Periodo]:
     """Extrae los periodos de un encabezado de tabla.
 
     Un encabezado típico dice "Three Months Ended June 30, 2026 and 2025"; de ahí
     salen dos periodos trimestrales con el mismo día y mes y distinto año.
+
+    Cuando el encabezado menciona **dos duraciones** —trimestre y semestre, por
+    ejemplo— las columnas son el producto: primero todas las del primer grupo y
+    luego las del segundo, que es como se maquetan estas tablas.
     """
     t = re.sub(r"\s+", " ", texto_encabezado or "").strip()
     if not t:
         return []
-    tipo = None
-    for patron, etiqueta in _DURACIONES:
-        if re.search(patron, t, re.I):
-            tipo = etiqueta
-            break
+    tipos = _duraciones_en_orden(t)
+    tipo = tipos[0] if tipos else None
     fechas: list[dt.date] = []
     for m in _RE_FECHA.finditer(t):
         mes = _MESES[m.group(1).lower()]
@@ -237,7 +273,37 @@ def detectar_periodos(texto_encabezado: str) -> list[Periodo]:
                 continue
             periodos.append(candidato)
             anios_cubiertos.add(anio)
+
+        if len(tipos) > 1:
+            # Dos grupos de columnas bajo el mismo encabezado. Las columnas van
+            # por grupo: primero todas las fechas del primero, luego las del
+            # segundo. Si la tabla trae menos columnas numéricas de las que este
+            # producto implica, `_mapear_columnas` se queda con las primeras, o
+            # sea con el primer grupo, que es la lectura conservadora.
+            return [Periodo(tp, f) for tp in tipos for f in periodos]
         return [Periodo(tipo, f) for f in periodos]
+    if tipos and not fechas:
+        # El encabezado puede traer el día y el mes SEPARADOS de los años, en filas
+        # distintas de la tabla: "Quarter Ended June 30," arriba y "2026 2025 2026
+        # 2025" abajo. Ninguna fecha queda completa, así que la detección normal no
+        # encuentra nada y la tabla se descarta entera. El mes y el día están ahí;
+        # solo hay que casarlos con la lista de años.
+        m = _RE_MES_DIA.search(t)
+        anios = [int(a.group(0)) for a in _RE_ANIO.finditer(t)]
+        if m and anios:
+            mes, dia = _MESES[m.group(1).lower()], int(m.group(2))
+            fines: list[dt.date] = []
+            for anio in anios:
+                try:
+                    candidato = dt.date(anio, mes, dia)
+                except ValueError:
+                    continue
+                if candidato not in fines:
+                    fines.append(candidato)
+            if fines:
+                if len(tipos) > 1:
+                    return [Periodo(tp, f) for tp in tipos for f in fines]
+                return [Periodo(tipos[0], f) for f in fines]
     if fechas:
         return [Periodo("Q", f) for f in fechas]
     return []
@@ -735,8 +801,14 @@ def _valores_alineados(fila: list[str]) -> list[float | None]:
             continue
         if limpia in {"$", ")", "%", ""}:
             continue
+        # Tercera variante del mismo problema: el paréntesis de apertura viene
+        # PEGADO al número y solo el de cierre queda en su propia celda —
+        # "(9,105" seguido de ")"—. `parsear_numero` exige los dos para leer un
+        # negativo, así que sin esto la ganancia por venta de NNN entraba en
+        # positivo y desplazaba el FFO por el doble de la partida.
+        abierto_sin_cerrar = limpia.startswith("(") and not limpia.endswith(")")
         valor = parsear_numero(limpia)
-        if valor is not None and negativo_pendiente:
+        if valor is not None and (negativo_pendiente or abierto_sin_cerrar):
             valor = -abs(valor)
         negativo_pendiente = False
         valores.append(valor)

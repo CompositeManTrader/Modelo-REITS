@@ -15,7 +15,7 @@ streamlit run app/Inicio.py
 
 python scripts/ingesta.py        # datos de fuente primaria desde la SEC
 python scripts/cobertura.py      # cuánto parsea y valida el sistema, por emisor
-pytest -q                        # las once obligatorias y el resto
+pytest -q                        # las doce obligatorias y el resto
 ```
 
 > Esto es una herramienta de análisis, no asesoría de inversión. Los cálculos
@@ -74,7 +74,7 @@ src/
 └── servicio.py          Capa que arma los paneles de la interfaz
 app/                     Streamlit: Inicio + seis páginas
 scripts/                 sembrar.py, ingesta.py, cobertura.py, humo_app.py
-tests/                   Las once obligatorias, los principios, e integración
+tests/                   Las doce obligatorias, los principios, e integración
 ```
 
 `src/datos/` y `src/servicio.py` no están en el esquema original del proyecto. El
@@ -189,7 +189,7 @@ necesario para recuperarlo en dos años.
 
 ---
 
-## Las once pruebas obligatorias
+## Las doce pruebas obligatorias
 
 ```bash
 pytest -q                                   # todo
@@ -210,6 +210,7 @@ pytest -q -k "not libreoffice"              # sin LibreOffice instalado
 | 9 | La serie de precios es cruda y cada serie del SIE es el instrumento declarado | `test_9_precios_y_series_macro.py` |
 | 10 | Cada columna del filing cae en su propio periodo, y la conciliación cuadra | `test_10_parser_wpc.py` |
 | 11 | La aplicación no truena con la base vacía ni con celdas faltantes | `test_11_arranque_sin_datos.py` |
+| 12 | Dos duraciones en un encabezado dan dos tipos de periodo, no uno | `test_12_parser_nnn.py` |
 
 Cada prueba obligatoria viene con su **control**, porque una prueba que no puede
 fallar no prueba nada:
@@ -308,13 +309,14 @@ de 2026 (`python scripts/cobertura.py`):
 |---|---:|---:|---:|
 | O | 20 | 20 | 0 |
 | WPC | 11 | 11 | 0 |
-| ADC | 6 | 6 | 0 |
-| NNN | 9 | 2 | 7 |
-| EXR | 11 | 2 | 9 |
-| GNL | 6 | 0 | 6 |
-| PSA | 2 | 0 | 2 |
-| WELL | 6 | 0 | 6 |
-| EPRT, PLD | 0 | 0 | 0 |
+| NNN | 10 | 10 | 0 |
+| ADC | 10 | 10 | 0 |
+| EXR | 15 | 2 | 13 |
+| WELL | 10 | 0 | 10 |
+| EPRT | 6 | 0 | 6 |
+| GNL | 5 | 0 | 5 |
+| PSA | 4 | 0 | 4 |
+| PLD | 0 | 0 | 0 |
 
 Cada emisor reporta su conciliación de AFFO con etiquetas ligeramente distintas y
 con su propia estructura de tramos. Ampliar la cobertura es trabajo de taxonomía
@@ -343,6 +345,32 @@ origen. La peor no era un descuadre:
    formas distintas en tres trimestres consecutivos: "Tax expense –",
    "Tax expense (benefit) –" y "Tax (benefit) expense –". Eso no se descubre
    leyendo un solo filing.
+
+NNN pasó de dos a diez, y el defecto de fondo era otra vez de periodos, no de
+aritmética. Publica **cuatro columnas bajo un solo encabezado con dos duraciones
+distintas**:
+
+```
+Quarter Ended June 30,        Six Months Ended June 30,
+     2026   |   2025               2026   |   2025
+```
+
+El parser detectaba una sola duración por encabezado. Y como `Quarter Ended` ni
+siquiera figuraba entre los patrones, la que ganaba era la del semestre: los dos
+trimestres entraban a la base como semestres. El síntoma eran etiquetas
+imposibles —un "semestre" que cierra el 31 de marzo— que ninguna validación
+aritmética podía cazar, porque cada columna es internamente consistente.
+
+Con eso venían tres cosas más:
+
+- **El paréntesis del negativo, tercera variante.** NNN maqueta `"(9,105"` y
+  `")"` en celdas contiguas: el de apertura pegado al número y solo el de cierre
+  suelto. El parser manejaba el paréntesis completo y el de apertura suelto, pero
+  no este. Una ganancia por venta leída en positivo desplaza el subtotal por el
+  doble de la partida.
+- **El día y el mes separados de los años**, en filas distintas de la tabla.
+  Ninguna fecha quedaba completa y la tabla se descartaba entera, en silencio.
+- **`Net earnings`** no era utilidad neta: el FFO descuadraba por su monto exacto.
 
 Lo importante es que el sistema **se comporta bien cuando no puede**: lo que no
 cuadra se guarda marcado `sospechoso`, no entra a ningún cálculo, y la interfaz lo
