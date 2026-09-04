@@ -15,7 +15,7 @@ streamlit run app/Inicio.py
 
 python scripts/ingesta.py        # datos de fuente primaria desde la SEC
 python scripts/cobertura.py      # cuánto parsea y valida el sistema, por emisor
-pytest -q                        # las nueve obligatorias y el resto
+pytest -q                        # las once obligatorias y el resto
 ```
 
 > Esto es una herramienta de análisis, no asesoría de inversión. Los cálculos
@@ -74,7 +74,7 @@ src/
 └── servicio.py          Capa que arma los paneles de la interfaz
 app/                     Streamlit: Inicio + seis páginas
 scripts/                 sembrar.py, ingesta.py, cobertura.py, humo_app.py
-tests/                   Las nueve obligatorias, los principios, e integración
+tests/                   Las once obligatorias, los principios, e integración
 ```
 
 `src/datos/` y `src/servicio.py` no están en el esquema original del proyecto. El
@@ -189,7 +189,7 @@ necesario para recuperarlo en dos años.
 
 ---
 
-## Las nueve pruebas obligatorias
+## Las once pruebas obligatorias
 
 ```bash
 pytest -q                                   # todo
@@ -208,6 +208,8 @@ pytest -q -k "not libreoffice"              # sin LibreOffice instalado
 | 7 | Control negativo: sobre ruido puro, nunca GO | `test_7_8_backtest.py` |
 | 8 | Lag de ejecución: la señal de `t` se ejecuta en `t+1` | `test_7_8_backtest.py` |
 | 9 | La serie de precios es cruda y cada serie del SIE es el instrumento declarado | `test_9_precios_y_series_macro.py` |
+| 10 | Cada columna del filing cae en su propio periodo, y la conciliación cuadra | `test_10_parser_wpc.py` |
+| 11 | La aplicación no truena con la base vacía ni con celdas faltantes | `test_11_arranque_sin_datos.py` |
 
 Cada prueba obligatoria viene con su **control**, porque una prueba que no puede
 fallar no prueba nada:
@@ -304,20 +306,43 @@ de 2026 (`python scripts/cobertura.py`):
 
 | Emisor | Periodos extraídos | Válidos | Sospechosos |
 |---|---:|---:|---:|
-| O | 15 | 15 | 0 |
-| ADC | 4 | 4 | 0 |
-| EXR | 6 | 1 | 5 |
-| NNN | 5 | 0 | 5 |
-| WPC | 6 | 0 | 6 |
+| O | 20 | 20 | 0 |
+| WPC | 11 | 11 | 0 |
+| ADC | 6 | 6 | 0 |
+| NNN | 9 | 2 | 7 |
+| EXR | 11 | 2 | 9 |
+| GNL | 6 | 0 | 6 |
 | PSA | 2 | 0 | 2 |
-| WELL | 2 | 0 | 2 |
-| EPRT, GNL, PLD | 0 | 0 | 0 |
+| WELL | 6 | 0 | 6 |
+| EPRT, PLD | 0 | 0 | 0 |
 
 Cada emisor reporta su conciliación de AFFO con etiquetas ligeramente distintas y
-con su propia estructura de tramos. Las causas que quedan **no comparten remedio**:
-a W. P. Carey le faltan líneas entre FFO y AFFO, a Welltower una antes del FFO
-normalizado, y NNN publica solo subtotales en la tabla que el sistema elige.
-Ampliar la cobertura es trabajo de taxonomía emisor por emisor.
+con su propia estructura de tramos. Ampliar la cobertura es trabajo de taxonomía
+emisor por emisor.
+
+W. P. Carey pasó de cero a los once periodos, y las cuatro causas resultaron
+distintas. Solo una era suya; las otras tres afectaban a todos los emisores y
+estaban tapadas porque el descuadre aparecía siempre en el AFFO, lejos de su
+origen. La peor no era un descuadre:
+
+1. **Corrimiento de columnas.** El encabezado de W. P. Carey trae tres trimestres
+   y dos son del mismo año. La detección de periodos deduplicaba por AÑO —para
+   resolver el idioma "June 30, 2026 and 2025"— y colapsaba dos columnas en una,
+   asignándole al primer trimestre las cifras del segundo. **Ninguna suma lo
+   delata**: los números son internamente consistentes, solo están en el periodo
+   equivocado. Se ve comparando el encabezado con lo extraído, y por eso ahora hay
+   una prueba que lo hace.
+2. **La acumulación se rompía tras el primer tramo.** Al entrar a un tramo
+   posterior, la clave recibe un sufijo de segmento; la pregunta "¿es acumulable?"
+   se hacía con la clave ya sufijada, que nunca está en el conjunto. De la segunda
+   fila en adelante, todo concepto repetido se descartaba en silencio.
+3. **El subtotal de FFO no se reconocía** cuando la sigla trae un paréntesis
+   intermedio ("FFO (as defined by NAREIT) Attributable to..."). Sin ese subtotal
+   no hay frontera de tramo, así que toda la conciliación quedaba en uno solo.
+4. **Etiquetas no mapeadas**, entre ellas una que el mismo emisor escribe de tres
+   formas distintas en tres trimestres consecutivos: "Tax expense –",
+   "Tax expense (benefit) –" y "Tax (benefit) expense –". Eso no se descubre
+   leyendo un solo filing.
 
 Lo importante es que el sistema **se comporta bien cuando no puede**: lo que no
 cuadra se guarda marcado `sospechoso`, no entra a ningún cálculo, y la interfaz lo
