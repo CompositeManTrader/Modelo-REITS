@@ -121,14 +121,19 @@ CONTEXTO_HISTORICO: tuple[dict, ...] = (
     },
 )
 
+# El periodo va como texto en TODAS las filas, no como año numérico en unas y rango
+# en otras. Una columna que mezcla 2023 con "1994–2024" no es un año: es una etiqueta,
+# y pandas la degrada a `object`, lo que revienta la serialización a Arrow al
+# dibujarla. Que el tipo diga lo que la columna realmente es evita el problema en el
+# origen en lugar de parcharlo en cada pantalla que la muestre.
 DISPERSION_SECTORIAL = pd.DataFrame(
     [
-        {"sector": "Data Centers", "anio": 2023, "rendimiento": 0.252, "lugar": "mejor del año"},
-        {"sector": "Data Centers", "anio": 2025, "rendimiento": -0.142, "lugar": "peor del año"},
-        {"sector": "Self Storage", "anio": "1994–2024", "rendimiento": 0.173, "lugar": "anualizado"},
-        {"sector": "S&P 500", "anio": "1994–2024", "rendimiento": 0.101, "lugar": "anualizado"},
+        {"sector": "Data Centers", "periodo": "2023", "rendimiento": 0.252, "lugar": "mejor del año"},
+        {"sector": "Data Centers", "periodo": "2025", "rendimiento": -0.142, "lugar": "peor del año"},
+        {"sector": "Self Storage", "periodo": "1994–2024", "rendimiento": 0.173, "lugar": "anualizado"},
+        {"sector": "S&P 500", "periodo": "1994–2024", "rendimiento": 0.101, "lugar": "anualizado"},
     ]
-)
+).astype({"periodo": "string"})
 
 
 # --------------------------------------------------------------------------------------

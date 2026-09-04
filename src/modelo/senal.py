@@ -204,11 +204,30 @@ class ResultadoPuerta:
         return self.criterios.loc[~self.criterios["cumple"].fillna(True), "criterio"].tolist()
 
 
+def numero_o_nulo(valor) -> float | None:
+    """Normaliza una celda de tabla a número o vacío, nunca a booleano ni a texto.
+
+    Las tablas de criterios mezclan magnitudes con condiciones binarias: el payout
+    trae 0.95 y el grado de inversión trae ``True``. En una misma columna eso
+    degrada el tipo a ``object``, y una columna ``object`` no se puede serializar
+    a Arrow: Streamlit no truena, aplica su propia conversión y sigue, así que la
+    tabla que ve el usuario no es la que se construyó y nada lo avisa.
+
+    Los criterios binarios no pierden nada: su veredicto vive en ``cumple``, que es
+    donde corresponde.
+    """
+    if isinstance(valor, bool) or valor is None:
+        return None
+    if isinstance(valor, (int, float)):
+        return None if pd.isna(valor) else float(valor)
+    return None
+
+
 def _criterio(nombre: str, valor, umbral, cumple: bool | None, explicacion: str) -> dict:
     return {
         "criterio": nombre,
-        "valor": valor,
-        "umbral": umbral,
+        "valor": numero_o_nulo(valor),
+        "umbral": numero_o_nulo(umbral),
         "cumple": cumple,
         "explicacion": explicacion,
     }
@@ -379,13 +398,39 @@ def puerta_deterioro(
     from src.modelo.kill import evaluar_kill  # import local para evitar ciclo
 
     resultado = evaluar_kill(historial, umbrales=umbrales)
-    luz = Luz.ROJO if resultado.dispara_venta else Luz.VERDE
+
+    # No disparar venta por falta de datos es correcto: nadie vende porque le falte
+    # información. Pintar esa misma falta de VERDE no lo es. VERDE significa "lo
+    # medí y está sano", y aquí no se midió nada. La luz reporta la evidencia; el
+    # veredicto de venta sigue siendo negativo, que es lo prudente.
+    if resultado.criterios.empty:
+        evaluables = 0
+    else:
+        evaluables = int(resultado.criterios["dispara"].notna().sum())
+
+    if resultado.dispara_venta:
+        luz = Luz.ROJO
+    elif evaluables == 0:
+        luz = Luz.SIN_DATOS
+    else:
+        luz = Luz.VERDE
+
+    mensaje = resultado.mensaje
+    if luz is Luz.SIN_DATOS:
+        # Se agrega siempre, no solo cuando el mensaje viene vacío: el texto de
+        # `evaluar_kill` explica por qué no se vende, que es la mitad del asunto.
+        # La otra mitad —que tampoco se está afirmando nada bueno— hay que decirla.
+        mensaje = (
+            f"{mensaje} Ningún criterio resultó medible, así que tampoco hay base "
+            "para declarar sano al emisor."
+        ).strip()
+
     return ResultadoPuerta(
         "Deterioro",
         not resultado.dispara_venta,
         luz,
         resultado.criterios,
-        resultado.mensaje,
+        mensaje,
     )
 
 

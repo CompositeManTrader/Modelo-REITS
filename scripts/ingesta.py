@@ -23,6 +23,29 @@ from src.ingesta import tasas as mod_tasas  # noqa: E402
 from src.ingesta.orquestador import correr_ingesta  # noqa: E402
 
 
+def verificar_identificadores(repo: Repositorio) -> None:
+    """Le pregunta al catálogo del SIE qué instrumento es cada identificador.
+
+    Se corre ANTES de bajar un solo dato. Un identificador equivocado no truena:
+    entrega una serie válida del instrumento equivocado, y una tasa nominal
+    interbancaria pasa perfectamente por una tasa real de 10 años si nadie
+    pregunta.
+    """
+    try:
+        veredicto = mod_tasas.verificar_series_banxico()
+    except mod_tasas.ErrorTasas as exc:
+        print(f"  (sin verificar: {exc})")
+        return
+    for nombre, (ok, titulo) in veredicto.items():
+        marca = "ok " if ok else "MAL"
+        print(f"  {marca} {nombre:11s} {titulo[:78]}")
+        if not ok:
+            repo.registrar_bitacora(
+                "serie_sospechosa",
+                f"{nombre} apunta a un identificador cuyo título es «{titulo}».",
+            )
+
+
 def ingestar_tasas(repo: Repositorio) -> int:
     """Trae las series macro que sí tienen fuente pública sin llave."""
     total = 0
@@ -53,6 +76,7 @@ def main() -> int:
     p.add_argument("--bd", default=str(RUTA_BD))
     p.add_argument("--max-filings", type=int, default=8, help="Máximo de 8-K por emisor.")
     p.add_argument("--sin-xbrl", action="store_true", help="Omite companyfacts (es lo más pesado).")
+    p.add_argument("--sin-precios", action="store_true", help="Omite precios y dividendos.")
     p.add_argument("--solo-tasas", action="store_true")
     args = p.parse_args()
 
@@ -60,7 +84,10 @@ def main() -> int:
     repo = Repositorio(ruta=args.bd)
     desde = dt.date.fromisoformat(args.desde) if args.desde else None
 
-    print("Tasas y macro:")
+    print("Identificadores de Banxico contra el catálogo del SIE:")
+    verificar_identificadores(repo)
+
+    print("\nTasas y macro:")
     n_tasas = ingestar_tasas(repo)
     if args.solo_tasas:
         print(f"\nListo: {n_tasas:,} observaciones de tasas.")
@@ -73,6 +100,7 @@ def main() -> int:
         desde=desde,
         max_filings=args.max_filings,
         con_xbrl=not args.sin_xbrl,
+        con_precios=not args.sin_precios,
     )
 
     sospechosos = 0

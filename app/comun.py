@@ -14,6 +14,7 @@ Convenciones de la aplicación, que valen para todas las páginas:
 from __future__ import annotations
 
 import datetime as dt
+import os
 import sys
 from pathlib import Path
 
@@ -49,17 +50,108 @@ def base_existe() -> bool:
     return Path(RUTA_BD).exists()
 
 
-def exigir_base() -> Repositorio:
-    """Devuelve el repositorio o detiene la página con instrucciones claras."""
-    if not base_existe():
-        st.error(
-            "No hay base de datos todavía. Créala con uno de estos comandos y recarga:\n\n"
-            "```bash\n"
-            "python scripts/sembrar.py        # datos de DEMOSTRACIÓN, para recorrer la app\n"
-            "python scripts/ingesta.py        # datos de fuente primaria desde la SEC\n"
-            "```"
+def _publicar_secretos() -> None:
+    """Copia los secretos de Streamlit al entorno, que es donde los leen los ingestores.
+
+    Los módulos de ingesta se usan también desde la línea de comandos y desde la
+    GitHub Action, así que leen variables de entorno y no conocen a Streamlit. Aquí
+    se tiende el puente, sin que ninguna credencial toque el repositorio.
+    """
+    for clave in ("BANXICO_TOKEN", "SEC_USER_AGENT"):
+        if os.environ.get(clave):
+            continue
+        try:
+            valor = st.secrets[clave]
+        except Exception:
+            continue
+        if valor:
+            os.environ[clave] = str(valor)
+
+
+@st.cache_resource(show_spinner=False)
+def _sembrar_una_sola_vez(marca: str) -> dict:
+    """Corre la ingesta real la primera vez y una sola vez por proceso.
+
+    ``cache_resource`` da exactamente lo que hace falta: si dos personas abren la
+    aplicación recién desplegada al mismo tiempo, Streamlit serializa la llamada y
+    la segunda recibe el resultado de la primera en vez de lanzar una segunda
+    descarga contra la SEC. ``marca`` invalida el caché cuando cambia la ruta.
+    """
+    from src.config import asegurar_directorios
+    from src.ingesta import tasas as mod_tasas
+    from src.ingesta.orquestador import correr_ingesta
+    from src.ingesta.tasas import ErrorTasas
+
+    _publicar_secretos()
+    asegurar_directorios()
+    repo = Repositorio(ruta=RUTA_BD)
+    reporte: dict = {"tasas": {}, "emisores": [], "errores": []}
+
+    barra = st.progress(0.0, text="Descargando tasas y macro…")
+    series = list(mod_tasas.SERIES_FRED) + list(mod_tasas.SERIES_BANXICO)
+    for i, serie in enumerate(series):
+        barra.progress(i / (len(series) + 10), text=f"Tasas: {serie}")
+        try:
+            if serie in mod_tasas.SERIES_FRED:
+                filas = mod_tasas.ingestar_fred(serie)
+            else:
+                filas = mod_tasas.ingestar_banxico(serie)
+            reporte["tasas"][serie] = repo.guardar_tasas(filas)
+        except (ErrorTasas, Exception) as exc:  # noqa: BLE001 - se reporta, no se traga
+            reporte["errores"].append(f"{serie}: {exc}")
+
+    def avanzar(ticker: str, indice: int, total: int) -> None:
+        barra.progress(
+            (len(series) + indice) / (len(series) + total),
+            text=f"SEC EDGAR y mercado: {ticker} ({indice + 1} de {total})",
         )
-        st.stop()
+
+    resumenes = correr_ingesta(repo, al_avanzar=avanzar)
+    for r in resumenes:
+        reporte["emisores"].append(r.como_texto())
+        reporte["errores"].extend(r.errores)
+    barra.progress(1.0, text="Listo.")
+    barra.empty()
+    return reporte
+
+
+def exigir_base() -> Repositorio:
+    """Devuelve el repositorio; si no existe, lo construye desde fuente primaria.
+
+    En una computadora personal la base se crea con un comando. En Streamlit Cloud
+    no hay terminal, y el sistema de archivos es efímero: cada reinicio del
+    contenedor borra la base. Por eso la primera carga ingesta sola, en vez de
+    mostrar un comando que ahí nadie puede correr.
+    """
+    if not base_existe():
+        st.info(
+            "**Primera carga.** No hay base de datos, así que la estoy construyendo desde "
+            "la fuente primaria: SEC EDGAR para los fundamentales, FRED y Banxico para las "
+            "tasas, y el mercado para precios sin ajustar. Tarda varios minutos y solo pasa "
+            "una vez por arranque del servidor.",
+            icon="⏳",
+        )
+        try:
+            reporte = _sembrar_una_sola_vez(str(RUTA_BD))
+        except Exception as exc:  # noqa: BLE001 - la pantalla debe decir qué pasó
+            st.error(
+                f"La ingesta falló y no hay datos que mostrar: `{exc}`\n\n"
+                "En una computadora personal esto se resuelve corriendo "
+                "`python scripts/ingesta.py` y revisando el detalle del error."
+            )
+            st.stop()
+        if reporte["errores"]:
+            st.warning(
+                f"La ingesta terminó con {len(reporte['errores'])} advertencia(s). "
+                "Lo que no se pudo verificar quedó marcado y no entra a ningún cálculo.",
+                icon="⚠️",
+            )
+            with st.expander("Ver el detalle de la ingesta"):
+                for linea in reporte["emisores"]:
+                    st.text(linea)
+                st.markdown("**Advertencias**")
+                for linea in reporte["errores"]:
+                    st.text(linea)
     return obtener_repo()
 
 

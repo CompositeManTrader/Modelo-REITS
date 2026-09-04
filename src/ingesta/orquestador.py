@@ -13,14 +13,14 @@ periodo contable.
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
 import pandas as pd
 
 from src.config import EMISOR_POR_TICKER, UNIVERSO_INICIAL, Estado, Fuente
 from src.datos.repositorio import RegistroRechazado, Repositorio
-from src.ingesta import xbrl
+from src.ingesta import precios, xbrl
 from src.ingesta.edgar import ClienteEdgar, ErrorEdgar
 from src.ingesta.parser_affo import (
     fin_de_trimestre,
@@ -41,6 +41,9 @@ class ResumenIngesta:
     lineas_guardadas: int = 0
     validos: int = 0
     sospechosos: int = 0
+    precios_guardados: int = 0
+    dividendos_guardados: int = 0
+    veredicto_precio: str = ""
     errores: list[str] = field(default_factory=list)
     novedades: list[str] = field(default_factory=list)
 
@@ -51,9 +54,71 @@ class ResumenIngesta:
             f"{self.hechos_guardados} hecho(s) nuevos "
             f"({self.validos} válidos, {self.sospechosos} sospechosos)."
         )
+        if self.precios_guardados or self.dividendos_guardados:
+            base += (
+                f" {self.precios_guardados} precio(s) y "
+                f"{self.dividendos_guardados} dividendo(s)."
+            )
         if self.errores:
             base += f" {len(self.errores)} error(es)."
         return base
+
+
+def ingestar_precios(
+    repo: Repositorio,
+    ticker: str,
+    *,
+    rango: str = "5Y",
+) -> ResumenIngesta:
+    """Trae precios SIN ajustar y dividendos, y no guarda nada que no haya verificado.
+
+    Son dos verificaciones distintas y complementarias:
+
+    1. ``validar_contra_anclas`` compara contra cierres capturados a mano. Es la
+       más fuerte, pero solo existe donde hay anclas — hoy, un emisor.
+    2. ``prueba_coherencia_ajuste`` verifica la aritmética interna de la propia
+       respuesta: el cociente entre cierre ajustado y crudo tiene que ser el
+       producto de los dividendos posteriores. Se puede correr sobre cualquier
+       emisor y detecta justo lo que P2 teme, sin depender de anclas.
+
+    Una serie que reprueba cualquiera de las dos se guarda marcada ``rechazado`` en
+    vez de descartarse: el registro es la evidencia de qué falló.
+    """
+    resumen = ResumenIngesta(ticker=ticker)
+    try:
+        px = precios.descargar_historico(ticker, rango=rango)
+        divs = precios.descargar_dividendos(ticker)
+    except precios.ErrorPrecios as exc:
+        resumen.errores.append(f"precios {ticker}: {exc}")
+        resumen.veredicto_precio = str(exc)
+        return resumen
+
+    anclas = repo.anclas(ticker)
+    serie = px.set_index("fecha_dato")["cierre_crudo"]
+    veredicto_anclas = precios.validar_contra_anclas(serie, anclas)
+    coherencia = precios.prueba_coherencia_ajuste(px, divs)
+
+    # Con anclas manda el ancla. Sin ellas, la coherencia aritmética es la única
+    # evidencia disponible, y no tenerla es motivo suficiente para no usar la serie.
+    if not anclas.empty:
+        aprobada = veredicto_anclas.aprobada and coherencia.coherente
+        motivo = veredicto_anclas.como_texto() + " " + coherencia.como_texto()
+    else:
+        aprobada = coherencia.verificable and coherencia.coherente
+        motivo = coherencia.como_texto()
+
+    resumen.veredicto_precio = motivo.strip()
+    px = px.copy()
+    px["estado"] = Estado.VALIDO if aprobada else Estado.RECHAZADO
+    px["error_ancla"] = veredicto_anclas.error_max
+
+    resumen.precios_guardados = repo.guardar_precios(px.to_dict("records"))
+    if aprobada:
+        resumen.dividendos_guardados = repo.guardar_dividendos(divs.to_dict("records"))
+    else:
+        resumen.errores.append(f"precios {ticker}: serie no aprobada. {motivo}")
+    repo.registrar_bitacora("precios", resumen.veredicto_precio, ticker=ticker)
+    return resumen
 
 
 def ingestar_fundamentales(
@@ -284,15 +349,28 @@ def correr_ingesta(
     desde: dt.date | None = None,
     max_filings: int = 8,
     con_xbrl: bool = True,
+    con_precios: bool = True,
     cliente: ClienteEdgar | None = None,
+    al_avanzar: Callable[[str, int, int], None] | None = None,
 ) -> list[ResumenIngesta]:
-    """Corre la ingesta completa del universo. Es lo que llama la GitHub Action."""
+    """Corre la ingesta completa del universo. Es lo que llama la GitHub Action.
+
+    ``al_avanzar`` recibe ``(ticker, indice, total)`` antes de cada emisor. Existe
+    para que la interfaz pueda mostrar avance en la primera carga, que tarda
+    minutos: sin él, el usuario ve una pantalla en blanco y concluye que se trabó.
+    """
     cliente = cliente or ClienteEdgar()
     emisores = [e for e in UNIVERSO_INICIAL if tickers is None or e.ticker in set(tickers)]
     repo.registrar_emisores(emisores)
+    # Las anclas de precio son la piedra de toque de P2 y viven en el código, no en
+    # una fuente externa. Sin ellas en la base, la validación no tiene contra qué
+    # medir y toda serie quedaría sin su verificación más fuerte.
+    repo.guardar_anclas(list(precios.ANCLAS_VERIFICADAS))
 
     resumenes: list[ResumenIngesta] = []
-    for e in emisores:
+    for i, e in enumerate(emisores):
+        if al_avanzar is not None:
+            al_avanzar(e.ticker, i, len(emisores))
         resumen = ingestar_fundamentales(
             repo, cliente, e.ticker, e.cik, desde=desde, max_filings=max_filings, sector=e.sector
         )
@@ -300,6 +378,12 @@ def correr_ingesta(
             r_xbrl = ingestar_xbrl(repo, cliente, e.ticker, e.cik, desde=desde)
             resumen.hechos_guardados += r_xbrl.hechos_guardados
             resumen.errores.extend(r_xbrl.errores)
+        if con_precios:
+            r_px = ingestar_precios(repo, e.ticker)
+            resumen.precios_guardados = r_px.precios_guardados
+            resumen.dividendos_guardados = r_px.dividendos_guardados
+            resumen.veredicto_precio = r_px.veredicto_precio
+            resumen.errores.extend(r_px.errores)
 
         hoy = dt.date.today()
         for concepto in ("affo", "ffo_normalizado", "utilidad_neta"):

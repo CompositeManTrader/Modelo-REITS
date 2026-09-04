@@ -92,7 +92,7 @@ for columna, puerta, titulo in (
         st.markdown(semaforo_html(puerta.luz.value, puerta.mensaje), unsafe_allow_html=True)
         if not puerta.criterios.empty:
             st.dataframe(
-                puerta.criterios[[c for c in ("criterio", "valor", "umbral", "cumple", "racha", "dispara")
+                puerta.criterios[[c for c in ("criterio", "valor", "umbral", "persistencia", "cumple", "racha", "dispara")
                                   if c in puerta.criterios]],
                 hide_index=True, width="stretch",
             )
