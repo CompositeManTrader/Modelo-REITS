@@ -18,6 +18,7 @@ from comun import (  # noqa: E402
     dinero,
     exigir_base,
     explicar,
+    mostrar_tabla,
     selector_de_corte,
 )
 
@@ -71,7 +72,7 @@ else:
     vista = proximos.head(30)[
         ["ticker", "fecha_declaracion", "fecha_ex", "fecha_registro", "fecha_pago", "monto", "frecuencia"]
     ]
-    st.dataframe(vista, hide_index=True, width="stretch")
+    mostrar_tabla(vista)
 
     urgentes = proximos[
         (proximos["fecha_ex"] >= corte) & (proximos["fecha_ex"] <= corte + pd.Timedelta(days=14))
@@ -126,13 +127,13 @@ if not historico.empty:
         figura.add_bar(x=por_mes.index, y=por_mes.to_numpy(), marker_color="#1a7f37")
         figura.update_layout(height=300, yaxis_title="USD proyectados",
                              margin={"t": 20, "b": 20, "l": 10, "r": 10}, showlegend=False)
-        st.plotly_chart(figura, width="stretch")
+        st.plotly_chart(figura)
         st.metric("Ingreso proyectado a 12 meses", dinero(por_mes.sum()))
         st.caption(
             "Proyección con el último dividendo declarado, sin suponer aumentos. Un emisor "
             "puede recortar: la Puerta 3 existe para anticiparlo, no esta proyección."
         )
-    st.dataframe(proyeccion.head(40), hide_index=True, width="stretch")
+    mostrar_tabla(proyeccion.head(40))
 
 # --------------------------------------------------------------------------------------
 # El dividendo en términos reales
@@ -160,7 +161,7 @@ if len(anual) >= 3 and not macro.inpc.empty:
     figura.update_layout(height=340, yaxis_title="USD por título",
                          margin={"t": 20, "b": 20, "l": 10, "r": 10},
                          legend={"orientation": "h", "y": 1.12})
-    st.plotly_chart(figura, width="stretch")
+    st.plotly_chart(figura)
 
     alerta = rastrear_dividendo_real(ticker_real, serie, macro.inpc)
     if alerta.dispara_alerta:
@@ -218,7 +219,7 @@ for ticker in seleccion:
 
 if filas:
     historial = pd.DataFrame(filas)
-    st.dataframe(historial, hide_index=True, width="stretch")
+    mostrar_tabla(historial)
     con_recorte = historial[historial["recortes"] > 0]
     if not con_recorte.empty:
         st.warning(

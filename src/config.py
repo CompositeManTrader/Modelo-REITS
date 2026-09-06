@@ -159,6 +159,74 @@ CAPEX_ESPERADO_POR_SECTOR: dict[str, tuple[float, float]] = {
     "Especializado": (0.05, 0.20),
 }
 
+
+# --------------------------------------------------------------------------------------
+# Cap rate por sector: (mínimo, base, máximo)
+# --------------------------------------------------------------------------------------
+#
+# EL CAP RATE NO ES UNA CONSTANTE UNIVERSAL, y aplicarle el mismo a todos los
+# sectores es el error más caro que se puede cometer en un NAV de REITs. Es la tasa
+# a la que el mercado privado capitaliza una renta, y depende de qué tan estable y
+# duradera es esa renta:
+#
+# * Un contrato de net lease a veinte años con inquilino con grado de inversión se
+#   parece a un bono: se capitaliza cerca del 6.5%.
+# * Un self storage se renta mes a mes, pero casi no consume CapEx y tiene poder de
+#   subir precios: el mercado lo capitaliza mucho más bajo, cerca del 5.5%.
+# * Una oficina se renegocia cada cinco años y devora mejoras al inquilino: pide
+#   arriba del 8% para compensar.
+#
+# Valuar un self storage al 6.5% de net lease le quita ~15% de valor de un plumazo,
+# sin que ningún número del modelo se vea raro. Por eso el cap rate vive aquí, por
+# sector, y no como una sola perilla.
+#
+# Estos rangos son de mercado privado y ENVEJECEN: se mueven con las tasas. Hay que
+# revisarlos contra transacciones comparables, no tratarlos como constantes.
+
+CAP_RATE_POR_SECTOR: dict[str, tuple[float, float, float]] = {
+    "Net Lease": (0.0575, 0.0675, 0.0800),
+    "Industrial": (0.0450, 0.0550, 0.0650),
+    "Oficinas": (0.0700, 0.0875, 0.1100),
+    "Comercial": (0.0600, 0.0725, 0.0875),
+    "Residencial": (0.0450, 0.0525, 0.0625),
+    "Self Storage": (0.0475, 0.0550, 0.0650),
+    "Salud": (0.0550, 0.0675, 0.0825),
+    "Hoteles": (0.0750, 0.0900, 0.1100),
+    "Data Centers": (0.0475, 0.0575, 0.0700),
+    "Torres": (0.0400, 0.0500, 0.0600),
+    "Bosques": (0.0400, 0.0500, 0.0625),
+    "Vivienda Prefabricada": (0.0425, 0.0500, 0.0600),
+    "Diversificado": (0.0550, 0.0675, 0.0825),
+    "Especializado": (0.0550, 0.0700, 0.0875),
+}
+
+CAP_RATE_POR_OMISION: tuple[float, float, float] = (0.0500, 0.0675, 0.0900)
+
+
+# Prima de riesgo sobre la tasa libre de riesgo, por sector, para descontar el AFFO.
+# Mismo principio que el cap rate: un flujo contratado a veinte años exige menos
+# prima que uno que se renegocia cada año. Se usa en el modelo de crecimiento
+# implícito, donde la tasa de descuento es `libre de riesgo + esta prima`.
+PRIMA_RIESGO_POR_SECTOR: dict[str, float] = {
+    "Net Lease": 0.030,
+    "Industrial": 0.035,
+    "Oficinas": 0.060,
+    "Comercial": 0.045,
+    "Residencial": 0.030,
+    "Self Storage": 0.035,
+    "Salud": 0.045,
+    "Hoteles": 0.065,
+    "Data Centers": 0.040,
+    "Torres": 0.035,
+    "Bosques": 0.040,
+    "Vivienda Prefabricada": 0.030,
+    "Diversificado": 0.040,
+    "Especializado": 0.050,
+}
+
+PRIMA_RIESGO_POR_OMISION = 0.040
+
+
 # --------------------------------------------------------------------------------------
 # Umbrales del semáforo (Módulo 1.3). Son inputs discutibles, no dogma.
 # --------------------------------------------------------------------------------------

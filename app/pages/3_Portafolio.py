@@ -19,6 +19,7 @@ from comun import (  # noqa: E402
     dinero,
     exigir_base,
     explicar,
+    mostrar_tabla,
     pct,
     selector_de_corte,
     suficiencia,
@@ -131,7 +132,7 @@ with pestanas[0]:
         figura.update_layout(height=320, xaxis_title="Años", yaxis_title="MXN reales de hoy",
                              margin={"t": 20, "b": 20, "l": 10, "r": 10},
                              legend={"orientation": "h", "y": 1.12})
-        st.plotly_chart(figura, width="stretch")
+        st.plotly_chart(figura)
 
     st.subheader("Asignación propuesta")
     r1, r2, r3 = st.columns(3)
@@ -152,10 +153,10 @@ with pestanas[0]:
                            text=[f"{v:.1%}" for v in asignacion.pesos], textposition="outside")
             figura.update_layout(height=300, yaxis_tickformat=".0%",
                                  margin={"t": 20, "b": 20, "l": 10, "r": 10}, showlegend=False)
-            st.plotly_chart(figura, width="stretch")
+            st.plotly_chart(figura)
         if not asignacion.excluidos.empty:
             st.markdown("**Excluidos por la Puerta 1 de calidad:**")
-            st.dataframe(asignacion.excluidos, hide_index=True, width="stretch")
+            mostrar_tabla(asignacion.excluidos)
             st.caption("Lo que falla no está barato: está descartado. No compite por peso.")
 
 # --------------------------------------------------------------------------------------
@@ -207,7 +208,7 @@ with pestanas[1]:
     if transacciones.empty:
         st.info("No hay transacciones todavía. Registra la primera arriba.")
     else:
-        st.dataframe(transacciones, hide_index=True, width="stretch")
+        mostrar_tabla(transacciones)
         borrar = st.multiselect("Borrar transacciones (por id)", list(transacciones["id"]))
         if borrar and st.button("Borrar seleccionadas"):
             repo.borrar_transacciones(borrar)
@@ -240,7 +241,7 @@ with pestanas[2]:
             c2.metric("Ganancia no realizada", dinero(tabla["ganancia_no_realizada"].sum()))
             c3.metric("Dividendos cobrados", dinero(tabla["dividendos_cobrados"].sum()))
             c4.metric("Ganancia realizada", dinero(tabla["ganancia_realizada"].sum()))
-            st.dataframe(tabla, hide_index=True, width="stretch")
+            mostrar_tabla(tabla)
 
             alerta = alerta_estate_tax(valor_total)
             if alerta.activa:
@@ -292,7 +293,7 @@ with pestanas[2]:
                                    line={"color": "#b42318"}, name="Drawdown")
                 figura.update_layout(height=260, yaxis_tickformat=".0%",
                                      margin={"t": 20, "b": 20, "l": 10, "r": 10}, showlegend=False)
-                st.plotly_chart(figura, width="stretch")
+                st.plotly_chart(figura)
 
             st.subheader("Atribución del retorno en tres componentes")
             st.caption(
@@ -313,7 +314,7 @@ with pestanas[2]:
                 ) if not divs.empty else 0.0
                 atribucion = atribuir_retorno(p0, p1, a0, a1, div_12m)
                 if atribucion:
-                    st.dataframe(atribucion.como_tabla(), hide_index=True, width="stretch",
+                    mostrar_tabla(atribucion.como_tabla(),
                                  column_config={"aporte": st.column_config.NumberColumn(
                                      "Aporte", format="%.2f%%")})
                     st.caption(
@@ -420,7 +421,7 @@ with pestanas[4]:
             help="Muchos no lo aplican de oficio. Si no, el efectivo combinado es la suma simple.",
         )
         resultado = impuesto_dividendo(bruto, tiene_w8ben=w8, acredita_retencion=acredita)
-        st.dataframe(resultado.como_tabla(), hide_index=True, width="stretch",
+        mostrar_tabla(resultado.como_tabla(),
                      column_config={"monto": st.column_config.NumberColumn(format="$%,.2f")})
         st.metric("Tasa efectiva combinada", pct(resultado.tasa_efectiva))
         for a in resultado.advertencias:
@@ -443,8 +444,8 @@ with pestanas[4]:
             ]
         )
         comparativa["Tasa efectiva"] = comparativa["Tasa efectiva"] * 100.0
-        st.dataframe(
-            comparativa, hide_index=True, width="stretch",
+        mostrar_tabla(
+            comparativa,
             column_config={
                 "Impuesto": st.column_config.NumberColumn(format="$%,.0f"),
                 "Tasa efectiva": st.column_config.NumberColumn(format="%.1f%%"),
@@ -493,8 +494,8 @@ with pestanas[5]:
     ]
     df = pd.DataFrame(filas)
     df["Rendimiento"] = pd.to_numeric(df["Rendimiento"], errors="coerce") * 100.0
-    st.dataframe(
-        df, hide_index=True, width="stretch",
+    mostrar_tabla(
+        df,
         column_config={"Rendimiento": st.column_config.NumberColumn(format="%.2f%%")},
     )
     st.caption(
