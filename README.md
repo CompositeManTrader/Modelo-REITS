@@ -15,7 +15,7 @@ streamlit run app/Inicio.py
 
 python scripts/ingesta.py        # datos de fuente primaria desde la SEC
 python scripts/cobertura.py      # cuánto parsea y valida el sistema, por emisor
-pytest -q                        # las doce obligatorias y el resto
+pytest -q                        # las trece obligatorias y el resto
 ```
 
 > Esto es una herramienta de análisis, no asesoría de inversión. Los cálculos
@@ -65,6 +65,7 @@ src/
 ├── config.py            Universo, umbrales de las tres puertas, catálogos
 ├── datos/               Esquema point-in-time, repositorio con corte obligatorio, semilla
 ├── ingesta/             EDGAR, XBRL, parser de AFFO, precios, tasas, orquestador
+│   └── taxonomia.py     Ficha por emisor: SUS etiquetas y SU estructura de tramos
 ├── validacion/          Cuadre del AFFO, anclas de precio, prueba de truncamiento
 ├── modelo/              Cascada, valuación, señal, criterios de venta, sectorial
 ├── portafolio/          Transacciones, TWR/TIR/atribución, meta y rebalanceo
@@ -73,8 +74,8 @@ src/
 ├── export/excel.py      Libro con fórmulas VIVAS
 └── servicio.py          Capa que arma los paneles de la interfaz
 app/                     Streamlit: Inicio + seis páginas
-scripts/                 sembrar.py, ingesta.py, cobertura.py, humo_app.py
-tests/                   Las doce obligatorias, los principios, e integración
+scripts/                 sembrar.py, ingesta.py, cobertura.py, ficha.py, humo_app.py
+tests/                   Las trece obligatorias, los principios, e integración
 ```
 
 `src/datos/` y `src/servicio.py` no están en el esquema original del proyecto. El
@@ -189,7 +190,7 @@ necesario para recuperarlo en dos años.
 
 ---
 
-## Las doce pruebas obligatorias
+## Las trece pruebas obligatorias
 
 ```bash
 pytest -q                                   # todo
@@ -211,6 +212,7 @@ pytest -q -k "not libreoffice"              # sin LibreOffice instalado
 | 10 | Cada columna del filing cae en su propio periodo, y la conciliación cuadra | `test_10_parser_wpc.py` |
 | 11 | La aplicación no truena con la base vacía ni con celdas faltantes | `test_11_arranque_sin_datos.py` |
 | 12 | Dos duraciones en un encabezado dan dos tipos de periodo, no uno | `test_12_parser_nnn.py` |
+| 13 | La ficha de un emisor lo aísla de los patrones de los demás | `test_13_taxonomia_por_emisor.py` |
 
 Cada prueba obligatoria viene con su **control**, porque una prueba que no puede
 fallar no prueba nada:
@@ -300,23 +302,69 @@ que el propio emisor publica.
 | 5 — Comparativo inmobiliario | Completo. Motor CDMX, riesgos cuantificados, solver inverso de plusvalía. |
 | 6 — Simulación e innovaciones | Completo. Monte Carlo, replay, reloj de prima, tracker de dividendo real, detector de sesgos, modo «¿qué hubiera pasado?». |
 
+### La taxonomía es por emisor, no compartida
+
+La primera versión resolvía las etiquetas con **un solo juego de expresiones
+regulares** para los diez emisores. Funciona hasta que dos usan palabras parecidas
+para cosas distintas, y entonces cada arreglo es un riesgo para los demás:
+
+- `Non-real estate depreciation` contiene `real estate depreciation` como subcadena.
+- `FFO adjustments allocable to noncontrolling interests` empieza con `FFO`.
+- `Amortization of lease intangibles` es un ajuste no-efectivo en un emisor y una
+  comisión efectivamente pagada en otro.
+
+Cada vez, ampliar un patrón podía romper a otro emisor **sin que nada lo avisara**:
+su conciliación seguía cuadrando, con las cifras en la línea equivocada.
+
+Ahora cada emisor tiene una **ficha** en `src/ingesta/taxonomia.py` que declara, en
+su propio vocabulario, qué es cada línea y qué subtotales publica. La ficha manda;
+los patrones compartidos quedan como red para lo que la ficha aún no declara, y eso
+se reporta como hueco en las advertencias del registro.
+
+Las etiquetas se comparan en **forma canónica**, no literal, porque el mismo emisor
+cambia la redacción entre trimestres. La canonización quita lo que nunca distingue
+una línea de otra —notas al pie, paréntesis aclaratorios, tipo de guion— y deja lo
+que sí:
+
+```
+Tax expense - deferred and other            ┐
+Tax expense (benefit) - deferred and other  ├─→  una sola entrada en la ficha
+Tax (benefit) expense - deferred and other  ┘
+```
+
+**Agregar un emisor es llenar una ficha**, no tocar expresiones regulares:
+
+```bash
+python scripts/ficha.py --ticker EXR    # borrador leyendo su filing real
+```
+
+El script recorre sus tablas de conciliación, junta todas las etiquetas y marca las
+que nadie resuelve. Con eso, Extra Space pasó de 2 periodos válidos a 5 sin tocar un
+solo patrón compartido: su ganancia por venta se llama `gain on real estate assets
+held for sale and sold`, que no contiene `gain on sale`, y esa línea faltante era
+todo el descuadre.
+
+La prueba 13 verifica el aislamiento de verdad: **corrompe a propósito todos los
+patrones compartidos** y exige que un emisor con ficha siga cuadrando igual. Con su
+contraprueba: sin ficha, el mismo sabotaje sí lo rompe.
+
 ### Limitaciones conocidas
 
 **Cobertura del parser: medida, no estimada.** Corriendo contra los 8-K de la SEC
 de 2026 (`python scripts/cobertura.py`):
 
-| Emisor | Periodos extraídos | Válidos | Sospechosos |
-|---|---:|---:|---:|
-| O | 20 | 20 | 0 |
-| WPC | 11 | 11 | 0 |
-| NNN | 10 | 10 | 0 |
-| ADC | 10 | 10 | 0 |
-| EXR | 15 | 2 | 13 |
-| WELL | 10 | 0 | 10 |
-| EPRT | 6 | 0 | 6 |
-| GNL | 5 | 0 | 5 |
-| PSA | 4 | 0 | 4 |
-| PLD | 0 | 0 | 0 |
+| Emisor | Ficha | Periodos | Válidos | Sospechosos |
+|---|:--:|---:|---:|---:|
+| O | ✅ | 20 | 20 | 0 |
+| WPC | ✅ | 11 | 11 | 0 |
+| NNN | ✅ | 10 | 10 | 0 |
+| ADC | ✅ | 10 | 10 | 0 |
+| EXR | ✅ | 15 | 5 | 10 |
+| WELL | — | 10 | 0 | 10 |
+| EPRT | — | 6 | 0 | 6 |
+| GNL | — | 5 | 0 | 5 |
+| PSA | — | 4 | 0 | 4 |
+| PLD | — | 0 | 0 | 0 |
 
 Cada emisor reporta su conciliación de AFFO con etiquetas ligeramente distintas y
 con su propia estructura de tramos. Ampliar la cobertura es trabajo de taxonomía
