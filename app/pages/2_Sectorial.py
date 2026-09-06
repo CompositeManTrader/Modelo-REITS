@@ -81,7 +81,7 @@ else:
                 "ticker": "Emisor",
                 "nombre": "Nombre",
                 "percentil_prima": st.column_config.ProgressColumn(
-                    "Percentil de prima", min_value=0.0, max_value=1.0, format="%.0f%%"),
+                    "Percentil de prima", min_value=0.0, max_value=100.0, format="%.0f%%"),
                 "p_affo": st.column_config.NumberColumn("P/AFFO", format="%.1fx"),
                 "accion": "Acción",
             },
@@ -232,12 +232,8 @@ st.divider()
 st.header("Dispersión sectorial: por qué no extrapolar de un solo nombre")
 c1, c2 = st.columns([1, 1])
 with c1:
-    # El formato "%.1f%%" solo PEGA el símbolo: no escala. Con 0.252 mostraría
-    # "0.3%" en vez de "25.2%". La escala va en el dato, nunca en el formato.
-    dispersion = DISPERSION_SECTORIAL.copy()
-    dispersion["rendimiento"] = dispersion["rendimiento"] * 100.0
     mostrar_tabla(
-        dispersion,
+        DISPERSION_SECTORIAL,
         column_config={
             "sector": st.column_config.TextColumn("Sector"),
             "periodo": st.column_config.TextColumn("Periodo"),

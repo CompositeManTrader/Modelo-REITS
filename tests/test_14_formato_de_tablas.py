@@ -68,19 +68,91 @@ def test_la_columna_en_bps_no_se_vuelve_a_escalar():
     assert "bps" in _formato(config, "prima_bps")
 
 
-def test_lo_explicito_de_quien_llama_siempre_gana():
-    """La defensa contra la escala doble.
+def test_lo_explicito_manda_sobre_el_formato_pero_nunca_sobre_las_unidades():
+    """El defecto que se vio en producción, fijado como prueba.
 
-    Las páginas que ya multiplicaban por cien a mano pasan su propia
-    configuración. Si el formato automático la pisara —o peor, si escalara
-    encima— el 5.53% se dibujaría como 553%.
+    La primera versión dejaba que una `column_config` propia se llevara también
+    la escala. Resultado en la portada: la tabla del Nareit dibujaba 11.78% como
+    «0.12%» y el percentil de prima dibujaba 13% como «0%», porque las dos
+    pasaban configuración propia y quedaban fuera del escalado.
+
+    La regla ahora es una sola: quien llama manda sobre la etiqueta y el formato,
+    que son presentación; nunca sobre las unidades, que son el dato.
     """
-    df = pd.DataFrame({"affo_yield": [5.53]})  # ya viene escalado por quien llama
+    df = pd.DataFrame({"affo_yield": [0.0553]})
     mio = {"affo_yield": "Mi etiqueta"}
     vista, config = formato_columnas(df, mio)
 
-    assert vista["affo_yield"].iloc[0] == pytest.approx(5.53), "escaló encima de lo ya escalado"
+    assert vista["affo_yield"].iloc[0] == pytest.approx(5.53), "la config propia se llevó la escala"
     assert config["affo_yield"] == "Mi etiqueta"
+
+
+def test_ninguna_pagina_escala_a_mano():
+    """El control del contrato: si una página multiplica por cien, se duplica.
+
+    Con la escala centralizada, un `* 100` en una página ya no corrige nada;
+    dibuja 553%. Esta prueba lo caza en el código, no en la pantalla.
+    """
+    culpables = []
+    for pagina in sorted((RAIZ / "app").rglob("*.py")):
+        if pagina.name == "comun.py":
+            continue  # es el único lugar donde la escala es correcta
+        for numero, linea in enumerate(pagina.read_text(encoding="utf-8").splitlines(), 1):
+            if "* 100" in linea and not linea.lstrip().startswith("#"):
+                culpables.append(f"{pagina.relative_to(RAIZ)}:{numero}: {linea.strip()}")
+    assert not culpables, "escalan a mano y se van a duplicar:\n" + "\n".join(culpables)
+
+
+def test_la_aguja_casa_por_token_completo_no_por_subcadena():
+    """`tir` es una tasa; `retiro` es dinero. La segunda contiene a la primera."""
+    df = pd.DataFrame({"tir_real": [0.0812], "retiro": [50_000.0], "aportacion": [10_000.0]})
+    vista, config = formato_columnas(df)
+
+    assert vista["tir_real"].iloc[0] == pytest.approx(8.12)
+    assert vista["retiro"].iloc[0] == pytest.approx(50_000.0), "trató un retiro como porcentaje"
+    assert _formato(config, "tir_real").endswith("%%")
+    assert _formato(config, "retiro").startswith("$")
+
+
+def test_las_columnas_de_porcentaje_de_la_aplicacion_se_reconocen():
+    """Inventario de las que de verdad se dibujan. Una que se escape sale sin escalar."""
+    columnas = (
+        "affo_yield", "dividend_yield", "payout_affo", "percentil_prima",
+        "crecimiento_affo_por_accion_yoy", "cap_rate_implicito", "premio_descuento_nav",
+        "Tasa efectiva", "Tasa efectiva sobre renta", "Rendimiento", "rendimiento",
+        "pct_renta", "cambio_pct", "caida_portafolio", "tir_nominal", "tir_real",
+        "plusvalia_anualizada", "brecha_vs_reits", "yield_neto_reits",
+        "rendimiento_corriente", "probabilidad_supuesta", "spread_inversion",
+        "rendimiento_nominal", "rendimiento_real", "ltv", "payout_ffo",
+    )
+    df = pd.DataFrame({c: [0.10] for c in columnas})
+    vista, _config = formato_columnas(df)
+    sin_escalar = [c for c in columnas if vista[c].iloc[0] != pytest.approx(10.0)]
+    assert not sin_escalar, f"no se reconocieron como porcentaje: {sin_escalar}"
+
+
+def test_el_hueco_no_se_dibuja_como_la_palabra_none():
+    """Siete de diez emisores no tienen AFFO todavía. La tabla se llenaba de «None».
+
+    Streamlit escribe la palabra "None" en toda celda vacía que no sea de progreso.
+    En una tabla de diez emisores donde siete no tienen historia suficiente, eso
+    hace ver la tabla como si estuviera rota, y además está en inglés.
+    """
+    import comun
+
+    assert comun._ACEPTA_PLACEHOLDER, (
+        "esta versión de Streamlit no acepta `placeholder`; sin él las celdas "
+        "vacías vuelven a decir «None»"
+    )
+    capturado: dict = {}
+    original = comun.st.dataframe
+    comun.st.dataframe = lambda datos, **kw: capturado.update(kw)
+    try:
+        comun.mostrar_tabla(pd.DataFrame({"affo_yield": [None]}, dtype="float64"))
+    finally:
+        comun.st.dataframe = original
+
+    assert capturado.get("placeholder") not in (None, "None")
 
 
 # --------------------------------------------------------------------------------------

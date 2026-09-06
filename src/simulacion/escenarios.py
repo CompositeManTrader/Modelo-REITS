@@ -598,9 +598,11 @@ def tabla_contexto_nareit() -> pd.DataFrame:
     """Rendimientos históricos del índice FTSE Nareit All Equity, nominal y real."""
     from src.config import RENDIMIENTOS_NAREIT_HISTORICOS
 
+    # Los nombres dicen que son rendimientos, no montos: una columna llamada
+    # `nominal` a secas se lee como dinero y se dibujaba con formato de moneda.
     return pd.DataFrame(
         [
-            {"periodo": p, "nominal": n, "real": r}
+            {"periodo": p, "rendimiento_nominal": n, "rendimiento_real": r}
             for p, n, r in RENDIMIENTOS_NAREIT_HISTORICOS
         ]
     )

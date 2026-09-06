@@ -64,6 +64,51 @@ def _convertir_vigilado(df, *, preserve_index=None):
 dataframe_util.convert_pandas_df_to_arrow_table = _convertir_vigilado
 
 
+# --------------------------------------------------------------------------------------
+# La otra falla que Streamlit se traga: la unidad equivocada
+# --------------------------------------------------------------------------------------
+#
+# El formato "%.2f%%" solo PEGA el símbolo de porcentaje; no multiplica por cien.
+# Una columna que llega en fracciones se dibuja como "0.12%" donde debía decir
+# "11.78%": no hay excepción, no hay registro, y el número se ve plausible. Así
+# estuvieron en la portada la tabla del Nareit y el percentil de prima.
+#
+# Aquí se revisa lo único que se puede revisar sin conocer el dato de origen: que
+# ninguna columna de familia porcentaje llegue a la pantalla valiendo menos de 1.
+# En este universo no existe un yield, un payout ni un percentil por debajo de 1%,
+# así que un máximo por debajo de 1 significa que la columna sigue en fracciones.
+# Si algún día una métrica legítimamente vive por debajo del 1%, esta prueba lo va
+# a marcar y hay que excluir esa columna por nombre, no bajar el umbral.
+
+_UMBRAL_FRACCION = 1.0
+
+
+def _revisar_escala(prueba) -> list[str]:
+    import pandas as pd
+    from comun import familia_de_columna
+
+    avisos = []
+    for dibujada in prueba.dataframe:
+        df = dibujada.value
+        for columna in df.columns:
+            serie = df[columna]
+            if not pd.api.types.is_numeric_dtype(serie) or pd.api.types.is_bool_dtype(serie):
+                continue
+            if familia_de_columna(columna, serie) != "porcentaje":
+                continue
+            valores = serie.dropna().abs()
+            valores = valores[valores > 0]
+            if valores.empty:
+                continue
+            maximo = float(valores.max())
+            if maximo < _UMBRAL_FRACCION:
+                avisos.append(
+                    f"la columna «{columna}» llega en fracciones (máx {maximo:.4f}): "
+                    f"se va a dibujar como {maximo:.2f}% en vez de {maximo * 100:.2f}%"
+                )
+    return avisos
+
+
 def _selector_de_emisor(prueba):
     for s in prueba.selectbox:
         if s.label == "Emisor":
@@ -84,6 +129,7 @@ def correr(ruta: Path, timeout: int = 240) -> tuple[bool, list[str]]:
     prueba = AppTest.from_file(str(ruta), default_timeout=timeout)
     prueba.run()
     errores = [f"{e.value}" for e in prueba.exception] + list(_FALLAS_DE_DIBUJO)
+    errores += _revisar_escala(prueba)
 
     selector = _selector_de_emisor(prueba)
     if selector is not None:
@@ -93,10 +139,13 @@ def correr(ruta: Path, timeout: int = 240) -> tuple[bool, list[str]]:
             if actual is None:
                 break
             actual.set_value(opcion).run()
+            etiqueta = opcion.split(" —")[0]
             for e in prueba.exception:
-                errores.append(f"[{opcion.split(' —')[0]}] {e.value}")
+                errores.append(f"[{etiqueta}] {e.value}")
             for f in _FALLAS_DE_DIBUJO:
-                errores.append(f"[{opcion.split(' —')[0]}] {f}")
+                errores.append(f"[{etiqueta}] {f}")
+            for a in _revisar_escala(prueba):
+                errores.append(f"[{etiqueta}] {a}")
     return (not errores), errores
 
 
