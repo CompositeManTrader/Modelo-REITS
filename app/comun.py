@@ -14,8 +14,11 @@ Convenciones de la aplicación, que valen para todas las páginas:
 from __future__ import annotations
 
 import datetime as dt
+import inspect
 import os
+import re
 import sys
+import unicodedata
 from pathlib import Path
 
 import pandas as pd
@@ -428,80 +431,142 @@ def veces(v) -> str:
 # --------------------------------------------------------------------------------------
 #
 # Sin esto, una tabla dibuja 435000000.0 y el lector tiene que contar ceros con el
-# dedo. El formato se deduce del NOMBRE de la columna y de su magnitud, y se aplica
-# a toda tabla de la aplicación, para que una tabla nueva nazca legible en vez de
-# depender de que alguien se acuerde de configurarla.
+# dedo. La FAMILIA de unidad de cada columna se deduce de su nombre, y de ahí salen
+# dos cosas distintas que conviene no confundir:
 #
-# Ojo con los porcentajes: el formato "%.2f%%" de Streamlit solo PEGA el símbolo,
-# no escala. Por eso las columnas porcentuales se escalan en el DATO —igual que las
-# celdas en bps del Excel— y el formato nunca convierte unidades.
+#   * la ESCALA, que se aplica al dato, y
+#   * el FORMATO, que solo decide cómo se dibuja.
+#
+# El formato "%.2f%%" de Streamlit **solo pega el símbolo de porcentaje: no
+# multiplica por cien**. Un AFFO yield de 0.0553 se dibuja como "0.06%": se ve
+# plausible y está mal por dos órdenes de magnitud. Es el mismo error que en las
+# celdas en puntos base del Excel.
+#
+# Por eso la escala la decide la familia y se aplica SIEMPRE, aunque quien llama
+# traiga su propia `column_config`. La primera versión dejaba que lo explícito se
+# llevara también la escala, y el resultado fue justo el error que quería evitar:
+# en la portada, la tabla del Nareit dibujaba 11.78% como "0.12%" y el percentil de
+# prima dibujaba 13% como "0%", porque ambas pasaban configuración propia. La regla
+# ahora es una sola y no tiene excepciones: **ninguna página escala a mano**; lo
+# explícito manda sobre la etiqueta y el formato, nunca sobre las unidades.
 
 _COLUMNAS_PORCENTAJE = (
     "yield", "payout", "percentil", "premio", "descuento", "crecimiento", "tasa",
-    "rendimiento", "ocupacion", "cap_rate", "prima_riesgo", "inflacion", "ltv",
-    "peso", "fraccion", "spread_inversion", "dilucion", "error", "diferencia_relativa",
+    "rendimiento", "ocupacion", "cap_rate", "rate", "prima", "inflacion", "ltv",
+    "peso", "fraccion", "spread", "dilucion", "error", "diferencia_relativa",
+    "pct", "caida", "tir", "plusvalia", "brecha", "probabilidad", "cagr",
 )
 _COLUMNAS_BPS = ("bps",)
 _COLUMNAS_MONEDA = (
     "precio", "nav", "monto", "valor", "usd", "mxn", "dividendo", "costo", "flujo",
-    "saldo", "capital", "interes", "renta", "aportacion", "retiro", "nominal",
+    "saldo", "capital", "interes", "renta", "aportacion", "retiro", "neto", "isr",
+    "impuesto", "perdida", "ingreso", "utilidad", "ffo", "affo", "noi", "deuda",
 )
-_COLUMNAS_POR_ACCION = ("por_accion", "per_share", "por accion")
+_COLUMNAS_POR_ACCION = ("por_accion", "per_share")
 _COLUMNAS_VECES = ("p_affo", "veces", "multiplo", "ebitdare", "cobertura", "razon")
 
+_NO_ALFANUMERICO = re.compile(r"[^a-z0-9]+")
 
-def _es(columna: str, agujas: tuple[str, ...]) -> bool:
-    c = str(columna).lower().replace(" ", "_")
-    return any(a in c for a in agujas)
+
+def _canonizar_columna(columna) -> str:
+    """`"Tasa efectiva (%)"` y `tasa_efectiva` son la misma columna. Con guiones al borde.
+
+    Los guiones bajos de los extremos permiten buscar la aguja como token completo:
+    así ``tir`` casa con ``tir_real`` pero no con ``retiro``.
+    """
+    texto = unicodedata.normalize("NFKD", str(columna).lower())
+    texto = texto.encode("ascii", "ignore").decode("ascii")
+    return "_" + _NO_ALFANUMERICO.sub("_", texto).strip("_") + "_"
+
+
+def _es(columna, agujas: tuple[str, ...]) -> bool:
+    canon = _canonizar_columna(columna)
+    return any(f"_{aguja}_" in canon for aguja in agujas)
+
+
+def familia_de_columna(columna, serie: pd.Series | None = None) -> str:
+    """Unidad a la que pertenece la columna. Es lo que decide escala y formato."""
+    if _es(columna, _COLUMNAS_BPS):
+        # Por convención de este proyecto, una columna `*_bps` YA viene en puntos
+        # base: la escala se hace en `servicio.py`, donde nace el dato. Escalarla
+        # otra vez aquí la multiplicaría por diez mil.
+        return "bps"
+    if _es(columna, _COLUMNAS_PORCENTAJE):
+        return "porcentaje"
+    if _es(columna, _COLUMNAS_POR_ACCION):
+        return "por_accion"
+    if _es(columna, _COLUMNAS_VECES):
+        return "veces"
+    if _es(columna, _COLUMNAS_MONEDA):
+        return "moneda"
+    if serie is not None and pd.api.types.is_integer_dtype(serie):
+        return "entero"
+    return "numero"
+
+
+def _config_de_familia(familia: str, columna, serie: pd.Series) -> object:
+    etiqueta = str(columna).replace("_", " ").strip().capitalize()
+    if familia == "bps":
+        return st.column_config.NumberColumn(etiqueta, format="%,.0f bps")
+    if familia == "porcentaje":
+        return st.column_config.NumberColumn(etiqueta, format="%.2f%%")
+    if familia == "por_accion":
+        return st.column_config.NumberColumn(etiqueta, format="$%.2f")
+    if familia == "veces":
+        return st.column_config.NumberColumn(etiqueta, format="%.2fx")
+    if familia == "moneda":
+        return st.column_config.NumberColumn(etiqueta, format="$%,.2f")
+    if familia == "entero":
+        return st.column_config.NumberColumn(etiqueta, format="%,d")
+    # Los montos grandes se leen sin decimales; los chicos los necesitan.
+    magnitud = serie.abs().max()
+    formato = "%,.0f" if pd.notna(magnitud) and magnitud >= 1_000 else "%,.2f"
+    return st.column_config.NumberColumn(etiqueta, format=formato)
 
 
 def formato_columnas(df: pd.DataFrame, explicito: dict | None = None) -> tuple[pd.DataFrame, dict]:
-    """Deduce el formato de cada columna numérica y escala lo que haya que escalar.
+    """Escala cada columna numérica a su unidad y deduce cómo dibujarla.
 
-    Devuelve ``(datos_para_dibujar, column_config)``. Lo explícito que pase quien
-    llama siempre gana: esto es un valor por omisión sensato, no una imposición.
+    Devuelve ``(datos_para_dibujar, column_config)``.
+
+    La **escala** la decide la familia de la columna y se aplica siempre. Lo
+    explícito que pase quien llama gana sobre la etiqueta y el formato —que es
+    presentación— pero nunca sobre las unidades, que son el dato.
     """
     explicito = dict(explicito or {})
     vista = df.copy()
     config: dict = {}
 
     for columna in vista.columns:
-        if columna in explicito or not pd.api.types.is_numeric_dtype(vista[columna]):
+        serie = vista[columna]
+        if not pd.api.types.is_numeric_dtype(serie) or pd.api.types.is_bool_dtype(serie):
             continue
-        etiqueta = str(columna).replace("_", " ").strip().capitalize()
-
-        if _es(columna, _COLUMNAS_BPS):
-            # Por convención de este proyecto, una columna que se llama `*_bps` YA
-            # viene en puntos base: la escala se hace en `servicio.py`, donde nace
-            # el dato. Escalar otra vez aquí la multiplicaría por diez mil.
-            config[columna] = st.column_config.NumberColumn(etiqueta, format="%,.0f bps")
-        elif _es(columna, _COLUMNAS_PORCENTAJE):
+        familia = familia_de_columna(columna, serie)
+        if familia == "porcentaje":
             # La escala va en el dato. El formato solo pega el símbolo.
-            vista[columna] = vista[columna] * 100.0
-            config[columna] = st.column_config.NumberColumn(etiqueta, format="%.2f%%")
-        elif _es(columna, _COLUMNAS_POR_ACCION):
-            config[columna] = st.column_config.NumberColumn(etiqueta, format="$%.2f")
-        elif _es(columna, _COLUMNAS_VECES):
-            config[columna] = st.column_config.NumberColumn(etiqueta, format="%.2fx")
-        elif _es(columna, _COLUMNAS_MONEDA):
-            config[columna] = st.column_config.NumberColumn(etiqueta, format="$%,.2f")
-        elif pd.api.types.is_integer_dtype(vista[columna]):
-            config[columna] = st.column_config.NumberColumn(etiqueta, format="%,d")
-        else:
-            # Los montos grandes se leen sin decimales; los chicos los necesitan.
-            magnitud = vista[columna].abs().max()
-            formato = "%,.0f" if pd.notna(magnitud) and magnitud >= 1_000 else "%,.2f"
-            config[columna] = st.column_config.NumberColumn(etiqueta, format=formato)
+            vista[columna] = serie * 100.0
+        if columna not in explicito:
+            config[columna] = _config_de_familia(familia, columna, vista[columna])
 
     config.update(explicito)
     return vista, config
 
 
+# Streamlit dibuja las celdas vacías con la palabra "None" salvo en las columnas de
+# progreso. En una tabla de diez emisores donde siete no tienen historia suficiente,
+# eso llena la pantalla de "None" en inglés y hace ver la tabla como si estuviera
+# rota. `placeholder` existe desde Streamlit 1.51; en versiones anteriores el
+# argumento no existe y pasarlo revienta, así que se consulta la firma.
+_ACEPTA_PLACEHOLDER = "placeholder" in inspect.signature(st.dataframe).parameters
+
+
 def mostrar_tabla(df: pd.DataFrame, *, column_config: dict | None = None, **kwargs):
-    """``st.dataframe`` con separadores de miles y unidades por omisión."""
+    """``st.dataframe`` con separadores de miles, unidades y huecos por omisión."""
     vista, config = formato_columnas(df, column_config)
     kwargs.setdefault("hide_index", True)
     kwargs.setdefault("width", "stretch")
+    if _ACEPTA_PLACEHOLDER:
+        kwargs.setdefault("placeholder", "—")
     return st.dataframe(vista, column_config=config, **kwargs)
 
 

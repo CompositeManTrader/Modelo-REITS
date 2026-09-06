@@ -56,12 +56,25 @@ La página de Sectorial tiene un botón que la llama y muestra el error.
 tablas de hechos incluyen `fecha_publicacion`, así que ambas versiones conviven y
 la consulta con corte anterior sigue viendo la vieja.
 
-**El formato nunca convierte unidades.** El `"%.2f%%"` de Streamlit solo pega el
-símbolo: dibujaría un AFFO yield de `0.0553` como `0.06%`. La escala vive en el
-dato, y `mostrar_tabla()` (`app/comun.py`) la aplica **una sola vez**, deduciendo
-la unidad del nombre de la columna y respetando siempre lo que pase quien llama.
-Es el mismo cuidado que con las celdas en puntos base del Excel, donde una prima
-de 409 bps se mostraba como «0 bps» por confiar en el formato.
+**El formato nunca convierte unidades, y ninguna página escala a mano.** El
+`"%.2f%%"` de Streamlit solo pega el símbolo: dibujaría un AFFO yield de `0.0553`
+como `0.06%`. La **familia** de cada columna se deduce de su nombre
+(`familia_de_columna`, `app/comun.py`) y de ahí salen dos cosas distintas: la
+**escala**, que se aplica al dato siempre, y el **formato**, que solo decide cómo
+se dibuja. Quien llama manda sobre la etiqueta y el formato; nunca sobre las
+unidades.
+
+La primera versión sí dejaba que una `column_config` propia se llevara también la
+escala, y el resultado fue exactamente el error que quería evitar: en la portada,
+la tabla del Nareit dibujaba 11.78% como «0.12%» y el percentil de prima dibujaba
+13% como «0%», porque las dos pasaban configuración propia y quedaban fuera del
+escalado. Es el mismo cuidado que con las celdas en puntos base del Excel, donde
+una prima de 409 bps se mostraba como «0 bps» por confiar en el formato.
+
+Dos controles lo sostienen: una prueba que **falla si alguna página multiplica por
+cien**, y una revisión en `scripts/humo_app.py` que dibuja las siete páginas y
+**reprueba si alguna columna porcentual llega a la pantalla valiendo menos de 1**.
+Esta segunda es la que caza una columna nueva que las agujas no reconozcan.
 
 ---
 
@@ -267,9 +280,9 @@ fallar no prueba nada:
   verificación de coherencia podría estar aprobando cualquier cosa. Su gemela le da
   a `verificar_series_banxico` una TIIE bajo el nombre de Udibono y exige que
   repruebe.
-- La prueba 14 pasa una columna **ya escalada** por quien llama y exige que el
-  formato automático no la vuelva a multiplicar por cien: un 5.53% dibujado como
-  553% se ve tan plausible como el correcto.
+- La prueba 14 recorre `app/` y **falla si alguna página multiplica por cien**, que
+  con la escala centralizada ya no corrige nada: duplica. Y verifica que la aguja
+  case por token completo, para que `tir` no se coma a `retiro`.
 - La prueba 15 valúa el mismo portafolio con el cap rate del sector equivocado y
   exige que la diferencia supere el 20%. Si fuera pequeña, el cap rate por sector
   sería adorno.
@@ -563,6 +576,12 @@ tener precio verificado y AFFO sospechoso, y en ocho de los diez es justo el cas
 `.github/workflows/tests.yml` corre lint, la suite completa y la prueba de humo de
 la interfaz en cada push. Instala LibreOffice Calc, sin el cual la prueba 5 no
 puede recalcular el libro.
+
+La prueba de humo (`scripts/humo_app.py`) dibuja las siete páginas con la base
+llena y con la base vacía, y reprueba por **tres** cosas, no solo por excepciones:
+una página que truena, una tabla que no serializa a Arrow —que Streamlit se traga
+y convierte por su cuenta— y una columna porcentual que llega a la pantalla en
+fracciones. Las tres son fallas que la aplicación no reporta sola.
 
 `.github/workflows/ingest.yml` corre durante las ventanas de reportes (primeras
 tres semanas de febrero, mayo, agosto y noviembre), detecta 8-K nuevos, parsea,

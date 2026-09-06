@@ -189,10 +189,8 @@ with pestanas[1]:
     if not posiciones.empty:
         yield_actual = st.slider("Yield actual de tu cartera", 0.01, 0.12, 0.05, 0.0025, format="%.4f")
         tabla = replay_todos(posiciones, yield_actual=yield_actual)
-        vista = tabla.copy()
-        vista["caida_portafolio"] = vista["caida_portafolio"] * 100.0
         mostrar_tabla(
-            vista,
+            tabla,
             column_config={
                 "episodio": "Episodio",
                 "periodo": "Periodo",
@@ -274,10 +272,8 @@ with pestanas[3]:
     )
     multiplo = st.slider("Múltiplo P/AFFO actual", 5.0, 45.0, 18.0, 0.5)
     tabla = tabla_sensibilidad_tasas(multiplo)
-    vista = tabla.copy()
-    vista["cambio_pct"] = vista["cambio_pct"] * 100.0
     mostrar_tabla(
-        vista[["shock_bps", "multiplo_estimado", "cambio_pct"]],
+        tabla[["shock_bps", "multiplo_estimado", "cambio_pct"]],
         column_config={
             "shock_bps": st.column_config.NumberColumn("Shock del bono 10a (bps)", format="%d"),
             "multiplo_estimado": st.column_config.NumberColumn("Múltiplo estimado", format="%.1fx"),

@@ -133,7 +133,6 @@ st.divider()
 st.header("Adónde se va la renta")
 operacion = operacion_anual(supuestos)
 tabla = operacion.como_tabla()
-tabla["pct_renta"] = tabla["pct_renta"] * 100.0
 
 c1, c2 = st.columns([3, 2])
 with c1:
@@ -166,7 +165,6 @@ modalidades = comparar_modalidades_arrendamiento(
     supuestos.renta_bruta_anual, supuestos.predial_anual or supuestos.renta_bruta_anual * 0.018,
     sueldo if sueldo > 0 else 900_000.0,
 )
-modalidades["Tasa efectiva sobre renta"] = modalidades["Tasa efectiva sobre renta"] * 100.0
 mostrar_tabla(
     modalidades,
     column_config={
@@ -311,7 +309,7 @@ else:
     vista = comparacion.copy()
     for col in ("rendimiento_corriente", "tir_nominal", "tir_real", "plusvalia_anualizada",
                 "yield_neto_reits", "brecha_vs_reits"):
-        vista[col] = pd.to_numeric(vista[col], errors="coerce") * 100.0
+        vista[col] = pd.to_numeric(vista[col], errors="coerce")
     mostrar_tabla(
         vista,
         column_config={

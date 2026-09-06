@@ -164,11 +164,6 @@ else:
         ["ticker", "nombre", "sector", "precio", "affo_yield", "dividend_yield",
          "percentil_prima", "n_observaciones", "payout_affo", "p_affo", "accion"]
     ].copy()
-    # El formato "%.2f%%" de Streamlit solo PEGA el símbolo de porcentaje: no escala.
-    # Con 0.055 mostraría "0.06%". Se escala aquí, en el dato, igual que con las celdas
-    # en puntos base del Excel. El formato nunca hace la conversión de unidades.
-    for columna in ("affo_yield", "dividend_yield", "payout_affo"):
-        vista[columna] = vista[columna] * 100.0
     mostrar_tabla(
         vista,
         column_config={
@@ -178,8 +173,10 @@ else:
             "precio": st.column_config.NumberColumn("Precio", format="$%.2f"),
             "affo_yield": st.column_config.NumberColumn("AFFO yield", format="%.2f%%"),
             "dividend_yield": st.column_config.NumberColumn("Div. yield", format="%.2f%%"),
+            # `mostrar_tabla` ya trajo el percentil a escala 0–100, así que la barra
+            # se acota ahí. Con max_value=1.0 la barra saldría llena desde el 1%.
             "percentil_prima": st.column_config.ProgressColumn(
-                "Percentil de prima", min_value=0.0, max_value=1.0, format="%.0f%%",
+                "Percentil de prima", min_value=0.0, max_value=100.0, format="%.0f%%",
                 help="Alto = barato contra su propia historia. Ventana expandible.",
             ),
             "n_observaciones": st.column_config.NumberColumn("Obs.", format="%d"),
@@ -189,9 +186,9 @@ else:
         },
     )
     st.caption(
-        "Las columnas de porcentaje se escalan en el dato, no en el formato: el formato de "
-        "Streamlit solo pega el símbolo. Es el mismo cuidado que con las celdas en puntos base "
-        "del Excel, donde una prima de 409 bps se mostraba como «0 bps» por confiar en el formato."
+        "Un guion largo es «no hay dato suficiente», no un cero. Siete de los diez emisores "
+        "todavía no tienen cuatro trimestres válidos consecutivos de AFFO: eso es cobertura "
+        "del parser, y se ve en la columna de observaciones."
     )
 
     with st.expander("Cómo leer la columna de Acción"):
@@ -225,8 +222,8 @@ with c1:
         contexto,
         column_config={
             "periodo": "Ventana",
-            "nominal": st.column_config.NumberColumn("Nominal", format="%.2f%%"),
-            "real": st.column_config.NumberColumn("Real", format="%.2f%%"),
+            "rendimiento_nominal": st.column_config.NumberColumn("Nominal", format="%.2f%%"),
+            "rendimiento_real": st.column_config.NumberColumn("Real", format="%.2f%%"),
         },
     )
     st.warning(AVISO_TITULAR_12)

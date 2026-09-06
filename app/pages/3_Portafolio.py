@@ -443,7 +443,6 @@ with pestanas[4]:
                  "Neto": via_ext.neto},
             ]
         )
-        comparativa["Tasa efectiva"] = comparativa["Tasa efectiva"] * 100.0
         mostrar_tabla(
             comparativa,
             column_config={
@@ -493,7 +492,7 @@ with pestanas[5]:
         {"Instrumento": "UST 10 años (nominal, USD)", "Rendimiento": macro.ust10, "Garantizado": "Sí"},
     ]
     df = pd.DataFrame(filas)
-    df["Rendimiento"] = pd.to_numeric(df["Rendimiento"], errors="coerce") * 100.0
+    df["Rendimiento"] = pd.to_numeric(df["Rendimiento"], errors="coerce")
     mostrar_tabla(
         df,
         column_config={"Rendimiento": st.column_config.NumberColumn(format="%.2f%%")},
