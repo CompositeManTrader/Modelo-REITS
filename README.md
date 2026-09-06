@@ -238,7 +238,7 @@ necesario para recuperarlo en dos años.
 
 ---
 
-## Las quince pruebas obligatorias
+## Las dieciséis pruebas obligatorias
 
 ```bash
 pytest -q                                   # todo
@@ -263,6 +263,7 @@ pytest -q -k "not libreoffice"              # sin LibreOffice instalado
 | 13 | La ficha de un emisor lo aísla de los patrones de los demás | `test_13_taxonomia_por_emisor.py` |
 | 14 | El porcentaje se escala en el dato una sola vez, nunca en el formato | `test_14_formato_de_tablas.py` |
 | 15 | El cap rate es del sector: cambiarlo mueve el NAV de verdad | `test_15_valuacion_por_sector.py` |
+| 16 | Un acumulado no siempre es una suma: el promedio se lleva a total | `test_16_derivacion_de_trimestres.py` |
 
 Cada prueba obligatoria viene con su **control**, porque una prueba que no puede
 fallar no prueba nada:
@@ -286,6 +287,10 @@ fallar no prueba nada:
 - La prueba 15 valúa el mismo portafolio con el cap rate del sector equivocado y
   exige que la diferencia supere el 20%. Si fuera pequeña, el cap rate por sector
   sería adorno.
+- La prueba 16 verifica que la resta ingenua **sí** habría dado negativo, y
+  reproduce con la fórmula corregida un trimestre que el emisor sí publicó. Sin lo
+  primero no demuestra que el arreglo hacía falta; sin lo segundo, solo demuestra
+  que el signo quedó bien.
 
 El fixture del 8-K de Realty Income (`tests/fixtures/`) es un extracto del
 Exhibit 99.1 que la SEC publicó el 5 de agosto de 2026. Las pruebas del parser
@@ -469,20 +474,25 @@ y el resultado es una división por casi cero, no una valuación.
 ### Limitaciones conocidas
 
 **Cobertura del parser: medida, no estimada.** Corriendo contra los 8-K de la SEC
-de 2026 (`python scripts/cobertura.py`):
+desde junio de 2025 (`python scripts/cobertura.py --desde 2025-06-01 --max-filings 4`):
 
 | Emisor | Ficha | Periodos | Válidos | Sospechosos |
 |---|:--:|---:|---:|---:|
-| O | ✅ | 20 | 20 | 0 |
+| O | ✅ | 30 | 30 | 0 |
+| NNN | ✅ | 14 | 14 | 0 |
 | WPC | ✅ | 11 | 11 | 0 |
-| NNN | ✅ | 10 | 10 | 0 |
 | ADC | ✅ | 10 | 10 | 0 |
-| EXR | ✅ | 15 | 5 | 10 |
+| EPRT | ✅ | 6 | 6 | 0 |
+| GNL | ✅ | 5 | 5 | 0 |
+| EXR | ✅ | 21 | 7 | 14 |
 | WELL | — | 10 | 0 | 10 |
-| EPRT | — | 6 | 0 | 6 |
-| GNL | — | 5 | 0 | 5 |
 | PSA | — | 4 | 0 | 4 |
 | PLD | — | 0 | 0 | 0 |
+
+**Seis de los diez emisores llegan completos a la pantalla.** Faltan PSA, EXR,
+WELL y PLD, y cada uno por su propia razón: a los tres primeros les descuadra un
+tramo de su conciliación —les falta ficha— y de PLD el parser no extrae ni una
+tabla.
 
 Cada emisor reporta su conciliación de AFFO con etiquetas ligeramente distintas y
 con su propia estructura de tramos. Ampliar la cobertura es trabajo de taxonomía
@@ -541,15 +551,40 @@ Con eso venían tres cosas más:
 Lo importante es que el sistema **se comporta bien cuando no puede**: lo que no
 cuadra se guarda marcado `sospechoso`, no entra a ningún cálculo, y la interfaz lo
 dice. Prefiere no tener el dato a tenerlo mal.
+**Reparar un dato derivado necesita un paso explícito.** La base es append-only y
+la llave única de `hechos` no incluye el estado, así que volver a correr la
+ingesta **no** reemplaza una fila mala: la descarta por duplicada, en silencio.
+Eso es correcto para los datos de fuente y equivocado para los derivados. De ahí
+`scripts/reparar.py`, que solo borra filas derivadas o marcadas `sospechoso`,
+deja constancia en la bitácora, y exige `--aplicar`:
+
+```bash
+python scripts/reparar.py                                   # dice qué haría
+python scripts/reparar.py --aplicar                         # conteos de acciones imposibles
+python scripts/reparar.py --olvidar-sospechosos --tickers EPRT,GNL --aplicar
+python scripts/ingesta.py                                   # y vuelve a leerlos
+```
+
+Sin el segundo comando, corregir una ficha no cambia nada: los periodos ya
+guardados como `sospechoso` se quedan así para siempre.
+
 **El NAV no se puede calcular para ningún emisor todavía.** Falta el NOI, que es
 no-GAAP y no está en XBRL. Extraerlo es trabajo de taxonomía por emisor, igual que
 el AFFO: el suplemento lo publica en su propia tabla, con sus propias etiquetas.
 Mientras tanto la valuación corre por múltiplos y por crecimiento implícito, y la
 página lo dice con nombre y apellido en vez de dejar celdas vacías.
 
-**El AFFO por acción TTM exige cuatro trimestres válidos consecutivos.** Hoy solo
-O, NNN y W. P. Carey los tienen, así que los otros siete no reciben valuación por
-crecimiento. No es un defecto del modelo: es la cobertura del parser, arriba.
+**El AFFO por acción TTM exige cuatro trimestres válidos consecutivos**, y son
+cuatro trimestres de CALENDARIO, no cuatro renglones del panel. Un `rolling(4)`
+sobre las filas devuelve, cuando falta un trimestre, un "TTM" que abarca cinco:
+la suma cuadra, el número se ve razonable y nada lo delata. `_ttm` valida la
+ventana contra las fechas y prefiere no emitir el dato.
+
+Si a la serie por acción le falta un trimestre pero el monto sí está completo, el
+TTM por acción se deduce del monto entre el conteo de acciones. Sin ese respaldo,
+un hueco de un solo trimestre borraba al emisor **entero** de la pantalla: le
+pasaba a Agree Realty, que salía en blanco teniendo siete trimestres de AFFO en
+la base.
 
 **La cobertura de precios sí es completa.** Los diez emisores traen cinco años de
 cierres sin ajustar y su historial de dividendos, y los diez pasan la verificación

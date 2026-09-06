@@ -185,11 +185,14 @@ else:
             "accion": "Acción",
         },
     )
-    st.caption(
-        "Un guion largo es «no hay dato suficiente», no un cero. Siete de los diez emisores "
-        "todavía no tienen cuatro trimestres válidos consecutivos de AFFO: eso es cobertura "
-        "del parser, y se ve en la columna de observaciones."
-    )
+    sin_datos = int(universo["affo_yield"].isna().sum()) if "affo_yield" in universo else 0
+    if sin_datos:
+        st.caption(
+            f"Un guion largo es «no hay dato suficiente», no un cero. A {sin_datos} de los "
+            f"{len(universo)} emisores les falta ficha de taxonomía o su conciliación no cuadra, "
+            "así que no tienen cuatro trimestres válidos consecutivos de AFFO. Es cobertura del "
+            "parser, y se ve en la columna de observaciones."
+        )
 
     with st.expander("Cómo leer la columna de Acción"):
         st.markdown(
