@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from bs4 import BeautifulSoup
 
 from src.config import Fuente
+from src.ingesta.taxonomia import ficha_de
 from src.modelo.cascada import SEPARADOR_SEGMENTO, TODAS_LAS_LINEAS, clave_base
 
 # --------------------------------------------------------------------------------------
@@ -108,7 +109,11 @@ CLAVES_ACUMULABLES: frozenset[str] = frozenset(
 
 
 def normalizar_etiqueta(texto: str) -> str | None:
-    """Mapea la etiqueta del emisor a una clave de la cascada. ``None`` si no aplica."""
+    """Mapea la etiqueta del emisor a una clave de la cascada con los patrones compartidos.
+
+    Es la red de seguridad, no la vía principal: cuando el emisor tiene ficha,
+    manda la ficha. Ver ``resolver_etiqueta`` y ``src/ingesta/taxonomia.py``.
+    """
     limpio = re.sub(r"\s+", " ", texto or "").strip().lower()
     if not limpio or len(limpio) > 200:
         return None
@@ -120,6 +125,22 @@ def normalizar_etiqueta(texto: str) -> str | None:
         if patron.search(limpio):
             return clave
     return None
+
+
+def resolver_etiqueta(ticker: str, texto: str) -> tuple[str | None, bool]:
+    """Resuelve la etiqueta usando primero la ficha del emisor.
+
+    Devuelve ``(clave, declarada)``. ``declarada`` es False cuando la ficha no
+    conoce la etiqueta y hubo que recurrir a los patrones compartidos: eso es un
+    hueco de la ficha y se reporta como advertencia, porque es exactamente donde
+    el sistema vuelve a estar expuesto a que el patrón de otro emisor decida.
+    """
+    ficha = ficha_de(ticker)
+    if ficha is not None:
+        clave, declarada = ficha.resolver(texto)
+        if declarada:
+            return clave, True
+    return normalizar_etiqueta(texto), False
 
 
 # --------------------------------------------------------------------------------------
@@ -530,12 +551,19 @@ def _extraer_columnas(
         # Acumularlas juntas mete el segundo monto en el tramo del primero y deja el
         # siguiente sin partidas que verificar. El segmento las mantiene separadas.
         segmento = 0
+        # Etiquetas que la ficha del emisor no declara y hubo que resolver con
+        # los patrones compartidos. No es un error —el sistema sigue— pero es
+        # el punto exacto donde vuelve a quedar expuesto a que el patrón de otro
+        # emisor decida por este, así que se reporta.
+        no_declaradas: set[str] = set()
         for n_fila, fila in enumerate(filas):
             if len(fila) < 2:
                 continue
-            clave = normalizar_etiqueta(fila[0])
+            clave, declarada = resolver_etiqueta(ticker, fila[0])
             if clave is None:
                 continue
+            if not declarada:
+                no_declaradas.add(fila[0].strip())
             valores = _valores_alineados(fila)
             if idx_col >= len(valores) or valores[idx_col] is None:
                 continue
@@ -591,6 +619,12 @@ def _extraer_columnas(
         if escala == 1.0:
             advertencias.append(
                 "No se detectó la escala del reporte (miles/millones); se asumió unidades."
+            )
+        if no_declaradas and ficha_de(ticker) is not None:
+            muestra = ", ".join(sorted(no_declaradas)[:5])
+            advertencias.append(
+                f"La ficha de {ticker} no declara {len(no_declaradas)} etiqueta(s); se "
+                f"resolvieron con los patrones compartidos: {muestra}"
             )
         salida.append(
             ConciliacionExtraida(
