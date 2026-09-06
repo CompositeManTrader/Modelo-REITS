@@ -462,3 +462,105 @@ registrar(_ficha(
     },
     nota="No publica AFFO: su cascada termina en el Core FFO.",
 ))
+
+
+# ------------------------------------------------------------------------------------
+# EPRT — Essential Properties Realty Trust
+# ------------------------------------------------------------------------------------
+# Su cascada tiene DOS puentes con nombre propio: FFO → Core FFO, donde solo entra
+# la partida "no-core", y Core FFO → AFFO, donde entran los ajustes no-efectivos.
+# El emisor escribe la misma partida no-core de dos formas distintas entre
+# trimestres —"Non-core (income) expense, net (1)" y "Non-core expense (income) 1"—,
+# que es justo la clase de variación por la que la ficha existe.
+registrar(_ficha(
+    "EPRT",
+    "Essential Properties Realty Trust",
+    subtotales=("ffo", "ffo_normalizado", "affo"),
+    lineas={
+        "Net income": "utilidad_neta",
+        "Depreciation and amortization of real estate": "depreciacion_inmuebles",
+        "Provision for impairment of real estate": "deterioro",
+        "Gain on dispositions of real estate, net": "ganancia_venta_inmuebles",
+        "Funds from Operations": "ffo",
+        "Non-core (income) expense, net (1)": "partidas_no_recurrentes",
+        "Non-core expense (income) 1": "partidas_no_recurrentes",
+        "Core Funds from Operations": "ffo_normalizado",
+        "Straight-line rental revenue, net": "renta_linea_recta",
+        "Non-cash interest": "amortizacion_costos_financieros",
+        "Non-cash compensation expense": "compensacion_en_acciones",
+        "Other amortization expense": "otros_ajustes_no_efectivo",
+        "Other non-cash adjustments": "otros_ajustes_no_efectivo",
+        "Capitalized interest expense": "otros_ajustes_no_efectivo",
+        "Change in provision for credit losses": "otros_ajustes_no_efectivo",
+        "Adjusted Funds from Operations": "affo",
+        "Basic": IGNORAR,
+        "Diluted": IGNORAR,
+    },
+    nota="Publica el puente no-core por separado: FFO → Core FFO → AFFO.",
+))
+
+
+# ------------------------------------------------------------------------------------
+# GNL — Global Net Lease, Inc.
+# ------------------------------------------------------------------------------------
+# Es el emisor con la redacción más movediza del universo: escribe la misma línea
+# con y sin el paréntesis del signo —"(Gain) loss" contra "Gain"—, cambia el
+# número de la nota al pie entre trimestres —"[2]" y luego "[3]"— y alterna entre
+# "FFO (defined by NAREIT)" y "FFO (as defined by NAREIT) attributable to common
+# stockholders". Cada variante es una etiqueta distinta para el parser, y por eso
+# la ficha las lista todas en vez de intentar un patrón que las cubra.
+registrar(_ficha(
+    "GNL",
+    "Global Net Lease, Inc.",
+    subtotales=("ffo", "ffo_normalizado", "affo"),
+    lineas={
+        "Net loss attributable to stockholders (in accordance with GAAP)": "utilidad_neta",
+        "Net (loss) income attributable to common stockholders (in accordance with GAAP)":
+            "utilidad_neta",
+        "Impairment charges": "deterioro",
+        "Depreciation and amortization": "depreciacion_inmuebles",
+        "Gain on dispositions of real estate investments": "ganancia_venta_inmuebles",
+        "(Gain) loss on dispositions of real estate investments": "ganancia_venta_inmuebles",
+        "FFO (defined by NAREIT)": "ffo",
+        "FFO (as defined by NAREIT) attributable to common stockholders": "ffo",
+        # GNL vendió su portafolio multi-inquilino, así que su puente al FFO trae un
+        # renglón de operaciones discontinuadas. Los patrones compartidos lo ignoran
+        # —para los demás emisores no existe—, y sin él el tramo del FFO descuadra.
+        "Discontinued operations FFO adjustments": "otros_ajustes_no_efectivo",
+        "Merger, transaction and other costs": "partidas_no_recurrentes",
+        "Loss on extinguishment and modification of debt": "partidas_no_recurrentes",
+        "Eliminate unrealized (gains) losses on foreign currency transactions [1]":
+            "partidas_no_recurrentes",
+        "Eliminate unrealized gains on foreign currency transactions [1]": "partidas_no_recurrentes",
+        "Eliminate (gains) losses related to multi-tenant disposition receivable [2]":
+            "partidas_no_recurrentes",
+        "Eliminate (gains) losses related to multi-tenant disposition receivable [3]":
+            "partidas_no_recurrentes",
+        "Forfeited disposition deposit [3]": "partidas_no_recurrentes",
+        "Forfeited disposition deposit [4]": "partidas_no_recurrentes",
+        "Eliminate deferred tax expense related to the disposition of the McLaren Campus [2]":
+            "partidas_no_recurrentes",
+        "Discontinued operations Core FFO adjustments": "partidas_no_recurrentes",
+        "Core FFO attributable to common stockholders": "ffo_normalizado",
+        "Non-cash equity-based compensation": "compensacion_en_acciones",
+        "Non-cash portion of interest expense": "amortizacion_costos_financieros",
+        "Amortization of discounts on mortgages and senior notes": "amortizacion_costos_financieros",
+        "Straight-line rent": "renta_linea_recta",
+        "Amortization related to above- and below-market lease intangibles and right-of-use "
+        "assets, net": "otros_ajustes_no_efectivo",
+        "Amortization related to above and below-market lease intangibles and right-of-use "
+        "assets, net": "otros_ajustes_no_efectivo",
+        "Unrealized (gains) losses on undesignated foreign currency advances and other hedge "
+        "ineffectiveness": "otros_ajustes_no_efectivo",
+        "Adjusted funds from operations (AFFO) attributable to common stockholders": "affo",
+        "FFO per diluted common share": "ffo",
+        "Core FFO per diluted common share": "ffo_normalizado",
+        "AFFO per diluted common share": "affo",
+        # Fuera del puente: son resultado de la cascada, no partidas de ella.
+        "Dividends declared to common stockholders": IGNORAR,
+        "Weighted average common shares outstanding — Basic and Diluted": IGNORAR,
+        "Net loss per share attributable to common stockholders": IGNORAR,
+        "Net (loss) income per share attributable to common stockholders": IGNORAR,
+    },
+    nota="Redacción inestable entre trimestres: signo, nota al pie y sigla del FFO cambian.",
+))

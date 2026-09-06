@@ -588,10 +588,24 @@ def elegir_mejor_conciliacion(extracciones: list) -> list:
                 1 for k in e.lineas
                 if clave_base(k) not in ORDEN_SUBTOTALES and not k.endswith("_por_accion")
             )
-            # Primero que no falle ningún tramo verificable, luego cuántos verifica,
-            # y al final cuánto detalle trae. Contar tramos totales sería premiar a la
-            # tabla que declara más subtotales sin desglosar ninguno.
-            return (-fallidos, cuadrando, detalle)
+            # Tramos verificados NETOS, luego brutos, y al final el detalle.
+            #
+            # La primera versión ordenaba por `(-fallidos, cuadrando, detalle)`, que
+            # le da prioridad ABSOLUTA a no fallar. Con eso, una tabla que no
+            # verifica nada —cero tramos que cierren y cero que fallen, porque no
+            # tiene ninguna partida entre subtotales— le gana a la conciliación de
+            # verdad en cuanto esta falla un solo tramo. Un comunicado trae tablas
+            # así: el resumen de resultados lista utilidad neta y AFFO sin el puente.
+            #
+            # Y una tabla que no se puede verificar no es mejor que una verificada a
+            # medias: es peor, porque no hay evidencia de nada. Contar tramos
+            # totales tampoco sirve, porque premiaría a la que declara muchos
+            # subtotales sin desglosar ninguno.
+            #
+            # Hoy ningún emisor del universo llega a ese empate —se corrigió como
+            # defecto latente, no porque estuviera eligiendo mal una tabla ahora—,
+            # y la prueba 16 fija el caso.
+            return (cuadrando - fallidos, cuadrando, detalle)
 
         mejor = max(candidatas, key=puntaje)
         lineas = dict(mejor.lineas)

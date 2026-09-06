@@ -256,7 +256,18 @@ def reconstruir_desde_acumulados(
     ``Q1 = H1 − Q2`` y ``Q3 = FY − H1 − Q4``. La fecha de publicación del
     trimestre derivado es la **más tardía** de sus componentes: antes de esa fecha
     el número no era deducible ni con lápiz.
+
+    Solo sirve para partidas ADITIVAS. El conteo de acciones es un promedio del
+    periodo, no una suma, y restarlo así da un negativo: por eso se rechaza aquí
+    en vez de confiar en que nadie lo pida.
     """
+    if concepto in xbrl.CONCEPTOS_PROMEDIO:
+        raise ValueError(
+            f"«{concepto}» es un promedio de periodo, no un flujo: restar acumulados "
+            "daría un valor negativo. Se deriva en `xbrl.derivar_trimestres_desde_acumulados`, "
+            "que lleva el promedio a total antes de restar."
+        )
+
     hechos = repo.hechos(asof=asof, tickers=ticker, conceptos=concepto)
     if hechos.empty:
         return 0
@@ -284,7 +295,7 @@ def reconstruir_desde_acumulados(
                         "fecha_dato": fin_de_trimestre(int(anio), int(etiqueta[1])),
                         "fecha_publicacion": publicacion,
                         "valor": valor,
-                        "unidad": "USD",
+                        "unidad": "USD/accion" if concepto.endswith("_por_accion") else "USD",
                         "fuente": Fuente.RECONSTRUIDO,
                         "es_primario": False,
                         "estado": Estado.VALIDO,
@@ -386,7 +397,15 @@ def correr_ingesta(
             resumen.errores.extend(r_px.errores)
 
         hoy = dt.date.today()
-        for concepto in ("affo", "ffo_normalizado", "utilidad_neta"):
+        # Las cifras POR ACCIÓN también se reconstruyen: el AFFO por acción del año
+        # es la suma de los cuatro trimestres, igual que el monto. Sin ellas, a un
+        # emisor al que le falta un solo trimestre por acción se le cae el TTM
+        # entero —y con él su renglón completo en la pantalla de inicio—, aunque el
+        # monto del trimestre sí esté reconstruido. Le pasaba a ADC.
+        for concepto in (
+            "affo", "ffo_normalizado", "utilidad_neta",
+            "affo_por_accion", "ffo_por_accion", "utilidad_neta_por_accion",
+        ):
             reconstruir_desde_acumulados(repo, e.ticker, concepto, asof=hoy)
 
         resumen.novedades = detectar_novedades(repo, e.ticker, asof=hoy)

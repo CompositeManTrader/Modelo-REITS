@@ -98,10 +98,16 @@ def construir_panel(
     trimestral = repo.panel(ticker, CONCEPTOS_PANEL, asof=asof, periodo_tipo="Q")
     if not trimestral.empty:
         trimestral = trimestral.astype(float, errors="ignore")
-        trimestral["affo_por_accion_ttm"] = (
-            pd.to_numeric(trimestral["affo_por_accion"], errors="coerce").rolling(4).sum()
-        )
-        trimestral["affo_ttm"] = pd.to_numeric(trimestral["affo"], errors="coerce").rolling(4).sum()
+        trimestral["affo_por_accion_ttm"] = _ttm(trimestral, "affo_por_accion")
+        trimestral["affo_ttm"] = _ttm(trimestral, "affo")
+        # Si al AFFO por acción le falta un trimestre pero el monto sí está
+        # completo, el TTM por acción se deduce del monto y del conteo de acciones.
+        # Antes, un solo hueco en la serie por acción borraba al emisor de la
+        # pantalla aunque toda la información necesaria estuviera en la base.
+        acciones = pd.to_numeric(trimestral.get("acciones_diluidas"), errors="coerce")
+        if acciones is not None:
+            deducido = trimestral["affo_ttm"] / acciones.where(acciones > 0)
+            trimestral["affo_por_accion_ttm"] = trimestral["affo_por_accion_ttm"].fillna(deducido)
         trimestral["crecimiento_affo_por_accion_yoy"] = (
             pd.to_numeric(trimestral["affo_por_accion"], errors="coerce").pct_change(4)
         )
@@ -183,6 +189,31 @@ def construir_panel(
     )
 
 
+def _ttm(trimestral: pd.DataFrame, concepto: str) -> pd.Series:
+    """Suma los últimos doce meses, exigiendo que sean CUATRO TRIMESTRES SEGUIDOS.
+
+    Un ``rolling(4)`` cuenta filas, no calendario. Si al panel le falta un
+    trimestre, la ventana abarca cinco trimestres de calendario y devuelve un
+    "TTM" que no son doce meses. No hay nada en el resultado que lo delate: la
+    suma cuadra, el número se ve razonable, y el yield que sale de ahí está mal.
+
+    Aquí la ventana se valida contra las fechas: solo se emite el TTM cuando los
+    cuatro trimestres del periodo existen y son consecutivos.
+    """
+    if concepto not in trimestral:
+        return pd.Series(index=trimestral.index, dtype="float64")
+    serie = pd.to_numeric(trimestral[concepto], errors="coerce")
+    fechas = pd.PeriodIndex(pd.to_datetime(trimestral.index), freq="Q")
+    salida = pd.Series(index=trimestral.index, dtype="float64")
+    for i in range(3, len(serie)):
+        ventana = serie.iloc[i - 3 : i + 1]
+        # Cuatro trimestres seguidos abarcan exactamente tres saltos de trimestre.
+        if (fechas[i] - fechas[i - 3]).n != 3 or ventana.isna().any():
+            continue
+        salida.iloc[i] = float(ventana.sum())
+    return salida
+
+
 def _serie_affo_yield(trimestral: pd.DataFrame, precios: pd.Series) -> pd.Series:
     """AFFO yield TTM por fecha de trimestre, sobre precio de cierre **sin ajustar**."""
     if "affo_por_accion_ttm" not in trimestral:
@@ -213,12 +244,19 @@ def _metricas(
 ) -> dict[str, float | None]:
     if trimestral.empty or precio is None:
         return {}
-    ultima = trimestral.dropna(subset=["affo_por_accion_ttm"]).tail(1)
+    # Basta con tener el TTM por acción O el TTM del monto: `panel_valuacion` sabe
+    # dividir el segundo entre las acciones. Exigir el primero borraba al emisor
+    # entero de la pantalla por un hueco de un trimestre en una sola serie.
+    con_ttm = trimestral.dropna(subset=["affo_por_accion_ttm", "affo_ttm"], how="all")
+    ultima = con_ttm.tail(1)
     if ultima.empty:
         return {}
     fila = ultima.iloc[0]
     balance = balance or {}
-    acciones = float(fila.get("acciones_diluidas") or 0) or 1.0
+    # Un conteo de acciones no positivo no es un dato: es una fórmula equivocada
+    # aguas arriba. Dividir entre él le voltea el signo a toda métrica por acción.
+    acciones_reportadas = _f(fila.get("acciones_diluidas"))
+    acciones = acciones_reportadas if (acciones_reportadas or 0) > 0 else 1.0
 
     ins = InsumosValuacion(
         ticker=ticker,

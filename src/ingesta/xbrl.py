@@ -117,6 +117,33 @@ CONCEPTOS_PUNTUALES = frozenset(
     }
 )
 
+# Un acumulado no siempre es una suma. Hay TRES clases de partida, no dos:
+#
+#   * PUNTUAL — saldo de balance. No se deriva de nada. (arriba)
+#   * FLUJO — importe del periodo. El acumulado es la SUMA, así que `Q4 = FY − 9M`.
+#     Es el caso de casi todo, incluidas las cifras POR ACCIÓN: el AFFO por acción
+#     del año sí es aproximadamente la suma de los cuatro trimestres.
+#   * PROMEDIO PONDERADO — el conteo de acciones básicas y diluidas. El acumulado
+#     es el PROMEDIO del periodo, no la suma.
+#
+# Restar promedios como si fueran sumas es lo que llenó la base de conteos de
+# acciones NEGATIVOS: `FY − 9M` sobre dos promedios da aproximadamente −1 × el
+# promedio. Los diez emisores tenían un Q4 de 2025 con acciones negativas, y un
+# conteo negativo le voltea el signo a todo lo que se divide entre él —el AFFO por
+# acción, el NAV por acción, el P/AFFO—. Ninguna suma lo delata, porque la
+# aritmética del renglón cuadra: lo que está mal es la fórmula.
+#
+# Para un promedio de n trimestres la identidad correcta es
+#
+#     Q_k = n · A_n − Σ(trimestres previos)
+#
+# que es la misma resta con el acumulado llevado a total antes de restar.
+CONCEPTOS_PROMEDIO = frozenset({"acciones_basicas", "acciones_diluidas"})
+
+# Cuántos trimestres abarca cada acumulado. Es el factor que convierte un promedio
+# de periodo en total de periodo.
+TRIMESTRES_POR_ACUMULADO = {"H1": 2, "9M": 3, "FY": 4}
+
 
 def clasificar_periodo(inicio: dt.date | None, fin: dt.date) -> str:
     """Clasifica la duración de un hecho XBRL en Q, H1, 9M, FY o PUNTUAL.
@@ -231,9 +258,15 @@ def extraer_hechos(
 def derivar_trimestres_desde_acumulados(df: pd.DataFrame, concepto: str) -> pd.DataFrame:
     """Deriva Q2/Q3/Q4 restando acumulados cuando el emisor solo reporta YTD.
 
-    ``Q2 = H1 − Q1``, ``Q3 = 9M − H1``, ``Q4 = FY − 9M``. Se hace por año fiscal
-    y por ``fecha_publicacion``: solo se combinan cifras que fueron observables al
-    mismo tiempo, para no fabricar un trimestre con mitad de información futura.
+    ``Q2 = H1 − Q1``, ``Q3 = 9M − Q1 − Q2``, ``Q4 = FY − Q1 − Q2 − Q3``. Se hace
+    por año fiscal y por ``fecha_publicacion``: solo se combinan cifras que fueron
+    observables al mismo tiempo, para no fabricar un trimestre con mitad de
+    información futura.
+
+    Para un concepto de ``CONCEPTOS_PROMEDIO`` el acumulado es el promedio del
+    periodo, no la suma, así que primero se lleva a total multiplicándolo por los
+    trimestres que abarca. Sin eso, restar dos promedios de acciones daba un
+    conteo negativo.
     """
     sub = df[df["concepto"] == concepto].copy()
     if sub.empty:
@@ -257,6 +290,13 @@ def derivar_trimestres_desde_acumulados(df: pd.DataFrame, concepto: str) -> pd.D
                 continue
             base = acumulados[tipo]
             resta = sum(float(vistos[p]["valor"]) for p in previos)
+            # Un promedio de n trimestres se lleva a total antes de restar.
+            factor = TRIMESTRES_POR_ACUMULADO[tipo] if concepto in CONCEPTOS_PROMEDIO else 1
+            valor = float(base["valor"]) * factor - resta
+            if concepto in CONCEPTOS_PROMEDIO and valor <= 0:
+                # Un conteo de acciones no positivo no es un dato: es una fórmula
+                # equivocada. Antes que escribirlo, no se escribe nada.
+                continue
             publicaciones = [pd.Timestamp(base["fecha_publicacion"])] + [
                 pd.Timestamp(vistos[p]["fecha_publicacion"]) for p in previos
             ]
@@ -264,7 +304,7 @@ def derivar_trimestres_desde_acumulados(df: pd.DataFrame, concepto: str) -> pd.D
             fila.update(
                 {
                     "periodo_tipo": "Q",
-                    "valor": float(base["valor"]) - resta,
+                    "valor": valor,
                     "fecha_publicacion": max(publicaciones).date(),
                     "fuente": Fuente.RECONSTRUIDO,
                     "es_primario": False,
