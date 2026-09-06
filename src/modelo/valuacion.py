@@ -21,6 +21,13 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
+from src.config import (
+    CAP_RATE_POR_OMISION,
+    CAP_RATE_POR_SECTOR,
+    PRIMA_RIESGO_POR_OMISION,
+    PRIMA_RIESGO_POR_SECTOR,
+)
+
 # --------------------------------------------------------------------------------------
 # Insumos
 # --------------------------------------------------------------------------------------
@@ -377,3 +384,254 @@ def panel_valuacion(
         salida["prima_sobre_libre_riesgo"] = y - tasa_libre_riesgo
         salida["prima_bps"] = (y - tasa_libre_riesgo) * 10_000.0
     return salida
+
+
+# --------------------------------------------------------------------------------------
+# Cap rate por sector
+# --------------------------------------------------------------------------------------
+
+
+def rango_cap_rate(sector: str | None) -> tuple[float, float, float]:
+    """``(mínimo, base, máximo)`` del cap rate que le corresponde a ese sector.
+
+    El cap rate no es una constante universal. Valuar un self storage al 6.75% de
+    net lease le quita alrededor de 20% de valor sin que ningún número del modelo
+    se vea raro, porque la aritmética sigue cuadrando: solo el supuesto está mal.
+    """
+    return CAP_RATE_POR_SECTOR.get(sector or "", CAP_RATE_POR_OMISION)
+
+
+def prima_riesgo_sector(sector: str | None) -> float:
+    return PRIMA_RIESGO_POR_SECTOR.get(sector or "", PRIMA_RIESGO_POR_OMISION)
+
+
+def sensibilidad_nav_sectorial(ins: InsumosValuacion, sector: str | None) -> pd.DataFrame:
+    """Sensibilidad centrada en el rango del sector, no en un rango fijo para todos.
+
+    Una tabla de 5.5% a 8.0% es informativa para net lease y casi inútil para
+    torres de telecomunicaciones, cuyo rango entero vive por debajo del 6%.
+    """
+    minimo, _base, maximo = rango_cap_rate(sector)
+    return sensibilidad_nav(ins, np.linspace(minimo, maximo, 11))
+
+
+# --------------------------------------------------------------------------------------
+# Crecimiento implícito: la valuación que SÍ se puede calcular con lo que hay
+# --------------------------------------------------------------------------------------
+#
+# El NAV exige NOI y deuda total. El NOI es una medida NO-GAAP —igual que el AFFO—
+# y no está en XBRL: vive en el suplemento, tabla por tabla, emisor por emisor. La
+# deuda total tampoco viene limpia: cada emisor la etiqueta a su manera y buena
+# parte llega dimensionada por instrumento. El resultado es que el NAV no se puede
+# calcular hoy para la mayoría del universo, y devolver `None` en silencio hace
+# creer que el modelo está roto cuando lo que falta es el insumo.
+#
+# Esto es lo contrario: una valuación construida SOLO con lo que el sistema ya
+# tiene verificado —precio, AFFO por acción, tasa libre de riesgo y sector— que da
+# un número para todo emisor con AFFO validado.
+#
+# Y da vuelta a la pregunta, que es lo que la vuelve útil en una mesa: en vez de
+# "¿cuánto vale?", responde "¿QUÉ CRECIMIENTO ESTÁ DESCONTANDO ESTE PRECIO?". Eso
+# se contrasta contra el crecimiento histórico del AFFO del propio emisor sin
+# necesidad de defender un valor intrínseco.
+
+
+def tasa_de_descuento(tasa_libre_riesgo: float, sector: str | None) -> float:
+    """``libre de riesgo + prima del sector``. La prima es del sector, no del mercado."""
+    return float(tasa_libre_riesgo) + prima_riesgo_sector(sector)
+
+
+def crecimiento_implicito(
+    precio: float,
+    affo_por_accion: float,
+    tasa_descuento: float,
+) -> float | None:
+    """Crecimiento perpetuo del AFFO que justifica el precio actual.
+
+    De la fórmula de Gordon ``P = AFFO₀(1+g) / (r − g)``, despejando::
+
+        g = (P·r − AFFO₀) / (P + AFFO₀)
+
+    Es aritmética, no un pronóstico: dice qué está suponiendo el mercado, no qué va
+    a pasar. La lectura útil es comparar ese ``g`` contra el crecimiento que el
+    emisor ha entregado de verdad.
+    """
+    if precio is None or affo_por_accion is None:
+        return None
+    if precio <= 0 or affo_por_accion <= 0:
+        return None
+    denominador = precio + affo_por_accion
+    if denominador <= 0:
+        return None
+    return (precio * float(tasa_descuento) - affo_por_accion) / denominador
+
+
+def valor_gordon(
+    affo_por_accion: float,
+    crecimiento: float,
+    tasa_descuento: float,
+) -> float | None:
+    """``AFFO₀(1+g) / (r − g)``. Devuelve ``None`` si el crecimiento no es menor que ``r``.
+
+    Cuando ``g`` se acerca a ``r`` el valor tiende a infinito, que no es una
+    valuación sino una división por casi cero. Se prefiere no dar número.
+    """
+    if affo_por_accion is None or affo_por_accion <= 0:
+        return None
+    r, g = float(tasa_descuento), float(crecimiento)
+    # Se exige un margen real, no solo r > g: con 10 puntos base de diferencia el
+    # múltiplo sale por encima de 100x y el resultado es aritmética, no valuación.
+    if r - g < 0.005:
+        return None
+    return affo_por_accion * (1.0 + g) / (r - g)
+
+
+@dataclass
+class ValuacionPorCrecimiento:
+    """Qué crecimiento descuenta el precio, y qué tan lejos está del entregado."""
+
+    precio: float
+    affo_por_accion: float
+    tasa_libre_riesgo: float
+    prima_riesgo: float
+    tasa_descuento: float
+    crecimiento_implicito: float
+    crecimiento_historico: float | None = None
+
+    @property
+    def brecha(self) -> float | None:
+        """Implícito menos histórico. Positivo = el precio pide más de lo entregado."""
+        if self.crecimiento_historico is None:
+            return None
+        return self.crecimiento_implicito - self.crecimiento_historico
+
+    def valor_con(self, crecimiento: float) -> float | None:
+        return valor_gordon(self.affo_por_accion, crecimiento, self.tasa_descuento)
+
+    def como_texto(self) -> str:
+        base = (
+            f"A {self.precio:,.2f} dólares y con AFFO por acción de "
+            f"{self.affo_por_accion:,.2f}, el precio descuenta un crecimiento perpetuo "
+            f"de {self.crecimiento_implicito:.2%} anual, descontando a "
+            f"{self.tasa_descuento:.2%} ({self.tasa_libre_riesgo:.2%} libre de riesgo "
+            f"+ {self.prima_riesgo:.2%} de prima del sector)."
+        )
+        if self.crecimiento_historico is None:
+            return base + " No hay historia suficiente para contrastarlo."
+        if self.brecha is None:
+            return base
+        if self.brecha > 0:
+            return (
+                base + f" Ha entregado {self.crecimiento_historico:.2%}: el precio pide "
+                f"{self.brecha * 10_000:,.0f} puntos base MÁS de lo que ha logrado."
+            )
+        return (
+            base + f" Ha entregado {self.crecimiento_historico:.2%}: el precio pide "
+            f"{abs(self.brecha) * 10_000:,.0f} puntos base MENOS de lo que ha logrado."
+        )
+
+
+def valuar_por_crecimiento(
+    precio: float,
+    affo_por_accion_ttm: float,
+    tasa_libre_riesgo: float,
+    sector: str | None,
+    crecimiento_historico: float | None = None,
+) -> ValuacionPorCrecimiento | None:
+    """Arma la valuación por crecimiento implícito. ``None`` si falta un insumo."""
+    if precio is None or affo_por_accion_ttm is None:
+        return None
+    if precio <= 0 or affo_por_accion_ttm <= 0 or tasa_libre_riesgo is None:
+        return None
+    prima = prima_riesgo_sector(sector)
+    r = tasa_de_descuento(tasa_libre_riesgo, sector)
+    g = crecimiento_implicito(precio, affo_por_accion_ttm, r)
+    if g is None:
+        return None
+    return ValuacionPorCrecimiento(
+        precio=float(precio),
+        affo_por_accion=float(affo_por_accion_ttm),
+        tasa_libre_riesgo=float(tasa_libre_riesgo),
+        prima_riesgo=prima,
+        tasa_descuento=r,
+        crecimiento_implicito=g,
+        crecimiento_historico=crecimiento_historico,
+    )
+
+
+# --------------------------------------------------------------------------------------
+# Diagnóstico: qué método se puede correr y qué le falta al que no
+# --------------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class MetodoValuacion:
+    nombre: str
+    disponible: bool
+    faltantes: tuple[str, ...]
+    explicacion: str
+
+
+def diagnosticar(ins: InsumosValuacion, *, tasa_libre_riesgo: float | None = None) -> list[MetodoValuacion]:
+    """Qué valuaciones se pueden calcular con los insumos que hay, y qué bloquea al resto.
+
+    Existe porque un ``None`` en pantalla no distingue "este emisor no vale nada"
+    de "me falta un dato para opinar", y esas dos cosas no se parecen. Cada método
+    dice exactamente qué insumo le falta, con el nombre que ese insumo tiene en la
+    base, para que buscarlo sea trivial.
+    """
+    metodos: list[MetodoValuacion] = []
+
+    faltan_multiplo = []
+    if not ins.precio:
+        faltan_multiplo.append("precio")
+    if not ins.affo_por_accion_ttm:
+        faltan_multiplo.append("affo_por_accion (TTM)")
+    metodos.append(MetodoValuacion(
+        "Múltiplos (AFFO yield, P/AFFO)",
+        not faltan_multiplo,
+        tuple(faltan_multiplo),
+        "Precio contra el flujo que el emisor sí puede repartir. Es la base de todo "
+        "lo demás y la que menos supuestos pide.",
+    ))
+
+    faltan_crecimiento = list(faltan_multiplo)
+    if tasa_libre_riesgo is None:
+        faltan_crecimiento.append("tasa libre de riesgo (UST 10 años)")
+    metodos.append(MetodoValuacion(
+        "Crecimiento implícito en el precio",
+        not faltan_crecimiento,
+        tuple(faltan_crecimiento),
+        "Qué crecimiento perpetuo del AFFO hace falta para justificar el precio de "
+        "hoy. Se contrasta contra el que el emisor ha entregado.",
+    ))
+
+    faltan_nav = []
+    if ins.noi is None:
+        faltan_nav.append("NOI (no está en XBRL: es no-GAAP, vive en el suplemento)")
+    if not ins.deuda_total:
+        faltan_nav.append("deuda_total")
+    if not ins.acciones_diluidas:
+        faltan_nav.append("acciones_diluidas")
+    metodos.append(MetodoValuacion(
+        "NAV (NOI ÷ cap rate del sector)",
+        not faltan_nav,
+        tuple(faltan_nav),
+        "Valor de los inmuebles capitalizando la renta al cap rate del SECTOR, más "
+        "efectivo y coinversiones, menos deuda. El goodwill se excluye.",
+    ))
+
+    faltan_cap = []
+    if ins.noi is None:
+        faltan_cap.append("NOI")
+    if not ins.capitalizacion:
+        faltan_cap.append("capitalización de mercado")
+    metodos.append(MetodoValuacion(
+        "Cap rate implícito en el precio",
+        not faltan_cap,
+        tuple(faltan_cap),
+        "A qué cap rate está capitalizando el mercado esta renta hoy. Se compara "
+        "contra transacciones privadas comparables.",
+    ))
+
+    return metodos

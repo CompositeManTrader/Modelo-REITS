@@ -56,6 +56,13 @@ La página de Sectorial tiene un botón que la llama y muestra el error.
 tablas de hechos incluyen `fecha_publicacion`, así que ambas versiones conviven y
 la consulta con corte anterior sigue viendo la vieja.
 
+**El formato nunca convierte unidades.** El `"%.2f%%"` de Streamlit solo pega el
+símbolo: dibujaría un AFFO yield de `0.0553` como `0.06%`. La escala vive en el
+dato, y `mostrar_tabla()` (`app/comun.py`) la aplica **una sola vez**, deduciendo
+la unidad del nombre de la columna y respetando siempre lo que pase quien llama.
+Es el mismo cuidado que con las celdas en puntos base del Excel, donde una prima
+de 409 bps se mostraba como «0 bps» por confiar en el formato.
+
 ---
 
 ## Arquitectura
@@ -147,6 +154,34 @@ cruda y señala un reparto fuera del historial. Realty Income (escisión de Orio
 > un navegador headless: se cambió de proveedor, y el detector de "esto es HTML, no
 > datos" quedó como prueba.
 
+### Sí, todo lo que se baja se guarda
+
+Nada se recalcula al vuelo desde la red. Cada corrida de ingesta **escribe a
+SQLite** (`data/reit.db`) y desde ahí lee toda la aplicación: la SEC se consulta
+para traer lo que falta, no para dibujar una pantalla.
+
+| Tabla | Qué guarda |
+|---|---|
+| `emisores` | Universo, CIK y sector |
+| `hechos` | Partidas XBRL y del suplemento, por emisor, concepto y periodo |
+| `conciliacion` | La cascada NOI → FFO → FFO normalizado → AFFO, renglón por renglón |
+| `precios` | Cierres **sin ajustar**, diarios |
+| `dividendos` | Fecha ex, fecha de pago y monto por acción |
+| `tasas` | UST, CPI, INPC, Cetes, Mbono y Udibono |
+| `guias` | Guías de la administración, con la fecha en que se emitió cada una |
+| `anclas_precio` | Cierres capturados a mano para la verificación de P2 |
+| `bitacora` | Qué entró a la base, cuándo y de dónde |
+| `transacciones`, `decisiones`, `inmuebles` | Lo que captura el usuario |
+
+Guardar es **append-only**: una reexpresión entra como fila nueva con su propia
+`fecha_publicacion`, nunca como `UPDATE`. Por eso la base crece y por eso una
+consulta con corte de hace un año sigue viendo lo que se sabía entonces, no lo que
+se sabe hoy. Esa es la mitad de P1.
+
+La excepción es **Streamlit Cloud**, donde el disco es efímero y cada reinicio del
+contenedor borra la base: ahí se reconstruye sola en el primer arranque. Ver
+"Despliegue en Streamlit Cloud" más abajo.
+
 ### Lo que está marcado como demostración
 
 `scripts/sembrar.py` genera datos para poder recorrer la aplicación sin red. Todo
@@ -190,7 +225,7 @@ necesario para recuperarlo en dos años.
 
 ---
 
-## Las trece pruebas obligatorias
+## Las quince pruebas obligatorias
 
 ```bash
 pytest -q                                   # todo
@@ -213,6 +248,8 @@ pytest -q -k "not libreoffice"              # sin LibreOffice instalado
 | 11 | La aplicación no truena con la base vacía ni con celdas faltantes | `test_11_arranque_sin_datos.py` |
 | 12 | Dos duraciones en un encabezado dan dos tipos de periodo, no uno | `test_12_parser_nnn.py` |
 | 13 | La ficha de un emisor lo aísla de los patrones de los demás | `test_13_taxonomia_por_emisor.py` |
+| 14 | El porcentaje se escala en el dato una sola vez, nunca en el formato | `test_14_formato_de_tablas.py` |
+| 15 | El cap rate es del sector: cambiarlo mueve el NAV de verdad | `test_15_valuacion_por_sector.py` |
 
 Cada prueba obligatoria viene con su **control**, porque una prueba que no puede
 fallar no prueba nada:
@@ -230,6 +267,12 @@ fallar no prueba nada:
   verificación de coherencia podría estar aprobando cualquier cosa. Su gemela le da
   a `verificar_series_banxico` una TIIE bajo el nombre de Udibono y exige que
   repruebe.
+- La prueba 14 pasa una columna **ya escalada** por quien llama y exige que el
+  formato automático no la vuelva a multiplicar por cien: un 5.53% dibujado como
+  553% se ve tan plausible como el correcto.
+- La prueba 15 valúa el mismo portafolio con el cap rate del sector equivocado y
+  exige que la diferencia supere el 20%. Si fuera pequeña, el cap rate por sector
+  sería adorno.
 
 El fixture del 8-K de Realty Income (`tests/fixtures/`) es un extracto del
 Exhibit 99.1 que la SEC publicó el 5 de agosto de 2026. Las pruebas del parser
@@ -296,7 +339,7 @@ que el propio emisor publica.
 | Hito | Estado |
 |---|---|
 | 1 — Ingesta y validación | Completo. EDGAR, XBRL, parser de AFFO validado contra filing real, esquema point-in-time, pruebas 1–4. |
-| 2 — Valuación individual | Completo. Cascada, métricas, tres puertas, Excel con fórmulas vivas, pruebas 5–6. |
+| 2 — Valuación individual | Completo. Cascada, métricas, tres puertas, cap rate y prima de riesgo **por sector**, crecimiento implícito, diagnóstico de insumos faltantes, Excel con fórmulas vivas, pruebas 5–6 y 15. |
 | 3 — Interfaz de valuación | Completo. Siete páginas de Streamlit, verificadas de punta a punta. |
 | 4 — Portafolio | Completo. Transacciones, TWR/TIR/atribución, capa fiscal, benchmarks. |
 | 5 — Comparativo inmobiliario | Completo. Motor CDMX, riesgos cuantificados, solver inverso de plusvalía. |
@@ -347,6 +390,68 @@ todo el descuadre.
 La prueba 13 verifica el aislamiento de verdad: **corrompe a propósito todos los
 patrones compartidos** y exige que un emisor con ficha siga cuadrando igual. Con su
 contraprueba: sin ficha, el mismo sabotaje sí lo rompe.
+
+### La valuación no es la misma para todas las REITs
+
+Un REIT no es una empresa: es un portafolio de inmuebles con una estructura de
+capital encima. Lo que se valúa es la **renta**, y el mercado privado no paga lo
+mismo por rentas distintas. La tasa a la que capitaliza una renta —el cap rate—
+depende de qué tan estable y duradera sea:
+
+| Sector | Cap rate base | Por qué |
+|---|---:|---|
+| Torres | 5.00% | Contratos a 10+ años con escaladores, casi sin CapEx. |
+| Self Storage | 5.50% | Se renta mes a mes, pero casi no consume CapEx y sube precios. |
+| Industrial | 5.50% | Naves con demanda estructural y mantenimiento barato. |
+| Net Lease | 6.75% | Contrato a 20 años, el inquilino paga todo. Se parece a un bono. |
+| Salud | 6.75% | Operador de por medio; el riesgo es de quien opera, no del ladrillo. |
+| Oficinas | 8.75% | Se renegocia cada 5 años y devora mejoras al inquilino. |
+| Hoteles | 9.00% | El contrato dura una noche. |
+
+Aplicarle a todos el mismo cap rate es el error más caro y el más invisible del
+modelo: valuar un self storage al 6.75% de net lease le borra **más de una quinta
+parte del valor sin que ningún número se vea raro**, porque la aritmética sigue
+cuadrando. Solo el supuesto está mal. Por eso el cap rate vive en
+`CAP_RATE_POR_SECTOR` (`src/config.py`), la perilla del NAV arranca en el rango del
+sector del emisor, y la prueba 15 exige que la diferencia exista y sea material.
+
+El mismo principio gobierna la tasa de descuento: `libre de riesgo + prima del
+sector`, no una prima única de mercado (`PRIMA_RIESGO_POR_SECTOR`).
+
+**Estos rangos envejecen.** Se mueven con las tasas y hay que revisarlos contra
+transacciones comparables. Son supuestos discutibles puestos donde se ven, no
+constantes.
+
+### Cuando no se puede calcular el NAV, el modelo lo dice
+
+El NAV exige NOI. El NOI es una medida **no-GAAP** —igual que el AFFO— y **no está
+en XBRL**: vive en el suplemento, tabla por tabla, emisor por emisor. Hoy la base
+no lo tiene para ningún emisor del universo, así que `nav_por_accion`,
+`cap_rate_implicito` y `premio_descuento_nav` salen vacíos para todos.
+
+Un `None` en pantalla no distingue *"no vale nada"* de *"me falta un dato para
+opinar"*, y esas dos cosas no se parecen. Por eso hay dos piezas:
+
+1. **`diagnosticar()`** — por emisor, qué método se puede correr y **qué insumo
+   exacto le falta al que no**, con el nombre que ese insumo tiene en la base.
+2. **Valuación por crecimiento implícito** — la que sí corre hoy, porque usa solo
+   lo verificado: precio, AFFO por acción TTM, tasa libre de riesgo y sector.
+
+La segunda le da vuelta a la pregunta, y eso es lo que la vuelve útil en una mesa.
+En vez de *"¿cuánto vale?"* responde ***"¿qué crecimiento está descontando este
+precio?"***. De Gordon, `P = AFFO₀(1+g)/(r − g)`, despejando:
+
+```
+g = (P·r − AFFO₀) / (P + AFFO₀)
+```
+
+Es aritmética, no un pronóstico: dice qué está suponiendo el mercado. La lectura
+útil es contrastar ese `g` contra el que el emisor **ha entregado de verdad**, sin
+tener que defender un valor intrínseco. La prueba 15 fija el contrato del despeje:
+valuar con el `g` implícito tiene que devolver exactamente el precio.
+
+`valor_gordon` devuelve `None` cuando `r − g < 0.5%`: ahí el múltiplo pasa de 100x
+y el resultado es una división por casi cero, no una valuación.
 
 ### Limitaciones conocidas
 
@@ -423,6 +528,16 @@ Con eso venían tres cosas más:
 Lo importante es que el sistema **se comporta bien cuando no puede**: lo que no
 cuadra se guarda marcado `sospechoso`, no entra a ningún cálculo, y la interfaz lo
 dice. Prefiere no tener el dato a tenerlo mal.
+**El NAV no se puede calcular para ningún emisor todavía.** Falta el NOI, que es
+no-GAAP y no está en XBRL. Extraerlo es trabajo de taxonomía por emisor, igual que
+el AFFO: el suplemento lo publica en su propia tabla, con sus propias etiquetas.
+Mientras tanto la valuación corre por múltiplos y por crecimiento implícito, y la
+página lo dice con nombre y apellido en vez de dejar celdas vacías.
+
+**El AFFO por acción TTM exige cuatro trimestres válidos consecutivos.** Hoy solo
+O, NNN y W. P. Carey los tienen, así que los otros siete no reciben valuación por
+crecimiento. No es un defecto del modelo: es la cobertura del parser, arriba.
+
 **La cobertura de precios sí es completa.** Los diez emisores traen cinco años de
 cierres sin ajustar y su historial de dividendos, y los diez pasan la verificación
 de coherencia del ajuste (ocho con error 0.00%; O y W. P. Carey con la reserva por

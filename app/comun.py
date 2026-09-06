@@ -423,6 +423,88 @@ def veces(v) -> str:
     return "—" if v is None or pd.isna(v) else f"{v:,.2f}x"
 
 
+# --------------------------------------------------------------------------------------
+# Formato automático de tablas
+# --------------------------------------------------------------------------------------
+#
+# Sin esto, una tabla dibuja 435000000.0 y el lector tiene que contar ceros con el
+# dedo. El formato se deduce del NOMBRE de la columna y de su magnitud, y se aplica
+# a toda tabla de la aplicación, para que una tabla nueva nazca legible en vez de
+# depender de que alguien se acuerde de configurarla.
+#
+# Ojo con los porcentajes: el formato "%.2f%%" de Streamlit solo PEGA el símbolo,
+# no escala. Por eso las columnas porcentuales se escalan en el DATO —igual que las
+# celdas en bps del Excel— y el formato nunca convierte unidades.
+
+_COLUMNAS_PORCENTAJE = (
+    "yield", "payout", "percentil", "premio", "descuento", "crecimiento", "tasa",
+    "rendimiento", "ocupacion", "cap_rate", "prima_riesgo", "inflacion", "ltv",
+    "peso", "fraccion", "spread_inversion", "dilucion", "error", "diferencia_relativa",
+)
+_COLUMNAS_BPS = ("bps",)
+_COLUMNAS_MONEDA = (
+    "precio", "nav", "monto", "valor", "usd", "mxn", "dividendo", "costo", "flujo",
+    "saldo", "capital", "interes", "renta", "aportacion", "retiro", "nominal",
+)
+_COLUMNAS_POR_ACCION = ("por_accion", "per_share", "por accion")
+_COLUMNAS_VECES = ("p_affo", "veces", "multiplo", "ebitdare", "cobertura", "razon")
+
+
+def _es(columna: str, agujas: tuple[str, ...]) -> bool:
+    c = str(columna).lower().replace(" ", "_")
+    return any(a in c for a in agujas)
+
+
+def formato_columnas(df: pd.DataFrame, explicito: dict | None = None) -> tuple[pd.DataFrame, dict]:
+    """Deduce el formato de cada columna numérica y escala lo que haya que escalar.
+
+    Devuelve ``(datos_para_dibujar, column_config)``. Lo explícito que pase quien
+    llama siempre gana: esto es un valor por omisión sensato, no una imposición.
+    """
+    explicito = dict(explicito or {})
+    vista = df.copy()
+    config: dict = {}
+
+    for columna in vista.columns:
+        if columna in explicito or not pd.api.types.is_numeric_dtype(vista[columna]):
+            continue
+        etiqueta = str(columna).replace("_", " ").strip().capitalize()
+
+        if _es(columna, _COLUMNAS_BPS):
+            # Por convención de este proyecto, una columna que se llama `*_bps` YA
+            # viene en puntos base: la escala se hace en `servicio.py`, donde nace
+            # el dato. Escalar otra vez aquí la multiplicaría por diez mil.
+            config[columna] = st.column_config.NumberColumn(etiqueta, format="%,.0f bps")
+        elif _es(columna, _COLUMNAS_PORCENTAJE):
+            # La escala va en el dato. El formato solo pega el símbolo.
+            vista[columna] = vista[columna] * 100.0
+            config[columna] = st.column_config.NumberColumn(etiqueta, format="%.2f%%")
+        elif _es(columna, _COLUMNAS_POR_ACCION):
+            config[columna] = st.column_config.NumberColumn(etiqueta, format="$%.2f")
+        elif _es(columna, _COLUMNAS_VECES):
+            config[columna] = st.column_config.NumberColumn(etiqueta, format="%.2fx")
+        elif _es(columna, _COLUMNAS_MONEDA):
+            config[columna] = st.column_config.NumberColumn(etiqueta, format="$%,.2f")
+        elif pd.api.types.is_integer_dtype(vista[columna]):
+            config[columna] = st.column_config.NumberColumn(etiqueta, format="%,d")
+        else:
+            # Los montos grandes se leen sin decimales; los chicos los necesitan.
+            magnitud = vista[columna].abs().max()
+            formato = "%,.0f" if pd.notna(magnitud) and magnitud >= 1_000 else "%,.2f"
+            config[columna] = st.column_config.NumberColumn(etiqueta, format=formato)
+
+    config.update(explicito)
+    return vista, config
+
+
+def mostrar_tabla(df: pd.DataFrame, *, column_config: dict | None = None, **kwargs):
+    """``st.dataframe`` con separadores de miles y unidades por omisión."""
+    vista, config = formato_columnas(df, column_config)
+    kwargs.setdefault("hide_index", True)
+    kwargs.setdefault("width", "stretch")
+    return st.dataframe(vista, column_config=config, **kwargs)
+
+
 def semaforo_html(luz: str, texto: str) -> str:
     color = COLOR_LUZ.get(luz, "#57606a")
     return (

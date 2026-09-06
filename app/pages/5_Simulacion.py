@@ -19,6 +19,7 @@ from comun import (  # noqa: E402
     dinero,
     exigir_base,
     explicar,
+    mostrar_tabla,
     pct,
     selector_de_corte,
     suficiencia,
@@ -123,7 +124,7 @@ with pestanas[0]:
                                  yaxis_title="Capital real (USD de hoy)",
                                  margin={"t": 20, "b": 20, "l": 10, "r": 10},
                                  legend={"orientation": "h", "y": 1.1})
-            st.plotly_chart(figura, width="stretch")
+            st.plotly_chart(figura)
 
         st.subheader("Riesgo de secuencia: la misma media, distinto orden")
         st.caption(
@@ -190,8 +191,8 @@ with pestanas[1]:
         tabla = replay_todos(posiciones, yield_actual=yield_actual)
         vista = tabla.copy()
         vista["caida_portafolio"] = vista["caida_portafolio"] * 100.0
-        st.dataframe(
-            vista, hide_index=True, width="stretch",
+        mostrar_tabla(
+            vista,
             column_config={
                 "episodio": "Episodio",
                 "periodo": "Periodo",
@@ -258,7 +259,7 @@ with pestanas[2]:
                 figura.update_layout(height=300, xaxis_tickformat=".0%",
                                      xaxis_title="Crecimiento del AFFO por acción (YoY)",
                                      margin={"t": 20, "b": 20, "l": 10, "r": 10}, showlegend=False)
-                st.plotly_chart(figura, width="stretch")
+                st.plotly_chart(figura)
 
 # --------------------------------------------------------------------------------------
 # 4. Sensibilidad a tasas
@@ -275,9 +276,8 @@ with pestanas[3]:
     tabla = tabla_sensibilidad_tasas(multiplo)
     vista = tabla.copy()
     vista["cambio_pct"] = vista["cambio_pct"] * 100.0
-    st.dataframe(
+    mostrar_tabla(
         vista[["shock_bps", "multiplo_estimado", "cambio_pct"]],
-        hide_index=True, width="stretch",
         column_config={
             "shock_bps": st.column_config.NumberColumn("Shock del bono 10a (bps)", format="%d"),
             "multiplo_estimado": st.column_config.NumberColumn("Múltiplo estimado", format="%.1fx"),
@@ -290,7 +290,7 @@ with pestanas[3]:
     figura.update_layout(height=300, yaxis_tickformat=".0%",
                          xaxis_title="Shock del UST 10 años (bps)", yaxis_title="Impacto en precio",
                          margin={"t": 20, "b": 20, "l": 10, "r": 10}, showlegend=False)
-    st.plotly_chart(figura, width="stretch")
+    st.plotly_chart(figura)
     st.caption(
         "El ciclo 2022–2023 fue exactamente esto: el bono a 10 años pasó de 1.5% a 5% y la caída "
         "fue casi toda compresión de múltiplo, no deterioro del AFFO. Es el episodio que mejor "
@@ -367,7 +367,7 @@ with pestanas[4]:
                        name="Benchmark (mismo activo)", line={"color": "#57606a", "dash": "dash"})
     figura.update_layout(height=320, margin={"t": 20, "b": 20, "l": 10, "r": 10},
                          legend={"orientation": "h", "y": 1.12})
-    st.plotly_chart(figura, width="stretch")
+    st.plotly_chart(figura)
     st.warning(
         "Comparar riqueza final entre estas dos curvas sería incorrecto: despliegan distinto "
         "capital en distintos momentos. Por eso el veredicto se decide por TIR, no por dónde "
@@ -418,8 +418,8 @@ with pestanas[5]:
         c3.metric("Tasa de desviación", pct(reporte.tasa_desviacion, 0))
         (st.error if reporte.costo_estimado > 0 else st.info)(reporte.mensaje)
         if not reporte.por_tipo.empty:
-            st.dataframe(reporte.por_tipo, hide_index=True, width="stretch")
-        st.dataframe(decisiones, hide_index=True, width="stretch")
+            mostrar_tabla(reporte.por_tipo)
+        mostrar_tabla(decisiones)
 
 st.divider()
 descargo()

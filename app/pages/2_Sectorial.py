@@ -13,7 +13,14 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from comun import configurar, descargo, exigir_base, explicar, selector_de_corte  # noqa: E402
+from comun import (  # noqa: E402
+    configurar,
+    descargo,
+    exigir_base,
+    explicar,
+    mostrar_tabla,
+    selector_de_corte,
+)
 
 from src.modelo.sectorial import (  # noqa: E402
     CONTEXTO_HISTORICO,
@@ -67,19 +74,15 @@ else:
             ["ranking_en_sector", "ticker", "nombre", "percentil_prima", "affo_yield",
              "p_affo", "payout_affo", "accion"]
         ].copy()
-        for col in ("affo_yield", "payout_affo"):
-            vista[col] = vista[col] * 100.0
-        st.dataframe(
-            vista, hide_index=True, width="stretch",
+        mostrar_tabla(
+            vista,
             column_config={
                 "ranking_en_sector": st.column_config.NumberColumn("#", format="%d"),
                 "ticker": "Emisor",
                 "nombre": "Nombre",
                 "percentil_prima": st.column_config.ProgressColumn(
                     "Percentil de prima", min_value=0.0, max_value=1.0, format="%.0f%%"),
-                "affo_yield": st.column_config.NumberColumn("AFFO yield", format="%.2f%%"),
                 "p_affo": st.column_config.NumberColumn("P/AFFO", format="%.1fx"),
-                "payout_affo": st.column_config.NumberColumn("Payout AFFO", format="%.1f%%"),
                 "accion": "Acción",
             },
         )
@@ -125,7 +128,7 @@ if seleccion:
             yaxis_title="Percentil de la prima contra su propia historia",
             margin={"t": 20, "b": 20, "l": 10, "r": 10}, showlegend=False,
         )
-        st.plotly_chart(figura, width="stretch")
+        st.plotly_chart(figura)
         st.caption(
             "Un REIT de data centers con 2.5% de prima en el percentil 95 de su historia está "
             "**más barato** que uno de oficinas con 9% en el percentil 20 de la suya. El nivel "
@@ -182,7 +185,7 @@ if historico:
             labels={"color": "Percentil de prima"},
         )
         figura.update_layout(height=340, margin={"t": 20, "b": 20, "l": 10, "r": 10})
-        st.plotly_chart(figura, width="stretch")
+        st.plotly_chart(figura)
         st.caption(
             "Verde = el sector paga más prima que en su propia historia (barato). "
             "Rojo = paga menos (caro). Cada fila se mide contra sí misma, no contra las otras."
@@ -208,7 +211,7 @@ if historico:
         figura.add_hline(y=0.5, line_dash="dot", line_color="#57606a")
         figura.add_vline(x=0.0, line_dash="dot", line_color="#57606a")
         figura.update_layout(height=460, xaxis_tickformat=".0%", yaxis_tickformat=".0%")
-        st.plotly_chart(figura, width="stretch")
+        st.plotly_chart(figura)
         st.markdown(
             "**Los cuatro cuadrantes:** arriba a la derecha, barato y creciendo — donde uno "
             "quiere estar. Arriba a la izquierda, barato y encogiendo: trampa de valor, el "
@@ -233,8 +236,8 @@ with c1:
     # "0.3%" en vez de "25.2%". La escala va en el dato, nunca en el formato.
     dispersion = DISPERSION_SECTORIAL.copy()
     dispersion["rendimiento"] = dispersion["rendimiento"] * 100.0
-    st.dataframe(
-        dispersion, hide_index=True, width="stretch",
+    mostrar_tabla(
+        dispersion,
         column_config={
             "sector": st.column_config.TextColumn("Sector"),
             "periodo": st.column_config.TextColumn("Periodo"),
@@ -248,7 +251,7 @@ with c2:
         st.caption(item["leccion"])
 
 with st.expander("Perfil económico de los trece sectores"):
-    st.dataframe(tabla_perfiles(), hide_index=True, width="stretch")
+    mostrar_tabla(tabla_perfiles())
 
 explicar("prima", "percentil expandible")
 st.divider()

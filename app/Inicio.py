@@ -22,6 +22,7 @@ from comun import (  # noqa: E402
     descargo,
     exigir_base,
     explicar,
+    mostrar_tabla,
     pct,
     selector_de_corte,
 )
@@ -133,7 +134,7 @@ with col_a:
         yaxis_tickformat=".1%", yaxis_title="Rendimiento real anual",
         showlegend=False,
     )
-    st.plotly_chart(figura, width="stretch")
+    st.plotly_chart(figura)
 
 st.caption(DESCARGO_FISCAL)
 explicar("Udibono", "AFFO", "prima")
@@ -168,10 +169,8 @@ else:
     # en puntos base del Excel. El formato nunca hace la conversión de unidades.
     for columna in ("affo_yield", "dividend_yield", "payout_affo"):
         vista[columna] = vista[columna] * 100.0
-    st.dataframe(
+    mostrar_tabla(
         vista,
-        width="stretch",
-        hide_index=True,
         column_config={
             "ticker": "Emisor",
             "nombre": "Nombre",
@@ -222,10 +221,8 @@ c1, c2 = st.columns([1, 1])
 with c1:
     st.subheader("Índice FTSE Nareit All Equity")
     contexto = tabla_contexto_nareit()
-    st.dataframe(
+    mostrar_tabla(
         contexto,
-        hide_index=True,
-        width="stretch",
         column_config={
             "periodo": "Ventana",
             "nominal": st.column_config.NumberColumn("Nominal", format="%.2f%%"),
@@ -245,7 +242,7 @@ with c2:
         height=300, barmode="group", yaxis_tickformat=".1%",
         margin={"t": 20, "b": 20, "l": 10, "r": 10}, legend={"orientation": "h", "y": 1.1},
     )
-    st.plotly_chart(figura, width="stretch")
+    st.plotly_chart(figura)
     st.caption(
         "En la ventana de 5 años el rendimiento real fue **negativo**. El promedio de largo "
         "plazo no describe ninguna década en particular."

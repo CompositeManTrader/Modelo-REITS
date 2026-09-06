@@ -19,6 +19,7 @@ from comun import (  # noqa: E402
     dinero,
     exigir_base,
     explicar,
+    mostrar_tabla,
     pct,
     selector_de_corte,
 )
@@ -136,8 +137,8 @@ tabla["pct_renta"] = tabla["pct_renta"] * 100.0
 
 c1, c2 = st.columns([3, 2])
 with c1:
-    st.dataframe(
-        tabla, hide_index=True, width="stretch",
+    mostrar_tabla(
+        tabla,
         column_config={
             "concepto": "Concepto",
             "monto": st.column_config.NumberColumn("MXN al año", format="$%,.0f"),
@@ -166,8 +167,8 @@ modalidades = comparar_modalidades_arrendamiento(
     sueldo if sueldo > 0 else 900_000.0,
 )
 modalidades["Tasa efectiva sobre renta"] = modalidades["Tasa efectiva sobre renta"] * 100.0
-st.dataframe(
-    modalidades, hide_index=True, width="stretch",
+mostrar_tabla(
+    modalidades,
     column_config={
         "Base gravable": st.column_config.NumberColumn(format="$%,.0f"),
         "ISR": st.column_config.NumberColumn(format="$%,.0f"),
@@ -205,7 +206,7 @@ if hipoteca > 0:
     figura.update_layout(height=320, barmode="overlay", xaxis_title="Año",
                          yaxis_title="MXN", margin={"t": 20, "b": 20, "l": 10, "r": 10},
                          legend={"orientation": "h", "y": 1.12})
-    st.plotly_chart(figura, width="stretch")
+    st.plotly_chart(figura)
     st.caption(
         "La barra gris es lo que pagas; la verde es lo que ese pago **vale** en poder "
         "adquisitivo de hoy. Esa brecha es el único argumento real del apalancamiento "
@@ -223,9 +224,8 @@ st.divider()
 
 st.header("Riesgos cuantificados, no mencionados")
 riesgos = tabla_riesgos(supuestos, descuento)
-st.dataframe(
+mostrar_tabla(
     riesgos[["riesgo", "impacto_flujo", "probabilidad_supuesta", "descripcion"]],
-    hide_index=True, width="stretch",
     column_config={
         "riesgo": "Escenario",
         "impacto_flujo": st.column_config.NumberColumn("Impacto (MXN)", format="$%,.0f"),
@@ -233,7 +233,7 @@ st.dataframe(
         "descripcion": "Detalle",
     },
 )
-st.dataframe(pd.DataFrame(RIESGOS_CUALITATIVOS), hide_index=True, width="stretch")
+mostrar_tabla(pd.DataFrame(RIESGOS_CUALITATIVOS))
 
 st.divider()
 
@@ -252,8 +252,8 @@ st.warning(capital["nota"])
 
 st.subheader("Flujos del proyecto inmobiliario")
 detalle = resultado.detalle.copy()
-st.dataframe(
-    detalle, hide_index=True, width="stretch",
+mostrar_tabla(
+    detalle,
     column_config={
         "anio": st.column_config.NumberColumn("Año", format="%d"),
         "renta_bruta": st.column_config.NumberColumn("Renta bruta", format="$%,.0f"),
@@ -312,8 +312,8 @@ else:
     for col in ("rendimiento_corriente", "tir_nominal", "tir_real", "plusvalia_anualizada",
                 "yield_neto_reits", "brecha_vs_reits"):
         vista[col] = pd.to_numeric(vista[col], errors="coerce") * 100.0
-    st.dataframe(
-        vista, hide_index=True, width="stretch",
+    mostrar_tabla(
+        vista,
         column_config={
             "nombre": "Inmueble",
             "valor_actual": st.column_config.NumberColumn("Valor actual", format="$%,.0f"),

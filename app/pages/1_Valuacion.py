@@ -22,6 +22,7 @@ from comun import (  # noqa: E402
     dinero,
     exigir_base,
     explicar,
+    mostrar_tabla,
     numero,
     pct,
     positivo,
@@ -37,8 +38,14 @@ from src.modelo.cascada import CLAVES_TRAMPA, REPORTE, calcular_cascada  # noqa:
 from src.modelo.kill import tabla_liston_friccion, venta_parcial_sugerida  # noqa: E402
 from src.modelo.sectorial import metricas_especificas, perfil  # noqa: E402
 from src.modelo.senal import sesgo_por_ventana_completa  # noqa: E402
-from src.modelo.valuacion import InsumosValuacion, sensibilidad_nav  # noqa: E402
-from src.servicio import construir_panel, evaluar  # noqa: E402
+from src.modelo.valuacion import (  # noqa: E402
+    InsumosValuacion,
+    diagnosticar,
+    rango_cap_rate,
+    sensibilidad_nav_sectorial,
+    valuar_por_crecimiento,
+)
+from src.servicio import construir_panel, contexto_macro, evaluar  # noqa: E402
 
 configurar("Valuación", "📊")
 st.title("Valuación individual")
@@ -49,11 +56,25 @@ ticker = selector_de_emisor(repo)
 if ticker is None:
     st.stop()
 
+sector_del_emisor = repo.sector_de(ticker)
+cr_min, cr_base, cr_max = rango_cap_rate(sector_del_emisor)
+
 st.sidebar.divider()
 st.sidebar.markdown("**Supuestos del modelo**")
+st.sidebar.caption(
+    f"Sector: **{sector_del_emisor}**. El cap rate arranca en el rango de SU sector "
+    f"({cr_min:.2%}–{cr_max:.2%}), no en uno solo para todos."
+)
 cap_rate = st.sidebar.slider(
-    "Cap rate de mercado para el NAV", 0.045, 0.100, 0.065, 0.0025, format="%.4f",
-    help="La palanca MÁS sensible del modelo. Por eso es tuya y viene con tabla de sensibilidad.",
+    "Cap rate de mercado para el NAV",
+    min_value=round(cr_min - 0.01, 4), max_value=round(cr_max + 0.01, 4),
+    value=round(cr_base, 4), step=0.0025, format="%.4f",
+    help=(
+        "La palanca MÁS sensible del modelo, y la que NO puede ser la misma para todos: "
+        "un self storage se capitaliza cerca de 5.5% y una oficina arriba de 8.5%. "
+        "Aplicarle a un storage el cap rate de una oficina le quita un tercio del valor "
+        "sin que ningún número se vea raro."
+    ),
 )
 yield_adq = st.sidebar.slider(
     "Yield de adquisiciones del emisor", 0.03, 0.12, 0.074, 0.0025, format="%.4f",
@@ -63,6 +84,7 @@ yield_adq = st.sidebar.slider(
 panel = construir_panel(
     repo, ticker, asof=asof, cap_rate_mercado=cap_rate, yield_adquisiciones=yield_adq
 )
+macro = contexto_macro(repo, asof=asof)
 semaforo = evaluar(panel)
 
 st.subheader(f"{ticker} — {panel.sector}")
@@ -93,10 +115,9 @@ for columna, puerta, titulo in (
         st.markdown(f"**{titulo}**")
         st.markdown(semaforo_html(puerta.luz.value, puerta.mensaje), unsafe_allow_html=True)
         if not puerta.criterios.empty:
-            st.dataframe(
+            mostrar_tabla(
                 puerta.criterios[[c for c in ("criterio", "valor", "umbral", "persistencia", "cumple", "racha", "dispara")
                                   if c in puerta.criterios]],
-                hide_index=True, width="stretch",
             )
 
 st.info(
@@ -116,7 +137,7 @@ with st.expander("Quiero vender por valuación de todos modos"):
              help="Cuánto más tiene que rendir el destino, al año, para recuperar el costo fiscal en dos años.")
     st.warning(sugerencia["advertencia"])
     st.markdown("**El listón de fricción según cuánto llevas ganado:**")
-    st.dataframe(tabla_liston_friccion(), hide_index=True, width="stretch")
+    mostrar_tabla(tabla_liston_friccion())
 
 explicar("AFFO", "prima", "percentil expandible", "spread de inversión")
 
@@ -149,12 +170,10 @@ if not conciliacion.empty:
     detalle["Línea"] = detalle.apply(
         lambda r: ("⚠️ " if r["trampa"] else "") + str(r["etiqueta"]), axis=1
     )
-    st.dataframe(
+    mostrar_tabla(
         detalle[["Línea", "valor", "linea"]].rename(
             columns={"valor": "Monto (USD)", "linea": "Concepto normalizado"}
         ),
-        hide_index=True,
-        width="stretch",
         column_config={"Monto (USD)": st.column_config.NumberColumn(format="$%,.0f")},
     )
     st.caption(
@@ -221,7 +240,7 @@ if not panel.prima.dropna().empty:
         height=280, margin={"t": 20, "b": 20, "l": 10, "r": 10},
         yaxis_title="Puntos base sobre UST 10 años", showlegend=False,
     )
-    st.plotly_chart(figura, width="stretch")
+    st.plotly_chart(figura)
 
     with st.expander("Por qué el percentil usa ventana expandible y no la muestra completa"):
         sesgo = sesgo_por_ventana_completa(panel.prima.dropna())
@@ -233,7 +252,7 @@ if not panel.prima.dropna().empty:
         fig2.update_layout(height=280, yaxis_tickformat=".0%",
                            margin={"t": 20, "b": 20, "l": 10, "r": 10},
                            legend={"orientation": "h", "y": 1.15})
-        st.plotly_chart(fig2, width="stretch")
+        st.plotly_chart(fig2)
         brecha = sesgo["diferencia"].abs().mean()
         st.markdown(
             f"La diferencia media entre ambas es de **{brecha:.0%} de percentil**. La curva roja "
@@ -246,6 +265,118 @@ st.divider()
 # --------------------------------------------------------------------------------------
 # NAV y sensibilidad
 # --------------------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------------
+# Qué se puede valuar y qué no
+# --------------------------------------------------------------------------------------
+
+st.header("Qué se puede valuar de este emisor, y qué falta")
+st.caption(
+    "Un guion en pantalla no distingue «este emisor no vale nada» de «me falta un dato "
+    "para opinar», y esas dos cosas no se parecen. Aquí cada método dice qué insumo le "
+    "falta, con el nombre que ese insumo tiene en la base."
+)
+
+affo_ps_ttm = positivo(m.get("affo_por_accion_ttm"))
+if affo_ps_ttm is None and "affo_por_accion_ttm" in panel.trimestral:
+    serie_ps = panel.trimestral["affo_por_accion_ttm"].dropna()
+    affo_ps_ttm = positivo(serie_ps.iloc[-1]) if not serie_ps.empty else None
+
+fila_ultima = (
+    panel.trimestral.tail(1).iloc[0] if not panel.trimestral.empty else pd.Series(dtype="float64")
+)
+insumos_diag = InsumosValuacion(
+    ticker=ticker,
+    precio=numero(panel.precio, 0.0),
+    acciones_diluidas=positivo(fila_ultima.get("acciones_diluidas"), 1.0),
+    affo_por_accion_ttm=affo_ps_ttm,
+    noi_trimestral=positivo(fila_ultima.get("noi")),
+    deuda_total=positivo(fila_ultima.get("deuda_total"), 0.0),
+    sector=panel.sector,
+)
+diagnostico = diagnosticar(insumos_diag, tasa_libre_riesgo=macro.ust10)
+mostrar_tabla(
+    pd.DataFrame([
+        {
+            "Método": met.nombre,
+            "Estado": "✅ disponible" if met.disponible else "⛔ bloqueado",
+            "Le falta": ", ".join(met.faltantes) or "—",
+            "Qué mide": met.explicacion,
+        }
+        for met in diagnostico
+    ]),
+)
+
+st.divider()
+
+# --------------------------------------------------------------------------------------
+# Crecimiento implícito en el precio
+# --------------------------------------------------------------------------------------
+
+st.header("¿Qué crecimiento está descontando el precio?")
+st.caption(
+    "Da vuelta a la pregunta. En vez de defender un valor intrínseco, calcula qué "
+    "crecimiento perpetuo del AFFO hace falta para justificar el precio de HOY, y lo "
+    "contrasta contra el que el emisor ha entregado. Es aritmética, no un pronóstico."
+)
+
+crec_serie = panel.trimestral.get("crecimiento_affo_por_accion_yoy")
+crec_hist = (
+    float(pd.to_numeric(crec_serie, errors="coerce").dropna().tail(4).mean())
+    if crec_serie is not None and pd.to_numeric(crec_serie, errors="coerce").notna().any()
+    else None
+)
+valuacion_g = valuar_por_crecimiento(
+    panel.precio, affo_ps_ttm, macro.ust10, panel.sector, crec_hist
+)
+
+if valuacion_g is None:
+    st.info(
+        "Falta un insumo para este método. Arriba, en el diagnóstico, dice cuál: "
+        "casi siempre es el AFFO por acción TTM, que necesita cuatro trimestres "
+        "válidos seguidos."
+    )
+else:
+    v1, v2, v3, v4 = st.columns(4)
+    v1.metric("Crecimiento implícito", pct(valuacion_g.crecimiento_implicito),
+              help="El que el precio de hoy está suponiendo, a perpetuidad.")
+    v2.metric("Crecimiento entregado", pct(valuacion_g.crecimiento_historico),
+              help="Promedio de los últimos cuatro trimestres, año contra año.")
+    v3.metric("Brecha", bps(valuacion_g.brecha),
+              help="Implícito menos entregado. Positivo = el precio pide más de lo logrado.",
+              delta=None if valuacion_g.brecha is None else f"{-valuacion_g.brecha * 10_000:,.0f} bps a favor"
+              if valuacion_g.brecha < 0 else f"{valuacion_g.brecha * 10_000:,.0f} bps en contra",
+              delta_color="normal" if (valuacion_g.brecha or 0) < 0 else "inverse")
+    v4.metric("Tasa de descuento", pct(valuacion_g.tasa_descuento),
+              help=f"UST 10 años {valuacion_g.tasa_libre_riesgo:.2%} + prima del sector "
+                   f"{valuacion_g.prima_riesgo:.2%}.")
+    st.markdown(valuacion_g.como_texto())
+
+    escenarios = pd.DataFrame([
+        {
+            "escenario": etiqueta,
+            "crecimiento": g,
+            "valor_por_accion": valuacion_g.valor_con(g),
+            "premio_descuento": (
+                None if not valuacion_g.valor_con(g)
+                else panel.precio / valuacion_g.valor_con(g) - 1.0
+            ),
+        }
+        for etiqueta, g in (
+            ("Sin crecimiento", 0.0),
+            ("Mitad del entregado", (crec_hist or 0.0) / 2),
+            ("El que ha entregado", crec_hist or 0.0),
+            ("Implícito en el precio", valuacion_g.crecimiento_implicito),
+        )
+        if g is not None
+    ])
+    mostrar_tabla(escenarios)
+    st.caption(
+        "El premio/descuento se lee contra el precio actual: negativo significa que el "
+        "precio está **por debajo** del valor que implica ese crecimiento."
+    )
+
+st.divider()
 
 st.header("NAV y su sensibilidad al cap rate")
 explicar("NAV", "cap rate implícito", "dilución oculta")
@@ -269,7 +400,7 @@ with n2:
             dividendo_ttm_por_accion=panel.dividendo_ttm,
             sector=panel.sector,
         )
-        tabla = sensibilidad_nav(ins)
+        tabla = sensibilidad_nav_sectorial(ins, panel.sector)
         if not tabla.empty:
             figura = go.Figure()
             figura.add_scatter(x=tabla["cap_rate"], y=tabla["nav_por_accion"],
@@ -279,7 +410,7 @@ with n2:
             figura.update_layout(height=300, xaxis_tickformat=".2%",
                                  xaxis_title="Cap rate de mercado", yaxis_title="NAV por acción (USD)",
                                  margin={"t": 20, "b": 20, "l": 10, "r": 10}, showlegend=False)
-            st.plotly_chart(figura, width="stretch")
+            st.plotly_chart(figura)
             st.caption(
                 "Mira esta curva antes de creerte un NAV puntual: 50 puntos base de cap rate "
                 "cambian el NAV más que casi cualquier otro supuesto del modelo."
@@ -312,7 +443,7 @@ st.divider()
 # --------------------------------------------------------------------------------------
 
 st.header("Serie trimestral")
-st.dataframe(panel.trimestral.tail(20), width="stretch")
+mostrar_tabla(panel.trimestral.tail(20))
 
 st.header("Fuentes y procedencia")
 st.caption(
@@ -320,7 +451,7 @@ st.caption(
     "reconstruido significa que lo calculó el modelo y hereda el error de sus componentes."
 )
 if not panel.fuentes.empty:
-    st.dataframe(panel.fuentes.head(60), width="stretch", hide_index=True)
+    mostrar_tabla(panel.fuentes.head(60))
 
 # --------------------------------------------------------------------------------------
 # Exportación
