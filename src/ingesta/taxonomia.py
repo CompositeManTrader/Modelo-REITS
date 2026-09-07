@@ -564,3 +564,86 @@ registrar(_ficha(
     },
     nota="Redacción inestable entre trimestres: signo, nota al pie y sigla del FFO cambian.",
 ))
+
+
+# ------------------------------------------------------------------------------------
+# PSA — Public Storage
+# ------------------------------------------------------------------------------------
+# Su cascada termina en el Core FFO: no publica AFFO. El self storage casi no
+# consume CapEx de mantenimiento, así que el sector reporta el flujo normalizado y
+# no el ajustado; forzarle un AFFO sería inventarlo.
+#
+# El subtotal del FFO se le escapaba a los patrones compartidos por la nota al pie:
+# lo escribe "FFO allocable to common shares (a)". Sin reconocer el subtotal no hay
+# frontera de tramo, y la conciliación entera quedaba en uno solo.
+registrar(_ficha(
+    "PSA",
+    "Public Storage",
+    subtotales=("ffo", "ffo_normalizado"),
+    lineas={
+        "Net income allocable to common shareholders": "utilidad_neta",
+        "Real estate-related depreciation and amortization": "depreciacion_inmuebles",
+        "Real estate-related depreciation from unconsolidated real estate investment":
+            "depreciacion_inmuebles",
+        "Real estate-related depreciation allocated to noncontrolling interests, restricted "
+        "share unitholders, and unvested LTIP unitholders": "no_consolidadas_y_minoritarios",
+        "Impairment (recovery) write-down of real estate investments": "deterioro",
+        "Gains on sale of real estate investments, including our equity share from investment":
+            "ganancia_venta_inmuebles",
+        "FFO allocable to common shares (a)": "ffo",
+        # Todo lo que va entre el FFO y el Core FFO es normalización.
+        "Transaction and integration costs": "partidas_no_recurrentes",
+        "Legal reserves and recoveries": "partidas_no_recurrentes",
+        "Corporate transformation costs": "partidas_no_recurrentes",
+        "Executive severance and CEO transition costs": "partidas_no_recurrentes",
+        "Foreign currency exchange (gain) loss": "partidas_no_recurrentes",
+        "Unrealized (gain) loss on private equity investments": "partidas_no_recurrentes",
+        "Unrealized (gain) loss on interest rate derivatives": "partidas_no_recurrentes",
+        "Other items": "partidas_no_recurrentes",
+        "Core FFO allocable to common shares (a)": "ffo_normalizado",
+    },
+    nota="No publica AFFO: su cascada termina en el Core FFO.",
+))
+
+
+# ------------------------------------------------------------------------------------
+# WELL — Welltower Inc.
+# ------------------------------------------------------------------------------------
+# Escribe el subtotal del FFO con la sigla de Nareit por delante —"NAREIT FFO"—, que
+# los patrones compartidos no reconocían: buscaban "FFO" al principio de la etiqueta.
+#
+# Y cuando el FFO de Nareit y el normalizado coinciden, los publica en UN SOLO
+# renglón: "NAREIT and Normalized FFO". Ahí no hay dos subtotales, hay uno que vale
+# por los dos.
+registrar(_ficha(
+    "WELL",
+    "Welltower Inc.",
+    subtotales=("ffo", "ffo_normalizado"),
+    lineas={
+        "Net income (loss) attributable to common stockholders": "utilidad_neta",
+        "Net income": "utilidad_neta",
+        "Depreciation and amortization": "depreciacion_inmuebles",
+        "Impairments and losses (gains) on real estate dispositions and acquisitions of "
+        "controlling interests, net": "deterioro",
+        "Noncontrolling interests (1)": "no_consolidadas_y_minoritarios",
+        "Unconsolidated entities (2)": "no_consolidadas_y_minoritarios",
+        "NAREIT FFO attributable to common stockholders": "ffo",
+        "NAREIT FFO": "ffo",
+        "Normalizing items, net (3)": "partidas_no_recurrentes",
+        "Normalized FFO attributable to common stockholders": "ffo_normalizado",
+        "Normalized FFO": "ffo_normalizado",
+        "NAREIT and Normalized FFO attributable to common stockholders": "ffo_normalizado",
+        "NAREIT and Normalized FFO": "ffo_normalizado",
+        # Puente al flujo ajustado. Welltower lo publica sin ponerle nombre de subtotal.
+        "Net straight-line rent and above/below market rent amortization": "renta_linea_recta",
+        "Non-cash interest expenses": "amortizacion_costos_financieros",
+        "Stock-based compensation": "compensacion_en_acciones",
+        "Recurring cap-ex, tenant improvements and lease commissions (7)": "capex_mantenimiento",
+        # Encabezados y cifras que no son partidas del puente.
+        "FFO Reconciliations": IGNORAR,
+        "Outlook Reconciliation: Year Ending December 31, 2026": IGNORAR,
+        "Average diluted common shares outstanding": IGNORAR,
+    },
+    nota="Publica el FFO con la sigla de Nareit por delante, y a veces en un solo renglón "
+         "con el normalizado.",
+))

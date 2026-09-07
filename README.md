@@ -238,7 +238,7 @@ necesario para recuperarlo en dos años.
 
 ---
 
-## Las dieciséis pruebas obligatorias
+## Las diecisiete pruebas obligatorias
 
 ```bash
 pytest -q                                   # todo
@@ -264,6 +264,7 @@ pytest -q -k "not libreoffice"              # sin LibreOffice instalado
 | 14 | El porcentaje se escala en el dato una sola vez, nunca en el formato | `test_14_formato_de_tablas.py` |
 | 15 | El cap rate es del sector: cambiarlo mueve el NAV de verdad | `test_15_valuacion_por_sector.py` |
 | 16 | Un acumulado no siempre es una suma: el promedio se lleva a total | `test_16_derivacion_de_trimestres.py` |
+| 17 | Una columna que no es un periodo, y un flujo que no es AFFO | `test_17_columnas_y_medida_de_flujo.py` |
 
 Cada prueba obligatoria viene con su **control**, porque una prueba que no puede
 fallar no prueba nada:
@@ -291,6 +292,10 @@ fallar no prueba nada:
   reproduce con la fórmula corregida un trimestre que el emisor sí publicó. Sin lo
   primero no demuestra que el arreglo hacía falta; sin lo segundo, solo demuestra
   que el signo quedó bien.
+- La prueba 17 comprueba que el **año del encabezado sí se lee como número** antes
+  de exigir que no disfrace de importes una tabla por acción; y que la tabla de
+  Extra Space, que también dice "per share" pero sí trae los montos al lado, **no**
+  se descarte. Un filtro que se lleva de más es tan caro como uno que no filtra.
 
 El fixture del 8-K de Realty Income (`tests/fixtures/`) es un extracto del
 Exhibit 99.1 que la SEC publicó el 5 de agosto de 2026. Las pruebas del parser
@@ -476,23 +481,39 @@ y el resultado es una división por casi cero, no una valuación.
 **Cobertura del parser: medida, no estimada.** Corriendo contra los 8-K de la SEC
 desde junio de 2025 (`python scripts/cobertura.py --desde 2025-06-01 --max-filings 4`):
 
-| Emisor | Ficha | Periodos | Válidos | Sospechosos |
-|---|:--:|---:|---:|---:|
-| O | ✅ | 30 | 30 | 0 |
-| NNN | ✅ | 14 | 14 | 0 |
-| WPC | ✅ | 11 | 11 | 0 |
-| ADC | ✅ | 10 | 10 | 0 |
-| EPRT | ✅ | 6 | 6 | 0 |
-| GNL | ✅ | 5 | 5 | 0 |
-| EXR | ✅ | 21 | 7 | 14 |
-| WELL | — | 10 | 0 | 10 |
-| PSA | — | 4 | 0 | 4 |
-| PLD | — | 0 | 0 | 0 |
+| Emisor | Ficha | Periodos | Válidos | Sospechosos | Medida |
+|---|:--:|---:|---:|---:|---|
+| O | ✅ | 30 | 30 | 0 | AFFO |
+| NNN | ✅ | 14 | 14 | 0 | AFFO |
+| WPC | ✅ | 11 | 11 | 0 | AFFO |
+| ADC | ✅ | 10 | 10 | 0 | AFFO |
+| EPRT | ✅ | 6 | 6 | 0 | AFFO |
+| GNL | ✅ | 5 | 5 | 0 | AFFO |
+| EXR | ✅ | 14 | 14 | 0 | Core FFO |
+| WELL | ✅ | 10 | 10 | 0 | Core FFO |
+| PSA | ✅ | 4 | 4 | 0 | Core FFO |
+| PLD | — | 0 | 0 | 0 | — |
 
-**Seis de los diez emisores llegan completos a la pantalla.** Faltan PSA, EXR,
-WELL y PLD, y cada uno por su propia razón: a los tres primeros les descuadra un
-tramo de su conciliación —les falta ficha— y de PLD el parser no extrae ni una
-tabla.
+**Nueve de los diez emisores llegan a la pantalla, y los nueve con ficha cuadran
+al 100%.** Falta PLD, y por una razón distinta a las demás: no es que su
+conciliación descuadre, es que el localizador de exhibits no encuentra su
+comunicado de resultados. Es trabajo de `edgar.py`, no de taxonomía.
+
+### No todos los REITs publican AFFO
+
+Public Storage, Extra Space y Welltower terminan su conciliación en el **Core
+FFO**. El self storage casi no consume CapEx de mantenimiento y el sector reporta
+el flujo normalizado; forzarles un AFFO sería inventarlo.
+
+Ante eso hay dos salidas malas y una buena. Dejarlos en blanco borra dos sectores
+enteros de la pantalla. Copiar el Core FFO a la casilla del AFFO **miente**: el
+AFFO resta además el CapEx recurrente y la renta en línea recta, así que el Core
+FFO queda por arriba del flujo distribuible. La buena es usar el Core FFO y
+**decir en la pantalla que es Core FFO**: hay una columna «Medida» en la portada, y
+el panel del emisor levanta el aviso.
+
+Es la misma disciplina que con el cap rate por sector: el supuesto vive donde se
+ve, con su nombre.
 
 Cada emisor reporta su conciliación de AFFO con etiquetas ligeramente distintas y
 con su propia estructura de tramos. Ampliar la cobertura es trabajo de taxonomía
@@ -573,6 +594,11 @@ no-GAAP y no está en XBRL. Extraerlo es trabajo de taxonomía por emisor, igual
 el AFFO: el suplemento lo publica en su propia tabla, con sus propias etiquetas.
 Mientras tanto la valuación corre por múltiplos y por crecimiento implícito, y la
 página lo dice con nombre y apellido en vez de dejar celdas vacías.
+
+**Sin conteo de acciones no hay métrica por acción.** El respaldo de «acciones = 1»
+convertía un flujo de 4,000 millones en 4,000 millones POR ACCIÓN y sacaba un yield
+de 17 millones por ciento. Ahora se retrocede al último renglón que sí trae
+denominador, y si ninguno lo trae, no se devuelve métrica.
 
 **El AFFO por acción TTM exige cuatro trimestres válidos consecutivos**, y son
 cuatro trimestres de CALENDARIO, no cuatro renglones del panel. Un `rolling(4)`
