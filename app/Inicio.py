@@ -26,8 +26,8 @@ from comun import (  # noqa: E402
     pct,
     selector_de_corte,
 )
-from marca import GRIS, LOSS, PROFIT, encabezado, inyectar_estilos  # noqa: E402
 
+from marca import GRIS, LOSS, PROFIT, encabezado, inyectar_estilos  # noqa: E402
 from src.config import AVISO_TITULAR_12, RENDIMIENTOS_NAREIT_HISTORICOS  # noqa: E402
 from src.fiscal.mexico import DESCARGO_FISCAL, rendimiento_real_despues_de_impuestos  # noqa: E402
 from src.servicio import contexto_macro, tabla_universo  # noqa: E402

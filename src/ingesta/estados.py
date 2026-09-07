@@ -292,10 +292,17 @@ _BALANCE: tuple[LineaEstado, ...] = (
         "LongTermLineOfCredit",
     )),
     _l("deuda_total", "Deuda total", BALANCE, 240, (
+        # `DebtLongtermAndShorttermCombinedAmount` es la etiqueta canónica y casi
+        # nadie la usa. `NotesPayable` es la que Realty Income reporta hoy, y sin
+        # ella su deuda se quedaba en 2017: no había apalancamiento ni NAV para el
+        # emisor más grande del universo.
         "DebtLongtermAndShorttermCombinedAmount",
+        "NotesPayable",
         "LongTermDebt",
         "LongTermDebtNoncurrent",
         "DebtInstrumentCarryingAmount",
+        "DebtAndCapitalLeaseObligations",
+        "LiabilitiesSubjectToCompromiseDebt",
     ), subtotal=True),
     _l("cuentas_por_pagar", "Cuentas por pagar y acumulados", BALANCE, 250, (
         "AccountsPayableAndAccruedLiabilitiesCurrentAndNoncurrent",
@@ -714,6 +721,13 @@ def derivar_cuarto_trimestre(
     return _ordenar(pd.concat([crudos, pd.DataFrame(nuevas)], ignore_index=True))
 
 
+# Cuánto puede llevar una etiqueta sin reportarse y seguir contando como vigente.
+# Una serie trimestral viva tiene su última observación a tres o cuatro meses del
+# corte; una que solo se publica al cierre del año, a catorce. Dieciocho meses deja
+# pasar la segunda sin admitir una etiqueta abandonada hace años.
+VENTANA_DE_VIGENCIA = pd.DateOffset(months=18)
+
+
 def elegir_tags(crudos: pd.DataFrame, ticker: str) -> dict[str, str]:
     """Decide UNA etiqueta GAAP por renglón, para toda la emisora.
 
@@ -725,26 +739,49 @@ def elegir_tags(crudos: pd.DataFrame, ticker: str) -> dict[str, str]:
     suman el año" pasa a comparar dos conceptos distintos y reprueba por 16% sin
     que ninguna de las dos cifras esté mal.
 
-    El criterio es la cobertura total: cuántos periodos distintos cubre la etiqueta
-    contando trimestres, semestres y años juntos.
+    El criterio es la cobertura, **entre las etiquetas todavía vigentes**. Esa
+    segunda mitad no estaba y costaba caro: las emisoras cambian de etiqueta y la
+    vieja se queda en el archivo con toda su historia acumulada. Realty Income
+    reportó su gasto por intereses en ``InterestExpense`` de 2015 a 2024 y pasó a
+    ``InterestExpenseOperating``; por cobertura total ganaba la muerta, con 138
+    observaciones contra 22, y la serie que alimenta la valuación se quedaba sin
+    los últimos dos años. Lo mismo con la deuda total, que se detenía en 2017.
+
+    Sin dato reciente no hay EBITDAre, ni costo de la deuda, ni apalancamiento —y
+    sin esos tres la Puerta 1 no alcanza los criterios medibles que exige y el
+    veredicto es INCONCLUSO para todo el universo. Una etiqueta que la emisora
+    dejó de usar no sirve para valuar hoy, por mucha historia que tenga.
+
+    Si ninguna candidata está vigente se conserva la de más cobertura: es
+    preferible una serie que termina en 2017 a ninguna, siempre que la pantalla
+    diga hasta cuándo llega — y lo dice, en la sección de procedencia.
     """
     if crudos.empty:
         return {}
-    cobertura = (
-        crudos.groupby("tag")
-        .apply(lambda g: len(set(zip(g["periodo_tipo"], g["fecha_dato"], strict=True))),
-               include_groups=False)
-        .to_dict()
+    resumen = crudos.groupby("tag").agg(
+        cobertura=("fecha_dato", lambda s: len(set(zip(
+            crudos.loc[s.index, "periodo_tipo"], s, strict=True)))),
+        ultima=("fecha_dato", "max"),
     )
+    if resumen.empty:
+        return {}
+    corte = pd.Timestamp(resumen["ultima"].max()) - VENTANA_DE_VIGENCIA
+    vigente = {t: pd.Timestamp(r.ultima) >= corte for t, r in resumen.iterrows()}
+    cobertura = resumen["cobertura"].to_dict()
+
     elegidas: dict[str, str] = {}
     for linea in LINEAS:
-        candidatas = [(cobertura.get(t, 0), t) for t in tags_de(ticker, linea.clave)]
-        candidatas = [(n, t) for n, t in candidatas if n]
-        if candidatas:
-            # A igualdad de cobertura manda el orden de preferencia declarado, así
-            # que se rompe el empate por posición y no por nombre.
-            orden = {t: i for i, t in enumerate(tags_de(ticker, linea.clave))}
-            elegidas[linea.clave] = max(candidatas, key=lambda c: (c[0], -orden[c[1]]))[1]
+        preferencia = tags_de(ticker, linea.clave)
+        orden = {t: i for i, t in enumerate(preferencia)}
+        candidatas = [t for t in preferencia if cobertura.get(t, 0)]
+        if not candidatas:
+            continue
+        # Primero las vigentes; entre iguales, la de más cobertura; y a igualdad
+        # de cobertura manda el orden de preferencia declarado, para que el
+        # desempate sea por criterio y no por nombre.
+        elegidas[linea.clave] = max(
+            candidatas, key=lambda t: (vigente[t], cobertura[t], -orden[t])
+        )
     return elegidas
 
 
@@ -907,8 +944,109 @@ def conceptos_no_mapeados(crudos: pd.DataFrame, ticker: str, *, minimo: int = 4)
     return resumen[resumen["n_periodos"] >= minimo].reset_index(drop=True)
 
 
+# --------------------------------------------------------------------------------------
+# Persistencia: de las tres tablas a la base de hechos
+# --------------------------------------------------------------------------------------
+
+
+def hechos_de_estados(
+    companyfacts: dict,
+    ticker: str,
+    cik: str = "",
+    *,
+    desde: dt.date | None = None,
+) -> pd.DataFrame:
+    """Las tres tablas convertidas a filas de ``hechos``, listas para persistir.
+
+    Este módulo sabía **armar** los estados desde 2024 y nadie los guardaba: el
+    orquestador solo llamaba a `xbrl.py`, que mapea quince conceptos. El resultado
+    era que sesenta de los setenta y cinco renglones definidos aquí no tenían ni un
+    dato en la base, y con ellos faltaban las tres piezas que la valuación necesita
+    para dejar de decir INCONCLUSO:
+
+    * el **gasto por intereses** del estado de resultados —no el pagado del flujo
+      de efectivo, que muchas emisoras solo publican al cierre del año—, sin el
+      cual no hay EBITDAre ni costo de la deuda;
+    * la **deuda total** del balance, sin la cual no hay apalancamiento ni NAV;
+    * los **impuestos**, que entran al EBITDAre.
+
+    Las tres aparecen en las diez emisoras del universo cuando se leen desde aquí.
+
+    La etiqueta GAAP se elige UNA vez por emisora sobre el conjunto completo de
+    hechos —no por tabla— para que el trimestre y el año hablen del mismo concepto,
+    y se deriva el Q4 que la SEC nunca recibe. Ambas cosas ya las hacía este
+    módulo; lo único que faltaba era escribir el resultado.
+    """
+    crudos = hechos_crudos(companyfacts, ticker, desde=desde)
+    if crudos.empty:
+        return pd.DataFrame(columns=list(COLUMNAS_HECHOS))
+
+    tags = elegir_tags(crudos, ticker)
+    if not tags:
+        return pd.DataFrame(columns=list(COLUMNAS_HECHOS))
+    crudos = derivar_cuarto_trimestre(crudos, tags)
+
+    # `tags` va de clave → etiqueta; aquí hace falta el camino inverso. Una misma
+    # etiqueta puede alimentar dos renglones (los ingresos totales y el subtotal,
+    # por ejemplo), así que se emite una fila por cada uno.
+    por_tag: dict[str, list[str]] = {}
+    for clave, tag in tags.items():
+        por_tag.setdefault(tag, []).append(clave)
+
+    vista = crudos[crudos["tag"].isin(por_tag)]
+    vista = vista[vista["periodo_tipo"].isin([*TIPOS_DE_PERIODO, "PUNTUAL"])]
+    if vista.empty:
+        return pd.DataFrame(columns=list(COLUMNAS_HECHOS))
+
+    filas: list[dict] = []
+    for r in vista.to_dict("records"):
+        derivado = r["formulario"] == "DERIVADO"
+        for clave in por_tag[r["tag"]]:
+            filas.append(
+                {
+                    "ticker": ticker,
+                    "concepto": clave,
+                    "periodo_tipo": r["periodo_tipo"],
+                    "periodo_inicio": r["fecha_inicio"],
+                    "fecha_dato": r["fecha_dato"],
+                    "fecha_publicacion": r["fecha_publicacion"],
+                    "valor": float(r["valor"]),
+                    "unidad": r["unidad"],
+                    # Un Q4 derivado NO es primario: se calculó restando el año
+                    # menos los nueve meses, y hereda el error de sus dos
+                    # componentes. Decirlo es lo que separa un dato de la SEC de
+                    # una cuenta nuestra.
+                    "fuente": Fuente.DERIVADO if derivado else Fuente.SEC_XBRL,
+                    "es_primario": not derivado,
+                    "accession": r["accession"],
+                    "url_filing": _url_de_filing(cik, r["accession"]),
+                }
+            )
+    return pd.DataFrame(filas, columns=list(COLUMNAS_HECHOS))
+
+
+COLUMNAS_HECHOS = (
+    "ticker", "concepto", "periodo_tipo", "periodo_inicio", "fecha_dato",
+    "fecha_publicacion", "valor", "unidad", "fuente", "es_primario",
+    "accession", "url_filing",
+)
+
+
+def _url_de_filing(cik, accession) -> str | None:
+    if not cik or not accession:
+        return None
+    try:
+        return (
+            f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/"
+            f"{str(accession).replace('-', '')}/"
+        )
+    except (TypeError, ValueError):
+        return None
+
+
 __all__ = [
     "BALANCE",
+    "COLUMNAS_HECHOS",
     "ESTADOS",
     "ESTADO_RESULTADOS",
     "FLUJO_EFECTIVO",
@@ -920,7 +1058,10 @@ __all__ = [
     "armar_estado",
     "cobertura_de_lineas",
     "conceptos_no_mapeados",
+    "derivar_cuarto_trimestre",
+    "elegir_tags",
     "hechos_crudos",
+    "hechos_de_estados",
     "lineas_de",
     "periodos_disponibles",
     "tags_de",

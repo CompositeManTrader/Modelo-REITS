@@ -39,7 +39,6 @@ for ruta in (str(RAIZ), str(RAIZ / "app")):
         sys.path.insert(0, ruta)
 
 import marca  # noqa: E402
-
 from src.modelo.formulas import formula_por_clave, modelos_de_valuacion  # noqa: E402
 from src.modelo.valuacion import (  # noqa: E402
     InsumosValuacion,

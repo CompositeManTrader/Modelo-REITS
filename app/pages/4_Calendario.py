@@ -21,8 +21,8 @@ from comun import (  # noqa: E402
     mostrar_tabla,
     selector_de_corte,
 )
-from marca import GRIS, PROFIT, encabezado, inyectar_estilos  # noqa: E402
 
+from marca import GRIS, PROFIT, encabezado, inyectar_estilos  # noqa: E402
 from src.ingesta.tasas import deflactar  # noqa: E402
 from src.portafolio.transacciones import procesar_libro  # noqa: E402
 from src.servicio import contexto_macro  # noqa: E402
