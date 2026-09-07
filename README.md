@@ -574,20 +574,47 @@ desde junio de 2025 (`python scripts/cobertura.py --desde 2025-06-01 --max-filin
 | Emisor | Ficha | Periodos | Válidos | Sospechosos | Medida |
 |---|:--:|---:|---:|---:|---|
 | O | ✅ | 30 | 30 | 0 | AFFO |
+| EXR | ✅ | 14 | 14 | 0 | Core FFO |
 | NNN | ✅ | 14 | 14 | 0 | AFFO |
+| PLD | ✅ | 14 | 14 | 0 | AFFO |
 | WPC | ✅ | 11 | 11 | 0 | AFFO |
 | ADC | ✅ | 10 | 10 | 0 | AFFO |
+| WELL | ✅ | 10 | 10 | 0 | Core FFO |
 | EPRT | ✅ | 6 | 6 | 0 | AFFO |
 | GNL | ✅ | 5 | 5 | 0 | AFFO |
-| EXR | ✅ | 14 | 14 | 0 | Core FFO |
-| WELL | ✅ | 10 | 10 | 0 | Core FFO |
 | PSA | ✅ | 4 | 4 | 0 | Core FFO |
-| PLD | — | 0 | 0 | 0 | — |
 
-**Nueve de los diez emisores llegan a la pantalla, y los nueve con ficha cuadran
-al 100%.** Falta PLD, y por una razón distinta a las demás: no es que su
-conciliación descuadre, es que el localizador de exhibits no encuentra su
-comunicado de resultados. Es trabajo de `edgar.py`, no de taxonomía.
+**Los diez emisores llegan a la pantalla y los diez cuadran al 100%**: 118
+periodos válidos, ninguno sospechoso.
+
+### La conciliación que no viene en una tabla
+
+PLD fue el último en llegar, y por una razón que vale la pena dejar escrita
+porque el diagnóstico fácil era el equivocado. Durante un tiempo este archivo
+decía que el localizador de exhibits no encontraba su comunicado. **Los
+encontraba los dos.** El problema estaba después: Prologis publica su suplemento
+como **imágenes** —46 archivos `.jpg`, una por diapositiva— y junto a cada imagen
+el agente de presentación incrusta el texto de esa página en un `<font>` blanco
+de 1 punto, la capa de texto buscable del PDF. La conciliación entera está ahí,
+cifra por cifra. Lo que no hay es un solo `<table>`.
+
+Para un parser que recorre `<table>`, ese documento está vacío. No levanta
+excepción, no descuadra nada, no aparece en ningún error: devuelve cero. Es
+exactamente la clase de falla que este proyecto persigue, y le costó meses de
+ausencia a la única emisora industrial del universo.
+
+El texto plano sí tiene estructura: **cada partida es una etiqueta seguida de
+tantos importes como columnas tenga la página.** Con ese invariante se reconstruye
+la matriz, y de ahí en adelante corre el mismo camino que cualquier tabla —ficha
+del emisor, signos, segmentos, cuadre—, sin código paralelo que mantener.
+
+La vía solo se activa cuando el camino normal no encontró **nada**, y solo sobre
+páginas que se anuncian como conciliación en su título. Lo segundo importa tanto
+como lo primero: un suplemento trae decenas de páginas y varias mencionan el FFO
+sin conciliar nada. La más peligrosa es el resumen de desempeño, porque sus
+cifras se parecen a las buenas —1,323 millones donde la conciliación dice
+1,322,967 miles—: leerla no rompe ninguna suma, solo mete a la base un número que
+nadie concilió.
 
 ### No todos los REITs publican AFFO
 
