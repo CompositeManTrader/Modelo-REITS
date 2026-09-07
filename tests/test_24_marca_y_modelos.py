@@ -25,6 +25,7 @@ acento, ganancia y pérdida nunca solo por color, y sin emojis.
 from __future__ import annotations
 
 import datetime as dt
+import os
 import re
 import sys
 from pathlib import Path
@@ -571,6 +572,61 @@ def test_la_tabla_de_friccion_se_dibuja_en_porcentaje_y_no_en_dolares():
     assert vista["ventaja_anual_bps"].iloc[0] == pytest.approx(83)
     # El encabezado sigue siendo legible.
     assert config["ganancia_acumulada_pct"] == "Ganancia acumulada sobre el costo"
+
+
+def test_los_datos_de_demostracion_son_reproducibles_entre_procesos():
+    """`hash()` de Python está aleatorizado por proceso, y eso rompía el CI.
+
+    Dos jobs sobre el MISMO commit daban resultados distintos —uno verde y otro
+    rojo— porque la semilla salía de `abs(hash(ticker))`, que cambia en cada
+    proceso salvo que se fije `PYTHONHASHSEED`. Un fallo así no se puede
+    reproducir en la máquina de nadie, que es la peor clase de fallo.
+    """
+    import subprocess
+
+    guion = (
+        f"import sys; sys.path.insert(0, {str(RAIZ)!r});"
+        "from src.datos.semilla import _semilla_estable;"
+        "print(_semilla_estable('O'), _semilla_estable('PLD'))"
+    )
+    huellas = set()
+    for semilla in ("1", "99", "12345"):
+        salida = subprocess.run(
+            [sys.executable, "-c", guion],
+            env={**os.environ, "PYTHONHASHSEED": semilla},
+            capture_output=True, text=True, check=True,
+        )
+        huellas.add(salida.stdout.strip())
+    assert len(huellas) == 1, f"la semilla cambia con PYTHONHASHSEED: {huellas}"
+
+
+def test_el_verificador_de_humo_reconoce_el_selector_de_fichas():
+    """Estaba atado a `selectbox` y se apagó solo al pasar el selector a fichas.
+
+    El recorrido dejó de probar las diez emisoras y pasó a probar una, **en
+    silencio**. Un verificador que deja de verificar sin avisar es peor que no
+    tenerlo: por eso ahora busca los dos controles y `correr` exige encontrar
+    uno cuando hay emisores.
+    """
+    humo = (RAIZ / "scripts" / "humo_app.py").read_text(encoding="utf-8")
+    assert 'getattr(prueba, "pills", [])' in humo, "el verificador no conoce las fichas"
+    assert "no se encontró el selector de emisor" in humo, (
+        "sin esta exigencia, el recorrido puede volver a reducirse a un emisor sin avisar"
+    )
+    # Y la base vacía sigue siendo un caso legítimo sin selector.
+    assert "sin_emisores" in humo
+
+
+def test_el_crecimiento_puede_vivir_bajo_el_uno_por_ciento():
+    """La verificación de escala excluye por nombre, no bajando el umbral.
+
+    Un yield o un payout por debajo de 1% no existe en este universo, y ahí el
+    umbral sirve. Un crecimiento sí: puede ser 0.7%, puede ser cero —la tabla de
+    escenarios incluye «Sin crecimiento» a propósito— y puede ser negativo.
+    """
+    humo = (RAIZ / "scripts" / "humo_app.py").read_text(encoding="utf-8")
+    assert "_COLUMNAS_QUE_PUEDEN_SER_CHICAS" in humo
+    assert "_UMBRAL_FRACCION = 1.0" in humo, "se bajó el umbral en vez de excluir por nombre"
 
 
 def test_el_selector_de_emisora_vive_en_el_cuerpo_y_no_en_la_barra_lateral():
