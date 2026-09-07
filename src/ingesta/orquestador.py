@@ -288,6 +288,17 @@ def ingestar_xbrl(
 # --------------------------------------------------------------------------------------
 
 
+# Los conceptos que se rearman a partir de acumulados. Vive aquí y lo importan
+# los DOS caminos —la ingesta completa y la reconstrucción desde la instantánea—
+# porque son la misma operación: si la lista se duplicara, uno de los dos se
+# quedaría atrás en la siguiente mejora y la diferencia aparecería como "faltan
+# datos" sin que nada la explicara.
+CONCEPTOS_RECONSTRUIBLES: tuple[str, ...] = (
+    "affo", "ffo_normalizado", "utilidad_neta",
+    "affo_por_accion", "ffo_por_accion", "utilidad_neta_por_accion",
+)
+
+
 def reconstruir_desde_acumulados(
     repo: Repositorio, ticker: str, concepto: str, *, asof: dt.date
 ) -> int:
@@ -426,15 +437,29 @@ def correr_ingesta(
             repo, cliente, e.ticker, e.cik, desde=desde, max_filings=max_filings, sector=e.sector
         )
         if con_xbrl:
-            r_xbrl = ingestar_xbrl(repo, cliente, e.ticker, e.cik, desde=desde)
-            resumen.hechos_guardados += r_xbrl.hechos_guardados
-            resumen.errores.extend(r_xbrl.errores)
-            # Los tres estados completos. Van en la misma descarga de
-            # companyfacts que ya hizo el cliente —queda en su caché— así que no
-            # cuestan una petición más contra el límite de la SEC.
+            # Los tres estados completos van PRIMERO, y el orden es sustantivo.
+            #
+            # `xbrl.py` mapea veinte conceptos y `estados.py` setenta y cinco;
+            # quince coinciden, y para esos quince las dos rutas eligen la
+            # etiqueta GAAP con criterios distintos. Cuando difieren escriben la
+            # misma llave con la misma procedencia —`SEC-XBRL`—, así que la
+            # restricción única deja una sola fila y ganaba la que se hubiera
+            # insertado antes: el deterioro de 2012 de Realty Income salía
+            # 5.1 MM por una ruta y 3.6 MM por la otra, y cuál veía el modelo
+            # dependía del orden de estas dos líneas. Eran 2,067 celdas.
+            #
+            # `estados.py` es la ruta con el criterio explícito —vigencia,
+            # cobertura y empalme verificado contra el traslape—, así que manda.
+            # `xbrl.py` entra después y solo rellena lo que la otra no cubre,
+            # que es justo lo que aporta de más.
             r_est = ingestar_estados(repo, cliente, e.ticker, e.cik, desde=desde)
             resumen.hechos_guardados += r_est.hechos_guardados
             resumen.errores.extend(r_est.errores)
+            # Va en la misma descarga de companyfacts que ya hizo el cliente
+            # —queda en su caché— así que no cuesta una petición más.
+            r_xbrl = ingestar_xbrl(repo, cliente, e.ticker, e.cik, desde=desde)
+            resumen.hechos_guardados += r_xbrl.hechos_guardados
+            resumen.errores.extend(r_xbrl.errores)
         if con_precios:
             r_px = ingestar_precios(repo, e.ticker)
             resumen.precios_guardados = r_px.precios_guardados
@@ -448,10 +473,7 @@ def correr_ingesta(
         # emisor al que le falta un solo trimestre por acción se le cae el TTM
         # entero —y con él su renglón completo en la pantalla de inicio—, aunque el
         # monto del trimestre sí esté reconstruido. Le pasaba a ADC.
-        for concepto in (
-            "affo", "ffo_normalizado", "utilidad_neta",
-            "affo_por_accion", "ffo_por_accion", "utilidad_neta_por_accion",
-        ):
+        for concepto in CONCEPTOS_RECONSTRUIBLES:
             reconstruir_desde_acumulados(repo, e.ticker, concepto, asof=hoy)
 
         resumen.novedades = detectar_novedades(repo, e.ticker, asof=hoy)

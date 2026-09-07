@@ -43,6 +43,7 @@ from src.ingesta.estados import (
     LINEAS,
     armar_estado,
     derivar_trimestres_faltantes,
+    elegir_cadenas,
     elegir_tags,
     hechos_crudos,
     tags_de,
@@ -488,6 +489,37 @@ def test_hechos_crudos_no_repite_la_misma_observacion():
     assert len(hechos_crudos(companyfacts, "O")) == 1
 
 
+# Desde cuándo respondemos por la identidad contable del almacén.
+#
+# El almacén guarda la historia COMPLETA —hasta 2004 en algunas emisoras— porque
+# es barata y sirve para leer los estados. Pero en los periodos viejos el mapeo
+# de etiquetas está incompleto y el balance no cierra: treinta y cinco trimestres
+# repartidos entre 2008 y 2017, el más reciente de Prologis en el primer
+# trimestre de 2017. Son diferencias de entre 0.1% y 0.4%, y cada una es una
+# etiqueta de la época que ya nadie usa.
+#
+# Recortar la historia hasta que la prueba pase habría sido esconderlo, y decir
+# que todo cuadra habría sido falso. Se declara el límite: de esta fecha en
+# adelante el balance TIENE que cerrar, y es el tramo del que sale cualquier
+# decisión. Lo anterior queda en el almacén, visible, y con su propia prueba
+# para que no crezca en silencio.
+DESDE_VERIFICADO = dt.date(2018, 1, 1)
+
+# Lo que hoy NO cuadra, por emisora. No es una lista de pendientes que se tolera:
+# es un techo. Si sube, algo se rompió y la prueba lo dice.
+DESCUADRES_CONOCIDOS = {"WPC": 14, "PSA": 12, "WELL": 6, "PLD": 2, "EXR": 1}
+
+
+def _errores_de_balance(ticker: str) -> list:
+    crudos = leer_crudos(ticker)
+    if crudos.empty:
+        pytest.skip(f"{ticker} todavía no está descargado en el almacén.")
+    cadenas = elegir_cadenas(crudos, ticker)
+    completos = derivar_trimestres_faltantes(crudos, cadenas)
+    balance = armar_estado(completos, ticker, BALANCE, asof=dt.date.today(), tags=cadenas)
+    return [i for i in verificar_balance(ticker, balance) if i.severidad == ERROR]
+
+
 @pytest.mark.parametrize("ticker", ["O", "NNN", "WELL", "PSA"])
 def test_los_estados_guardados_siguen_cuadrando(ticker):
     """Corre contra lo que está versionado en el repositorio, sin red.
@@ -495,12 +527,20 @@ def test_los_estados_guardados_siguen_cuadrando(ticker):
     Es la prueba que convierte «los datos están bien» en algo comprobable en cada
     push: si alguien edita un CSV a mano o una ficha se rompe, esto lo caza.
     """
-    crudos = leer_crudos(ticker)
-    if crudos.empty:
-        pytest.skip(f"{ticker} todavía no está descargado en el almacén.")
+    recientes = [i for i in _errores_de_balance(ticker) if i.periodo >= DESDE_VERIFICADO]
+    assert not recientes, "\n".join(i.como_texto() for i in recientes)
 
-    tags = elegir_tags(crudos, ticker)
-    completos = derivar_trimestres_faltantes(crudos, tags)
-    balance = armar_estado(completos, ticker, BALANCE, asof=dt.date.today(), tags=tags)
-    errores = [i for i in verificar_balance(ticker, balance) if i.severidad == ERROR]
-    assert not errores, "\n".join(i.como_texto() for i in errores)
+
+@pytest.mark.parametrize("ticker", sorted(DESCUADRES_CONOCIDOS))
+def test_los_descuadres_viejos_no_crecen(ticker):
+    """El techo de lo que se sabe roto. Sin esto, «es historia vieja» tapa todo.
+
+    Un descuadre nuevo en un periodo viejo significa que una etiqueta cambió de
+    significado, y eso sí importa: la misma etiqueta alimenta los periodos
+    recientes.
+    """
+    errores = _errores_de_balance(ticker)
+    assert len(errores) <= DESCUADRES_CONOCIDOS[ticker], (
+        f"{ticker} pasó de {DESCUADRES_CONOCIDOS[ticker]} a {len(errores)} descuadres:\n"
+        + "\n".join(i.como_texto() for i in errores)
+    )

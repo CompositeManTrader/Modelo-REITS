@@ -84,6 +84,35 @@ def _publicar_secretos() -> None:
             os.environ[clave] = str(valor)
 
 
+@st.cache_resource(show_spinner="Reconstruyendo la base desde el repositorio…")
+def _reconstruir_una_sola_vez(marca: str) -> dict:
+    """Carga la instantánea versionada. Sin red, y una sola vez por proceso.
+
+    Va ANTES que la ingesta y no en su lugar: el repositorio guarda los
+    fundamentales, no los precios ni las tasas, que sí hay que ir a buscar. Lo
+    que ahorra es la parte cara —diez `companyfacts` y ochocientos documentos
+    8-K— y de paso hace que dos arranques del mismo commit den la misma base.
+
+    Si el almacén está vacío se devuelve así y la ingesta completa toma su lugar:
+    esto acelera el camino normal, no lo reemplaza.
+    """
+    from src.config import asegurar_directorios
+    from src.ingesta.instantanea import reconstruir
+
+    _publicar_secretos()
+    asegurar_directorios()
+    try:
+        resumen = reconstruir(Repositorio(ruta=RUTA_BD))
+    except Exception as exc:  # noqa: BLE001 - un almacén roto no puede tumbar la app
+        return {"vacia": True, "hechos": 0, "emisoras": 0, "error": str(exc)}
+    return {
+        "vacia": resumen.vacia,
+        "hechos": resumen.hechos,
+        "emisoras": len(resumen.emisoras),
+        "error": "",
+    }
+
+
 @st.cache_resource(show_spinner=False)
 def _sembrar_una_sola_vez(marca: str) -> dict:
     """Corre la ingesta real la primera vez y una sola vez por proceso.
@@ -140,11 +169,26 @@ def exigir_base() -> Repositorio:
     mostrar un comando que ahí nadie puede correr.
     """
     if not base_existe():
+        # Primero el repositorio, y solo después la red. El almacén versionado
+        # trae los fundamentales de las diez emisoras en unos pocos MB; bajarlos
+        # otra vez de la SEC son 810 peticiones y 128 MB, y aquí el disco es
+        # efímero, así que eso pasaba en CADA reinicio del contenedor.
+        instantanea = _reconstruir_una_sola_vez(str(RUTA_BD))
+        if not instantanea["vacia"]:
+            st.success(
+                f"**Base reconstruida desde el repositorio**, sin descargar nada: "
+                f"{instantanea['hechos']:,} hechos de {instantanea['emisoras']} emisoras. "
+                "Los precios y las tasas sí se actualizan contra su fuente.",
+                icon="📦",
+            )
         st.info(
-            "**Primera carga.** No hay base de datos, así que la estoy construyendo desde "
-            "la fuente primaria: SEC EDGAR para los fundamentales, FRED y Banxico para las "
-            "tasas, y el mercado para precios sin ajustar. Tarda varios minutos y solo pasa "
-            "una vez por arranque del servidor.",
+            "**Primera carga.** Completando lo que el repositorio no guarda: FRED y Banxico "
+            "para las tasas, y el mercado para precios sin ajustar."
+            if not instantanea["vacia"] else
+            "**Primera carga.** No hay base de datos ni instantánea, así que la estoy "
+            "construyendo desde la fuente primaria: SEC EDGAR para los fundamentales, FRED y "
+            "Banxico para las tasas, y el mercado para precios sin ajustar. Tarda varios "
+            "minutos y solo pasa una vez por arranque del servidor.",
             icon="⏳",
         )
         try:

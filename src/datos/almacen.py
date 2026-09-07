@@ -42,6 +42,8 @@ RUTA_MANIFIESTO = DIR_EMISORAS / "manifiesto.json"
 
 ARCHIVO_CRUDOS = "hechos.csv.gz"
 ARCHIVO_COBERTURA = "cobertura.csv"
+ARCHIVO_CONCILIACION = "conciliacion.csv.gz"
+ARCHIVO_HECHOS_EXTERNOS = "hechos_externos.csv.gz"
 
 # Formulario que marca un reporte periódico. Un 8-K de resultados adelanta las
 # cifras, pero el que trae los estados completos etiquetados es el 10-Q o el 10-K.
@@ -257,9 +259,27 @@ def leer_crudos(ticker: str, *, base: Path | None = None) -> pd.DataFrame:
     if not ruta.exists():
         return pd.DataFrame()
     df = pd.read_csv(ruta, compression="gzip", dtype={"accession": str, "marco": str})
-    for columna in ("fecha_inicio", "fecha_dato", "fecha_publicacion"):
-        if columna in df:
-            df[columna] = pd.to_datetime(df[columna], errors="coerce").dt.date
+    return _fechas_como_el_original(df, ("fecha_inicio", "fecha_dato", "fecha_publicacion"))
+
+
+def _fechas_como_el_original(df: pd.DataFrame, columnas: tuple[str, ...]) -> pd.DataFrame:
+    """Fechas a ``date``, y las ausentes a ``None`` — no a ``NaT``.
+
+    La distinción no es cosmética. El camino en vivo produce ``None`` cuando el
+    hecho no trae fecha de inicio, y el CSV producía ``NaT``: releer el almacén
+    daba un DataFrame que se veía igual y se comportaba distinto, y al escribirlo
+    a la base reventaba con "cannot convert float NaN to integer" en un renglón
+    de balance —los saldos puntuales no tienen fecha de inicio, así que era el
+    caso normal, no el raro—.
+
+    Dos caminos que dicen producir lo mismo tienen que producir lo mismo, hasta
+    en el tipo del vacío.
+    """
+    for columna in columnas:
+        if columna not in df:
+            continue
+        serie = pd.to_datetime(df[columna], errors="coerce").dt.date
+        df[columna] = serie.astype(object).where(serie.notna(), None)
     return df
 
 
@@ -279,6 +299,72 @@ def escribir_estado(
 def escribir_cobertura(ticker: str, cobertura: pd.DataFrame, *, base: Path | None = None) -> str:
     ruta = dir_emisora(ticker, base=base) / ARCHIVO_COBERTURA
     return _escribir(ruta, _csv_bytes(cobertura))
+
+
+def escribir_conciliacion(
+    ticker: str, conciliacion: pd.DataFrame, *, base: Path | None = None
+) -> str:
+    """Guarda la conciliación del AFFO ya parseada.
+
+    Es el archivo que más trabajo ahorra, aunque sea el más chico. El crudo de
+    XBRL sale de DIEZ peticiones —una `companyfacts` por emisora—; la conciliación
+    sale de OCHOCIENTAS: hay que listar los 8-K, abrir cada índice, encontrar el
+    Exhibit 99.1 y parsear su HTML. Eso son 93 de los 128 MB que se bajan en un
+    arranque en frío, y la mayor parte de los 106 segundos que tarda la ingesta
+    aun con todo en caché.
+
+    Parseado ocupa 140 KB. Versionarlo convierte ese trabajo en una lectura de
+    disco, y de paso lo hace auditable: si un cambio en el parser mueve una cifra,
+    se ve en el `git diff` como la línea que cambió.
+    """
+    ruta = dir_emisora(ticker, base=base) / ARCHIVO_CONCILIACION
+    return _escribir(ruta, _gzip_bytes(_csv_bytes(conciliacion)))
+
+
+def escribir_hechos_externos(
+    ticker: str, hechos: pd.DataFrame, *, base: Path | None = None
+) -> str:
+    """Guarda los hechos que NO se pueden rearmar desde el crudo de XBRL.
+
+    Son los que no vienen de `companyfacts`: el AFFO, el FFO normalizado y sus
+    cifras por acción salen de la conciliación del 8-K, y el dividendo declarado
+    del calendario. Rearmarlos exige volver a parsear ochocientos documentos.
+
+    Se guardan aparte a propósito, y la separación es la que hace que la
+    instantánea no congele el modelo: lo que SÍ se deriva del crudo se vuelve a
+    derivar en cada reconstrucción, así que una mejora del catálogo entra sola.
+    Si se guardara todo junto, la instantánea le ganaría al catálogo nuevo por la
+    llave única y las mejoras dejarían de verse.
+    """
+    ruta = dir_emisora(ticker, base=base) / ARCHIVO_HECHOS_EXTERNOS
+    return _escribir(ruta, _gzip_bytes(_csv_bytes(hechos)))
+
+
+def leer_hechos_externos(ticker: str, *, base: Path | None = None) -> pd.DataFrame:
+    """Lee los hechos no derivables del almacén. No toca la red."""
+    ruta = dir_emisora(ticker, base=base) / ARCHIVO_HECHOS_EXTERNOS
+    if not ruta.exists():
+        return pd.DataFrame()
+    df = pd.read_csv(ruta, compression="gzip", dtype={"accession": str, "url_filing": str})
+    df = _fechas_como_el_original(
+        df, ("periodo_inicio", "fecha_dato", "fecha_publicacion")
+    )
+    for texto in ("accession", "url_filing", "nota_validacion"):
+        if texto in df:
+            df[texto] = df[texto].astype(object).where(df[texto].notna(), None)
+    return df
+
+
+def leer_conciliacion(ticker: str, *, base: Path | None = None) -> pd.DataFrame:
+    """Lee la conciliación del AFFO del almacén. No toca la red."""
+    ruta = dir_emisora(ticker, base=base) / ARCHIVO_CONCILIACION
+    if not ruta.exists():
+        return pd.DataFrame()
+    df = pd.read_csv(ruta, compression="gzip", dtype={"url_filing": str})
+    df = _fechas_como_el_original(df, ("fecha_dato", "fecha_publicacion"))
+    if "url_filing" in df:
+        df["url_filing"] = df["url_filing"].astype(object).where(df["url_filing"].notna(), None)
+    return df
 
 
 def archivos_de(ticker: str, *, base: Path | None = None) -> list[Path]:
