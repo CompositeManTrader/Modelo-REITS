@@ -1,4 +1,21 @@
-"""Valuación individual: la cascada línea por línea y las tres puertas."""
+"""Valuación individual, en cinco zonas de jerarquía descendente.
+
+Antes esta pantalla eran diez secciones del mismo peso visual, apiladas en un
+scroll lineal. Eso obliga a leerlo todo para saber cualquier cosa, y para un
+operador que abre la pantalla entre dos llamadas es lo mismo que no tener nada.
+
+El orden ahora es el de una decisión, no el del código que la produce:
+
+    01 VEREDICTO   una palabra y su razón. Tres segundos.
+    02 EVIDENCIA   tres preguntas en paralelo. Ninguna se contesta con las otras.
+    03 CASCADA     el mecanismo: de dónde sale el AFFO y si cuadra.
+    04 MÉTODOS     qué se puede valuar y qué le falta al que no, con nombre.
+    05 AUDITORÍA   cerrado por omisión, rastreable hasta el filing.
+
+No se quitó nada de lo que la pantalla ya hacía: lo que era una sección propia y
+resultó ser detalle —la venta por valuación, el sesgo de la ventana completa, el
+perfil sectorial, la exportación— vive en la Zona 5, a un clic.
+"""
 
 from __future__ import annotations
 
@@ -13,26 +30,39 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from comun import (  # noqa: E402
-    avisar_latencia,
+    AZUL,
+    BORDE_2,
+    COLOR_LUZ,
+    TINTA_3,
     avisar_procedencia,
     avisos,
+    banda_emisor,
+    barra_comparativa,
     bps,
+    cascada_html,
     configurar,
     descargo,
     dinero,
     exigir_base,
     explicar,
+    filas_metodo,
+    inyectar_estilos,
     mostrar_tabla,
     numero,
+    panel_veredicto,
     pct,
     positivo,
+    puertas_html,
+    rejilla_cifras,
     selector_de_corte,
     selector_de_emisor,
-    semaforo_html,
+    tarjeta_abre,
+    tarjeta_cierra,
     veces,
+    zona,
 )
 
-from src.config import DIR_EXPORTES  # noqa: E402
+from src.config import DIR_EXPORTES, UMBRALES  # noqa: E402
 from src.export.excel import DatosExportacion, exportar  # noqa: E402
 from src.modelo.cascada import CLAVES_TRAMPA, REPORTE, calcular_cascada  # noqa: E402
 from src.modelo.kill import tabla_liston_friccion, venta_parcial_sugerida  # noqa: E402
@@ -45,10 +75,10 @@ from src.modelo.valuacion import (  # noqa: E402
     sensibilidad_nav_sectorial,
     valuar_por_crecimiento,
 )
-from src.servicio import construir_panel, contexto_macro, evaluar  # noqa: E402
+from src.servicio import MEDIDA_AFFO, construir_panel, contexto_macro, evaluar  # noqa: E402
 
 configurar("Valuación", "📊")
-st.title("Valuación individual")
+inyectar_estilos()
 
 repo = exigir_base()
 asof = selector_de_corte()
@@ -86,201 +116,303 @@ panel = construir_panel(
 )
 macro = contexto_macro(repo, asof=asof)
 semaforo = evaluar(panel)
+m = panel.metricas
 
-st.subheader(f"{ticker} — {panel.sector}")
-avisar_procedencia(panel.fuentes)
-avisar_latencia(panel.precio_fecha, asof, "precio de cierre sin ajustar")
-avisos(panel.avisos)
+emisores = repo.emisores()
+fila_emisor = emisores.loc[emisores["ticker"] == ticker, "nombre"]
+nombre_emisor = str(fila_emisor.iloc[0]) if not fila_emisor.empty else ticker
+
+banda_emisor(
+    ticker=ticker,
+    nombre=nombre_emisor,
+    etiquetas=(panel.sector, panel.medida_flujo),
+    precio=panel.precio,
+    fecha_precio=panel.precio_fecha,
+    corte=asof,
+    nota_derecha=f"{panel.n_observaciones} observaciones",
+)
 
 if panel.trimestral.empty:
     st.error("No hay fundamentales para este emisor al corte elegido.")
     st.stop()
 
-# --------------------------------------------------------------------------------------
-# Las tres puertas
-# --------------------------------------------------------------------------------------
+# ══════════════════════════════════════════════════════════════════════════════
+# 01 · EL VEREDICTO
+# ══════════════════════════════════════════════════════════════════════════════
 
-st.header("Semáforo: las tres puertas, por separado")
-st.markdown(
-    f"### Acción: `{semaforo.accion.value}`\n\n{semaforo.explicacion}"
-)
+zona("01", "El veredicto", "Tres puertas independientes. Solo la tercera vende.")
 
-c1, c2, c3 = st.columns(3)
-for columna, puerta, titulo in (
-    (c1, semaforo.calidad, "Puerta 1 — Calidad"),
-    (c2, semaforo.valuacion, "Puerta 2 — Valuación"),
-    (c3, semaforo.deterioro, "Puerta 3 — Deterioro"),
-):
-    with columna:
-        st.markdown(f"**{titulo}**")
-        st.markdown(semaforo_html(puerta.luz.value, puerta.mensaje), unsafe_allow_html=True)
-        if not puerta.criterios.empty:
-            mostrar_tabla(
-                puerta.criterios[[c for c in ("criterio", "valor", "umbral", "persistencia", "cumple", "racha", "dispara")
-                                  if c in puerta.criterios]],
-            )
+_COLOR_ACCION = {
+    "COMPRAR": COLOR_LUZ["VERDE"],
+    "MANTENER": COLOR_LUZ["VERDE"],
+    "NO COMPRAR MÁS": COLOR_LUZ["AMARILLO"],
+    "INCONCLUSO": COLOR_LUZ["AMARILLO"],
+    "VENDER": COLOR_LUZ["ROJO"],
+    "DESCARTADO": COLOR_LUZ["ROJO"],
+}
+_CODA = {
+    "INCONCLUSO": "no es lo mismo que MANTENER",
+    "DESCARTADO": "lo que falla no está barato: está descartado",
+    "VENDER": "tesis rota, no precio caro",
+    "NO COMPRAR MÁS": "modula compras nuevas, no dispara venta",
+}
 
-st.info(
-    "**Regla de venta.** Vender por precio caro es distinto de vender por tesis rota. "
-    "La Puerta 2 nunca dispara venta por sí sola: modula compras nuevas. **Solo la Puerta 3 "
-    "vende.** Si quieres vender por valuación de todos modos, abajo está el costo."
-)
-
-with st.expander("Quiero vender por valuación de todos modos"):
-    valor_posicion = st.number_input("Valor de tu posición (USD)", 0.0, value=100_000.0, step=5_000.0)
-    ganancia = st.slider("Ganancia acumulada sobre el costo", 0.0, 3.0, 0.40, 0.05, format="%.2f")
-    sugerencia = venta_parcial_sugerida(valor_posicion, ganancia_acumulada=ganancia)
-    a, b, c = st.columns(3)
-    a.metric("Venta parcial sugerida", f"{sugerencia['fraccion_sugerida']:.0%}")
-    b.metric("Costo fiscal estimado", dinero(sugerencia["costo_fiscal_estimado"]))
-    c.metric("Ventaja anual necesaria", f"{sugerencia['ventaja_anual_necesaria_bps']:,.0f} bps",
-             help="Cuánto más tiene que rendir el destino, al año, para recuperar el costo fiscal en dos años.")
-    st.warning(sugerencia["advertencia"])
-    st.markdown("**El listón de fricción según cuánto llevas ganado:**")
-    mostrar_tabla(tabla_liston_friccion())
-
-explicar("AFFO", "prima", "percentil expandible", "spread de inversión")
-
-st.divider()
-
-# --------------------------------------------------------------------------------------
-# Cascada
-# --------------------------------------------------------------------------------------
-
-st.header("La cascada: NOI → FFO → FFO Normalizado → AFFO")
-st.caption(
-    "Esta es la razón por la que el AFFO es el número y no la utilidad neta. Realty Income "
-    "Q2 2026: utilidad neta por acción 0.37 dólares contra AFFO de 1.09, una razón de 2.97x. "
-    "El payout sobre utilidad neta da 222% y sobre AFFO da 73%."
-)
-
-periodos = repo.hechos(asof=asof, tickers=ticker, conceptos="affo", periodo_tipo="Q")
-fecha_cascada = None
-if not periodos.empty:
-    opciones = sorted(pd.to_datetime(periodos["fecha_dato"]).dt.date.unique(), reverse=True)
-    fecha_cascada = st.selectbox("Trimestre", opciones, format_func=str)
-
-conciliacion = (
-    repo.conciliacion(ticker, fecha_cascada, asof=asof) if fecha_cascada else pd.DataFrame()
-)
-
-if not conciliacion.empty:
-    detalle = conciliacion.copy()
-    detalle["trampa"] = detalle["linea"].isin(CLAVES_TRAMPA)
-    detalle["Línea"] = detalle.apply(
-        lambda r: ("⚠️ " if r["trampa"] else "") + str(r["etiqueta"]), axis=1
-    )
-    mostrar_tabla(
-        detalle[["Línea", "valor", "linea"]].rename(
-            columns={"valor": "Monto (USD)", "linea": "Concepto normalizado"}
+minimo_obs = UMBRALES.valuacion.min_observaciones
+izq, der = st.columns([2, 1], gap="medium")
+with izq:
+    panel_veredicto(
+        accion=semaforo.accion.value,
+        color=_COLOR_ACCION.get(semaforo.accion.value, COLOR_LUZ["SIN DATOS"]),
+        explicacion=semaforo.explicacion,
+        coda=_CODA.get(semaforo.accion.value, ""),
+        avance=(
+            (panel.n_observaciones, minimo_obs)
+            if panel.n_observaciones < minimo_obs else None
         ),
-        column_config={"Monto (USD)": st.column_config.NumberColumn(format="$%,.0f")},
     )
-    st.caption(
-        "⚠️ marca las tres trampas del AFFO: renta en línea recta, CapEx de mantenimiento y "
-        "revaluación a valor razonable. Los montos vienen con el signo del reporte, listos "
-        "para sumarse: así se reproduce exactamente el subtotal que publica el emisor."
+with der:
+    percentil_txt = (
+        f"{panel.percentil_actual:.0%}" if panel.percentil_actual is not None else "—"
     )
-
-    lineas = {r["linea"]: float(r["valor"]) for _, r in conciliacion.iterrows()}
-    resultado = calcular_cascada(lineas, sector=panel.sector, signos=REPORTE)
-    for bandera in resultado.banderas:
-        st.warning(bandera)
-    explicar("NOI", "FFO", "renta en línea recta", "CapEx de mantenimiento")
-else:
-    st.info(
-        "No hay conciliación línea por línea para este trimestre. La conciliación se extrae del "
-        "Exhibit 99.1 de los 8-K de resultados: corre `python scripts/ingesta.py` para traerla."
-    )
-
-st.divider()
-
-# --------------------------------------------------------------------------------------
-# Métricas
-# --------------------------------------------------------------------------------------
-
-st.header("Panel de valuación")
-m = panel.metricas
-
-f1, f2, f3, f4 = st.columns(4)
-f1.metric("AFFO yield", pct(m.get("affo_yield")))
-f2.metric("P / AFFO", veces(m.get("p_affo")))
-f3.metric("Dividend yield", pct(m.get("dividend_yield")))
-f4.metric("Cap rate implícito", pct(m.get("cap_rate_implicito")))
-
-st.subheader("Cobertura del dividendo: el mismo dividendo, tres respuestas")
-g1, g2, g3 = st.columns(3)
-g1.metric("Payout sobre AFFO", pct(m.get("payout_affo")),
-          help="La única cobertura que significa algo. Umbral de la Puerta 1: menor a 90%.")
-g2.metric("Payout sobre FFO", pct(m.get("payout_ffo")))
-g3.metric("Payout sobre utilidad neta", pct(m.get("payout_utilidad_neta")),
-          help="El número que publican los sitios financieros. Está mal. Se muestra para que veas el tamaño del error.")
-if m.get("payout_utilidad_neta") and m.get("payout_affo"):
-    razon = m["payout_utilidad_neta"] / m["payout_affo"]
-    st.caption(
-        f"El payout sobre utilidad neta es **{razon:.1f} veces** el payout sobre AFFO. "
-        "Esa es exactamente la magnitud del error que comete quien usa el número equivocado."
+    disparos = 0
+    if not semaforo.deterioro.criterios.empty and "dispara" in semaforo.deterioro.criterios:
+        disparos = int(semaforo.deterioro.criterios["dispara"].sum())
+    puertas_html(
+        [
+            ("1 · Calidad", semaforo.calidad.luz.value, semaforo.calidad.mensaje[:52], ""),
+            ("2 · Valuación", semaforo.valuacion.luz.value,
+             semaforo.valuacion.mensaje[:52], percentil_txt),
+            ("3 · Deterioro", semaforo.deterioro.luz.value,
+             semaforo.deterioro.mensaje[:52], f"{disparos}/5"),
+        ],
+        pie="La Puerta 2 modula compras nuevas. <strong>Nunca dispara venta por sí sola.</strong>",
     )
 
-st.subheader("Prima sobre la tasa libre de riesgo")
-p1, p2, p3 = st.columns(3)
+# Las salvedades van DEBAJO del veredicto, no encima. Encima empujan hacia abajo
+# lo único que se lee siempre; debajo lo califican, que es su trabajo. La latencia
+# del precio ya está en la banda del emisor y no se repite aquí.
+avisar_procedencia(panel.fuentes)
+avisos(panel.avisos)
+
 prima_actual = panel.prima.dropna().iloc[-1] if not panel.prima.dropna().empty else None
-p1.metric("Prima", bps(prima_actual))
-p2.metric("Percentil de su propia historia",
-          pct(panel.percentil_actual, 0) if panel.percentil_actual is not None else "INCONCLUSO")
-p3.metric("Observaciones", f"{panel.n_observaciones}")
+payout = m.get("payout_affo")
+etiqueta_flujo = "AFFO" if panel.medida_flujo == MEDIDA_AFFO else "Core FFO"
+rejilla_cifras([
+    ("Yield de flujo", pct(m.get("affo_yield")),
+     f"{etiqueta_flujo} TTM ÷ precio crudo", ""),
+    ("Prima sobre UST 10a", bps(prima_actual),
+     f"contra {pct(macro.ust10)} libre de riesgo", ""),
+    ("Payout", pct(payout),
+     f"el listón son {UMBRALES.calidad.payout_affo_max:.0%}",
+     "" if payout is None else
+     (COLOR_LUZ["VERDE"] if payout < UMBRALES.calidad.payout_affo_max else COLOR_LUZ["ROJO"])),
+    ("Precio / flujo", veces(m.get("p_affo")), f"veces el {etiqueta_flujo} TTM", ""),
+    ("Dividendo TTM", pct(m.get("dividend_yield")),
+     f"{dinero(panel.dividendo_ttm)} por acción", ""),
+])
 
-if not panel.prima.dropna().empty:
-    figura = go.Figure()
-    figura.add_scatter(
-        x=panel.prima.index, y=panel.prima * 10_000, name="Prima (bps)",
-        line={"color": "#0969da"},
-    )
-    figura.update_layout(
-        height=280, margin={"t": 20, "b": 20, "l": 10, "r": 10},
-        yaxis_title="Puntos base sobre UST 10 años", showlegend=False,
-    )
-    st.plotly_chart(figura)
+# ══════════════════════════════════════════════════════════════════════════════
+# 02 · LA EVIDENCIA
+# ══════════════════════════════════════════════════════════════════════════════
 
-    with st.expander("Por qué el percentil usa ventana expandible y no la muestra completa"):
-        sesgo = sesgo_por_ventana_completa(panel.prima.dropna())
-        fig2 = go.Figure()
-        fig2.add_scatter(x=sesgo.index, y=sesgo["expandible"], name="Expandible (lo correcto)",
-                         line={"color": "#1a7f37"})
-        fig2.add_scatter(x=sesgo.index, y=sesgo["muestra_completa"], name="Muestra completa (usa el futuro)",
-                         line={"color": "#b42318", "dash": "dash"})
-        fig2.update_layout(height=280, yaxis_tickformat=".0%",
-                           margin={"t": 20, "b": 20, "l": 10, "r": 10},
-                           legend={"orientation": "h", "y": 1.15})
-        st.plotly_chart(fig2)
-        brecha = sesgo["diferencia"].abs().mean()
-        st.markdown(
-            f"La diferencia media entre ambas es de **{brecha:.0%} de percentil**. La curva roja "
-            "sabe, en 2019, que el yield iba a llegar a su máximo en 2023. Nadie lo sabía. "
-            "Fijar umbrales con esa curva es fijarlos con información del futuro."
-        )
-
-st.divider()
-
-# --------------------------------------------------------------------------------------
-# NAV y sensibilidad
-# --------------------------------------------------------------------------------------
-
-# --------------------------------------------------------------------------------------
-# Qué se puede valuar y qué no
-# --------------------------------------------------------------------------------------
-
-st.header("Qué se puede valuar de este emisor, y qué falta")
-st.caption(
-    "Un guion en pantalla no distingue «este emisor no vale nada» de «me falta un dato "
-    "para opinar», y esas dos cosas no se parecen. Aquí cada método dice qué insumo le "
-    "falta, con el nombre que ese insumo tiene en la base."
-)
+zona("02", "La evidencia", "Tres preguntas distintas. Ninguna se contesta con las otras.")
 
 affo_ps_ttm = positivo(m.get("affo_por_accion_ttm"))
 if affo_ps_ttm is None and "affo_por_accion_ttm" in panel.trimestral:
     serie_ps = panel.trimestral["affo_por_accion_ttm"].dropna()
     affo_ps_ttm = positivo(serie_ps.iloc[-1]) if not serie_ps.empty else None
+
+crec_serie = panel.trimestral.get("crecimiento_affo_por_accion_yoy")
+crec_hist = (
+    float(pd.to_numeric(crec_serie, errors="coerce").dropna().tail(4).mean())
+    if crec_serie is not None and pd.to_numeric(crec_serie, errors="coerce").notna().any()
+    else None
+)
+valuacion_g = valuar_por_crecimiento(
+    panel.precio, affo_ps_ttm, macro.ust10, panel.sector, crec_hist
+)
+
+ev_a, ev_b, ev_c = st.columns(3, gap="medium")
+
+# A · ¿Barato contra su propia historia?
+with ev_a:
+    tarjeta_abre(
+        "¿Barato contra sí mismo?",
+        "Percentil de la prima en ventana expandible, nunca contra otros emisores.",
+    )
+    serie_prima = panel.prima.dropna()
+    if serie_prima.empty:
+        st.caption("Sin historia de prima al corte.")
+    else:
+        figura = go.Figure()
+        figura.add_bar(
+            x=serie_prima.index, y=serie_prima * 10_000,
+            marker_color=["#cfccc5"] * (len(serie_prima) - 1) + [
+                COLOR_LUZ["ROJO"] if (panel.percentil_actual or 1) < 0.5 else COLOR_LUZ["VERDE"]
+            ],
+        )
+        figura.update_layout(
+            height=150, margin={"t": 6, "b": 6, "l": 4, "r": 4},
+            showlegend=False, plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
+            xaxis={"showgrid": False, "showticklabels": False},
+            yaxis={"showgrid": False, "title": None, "tickfont": {"size": 9}},
+            bargap=0.25,
+        )
+        st.plotly_chart(figura, key="prima_sparkline")
+    tarjeta_cierra(
+        f"<strong>{percentil_txt}</strong> de su propia historia estuvo <em>más</em> barato. "
+        f"{panel.n_observaciones} observaciones; el umbral para opinar son {minimo_obs}."
+    )
+
+# B · ¿Alcanza el flujo?
+with ev_b:
+    tarjeta_abre(
+        "¿Alcanza el flujo?",
+        f"El mismo dividendo, tres respuestas. La única que importa es la del {etiqueta_flujo}.",
+    )
+    p_affo = m.get("payout_affo")
+    p_ffo = m.get("payout_ffo")
+    p_neta = m.get("payout_utilidad_neta")
+    barra_comparativa(
+        [
+            (f"sobre {etiqueta_flujo}", p_affo, pct(p_affo),
+             COLOR_LUZ["VERDE"] if (p_affo or 0) < UMBRALES.calidad.payout_affo_max
+             else COLOR_LUZ["ROJO"], True),
+            ("sobre FFO", p_ffo, pct(p_ffo), "#cfccc5", False),
+            ("sobre utilidad neta", p_neta, pct(p_neta),
+             COLOR_LUZ["ROJO"] if (p_neta or 0) > 1 else "#cfccc5", False),
+        ],
+        maximo=1.2,
+        marca=UMBRALES.calidad.payout_affo_max,
+    )
+    razon_txt = ""
+    if p_neta and p_affo:
+        razon_txt = (
+            f" Aquí es <strong>{p_neta / p_affo:.1f} veces</strong> el correcto: ese es el "
+            "tamaño del error que comete quien usa el número equivocado."
+        )
+    tarjeta_cierra(
+        "El payout sobre utilidad neta pasa de 100% en casi todo REIT sano: la depreciación "
+        "contable no sale de la caja." + razon_txt
+    )
+
+# C · ¿Qué descuenta el precio?
+with ev_c:
+    tarjeta_abre(
+        "¿Qué descuenta el precio?",
+        "Gordon despejado. Es aritmética, no un pronóstico.",
+    )
+    if valuacion_g is None:
+        st.caption(
+            "Falta un insumo. En la Zona 04 dice cuál: casi siempre el flujo por "
+            "acción TTM, que necesita cuatro trimestres válidos seguidos."
+        )
+        tarjeta_cierra()
+    else:
+        c_izq, c_der = st.columns(2)
+        c_izq.metric("El precio pide", pct(valuacion_g.crecimiento_implicito))
+        c_der.metric("Ha entregado", pct(valuacion_g.crecimiento_historico))
+        tarjeta_cierra(valuacion_g.como_texto())
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 03 · LA CASCADA
+# ══════════════════════════════════════════════════════════════════════════════
+
+periodos = repo.hechos(asof=asof, tickers=ticker, conceptos="affo", periodo_tipo="Q")
+opciones = (
+    sorted(pd.to_datetime(periodos["fecha_dato"]).dt.date.unique(), reverse=True)
+    if not periodos.empty else []
+)
+fecha_cascada = opciones[0] if opciones else None
+
+zona(
+    "03", "La cascada",
+    "De dónde sale el flujo, y si cuadra contra el subtotal que publica el emisor.",
+)
+if opciones:
+    fecha_cascada = st.selectbox(
+        "Trimestre", opciones, format_func=str, label_visibility="collapsed"
+    )
+
+conciliacion = (
+    repo.conciliacion(ticker, fecha_cascada, asof=asof) if fecha_cascada else pd.DataFrame()
+)
+
+if conciliacion.empty:
+    st.info(
+        "No hay conciliación línea por línea para este trimestre. Se extrae del Exhibit 99.1 "
+        "de los 8-K de resultados: corre `python scripts/ingesta.py` para traerla."
+    )
+else:
+    lineas = {r["linea"]: float(r["valor"]) for _, r in conciliacion.iterrows()}
+    resultado = calcular_cascada(lineas, sector=panel.sector, signos=REPORTE)
+
+    def _val(clave: str) -> float | None:
+        v = lineas.get(clave)
+        return None if v is None else float(v)
+
+    def _puente(desde: str, hasta: str) -> float | None:
+        a, b = _val(desde), _val(hasta)
+        return None if a is None or b is None else b - a
+
+    subtotales = [
+        ("Utilidad neta", _val("utilidad_neta")),
+        ("FFO Nareit", _val("ffo")),
+        ("FFO normalizado", _val("ffo_normalizado")),
+        (etiqueta_flujo, _val("affo")),
+    ]
+    presentes = [(n, v) for n, v in subtotales if v is not None]
+    pasos: list[tuple[str, float | None, bool]] = []
+    for i, (nombre_sub, valor_sub) in enumerate(presentes):
+        if i:
+            anterior = presentes[i - 1][1]
+            # El salto de línea va como `<br>`: un `\n` dentro de HTML se colapsa a
+            # espacio, y la etiqueta de una sola línea se desborda sobre la barra
+            # siguiente en vez de partirse.
+            pasos.append((
+                "depreciación<br>y deterioro" if i == 1 else
+                "partidas no<br>recurrentes" if i == 2 else "renta lineal<br>y CapEx",
+                valor_sub - anterior, False,
+            ))
+        pasos.append((nombre_sub, valor_sub, True))
+
+    cuadra = not resultado.banderas
+    cascada_html(
+        pasos,
+        pie=(
+            "La conciliación cuadra contra los subtotales que el propio emisor publica"
+            if cuadra else f"{len(resultado.banderas)} tramo(s) sin cuadrar"
+        ),
+        color_pie=COLOR_LUZ["VERDE"] if cuadra else COLOR_LUZ["AMARILLO"],
+        unidad=f"millones de USD · {len(conciliacion)} renglones",
+    )
+    for bandera in resultado.banderas:
+        st.warning(bandera)
+
+    with st.expander("Ver la conciliación renglón por renglón"):
+        detalle = conciliacion.copy()
+        detalle["trampa"] = detalle["linea"].isin(CLAVES_TRAMPA)
+        detalle["Línea"] = detalle.apply(
+            lambda r: ("⚠️ " if r["trampa"] else "") + str(r["etiqueta"]), axis=1
+        )
+        mostrar_tabla(
+            detalle[["Línea", "valor", "linea"]].rename(
+                columns={"valor": "Monto (USD)", "linea": "Concepto normalizado"}
+            ),
+            column_config={"Monto (USD)": st.column_config.NumberColumn(format="$%,.0f")},
+        )
+        st.caption(
+            "⚠️ marca las tres trampas del AFFO: renta en línea recta, CapEx de mantenimiento y "
+            "revaluación a valor razonable. Los montos vienen con el signo del reporte, listos "
+            "para sumarse: así se reproduce exactamente el subtotal que publica el emisor."
+        )
+        explicar("NOI", "FFO", "renta en línea recta", "CapEx de mantenimiento")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 04 · QUÉ SE PUEDE VALUAR
+# ══════════════════════════════════════════════════════════════════════════════
+
+zona("04", "Qué se puede valuar, y qué falta", "Un hueco tiene nombre, no es un cero.")
 
 fila_ultima = (
     panel.trimestral.tail(1).iloc[0] if not panel.trimestral.empty else pd.Series(dtype="float64")
@@ -295,103 +427,43 @@ insumos_diag = InsumosValuacion(
     sector=panel.sector,
 )
 diagnostico = diagnosticar(insumos_diag, tasa_libre_riesgo=macro.ust10)
-mostrar_tabla(
-    pd.DataFrame([
-        {
-            "Método": met.nombre,
-            "Estado": "✅ disponible" if met.disponible else "⛔ bloqueado",
-            "Le falta": ", ".join(met.faltantes) or "—",
-            "Qué mide": met.explicacion,
-        }
+
+_CIFRA_METODO = {
+    "Múltiplos (AFFO yield, P/AFFO)": f"{pct(m.get('affo_yield'))} · {veces(m.get('p_affo'))}",
+    "Crecimiento implícito en el precio": (
+        pct(valuacion_g.crecimiento_implicito) if valuacion_g else "—"
+    ),
+    "NAV (NOI ÷ cap rate del sector)": (
+        f"{dinero(m.get('nav_por_accion'))} · {pct(m.get('premio_descuento_nav'), 1)}"
+    ),
+}
+
+met_izq, met_der = st.columns([1.35, 1], gap="medium")
+with met_izq:
+    filas_metodo([
+        (
+            met.nombre,
+            met.explicacion,
+            met.disponible,
+            _CIFRA_METODO.get(met.nombre, "—") if met.disponible
+            else f"Le falta <strong>{', '.join(met.faltantes)}</strong>. "
+                 "Es una medida no-GAAP: no está en XBRL, vive en el suplemento y hay que "
+                 "extraerla emisora por emisora, como el AFFO.",
+        )
         for met in diagnostico
-    ]),
-)
-
-st.divider()
-
-# --------------------------------------------------------------------------------------
-# Crecimiento implícito en el precio
-# --------------------------------------------------------------------------------------
-
-st.header("¿Qué crecimiento está descontando el precio?")
-st.caption(
-    "Da vuelta a la pregunta. En vez de defender un valor intrínseco, calcula qué "
-    "crecimiento perpetuo del AFFO hace falta para justificar el precio de HOY, y lo "
-    "contrasta contra el que el emisor ha entregado. Es aritmética, no un pronóstico."
-)
-
-crec_serie = panel.trimestral.get("crecimiento_affo_por_accion_yoy")
-crec_hist = (
-    float(pd.to_numeric(crec_serie, errors="coerce").dropna().tail(4).mean())
-    if crec_serie is not None and pd.to_numeric(crec_serie, errors="coerce").notna().any()
-    else None
-)
-valuacion_g = valuar_por_crecimiento(
-    panel.precio, affo_ps_ttm, macro.ust10, panel.sector, crec_hist
-)
-
-if valuacion_g is None:
-    st.info(
-        "Falta un insumo para este método. Arriba, en el diagnóstico, dice cuál: "
-        "casi siempre es el AFFO por acción TTM, que necesita cuatro trimestres "
-        "válidos seguidos."
-    )
-else:
-    v1, v2, v3, v4 = st.columns(4)
-    v1.metric("Crecimiento implícito", pct(valuacion_g.crecimiento_implicito),
-              help="El que el precio de hoy está suponiendo, a perpetuidad.")
-    v2.metric("Crecimiento entregado", pct(valuacion_g.crecimiento_historico),
-              help="Promedio de los últimos cuatro trimestres, año contra año.")
-    v3.metric("Brecha", bps(valuacion_g.brecha),
-              help="Implícito menos entregado. Positivo = el precio pide más de lo logrado.",
-              delta=None if valuacion_g.brecha is None else f"{-valuacion_g.brecha * 10_000:,.0f} bps a favor"
-              if valuacion_g.brecha < 0 else f"{valuacion_g.brecha * 10_000:,.0f} bps en contra",
-              delta_color="normal" if (valuacion_g.brecha or 0) < 0 else "inverse")
-    v4.metric("Tasa de descuento", pct(valuacion_g.tasa_descuento),
-              help=f"UST 10 años {valuacion_g.tasa_libre_riesgo:.2%} + prima del sector "
-                   f"{valuacion_g.prima_riesgo:.2%}.")
-    st.markdown(valuacion_g.como_texto())
-
-    escenarios = pd.DataFrame([
-        {
-            "escenario": etiqueta,
-            "crecimiento": g,
-            "valor_por_accion": valuacion_g.valor_con(g),
-            "premio_descuento": (
-                None if not valuacion_g.valor_con(g)
-                else panel.precio / valuacion_g.valor_con(g) - 1.0
-            ),
-        }
-        for etiqueta, g in (
-            ("Sin crecimiento", 0.0),
-            ("Mitad del entregado", (crec_hist or 0.0) / 2),
-            ("El que ha entregado", crec_hist or 0.0),
-            ("Implícito en el precio", valuacion_g.crecimiento_implicito),
-        )
-        if g is not None
     ])
-    mostrar_tabla(escenarios)
-    st.caption(
-        "El premio/descuento se lee contra el precio actual: negativo significa que el "
-        "precio está **por debajo** del valor que implica ese crecimiento."
+
+with met_der:
+    tarjeta_abre(
+        f"Cap rate de {panel.sector}",
+        "No es una constante universal: es la tasa a la que el mercado privado capitaliza "
+        "<em>esta</em> renta.",
     )
-
-st.divider()
-
-st.header("NAV y su sensibilidad al cap rate")
-explicar("NAV", "cap rate implícito", "dilución oculta")
-
-n1, n2 = st.columns([1, 2])
-with n1:
-    st.metric("NAV por acción", dinero(m.get("nav_por_accion")))
-    st.metric("Premio (+) / descuento (−) del precio", pct(m.get("premio_descuento_nav"), 1))
-    st.metric("Cap rate que descuenta el mercado", pct(m.get("cap_rate_descontado_por_el_mercado")),
-              help="Da vuelta a la pregunta: en vez de suponer un cap rate, muestra el que el precio implica.")
-with n2:
-    ultima = panel.trimestral.dropna(subset=["affo_por_accion_ttm"]).tail(1)
-    if not ultima.empty:
-        fila = ultima.iloc[0]
-        ins = InsumosValuacion(
+    ultima_completa = panel.trimestral.dropna(subset=["affo_por_accion_ttm"]).tail(1)
+    tabla_sens = pd.DataFrame()
+    if not ultima_completa.empty:
+        fila = ultima_completa.iloc[0]
+        ins_sens = InsumosValuacion(
             ticker=ticker,
             precio=numero(panel.precio, 0.0),
             acciones_diluidas=positivo(fila.get("acciones_diluidas"), 1.0),
@@ -400,118 +472,210 @@ with n2:
             dividendo_ttm_por_accion=panel.dividendo_ttm,
             sector=panel.sector,
         )
-        tabla = sensibilidad_nav_sectorial(ins, panel.sector)
-        if not tabla.empty:
-            figura = go.Figure()
-            figura.add_scatter(x=tabla["cap_rate"], y=tabla["nav_por_accion"],
-                               name="NAV por acción", line={"color": "#0969da"})
-            figura.add_hline(y=panel.precio, line_dash="dash", line_color="#b42318",
-                             annotation_text="Precio de mercado")
-            figura.update_layout(height=300, xaxis_tickformat=".2%",
-                                 xaxis_title="Cap rate de mercado", yaxis_title="NAV por acción (USD)",
-                                 margin={"t": 20, "b": 20, "l": 10, "r": 10}, showlegend=False)
-            st.plotly_chart(figura)
-            st.caption(
-                "Mira esta curva antes de creerte un NAV puntual: 50 puntos base de cap rate "
-                "cambian el NAV más que casi cualquier otro supuesto del modelo."
-            )
+        tabla_sens = sensibilidad_nav_sectorial(ins_sens, panel.sector)
 
-st.divider()
-
-# --------------------------------------------------------------------------------------
-# Contexto sectorial
-# --------------------------------------------------------------------------------------
-
-st.header(f"Qué mirar en un REIT de {panel.sector}")
-perfil_sector = perfil(panel.sector)
-if perfil_sector:
-    s1, s2 = st.columns(2)
-    s1.markdown(
-        f"- **Duración de contrato:** {perfil_sector.duracion_contrato}\n"
-        f"- **Tipo de inquilino:** {perfil_sector.tipo_inquilino}\n"
-        f"- **Intensidad de CapEx:** {perfil_sector.intensidad_capex}\n"
-        f"- **Quién paga los gastos:** {perfil_sector.quien_paga_gastos}"
-    )
-    s2.info(perfil_sector.nota)
-for metrica, explicacion in metricas_especificas(panel.sector).items():
-    st.markdown(f"- **{metrica}** — {explicacion}")
-
-st.divider()
-
-# --------------------------------------------------------------------------------------
-# Serie trimestral y fuentes
-# --------------------------------------------------------------------------------------
-
-st.header("Serie trimestral")
-mostrar_tabla(panel.trimestral.tail(20))
-
-st.header("Fuentes y procedencia")
-st.caption(
-    "Primario significa que viene directo de la SEC o de un banco central. Derivado o "
-    "reconstruido significa que lo calculó el modelo y hereda el error de sus componentes."
-)
-if not panel.fuentes.empty:
-    mostrar_tabla(panel.fuentes.head(60))
-
-# --------------------------------------------------------------------------------------
-# Exportación
-# --------------------------------------------------------------------------------------
-
-st.divider()
-st.header("Exportar a Excel")
-st.caption(
-    "El libro sale con **fórmulas vivas**, no valores pegados: cambia el cap rate o el precio "
-    "en la hoja de Inputs y todo recalcula. Azul sobre amarillo es tuyo; negro es fórmula."
-)
-if st.button("Generar libro de Excel", type="primary"):
-    ultima = panel.trimestral.dropna(subset=["affo_por_accion_ttm"]).tail(1)
-    if ultima.empty:
-        st.error("No hay un trimestre completo para exportar.")
+    if tabla_sens.empty:
+        st.caption(
+            f"El rango de {panel.sector} va de {cr_min:.2%} a {cr_max:.2%}, con base en "
+            f"{cr_base:.2%}. La curva de sensibilidad necesita el NOI, que todavía falta."
+        )
     else:
-        fila = ultima.iloc[0]
-        # Anualizar el trimestre por cuatro es una aproximación, y se marca como
-        # tal: solo se usa para el contraste entre AFFO, FFO y utilidad neta, no
-        # para valuar. Si el trimestre falta, el resultado es faltante, no cero.
-        ffo_trimestral = positivo(fila.get("ffo"))
-        utilidad_trimestral = positivo(fila.get("utilidad_neta"))
-        ins = InsumosValuacion(
-            ticker=ticker,
-            precio=numero(panel.precio, 0.0),
-            acciones_diluidas=positivo(fila.get("acciones_diluidas"), 1.0),
-            noi_trimestral=positivo(fila.get("noi")),
-            affo_ttm=positivo(fila.get("affo_ttm")),
-            affo_por_accion_ttm=positivo(fila.get("affo_por_accion_ttm")),
-            ffo_ttm=None if ffo_trimestral is None else ffo_trimestral * 4,
-            utilidad_neta_ttm=None if utilidad_trimestral is None else utilidad_trimestral * 4,
-            dividendo_ttm_por_accion=panel.dividendo_ttm,
-            sector=panel.sector,
+        figura = go.Figure()
+        figura.add_scatter(
+            x=tabla_sens["cap_rate"], y=tabla_sens["nav_por_accion"],
+            line={"color": AZUL, "width": 2.5}, name="NAV por acción",
         )
-        componentes = (
-            {r["linea"]: float(r["valor"]) for _, r in conciliacion.iterrows()}
-            if not conciliacion.empty
-            else {}
-        )
-        emisores = repo.emisores()
-        nombre = emisores.loc[emisores["ticker"] == ticker, "nombre"]
-        datos = DatosExportacion(
-            ticker=ticker,
-            nombre=str(nombre.iloc[0]) if not nombre.empty else ticker,
-            sector=panel.sector,
-            fecha_corte=asof,
-            insumos=ins,
-            componentes_cascada=componentes,
-            cap_rate_mercado=cap_rate,
-            tasa_libre_riesgo=panel.tasa_libre_riesgo or 0.042,
-            yield_adquisiciones=yield_adq,
-            fuentes=panel.fuentes.head(200).to_dict("records") if not panel.fuentes.empty else [],
-        )
-        ruta = exportar(datos, DIR_EXPORTES / f"{ticker}_{asof}.xlsx")
-        st.success(f"Libro generado: `{ruta}`")
-        with open(ruta, "rb") as fh:
-            st.download_button(
-                "Descargar", fh.read(), file_name=ruta.name,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        if panel.precio:
+            figura.add_hline(
+                y=panel.precio, line_dash="dash", line_color=COLOR_LUZ["ROJO"],
+                annotation_text="Precio", annotation_position="right",
             )
+        figura.update_layout(
+            height=190, margin={"t": 8, "b": 8, "l": 4, "r": 4}, showlegend=False,
+            plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
+            xaxis={"tickformat": ".2%", "gridcolor": BORDE_2, "tickfont": {"size": 9}},
+            yaxis={"gridcolor": BORDE_2, "tickfont": {"size": 9}},
+        )
+        st.plotly_chart(figura, key="sensibilidad_nav")
+    tarjeta_cierra(
+        "Valuar un self storage al cap rate de net lease le borra <strong>más de una quinta "
+        "parte del valor</strong> sin que ningún número se vea raro: la aritmética sigue "
+        "cuadrando, solo el supuesto está mal."
+    )
 
-st.divider()
+if valuacion_g is not None:
+    with st.expander("Escenarios de crecimiento y su valor por acción"):
+        escenarios = pd.DataFrame([
+            {
+                "escenario": etiqueta,
+                "crecimiento": g,
+                "valor_por_accion": valuacion_g.valor_con(g),
+                "premio_descuento": (
+                    None if not valuacion_g.valor_con(g)
+                    else panel.precio / valuacion_g.valor_con(g) - 1.0
+                ),
+            }
+            for etiqueta, g in (
+                ("Sin crecimiento", 0.0),
+                ("Mitad del entregado", (crec_hist or 0.0) / 2),
+                ("El que ha entregado", crec_hist or 0.0),
+                ("Implícito en el precio", valuacion_g.crecimiento_implicito),
+            )
+            if g is not None
+        ])
+        mostrar_tabla(escenarios)
+        st.caption(
+            f"Tasa de descuento: UST 10 años {valuacion_g.tasa_libre_riesgo:.2%} más la prima "
+            f"de {panel.sector}, {valuacion_g.prima_riesgo:.2%}. El premio/descuento se lee "
+            "contra el precio actual: negativo significa que el precio está **por debajo** "
+            "del valor que implica ese crecimiento."
+        )
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 05 · AUDITORÍA
+# ══════════════════════════════════════════════════════════════════════════════
+
+zona("05", "Auditoría", "Cerrado por omisión. Cada cifra rastreable hasta su documento.")
+
+with st.expander("Las tres puertas, criterio por criterio"):
+    for puerta, titulo in (
+        (semaforo.calidad, "Puerta 1 — Calidad"),
+        (semaforo.valuacion, "Puerta 2 — Valuación"),
+        (semaforo.deterioro, "Puerta 3 — Deterioro"),
+    ):
+        st.markdown(f"**{titulo}** — {puerta.mensaje}")
+        if not puerta.criterios.empty:
+            mostrar_tabla(
+                puerta.criterios[[
+                    c for c in ("criterio", "valor", "umbral", "persistencia",
+                                "cumple", "racha", "dispara")
+                    if c in puerta.criterios
+                ]],
+            )
+    explicar("AFFO", "prima", "percentil expandible", "spread de inversión")
+
+with st.expander("Por qué el percentil usa ventana expandible y no la muestra completa"):
+    if panel.prima.dropna().empty:
+        st.caption("Sin serie de prima al corte.")
+    else:
+        sesgo = sesgo_por_ventana_completa(panel.prima.dropna())
+        fig2 = go.Figure()
+        fig2.add_scatter(x=sesgo.index, y=sesgo["expandible"], name="Expandible (lo correcto)",
+                         line={"color": COLOR_LUZ["VERDE"]})
+        fig2.add_scatter(x=sesgo.index, y=sesgo["muestra_completa"],
+                         name="Muestra completa (usa el futuro)",
+                         line={"color": COLOR_LUZ["ROJO"], "dash": "dash"})
+        fig2.update_layout(height=260, yaxis_tickformat=".0%",
+                           margin={"t": 20, "b": 20, "l": 10, "r": 10},
+                           plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
+                           legend={"orientation": "h", "y": 1.15})
+        st.plotly_chart(fig2, key="sesgo_ventana")
+        brecha = sesgo["diferencia"].abs().mean()
+        st.markdown(
+            f"La diferencia media entre ambas es de **{brecha:.0%} de percentil**. La curva roja "
+            "sabe, en 2019, que el yield iba a llegar a su máximo en 2023. Nadie lo sabía. "
+            "Fijar umbrales con esa curva es fijarlos con información del futuro."
+        )
+
+with st.expander("Quiero vender por valuación de todos modos"):
+    st.caption(
+        "Vender por precio caro es distinto de vender por tesis rota. La Puerta 2 nunca "
+        "dispara venta por sí sola. Si aun así quieres, este es el costo."
+    )
+    valor_posicion = st.number_input("Valor de tu posición (USD)", 0.0, value=100_000.0, step=5_000.0)
+    ganancia = st.slider("Ganancia acumulada sobre el costo", 0.0, 3.0, 0.40, 0.05, format="%.2f")
+    sugerencia = venta_parcial_sugerida(valor_posicion, ganancia_acumulada=ganancia)
+    a, b, c = st.columns(3)
+    a.metric("Venta parcial sugerida", f"{sugerencia['fraccion_sugerida']:.0%}")
+    b.metric("Costo fiscal estimado", dinero(sugerencia["costo_fiscal_estimado"]))
+    c.metric("Ventaja anual necesaria", f"{sugerencia['ventaja_anual_necesaria_bps']:,.0f} bps",
+             help="Cuánto más tiene que rendir el destino, al año, para recuperar el costo fiscal en dos años.")
+    st.warning(sugerencia["advertencia"])
+    mostrar_tabla(tabla_liston_friccion())
+
+with st.expander(f"Qué mirar en un REIT de {panel.sector}"):
+    perfil_sector = perfil(panel.sector)
+    if perfil_sector:
+        s1, s2 = st.columns(2)
+        s1.markdown(
+            f"- **Duración de contrato:** {perfil_sector.duracion_contrato}\n"
+            f"- **Tipo de inquilino:** {perfil_sector.tipo_inquilino}\n"
+            f"- **Intensidad de CapEx:** {perfil_sector.intensidad_capex}\n"
+            f"- **Quién paga los gastos:** {perfil_sector.quien_paga_gastos}"
+        )
+        s2.info(perfil_sector.nota)
+    for metrica, explicacion in metricas_especificas(panel.sector).items():
+        st.markdown(f"- **{metrica}** — {explicacion}")
+
+with st.expander("Serie trimestral completa"):
+    mostrar_tabla(panel.trimestral.tail(20))
+
+with st.expander("Procedencia de cada cifra"):
+    st.caption(
+        "Primario significa que viene directo de la SEC o de un banco central. Derivado o "
+        "reconstruido significa que lo calculó el modelo y hereda el error de sus componentes."
+    )
+    if not panel.fuentes.empty:
+        mostrar_tabla(panel.fuentes.head(60))
+
+with st.expander("Exportar a Excel con fórmulas vivas"):
+    st.caption(
+        "El libro sale con **fórmulas vivas**, no valores pegados: cambia el cap rate o el precio "
+        "en la hoja de Inputs y todo recalcula. Azul sobre amarillo es tuyo; negro es fórmula."
+    )
+    if st.button("Generar libro de Excel", type="primary"):
+        ultima = panel.trimestral.dropna(subset=["affo_por_accion_ttm"]).tail(1)
+        if ultima.empty:
+            st.error("No hay un trimestre completo para exportar.")
+        else:
+            fila = ultima.iloc[0]
+            # Anualizar el trimestre por cuatro es una aproximación, y se marca como
+            # tal: solo se usa para el contraste entre AFFO, FFO y utilidad neta, no
+            # para valuar. Si el trimestre falta, el resultado es faltante, no cero.
+            ffo_trimestral = positivo(fila.get("ffo"))
+            utilidad_trimestral = positivo(fila.get("utilidad_neta"))
+            ins = InsumosValuacion(
+                ticker=ticker,
+                precio=numero(panel.precio, 0.0),
+                acciones_diluidas=positivo(fila.get("acciones_diluidas"), 1.0),
+                noi_trimestral=positivo(fila.get("noi")),
+                affo_ttm=positivo(fila.get("affo_ttm")),
+                affo_por_accion_ttm=positivo(fila.get("affo_por_accion_ttm")),
+                ffo_ttm=None if ffo_trimestral is None else ffo_trimestral * 4,
+                utilidad_neta_ttm=None if utilidad_trimestral is None else utilidad_trimestral * 4,
+                dividendo_ttm_por_accion=panel.dividendo_ttm,
+                sector=panel.sector,
+            )
+            componentes = (
+                {r["linea"]: float(r["valor"]) for _, r in conciliacion.iterrows()}
+                if not conciliacion.empty
+                else {}
+            )
+            datos = DatosExportacion(
+                ticker=ticker,
+                nombre=nombre_emisor,
+                sector=panel.sector,
+                fecha_corte=asof,
+                insumos=ins,
+                componentes_cascada=componentes,
+                cap_rate_mercado=cap_rate,
+                tasa_libre_riesgo=panel.tasa_libre_riesgo or 0.042,
+                yield_adquisiciones=yield_adq,
+                fuentes=panel.fuentes.head(200).to_dict("records") if not panel.fuentes.empty else [],
+            )
+            ruta = exportar(datos, DIR_EXPORTES / f"{ticker}_{asof}.xlsx")
+            st.success(f"Libro generado: `{ruta}`")
+            with open(ruta, "rb") as fh:
+                st.download_button(
+                    "Descargar", fh.read(), file_name=ruta.name,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+
+st.markdown(
+    f"<div style='font-size:11px;line-height:1.6;color:{TINTA_3};margin-top:18px'>"
+    "Esto es una herramienta de análisis, no asesoría de inversión. Toda métrica de desempeño "
+    "va acompañada de su conteo de apuestas efectivas. Cuando las observaciones son "
+    "insuficientes el veredicto es <strong>INCONCLUSO</strong>, nunca GO.</div>",
+    unsafe_allow_html=True,
+)
 descargo()
