@@ -524,7 +524,17 @@ def familia_de_columna(columna, serie: pd.Series | None = None) -> str:
 # La regla cubre la familia que causa casi todos los casos —toda palabra terminada
 # en `-cion` o `-sion` lleva acento en singular— y el resto va declarado.
 _RE_TERMINACION_ACENTUADA = re.compile(r"\b(\w+)(cion|sion)\b")
-_PALABRAS_ACENTUADAS = {"razon": "razón", "indice": "índice"}
+# Palabras de encabezado que llevan acento y no terminan en -ción/-sión, así que
+# ninguna regla las alcanza. Es una lista corta porque son las que de verdad se
+# dibujan en esta aplicación, no un diccionario del español.
+_PALABRAS_ACENTUADAS = {
+    "razon": "razón", "indice": "índice", "implicito": "implícito",
+    "implicita": "implícita", "teorico": "teórico", "teorica": "teórica",
+    "maximo": "máximo", "maxima": "máxima", "minimo": "mínimo", "minima": "mínima",
+    "ultimo": "último", "ultima": "última", "unico": "único", "unica": "única",
+    "numero": "número", "metrica": "métrica", "interes": "interés",
+    "historico": "histórico", "historica": "histórica", "proximo": "próximo",
+}
 # Las que ninguna regla acierta: una sigla que no se capitaliza como palabra, un
 # prefijo técnico que no se lee, y el sufijo con el que este proyecto marca los
 # porcentajes.
@@ -532,6 +542,22 @@ _ETIQUETAS_EXPLICITAS = {
     "retencion_eeuu": "Retención EE. UU.",
     "n_observaciones": "Observaciones",
     "ganancia_no_realizada_pct": "Ganancia no realizada %",
+    "p_affo": "P/AFFO",
+    "p_ffo": "P/FFO",
+}
+# Una sigla no es una palabra y no se capitaliza como tal. En una herramienta donde
+# AFFO es un término definido, un encabezado que dice "Affo yield" o "Payout affo"
+# se lee como si el término no importara. `.capitalize()` las arruinaba todas. El
+# valor es la forma dibujada y no siempre son mayúsculas: el plural de una sigla se
+# escribe con minúscula ("REITs", no "REITS"), y "bps" va en minúscula por
+# convención —"409 bps"— así que deliberadamente no está en esta tabla.
+_SIGLAS = {
+    "affo": "AFFO", "ffo": "FFO", "noi": "NOI", "nav": "NAV", "ltv": "LTV",
+    "tir": "TIR", "twr": "TWR", "walt": "WALT", "ebitda": "EBITDA",
+    "ebitdare": "EBITDAre", "isr": "ISR", "inpc": "INPC", "cpi": "CPI",
+    "ust": "UST", "reit": "REIT", "reits": "REITs", "ipc": "IPC",
+    "capex": "CapEx", "sic": "SIC", "usd": "USD", "mxn": "MXN", "udi": "UDI",
+    "udis": "UDIs", "eeuu": "EE. UU.", "iva": "IVA", "irr": "IRR", "pib": "PIB",
 }
 
 
@@ -545,7 +571,10 @@ def etiqueta_de_columna(columna) -> str:
     texto = _RE_TERMINACION_ACENTUADA.sub(
         lambda m: m.group(1) + ("ción" if m.group(2) == "cion" else "sión"), texto
     )
-    return texto.capitalize()
+    # Se capitaliza primero la frase y luego se restituyen las siglas, para que
+    # "affo yield" quede "AFFO yield" y no "Affo yield" ni "AFFO Yield".
+    palabras = texto.capitalize().split()
+    return " ".join(_SIGLAS.get(p.lower(), p) for p in palabras)
 
 
 def _config_de_familia(familia: str, columna, serie: pd.Series) -> object:

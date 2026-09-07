@@ -19,6 +19,21 @@ import pandas as pd
 from src.config import CAPEX_ESPERADO_POR_SECTOR
 from src.modelo.senal import percentil_expandible
 
+# Observaciones mínimas para emitir un percentil. Vive aquí, con nombre, porque la
+# pantalla necesita citarlo al explicar qué sector se queda fuera y por qué.
+MIN_OBSERVACIONES_PERCENTIL = 12
+
+# El mismo percentil se dibuja dos veces en la pantalla —en la tabla del ranking y
+# en la gráfica de comparación— y cada una la formatea un motor distinto: Streamlit
+# formatea en JavaScript, que en el empate redondea hacia arriba, y la gráfica en
+# Python, que redondea al par. Con cero decimales el mismo 0.125 salía «13%» en la
+# tabla y «12%» en la gráfica, a dos dedos de distancia. Se corrige en dos pasos:
+# los decimales viven aquí una sola vez, para que no puedan discrepar, y el dato se
+# redondea en Python ANTES de entregarlo, para que al motor de dibujo no le quede
+# nada que redondear y el empate no llegue a existir.
+DECIMALES_PERCENTIL = 1
+FORMATO_PERCENTIL_TABLA = f"%.{DECIMALES_PERCENTIL}f%%"
+
 # --------------------------------------------------------------------------------------
 # Características económicas por sector
 # --------------------------------------------------------------------------------------
@@ -176,11 +191,101 @@ def ranking_dentro_del_sector(
     return df.sort_values([columna_sector, "ranking_en_sector"]).reset_index(drop=True)
 
 
+def cobertura_del_percentil(
+    panel_historico: pd.DataFrame,
+    *,
+    min_observaciones: int = MIN_OBSERVACIONES_PERCENTIL,
+) -> pd.DataFrame:
+    """Por sector: cuántas fechas tiene y si le alcanzan para emitir percentil.
+
+    El umbral de doce observaciones es correcto —un percentil sobre ocho trimestres
+    es una opinión, no un percentil—, pero aplicarlo en silencio deja un mapa de
+    calor sectorial con una sola fila bajo una leyenda que habla de comparar filas
+    entre sí. Un hueco tiene nombre: esta función lo da, para que la pantalla pueda
+    decir cuáles faltan, cuántas fechas tienen y cuántas les faltan.
+    """
+    columnas = ["sector", "fechas", "alcanza", "faltan"]
+    if panel_historico is None or panel_historico.empty:
+        return pd.DataFrame(columns=columnas)
+
+    fechas = (
+        panel_historico.groupby("sector")["fecha_dato"].nunique().rename("fechas").reset_index()
+    )
+    fechas["alcanza"] = fechas["fechas"] >= min_observaciones
+    fechas["faltan"] = (min_observaciones - fechas["fechas"]).clip(lower=0)
+    return fechas.sort_values(["alcanza", "fechas"], ascending=[False, False])[
+        columnas
+    ].reset_index(drop=True)
+
+
+def cuantizar_percentil(fraccion):
+    """Deja la fracción con los decimales que se van a dibujar, y ni uno más.
+
+    Redondear aquí, en Python, es lo que hace que la tabla y la gráfica coincidan:
+    al entregar un valor que ya cabe exacto en los decimales dibujados, ninguno de
+    los dos motores de formato tiene que romper un empate, y el desacuerdo entre
+    ellos desaparece en vez de volverse más chico.
+    """
+    decimales = DECIMALES_PERCENTIL + 2  # la fracción es la centésima parte del porcentaje
+    if isinstance(fraccion, pd.Series):
+        return fraccion.round(decimales)
+    return None if fraccion is None or pd.isna(fraccion) else round(float(fraccion), decimales)
+
+
+def texto_percentil(fraccion) -> str:
+    """El percentil como lo escribe la gráfica, con los decimales de la tabla."""
+    valor = cuantizar_percentil(fraccion)
+    return "—" if valor is None else f"{valor:.{DECIMALES_PERCENTIL}%}"
+
+
+def huecos_del_ranking(
+    universo: pd.DataFrame,
+    *,
+    columna_percentil: str = "percentil_prima",
+    columna_sector: str = "sector",
+) -> tuple[list[str], list[str]]:
+    """Quiénes se quedan fuera del ranking y qué sectores se van enteros con ellas.
+
+    El respaldo de la pantalla solo se dispara cuando el ranking queda *enteramente*
+    vacío, y el caso normal no es ese: es que la mayoría de las emisoras todavía no
+    junta historia. Sin nombrarlas, la pantalla anuncia «ranking dentro de cada
+    sector» y dibuja un sector con dos nombres, sin decir dónde quedaron los demás.
+
+    Un sector solo se reporta ausente si **ninguna** de sus emisoras llegó: con una
+    que sí tenga percentil, el sector aparece y no hay hueco que anunciar.
+    """
+    if universo is None or universo.empty or columna_percentil not in universo.columns:
+        return [], []
+    falta = universo[columna_percentil].isna()
+    tickers = sorted(universo.loc[falta, "ticker"])
+    sectores: list[str] = []
+    if columna_sector in universo.columns:
+        sectores = sorted(
+            set(universo.loc[falta, columna_sector]) - set(universo.loc[~falta, columna_sector])
+        )
+    return tickers, sectores
+
+
+def muestrear_columnas(matriz: pd.DataFrame, *, maximo: int = 40) -> pd.DataFrame:
+    """Reduce las columnas a lo más ``maximo``, conservando SIEMPRE la última.
+
+    Un salto posicional desde el inicio descarta el trimestre más reciente en cuanto
+    el total no es múltiplo del paso —con 100 columnas tira la última, con 120 las
+    dos últimas—, y este gráfico existe justamente para decir dónde estamos hoy. Se
+    muestrea desde el final hacia atrás para que la columna que nunca se pierda sea
+    la de la fecha más reciente.
+    """
+    if matriz.empty or len(matriz.columns) <= maximo:
+        return matriz
+    paso = -(-len(matriz.columns) // maximo)  # techo: el resultado nunca excede `maximo`
+    return matriz.iloc[:, ::-1].iloc[:, ::paso].iloc[:, ::-1]
+
+
 def percentil_contra_sector(
     panel_historico: pd.DataFrame,
     *,
     columna_valor: str = "prima",
-    min_observaciones: int = 12,
+    min_observaciones: int = MIN_OBSERVACIONES_PERCENTIL,
 ) -> pd.DataFrame:
     """Percentil expandible del emisor contra su propia historia y contra la del sector.
 

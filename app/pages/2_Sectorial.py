@@ -25,12 +25,19 @@ from comun import (  # noqa: E402
 from src.modelo.sectorial import (  # noqa: E402
     CONTEXTO_HISTORICO,
     DISPERSION_SECTORIAL,
+    FORMATO_PERCENTIL_TABLA,
+    MIN_OBSERVACIONES_PERCENTIL,
+    cobertura_del_percentil,
+    cuantizar_percentil,
+    huecos_del_ranking,
     mapa_de_calor,
     metricas_especificas,
+    muestrear_columnas,
     percentil_contra_sector,
     ranking_dentro_del_sector,
     reloj_de_prima,
     tabla_perfiles,
+    texto_percentil,
     validar_comparacion,
 )
 from src.modelo.senal import (  # noqa: E402
@@ -64,7 +71,24 @@ if universo.empty:
 # --------------------------------------------------------------------------------------
 
 st.header("Ranking dentro de cada sector")
-ranking = ranking_dentro_del_sector(universo.dropna(subset=["percentil_prima"]))
+con_percentil = universo.dropna(subset=["percentil_prima"])
+ranking = ranking_dentro_del_sector(con_percentil)
+
+# Un hueco tiene nombre. El respaldo de abajo solo se dispara cuando el ranking
+# queda ENTERAMENTE vacío, y el caso normal no es ese: es que la mayoría de las
+# emisoras todavía no junta historia. Sin este aviso, la pantalla decía "ranking
+# dentro de cada sector" y dibujaba un sector con dos nombres, sin explicar dónde
+# quedaron los otros ocho ni los otros tres sectores.
+sin_historia, sectores_ausentes = huecos_del_ranking(universo)
+if sin_historia:
+    st.info(
+        f"**{len(sin_historia)} de {len(universo)} emisoras no aparecen todavía**: "
+        f"{', '.join(sin_historia)}. Les falta historia para emitir un percentil de "
+        f"prima, que exige {MIN_OBSERVACIONES_PERCENTIL} observaciones. "
+        + (f"Con ellas quedan fuera sectores completos: {', '.join(sectores_ausentes)}."
+           if sectores_ausentes else "")
+    )
+
 if ranking.empty:
     st.info("Ningún emisor tiene historia suficiente para emitir percentil de prima.")
 else:
@@ -74,6 +98,12 @@ else:
             ["ranking_en_sector", "ticker", "nombre", "percentil_prima", "affo_yield",
              "p_affo", "payout_affo", "accion"]
         ].copy()
+        # El percentil se redondea en Python antes de dibujarlo. Streamlit formatea
+        # en JavaScript, que en el empate redondea hacia arriba, y la gráfica de
+        # abajo lo formatea en Python, que redondea al par: el mismo 0.125 salía
+        # "13%" aquí y "12%" allá, a dos dedos de distancia. Entregando el dato ya
+        # cuantizado, ninguno de los dos tiene un empate que romper.
+        vista["percentil_prima"] = cuantizar_percentil(vista["percentil_prima"])
         mostrar_tabla(
             vista,
             column_config={
@@ -81,12 +111,15 @@ else:
                 "ticker": "Emisor",
                 "nombre": "Nombre",
                 "percentil_prima": st.column_config.ProgressColumn(
-                    "Percentil de prima", min_value=0.0, max_value=100.0, format="%.0f%%"),
+                    "Percentil de prima", min_value=0.0, max_value=100.0,
+                    format=FORMATO_PERCENTIL_TABLA),
                 "p_affo": st.column_config.NumberColumn("P/AFFO", format="%.1fx"),
                 "accion": "Acción",
             },
         )
-        for metrica, texto in list(metricas_especificas(sector).items())[:3]:
+        # Todas las métricas del sector, no las tres primeras: net lease y self
+        # storage tienen cuatro, y la cuarta se ocultaba sin decirlo.
+        for metrica, texto in metricas_especificas(sector).items():
             st.caption(f"**{metrica}** — {texto}")
 
 # --------------------------------------------------------------------------------------
@@ -106,10 +139,18 @@ if seleccion:
         st.warning(advertencia)
 
     percentiles = {
-        r["ticker"]: r["percentil_prima"]
+        r["ticker"]: cuantizar_percentil(r["percentil_prima"])
         for _, r in sub.iterrows()
         if pd.notna(r["percentil_prima"])
     }
+    # Elegir cuatro emisoras y recibir dos barras, sin explicación, es peor que
+    # recibir ninguna: quien lee cuenta las barras y supone que eligió mal.
+    sin_percentil, _ = huecos_del_ranking(sub)
+    if sin_percentil and percentiles:
+        st.caption(
+            f"No se dibujan {', '.join(sin_percentil)}: todavía no tienen las "
+            f"{MIN_OBSERVACIONES_PERCENTIL} observaciones que exige el percentil."
+        )
     if percentiles:
         comparacion = comparar_emisores(
             percentiles, sectores=dict(zip(sub["ticker"], sub["sector"], strict=False))
@@ -119,7 +160,11 @@ if seleccion:
             x=comparacion["ticker"], y=comparacion["percentil_prima"],
             marker_color=["#1a7f37" if v >= 0.7 else "#9a6700" if v >= 0.3 else "#b42318"
                           for v in comparacion["percentil_prima"]],
-            text=[f"{v:.0%}" for v in comparacion["percentil_prima"]], textposition="outside",
+            # Los mismos decimales que la tabla de arriba, y sobre el mismo dato ya
+            # cuantizado: es lo que impide que el mismo percentil salga 12% aquí
+            # y 13% allá.
+            text=[texto_percentil(v) for v in comparacion["percentil_prima"]],
+            textposition="outside",
             customdata=comparacion["sector"],
             hovertemplate="%{x} (%{customdata})<br>Percentil: %{y:.0%}<extra></extra>",
         )
@@ -175,11 +220,32 @@ for _, e in universo.iterrows():
     historico.append(df.reset_index(drop=True))
 
 if historico:
-    panel_historico = percentil_contra_sector(pd.concat(historico, ignore_index=True))
+    panel_bruto = pd.concat(historico, ignore_index=True)
+    panel_historico = percentil_contra_sector(panel_bruto)
+
+    # Qué sectores no alcanzan y por qué. El umbral es correcto —un percentil sobre
+    # ocho trimestres es una opinión— pero aplicarlo en silencio deja un mapa de
+    # calor SECTORIAL con una sola fila, bajo una leyenda que habla de comparar
+    # filas entre sí. Quien lo lee no puede saber si falta el dato o falta el sector.
+    cobertura = cobertura_del_percentil(panel_bruto)
+    cortos = cobertura[~cobertura["alcanza"]]
+    if not cortos.empty:
+        detalle = ", ".join(
+            f"{r['sector']} ({int(r['fechas'])} de {MIN_OBSERVACIONES_PERCENTIL})"
+            for _, r in cortos.iterrows()
+        )
+        st.info(
+            f"**Faltan {len(cortos)} de {len(cobertura)} sectores** en el mapa y en el reloj: "
+            f"{detalle}. El percentil necesita {MIN_OBSERVACIONES_PERCENTIL} observaciones; "
+            "con menos no es un percentil, es una opinión."
+        )
+
     matriz = mapa_de_calor(panel_historico)
     if not matriz.empty:
-        # Se muestrea a fin de trimestre para que el eje sea legible.
-        matriz = matriz.loc[:, ::max(1, len(matriz.columns) // 40)]
+        # El muestreo se ancla en la ÚLTIMA columna, no en la primera: un salto
+        # posicional desde el inicio descartaba el trimestre más reciente, que es
+        # justo lo que este gráfico existe para decir.
+        matriz = muestrear_columnas(matriz)
         figura = px.imshow(
             matriz, aspect="auto", color_continuous_scale="RdYlGn", zmin=0, zmax=1,
             labels={"color": "Percentil de prima"},
