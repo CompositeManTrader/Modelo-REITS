@@ -48,6 +48,13 @@ from dataclasses import dataclass, field
 # --------------------------------------------------------------------------------------
 
 _RE_PARENTESIS = re.compile(r"\([^)]*\)")
+# La nota al pie entre CORCHETES es la misma nota al pie que entre paréntesis, y
+# hay que quitarla igual. Sin esto sobrevivía el número —`[^a-z0-9\s-]` borra el
+# corchete pero no el dígito—, así que "…receivable [4]" y "…receivable [5]" eran
+# etiquetas distintas. Global Net Lease renumera sus notas en cada reporte, de modo
+# que la misma línea cambiaba de identidad trimestre a trimestre y su ficha había
+# acumulado cuatro variantes de un solo renglón para perseguirlas.
+_RE_CORCHETES = re.compile(r"\[[^\]]*\]")
 _RE_NOTA_INICIAL = re.compile(r"^\(?\d+\)?[.)]\s*")
 _RE_NO_ALFANUM = re.compile(r"[^a-z0-9\s-]")
 _RE_ESPACIOS = re.compile(r"\s+")
@@ -82,6 +89,7 @@ def canonizar(etiqueta: str) -> str:
     t = _RE_ESPACIOS.sub(" ", t).strip()
     t = _RE_NOTA_INICIAL.sub("", t)
     t = _RE_PARENTESIS.sub(" ", t)
+    t = _RE_CORCHETES.sub(" ", t)
     t = t.replace("&", " and ").replace("/", " ")
     t = _RE_NO_ALFANUM.sub(" ", t)
     t = _RE_ESPACIOS.sub(" ", t).strip()
@@ -382,6 +390,12 @@ registrar(_ficha(
         "Depreciation and amortization of real property": "depreciacion_inmuebles",
         "Impairment charges — real estate": "deterioro",
         "Gain on sale of real estate, net": "ganancia_venta_inmuebles",
+        # No es una venta: es la remedición de una participación cuando cambia el
+        # control —de método de participación a consolidada, o al revés—. Nareit la
+        # excluye igual que a una ganancia por venta, porque igual de irrepetible es.
+        # Solo aparece en el tercer trimestre de 2024, y son los 31,849 miles exactos
+        # por los que ese trimestre y esos nueve meses no cuadraban.
+        "Gain on change in control of interests (a)": "ganancia_venta_inmuebles",
         "Proportionate share of adjustments to earnings from equity method investments (a)":
             "no_consolidadas_y_minoritarios",
         "Proportionate share of adjustments for noncontrolling interests (b)":
@@ -439,6 +453,16 @@ registrar(_ficha(
         # La redacción que el patrón compartido no reconocía.
         "Gain on real estate assets held for sale and sold, net": "ganancia_venta_inmuebles",
         "(Gain) loss on real estate assets held for sale and sold, net": "ganancia_venta_inmuebles",
+        # Distinta de la anterior, y no es un matiz de redacción: aquí no hay venta.
+        # Un activo reclasificado a "mantenido para la venta" se lleva al menor entre
+        # su valor en libros y su valor razonable menos costos de venta, y esa baja es
+        # un DETERIORO, que Nareit suma de vuelta al FFO. Sin esta línea faltaban
+        # 8,961 miles en el tercer trimestre de 2024 y 63,620 en los nueve meses.
+        "Loss on real estate assets held for sale": "deterioro",
+        # Solo aparece en 2023 y por 159 miles: cabe dentro de la tolerancia de
+        # redondeo, así que no descuadraba nada, pero es una partida del puente.
+        "Distributions paid on Series A Preferred Operating Partnership units":
+            "no_consolidadas_y_minoritarios",
         "Equity in earnings of unconsolidated joint venture gain on sale of a joint venture "
         "interest": "no_consolidadas_y_minoritarios",
         "Income allocated to Operating Partnership and other noncontrolling interests":
@@ -523,22 +547,39 @@ registrar(_ficha(
         "(Gain) loss on dispositions of real estate investments": "ganancia_venta_inmuebles",
         "FFO (defined by NAREIT)": "ffo",
         "FFO (as defined by NAREIT) attributable to common stockholders": "ffo",
+        # La redacción de la tabla RESUMEN, que es distinta de la de la conciliación
+        # completa. Sin ella ese resumen entrega solo utilidad neta y AFFO, y el
+        # tramo entre las dos queda con una única partida: la propia utilidad neta.
+        # Para un trimestre que solo aparece en el resumen —el cuarto de 2024 en el
+        # reporte anual— eso es la diferencia entre cuadrar y no tener el dato.
+        "NAREIT defined FFO attributable to common stockholders": "ffo",
+        "NAREIT defined FFO per diluted common share": "ffo",
         # GNL vendió su portafolio multi-inquilino, así que su puente al FFO trae un
         # renglón de operaciones discontinuadas. Los patrones compartidos lo ignoran
         # —para los demás emisores no existe—, y sin él el tramo del FFO descuadra.
         "Discontinued operations FFO adjustments": "otros_ajustes_no_efectivo",
         "Merger, transaction and other costs": "partidas_no_recurrentes",
+        # El mismo renglón renombrado en 2026: cambia "Merger" por "Acquisition".
+        # Son los 1,579 miles del primer trimestre de 2025 y los 4,387 del de 2026.
+        "Acquisition, transaction and other costs": "partidas_no_recurrentes",
+        "Transition costs related to the REIT Merger and Internalization":
+            "partidas_no_recurrentes",
         "Loss on extinguishment and modification of debt": "partidas_no_recurrentes",
-        "Eliminate unrealized (gains) losses on foreign currency transactions [1]":
+        # Con la nota al pie ya fuera de la forma canónica, una entrada por REDACCIÓN
+        # basta y deja de hacer falta una por número de nota. Las que quedan son
+        # variantes de verdad: GNL alterna el orden de "(gains) losses" y a veces
+        # publica solo uno de los dos, y en un reporte lo escribió repetido.
+        "Eliminate unrealized (gains) losses on foreign currency transactions":
             "partidas_no_recurrentes",
-        "Eliminate unrealized gains on foreign currency transactions [1]": "partidas_no_recurrentes",
-        "Eliminate (gains) losses related to multi-tenant disposition receivable [2]":
+        "Eliminate unrealized gains on foreign currency transactions": "partidas_no_recurrentes",
+        "Eliminate unrealized losses (gains) losses on foreign currency transactions":
             "partidas_no_recurrentes",
-        "Eliminate (gains) losses related to multi-tenant disposition receivable [3]":
+        "Eliminate (gains) losses related to multi-tenant disposition receivable":
             "partidas_no_recurrentes",
-        "Forfeited disposition deposit [3]": "partidas_no_recurrentes",
-        "Forfeited disposition deposit [4]": "partidas_no_recurrentes",
-        "Eliminate deferred tax expense related to the disposition of the McLaren Campus [2]":
+        "Eliminate gains related to multi-tenant disposition receivable":
+            "partidas_no_recurrentes",
+        "Forfeited disposition deposit": "partidas_no_recurrentes",
+        "Eliminate deferred tax expense related to the disposition of the McLaren Campus":
             "partidas_no_recurrentes",
         "Discontinued operations Core FFO adjustments": "partidas_no_recurrentes",
         "Core FFO attributable to common stockholders": "ffo_normalizado",
@@ -600,7 +641,25 @@ registrar(_ficha(
         "Unrealized (gain) loss on private equity investments": "partidas_no_recurrentes",
         "Unrealized (gain) loss on interest rate derivatives": "partidas_no_recurrentes",
         "Other items": "partidas_no_recurrentes",
+        # Las tres que faltaban, cada una responsable de un descuadre exacto:
+        # el bono de contratación son los 3,507 miles del cuarto trimestre de 2024,
+        # la reserva de contingencia completa los 6,807 del año, y la provisión de
+        # impuestos son los 15,847 del cuarto trimestre de 2025.
+        "Contingency reserve": "partidas_no_recurrentes",
+        "Hiring bonus for a new senior executive": "partidas_no_recurrentes",
+        "Income tax provision (benefit)": "partidas_no_recurrentes",
+        # 2,567 miles: el último tramo de PSA que no cuadraba, el primero de 2026.
+        "CEO transition costs": "partidas_no_recurrentes",
+        # Partidas del puente en los reportes de 2022 y 2023.
+        "Property losses and tenant claims due to casualties": "partidas_no_recurrentes",
+        "Unrealized gain on private equity investments": "partidas_no_recurrentes",
+        "Gain on sale of equity investment in PS Business Parks, Inc.": "ganancia_venta_inmuebles",
         "Core FFO allocable to common shares (a)": "ffo_normalizado",
+        # Encabezados de tramo dentro de la tabla.
+        "Eliminate items excluded from FFO": IGNORAR,
+        "Eliminate items excluded from Core FFO (a)": IGNORAR,
+        "Adjustments to G&A Expense": IGNORAR,
+        "Other Non-Core Adjustments": IGNORAR,
     },
     nota="No publica AFFO: su cascada termina en el Core FFO.",
 ))

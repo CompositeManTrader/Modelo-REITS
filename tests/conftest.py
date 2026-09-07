@@ -52,6 +52,19 @@ def html_8k_realty() -> str:
 
 
 @pytest.fixture
+def html_8k_agree_q3() -> str:
+    """Tabla de conciliación del 8-K de Agree Realty del 2025-10-21.
+
+    Se conserva con sus celdas de ancho cero intactas: son exactamente lo que la
+    prueba 21 cubre, y limpiarlas la volvería una demostración en vez de una prueba.
+    """
+    ruta = FIXTURES / "adc_8k_q3_2025_ex99_1.html"
+    if not ruta.exists():
+        pytest.skip("Falta el fixture del 8-K de Agree Realty.")
+    return ruta.read_text(encoding="utf-8")
+
+
+@pytest.fixture
 def fecha_publicacion_8k() -> dt.date:
     """Fecha de presentación del 8-K del fixture. Es su fecha_publicacion PIT."""
     return dt.date(2026, 8, 5)

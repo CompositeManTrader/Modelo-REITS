@@ -446,35 +446,45 @@ def test_valor_del_concepto_suma_todos_los_segmentos():
     assert valor_del_concepto(componentes, "capex_mantenimiento") is None
 
 
-def test_ningun_emisor_del_repositorio_recibe_la_falsa_alarma(repo_sembrado):
-    """Contra la base, no contra una maqueta: la alarma no puede ser universal."""
+def test_ningun_emisor_de_los_filings_recibe_la_falsa_alarma(request):
+    """Contra los filings reales: la alarma no puede dispararse con todos.
+
+    Apoyar esto en la semilla de pruebas no servía: es una base sintética de precios
+    y hechos, sin conciliaciones línea por línea, así que la prueba se saltaba
+    siempre y daba una tranquilidad falsa. Los documentos sí son reales.
+    """
     import datetime as dt
 
+    from src.ingesta.parser_affo import parsear_conciliacion
     from src.modelo.cascada import REPORTE, calcular_cascada
+    from src.validacion.cuadre import elegir_mejor_conciliacion
 
-    asof = dt.date(2026, 12, 31)
-    con_alarma, con_conciliacion = [], []
-    for ticker in repo_sembrado.emisores()["ticker"]:
-        hechos = repo_sembrado.hechos(
-            asof=asof, tickers=ticker, conceptos="affo", periodo_tipo="Q"
+    filings = [
+        ("O", "o_8k_q2_2026_ex99_1.html", dt.date(2026, 8, 5)),
+        ("NNN", "nnn_8k_q2_2026_ex99_1.html", dt.date(2026, 8, 4)),
+        ("WPC", "wpc_8k_q2_2026_ex99_1.html", dt.date(2026, 7, 29)),
+        ("ADC", "adc_8k_q3_2025_ex99_1.html", dt.date(2025, 10, 21)),
+        ("PLD", "pld_8k_q2_2026_ex99_1.html", dt.date(2026, 7, 16)),
+    ]
+    con_alarma, revisados = [], []
+    for ticker, archivo, publicacion in filings:
+        ruta = request.path.parent / "fixtures" / archivo
+        if not ruta.exists():
+            continue
+        extracciones = elegir_mejor_conciliacion(
+            parsear_conciliacion(ruta.read_text(encoding="utf-8"), ticker, publicacion, "fixture")
         )
-        if hechos.empty:
+        if not extracciones:
             continue
-        fecha = sorted(pd.to_datetime(hechos["fecha_dato"]).dt.date.unique())[-1]
-        conc = repo_sembrado.conciliacion(ticker, fecha, asof=asof)
-        if conc.empty:
-            continue
-        con_conciliacion.append(ticker)
-        lineas = {r["linea"]: float(r["valor"]) for _, r in conc.iterrows()}
-        banderas = calcular_cascada(lineas, signos=REPORTE).banderas
-        if [b for b in banderas if "línea recta" in b]:
+        revisados.append(ticker)
+        lineas = max(extracciones, key=lambda e: len(e.lineas)).lineas
+        if [b for b in calcular_cascada(lineas, signos=REPORTE).banderas if "línea recta" in b]:
             con_alarma.append(ticker)
 
-    if not con_conciliacion:
-        pytest.skip("La semilla no trae conciliaciones línea por línea.")
-    assert len(con_alarma) < len(con_conciliacion), (
-        f"la alarma se dispara con TODOS los emisores ({con_alarma}): eso no es una "
-        "alarma, es ruido, y tapa el caso en que de verdad falte el ajuste"
+    assert revisados, "no se pudo leer ningún filing: la prueba no verificó nada"
+    assert not con_alarma, (
+        f"la alarma de renta en línea recta se dispara con {con_alarma}, y los cinco "
+        "emisores SÍ reportan ese ajuste: eso no es una alarma, es ruido"
     )
 
 

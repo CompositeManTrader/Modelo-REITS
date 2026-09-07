@@ -569,23 +569,53 @@ y el resultado es una división por casi cero, no una valuación.
 ### Limitaciones conocidas
 
 **Cobertura del parser: medida, no estimada.** Corriendo contra los 8-K de la SEC
-desde junio de 2025 (`python scripts/cobertura.py --desde 2025-06-01 --max-filings 4`):
+desde enero de 2024 (`python scripts/cobertura.py --desde 2024-01-01 --max-filings 8`):
 
 | Emisor | Ficha | Periodos | Válidos | Sospechosos | Medida |
 |---|:--:|---:|---:|---:|---|
-| O | ✅ | 30 | 30 | 0 | AFFO |
-| EXR | ✅ | 14 | 14 | 0 | Core FFO |
-| NNN | ✅ | 14 | 14 | 0 | AFFO |
-| PLD | ✅ | 14 | 14 | 0 | AFFO |
-| WPC | ✅ | 11 | 11 | 0 | AFFO |
-| ADC | ✅ | 10 | 10 | 0 | AFFO |
-| WELL | ✅ | 10 | 10 | 0 | Core FFO |
-| EPRT | ✅ | 6 | 6 | 0 | AFFO |
-| GNL | ✅ | 5 | 5 | 0 | AFFO |
-| PSA | ✅ | 4 | 4 | 0 | Core FFO |
+| O | ✅ | 65 | 65 | 0 | AFFO |
+| EXR | ✅ | 28 | 28 | 0 | Core FFO |
+| PLD | ✅ | 28 | 28 | 0 | AFFO |
+| NNN | ✅ | 24 | 24 | 0 | AFFO |
+| WPC | ✅ | 21 | 21 | 0 | AFFO |
+| ADC | ✅ | 20 | 20 | 0 | AFFO |
+| WELL | ✅ | 20 | 20 | 0 | Core FFO |
+| EPRT | ✅ | 14 | 14 | 0 | AFFO |
+| GNL | ✅ | 10 | 10 | 0 | AFFO |
+| PSA | ✅ | 10 | 10 | 0 | Core FFO |
 
-**Los diez emisores llegan a la pantalla y los diez cuadran al 100%**: 118
+**Los diez emisores llegan a la pantalla y los diez cuadran al 100%**: 240
 periodos válidos, ninguno sospechoso.
+
+### Cuatro causas con un solo síntoma
+
+Los últimos seis descuadres eran todos de 2024 y se veían iguales —"el subtotal
+reportado no coincide con la suma de sus partidas"—, pero no tenían una causa
+sino cuatro. Vale la pena dejarlas escritas porque son la anatomía del error que
+este sistema persigue: el que no levanta excepción.
+
+**El espacio de ancho cero.** Agree Realty maqueta su conciliación con `&#8203;`
+en las celdas vacías. `str.strip()` no lo quita —para Python no es espacio en
+blanco—, así que una celda que se ve vacía llegaba como celda NO vacía y ocupaba
+una posición. Las filas que traen `$` gastan una celda en el símbolo y las demás
+la gastan en un ancho cero: las filas de una MISMA tabla salían de largos
+distintos, y repartir "columna *i* → periodo *i*" le ponía a cada periodo la
+cifra del vecino. El trimestre de 2024 se quedaba con el FFO de 2025 y los
+trimestres de 2025 desaparecían. Ninguna suma protesta: cada número por separado
+sigue siendo plausible.
+
+**Dos partidas que no son ventas.** Extra Space reporta una "pérdida por activos
+mantenidos para la venta" —una baja a valor razonable, o sea un deterioro, porque
+todavía no hay venta— y W. P. Carey una "ganancia por cambio de control", que es
+la remedición de una participación cuando pasa a consolidarse. Nareit excluye las
+dos del FFO, y ninguna ficha las declaraba.
+
+**La nota al pie entre corchetes.** Global Net Lease renumera sus notas en cada
+reporte. La canonización quitaba el corchete pero dejaba el número dentro, así que
+la misma línea cambiaba de identidad cada trimestre y su ficha había acumulado
+cuatro variantes de un solo renglón persiguiéndolas. Ahora un corchete se trata
+como lo que es —una nota al pie, igual que un paréntesis— y basta una entrada por
+redacción.
 
 ### La conciliación que no viene en una tabla
 
