@@ -161,7 +161,7 @@ else:
             "`python scripts/ingesta.py` para traer datos de fuente primaria desde la SEC."
         )
     vista = universo[
-        ["ticker", "nombre", "sector", "precio", "affo_yield", "dividend_yield",
+        ["ticker", "nombre", "sector", "medida", "precio", "affo_yield", "dividend_yield",
          "percentil_prima", "n_observaciones", "payout_affo", "p_affo", "accion"]
     ].copy()
     mostrar_tabla(
@@ -170,8 +170,16 @@ else:
             "ticker": "Emisor",
             "nombre": "Nombre",
             "sector": "Sector",
+            "medida": st.column_config.TextColumn(
+                "Medida",
+                help=(
+                    "Con qué flujo se calcula el yield. No todos los REITs publican AFFO: "
+                    "el self storage y parte de salud terminan su conciliación en el Core "
+                    "FFO. No son lo mismo, y por eso se dice cuál es cuál."
+                ),
+            ),
             "precio": st.column_config.NumberColumn("Precio", format="$%.2f"),
-            "affo_yield": st.column_config.NumberColumn("AFFO yield", format="%.2f%%"),
+            "affo_yield": st.column_config.NumberColumn("Yield de flujo", format="%.2f%%"),
             "dividend_yield": st.column_config.NumberColumn("Div. yield", format="%.2f%%"),
             # `mostrar_tabla` ya trajo el percentil a escala 0–100, así que la barra
             # se acota ahí. Con max_value=1.0 la barra saldría llena desde el 1%.
@@ -180,8 +188,8 @@ else:
                 help="Alto = barato contra su propia historia. Ventana expandible.",
             ),
             "n_observaciones": st.column_config.NumberColumn("Obs.", format="%d"),
-            "payout_affo": st.column_config.NumberColumn("Payout AFFO", format="%.1f%%"),
-            "p_affo": st.column_config.NumberColumn("P/AFFO", format="%.1fx"),
+            "payout_affo": st.column_config.NumberColumn("Payout", format="%.1f%%"),
+            "p_affo": st.column_config.NumberColumn("Precio / flujo", format="%.1fx"),
             "accion": "Acción",
         },
     )

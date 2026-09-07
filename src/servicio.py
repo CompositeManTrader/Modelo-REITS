@@ -55,6 +55,9 @@ class PanelEmisor:
     precio_fecha: dt.date | None
     dividendo_ttm: float | None
     tasa_libre_riesgo: float | None
+    # Con qué medida se está valuando: "AFFO" o "Core FFO". No todos los emisores
+    # publican AFFO, y presentar las dos bajo la misma etiqueta sería mentir.
+    medida_flujo: str = "AFFO"
     metricas: dict[str, float | None] = field(default_factory=dict)
     prima: pd.Series = field(default_factory=lambda: pd.Series(dtype="float64"))
     percentil: pd.Series = field(default_factory=lambda: pd.Series(dtype="float64"))
@@ -96,8 +99,17 @@ def construir_panel(
     sector = repo.sector_de(ticker) or "Diversificado"
 
     trimestral = repo.panel(ticker, CONCEPTOS_PANEL, asof=asof, periodo_tipo="Q")
+    medida = MEDIDA_AFFO
     if not trimestral.empty:
         trimestral = trimestral.astype(float, errors="ignore")
+        medida = _elegir_medida_de_flujo(trimestral)
+        if medida == MEDIDA_CORE_FFO:
+            avisos.append(
+                f"{ticker} no publica AFFO: su conciliación termina en el Core FFO, y eso es "
+                "lo que se está usando como medida de flujo. **No son lo mismo**: el AFFO "
+                "resta además el CapEx recurrente y la renta en línea recta, así que el Core "
+                "FFO queda por arriba del flujo realmente distribuible."
+            )
         trimestral["affo_por_accion_ttm"] = _ttm(trimestral, "affo_por_accion")
         trimestral["affo_ttm"] = _ttm(trimestral, "affo")
         # Si al AFFO por acción le falta un trimestre pero el monto sí está
@@ -181,12 +193,53 @@ def construir_panel(
         precio_fecha=precio_fecha,
         dividendo_ttm=div_ttm,
         tasa_libre_riesgo=rf,
+        medida_flujo=medida,
         metricas=metricas,
         prima=prima,
         percentil=percentil,
         fuentes=fuentes,
         avisos=avisos,
     )
+
+
+MEDIDA_AFFO = "AFFO"
+MEDIDA_CORE_FFO = "Core FFO"
+
+
+def _elegir_medida_de_flujo(trimestral: pd.DataFrame) -> str:
+    """Decide con qué medida de flujo se valúa a este emisor, y lo dice.
+
+    No todos los REITs publican AFFO. El self storage y buena parte de salud
+    terminan su conciliación en el **Core FFO**, y Public Storage, Extra Space y
+    Welltower son de ese grupo: el suplemento no trae la línea.
+
+    Ante eso hay dos salidas malas y una buena. Dejar al emisor en blanco borra a
+    un sector entero de la pantalla. Copiar el Core FFO a la casilla del AFFO
+    **miente**: el AFFO resta además el CapEx recurrente y la renta en línea recta,
+    así que el Core FFO queda por arriba del flujo distribuible. La buena es usar
+    el Core FFO y decir en la pantalla que es Core FFO.
+
+    Cuando se sustituye se copia también la serie por acción, para que el TTM y el
+    crecimiento se calculen sobre la misma medida y no sobre dos distintas.
+    """
+    hay_affo = "affo" in trimestral and pd.to_numeric(
+        trimestral["affo"], errors="coerce"
+    ).notna().any()
+    if hay_affo:
+        return MEDIDA_AFFO
+
+    hay_core = "ffo_normalizado" in trimestral and pd.to_numeric(
+        trimestral["ffo_normalizado"], errors="coerce"
+    ).notna().any()
+    if not hay_core:
+        return MEDIDA_AFFO  # no hay ninguna de las dos: se queda como está, en blanco
+
+    trimestral["affo"] = pd.to_numeric(trimestral["ffo_normalizado"], errors="coerce")
+    if "ffo_normalizado_por_accion" in trimestral:
+        trimestral["affo_por_accion"] = pd.to_numeric(
+            trimestral["ffo_normalizado_por_accion"], errors="coerce"
+        )
+    return MEDIDA_CORE_FFO
 
 
 def _ttm(trimestral: pd.DataFrame, concepto: str) -> pd.Series:
@@ -248,14 +301,26 @@ def _metricas(
     # dividir el segundo entre las acciones. Exigir el primero borraba al emisor
     # entero de la pantalla por un hueco de un trimestre en una sola serie.
     con_ttm = trimestral.dropna(subset=["affo_por_accion_ttm", "affo_ttm"], how="all")
-    ultima = con_ttm.tail(1)
-    if ultima.empty:
+    if con_ttm.empty:
         return {}
+    # El renglón que se usa tiene que traer con qué dividir. Sin el flujo POR ACCIÓN
+    # hace falta el conteo de acciones, y a Welltower le faltaba justo en el último
+    # trimestre: el respaldo de "acciones = 1" convertía un flujo de 4,000 millones
+    # en 4,000 millones POR ACCIÓN, y el yield salía en 17 millones por ciento. Un
+    # número absurdo es peor que ningún número; se retrocede al último renglón
+    # completo en vez de inventar el denominador.
+    utilizable = con_ttm[
+        con_ttm["affo_por_accion_ttm"].notna()
+        | (pd.to_numeric(con_ttm.get("acciones_diluidas"), errors="coerce") > 0)
+    ]
+    ultima = (utilizable if not utilizable.empty else con_ttm).tail(1)
     fila = ultima.iloc[0]
     balance = balance or {}
     # Un conteo de acciones no positivo no es un dato: es una fórmula equivocada
     # aguas arriba. Dividir entre él le voltea el signo a toda métrica por acción.
     acciones_reportadas = _f(fila.get("acciones_diluidas"))
+    if (acciones_reportadas or 0) <= 0 and _f(fila.get("affo_por_accion_ttm")) is None:
+        return {}
     acciones = acciones_reportadas if (acciones_reportadas or 0) > 0 else 1.0
 
     ins = InsumosValuacion(
@@ -336,6 +401,9 @@ def tabla_universo(
                 "nombre": e["nombre"],
                 "sector": e["sector"],
                 "precio": panel.precio,
+                # Qué medida de flujo está detrás del yield de ESTE renglón. Sin
+                # esta columna, un Core FFO y un AFFO se leerían como lo mismo.
+                "medida": panel.medida_flujo,
                 "affo_yield": panel.metricas.get("affo_yield"),
                 "prima_bps": (panel.prima.dropna().iloc[-1] * 10_000) if not panel.prima.dropna().empty else None,
                 "percentil_prima": panel.percentil_actual,

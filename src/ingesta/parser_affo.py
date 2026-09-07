@@ -471,6 +471,18 @@ def parsear_conciliacion(
         contexto = _contexto_previo(tabla)
         encabezado = " ".join(" ".join(f) for f in matriz[: min(3, len(matriz))])
 
+        # Una tabla que se anuncia como guía se descarta entera: no concilia un
+        # periodo, proyecta uno. La guía tiene su propia tabla en la base.
+        if _declara_guia(encabezado):
+            continue
+        # Lo mismo con la tabla de resumen que está TODA en dólares por acción.
+        # Public Storage abre su comunicado con una de dos renglones —"Metric (per
+        # share)": utilidad neta $2.55, Core FFO $4.17— y el parser la leía como
+        # una conciliación en miles, con lo que un Core FFO de $4.17 por acción
+        # entraba a la base como 4,280 miles de dólares.
+        if _es_tabla_toda_por_accion(matriz):
+            continue
+
         escala = detectar_escala(contexto + " " + encabezado) if aplicar_escala else 1.0
         if escala == 1.0:
             escala = escala_doc
@@ -498,22 +510,93 @@ _RE_ENCABEZADO_PERIODO = re.compile(
     re.I,
 )
 
+# La tabla de GUÍA no es una conciliación de nada: es una proyección. Va en el
+# mismo comunicado, con la misma forma y las mismas etiquetas, y por eso el parser
+# la tomaba por realizada.
+#
+# Ya había una defensa —un periodo que termina DESPUÉS de la fecha del filing no
+# puede estar realizado— y no alcanza, porque a la tabla de guía se le asigna una
+# fecha PASADA: su encabezado ("For the Year Ending December 31, 2026") no casa con
+# el patrón de periodo, así que sus filas se cuelgan de la última sección realizada
+# y heredan SU fecha. Con eso, Extra Space Storage metía su guía anual de 2026
+# dentro del semestre de 2025.
+#
+# La señal es gramatical y no falla: **"ended" es pasado, "ending" es futuro.** Un
+# emisor concilia lo que terminó y proyecta lo que va a terminar. Se suman las
+# palabras explícitas de guía porque algunos emisores encabezan con rangos.
+_RE_ENCABEZADO_GUIA = re.compile(
+    r"\b(?:outlook|guidance|guiding|projected|forecast)\b"
+    r"|\b(?:current|prior|updated)\s+range?s?\b"
+    r"|\bannual\s+assumptions\b"
+    r"|\b(?:year|quarter|period|months?)\s+ending\b",
+    re.I,
+)
+
+
+def _declara_guia(texto: str) -> bool:
+    """¿Este encabezado anuncia una proyección en vez de un periodo cerrado?"""
+    return bool(_RE_ENCABEZADO_GUIA.search(texto))
+
+
+# El umbral separa dólares por acción de importes reportados. Ninguna partida
+# agregada de un REIT de este universo cabe por debajo de mil unidades de la escala
+# del documento: en miles serían menos de un millón de dólares, y el más pequeño
+# —Global Net Lease— reporta un AFFO trimestral de 45 millones. Un renglón de
+# 4.17 no es un importe, es una cifra por acción.
+_TOPE_POR_ACCION = 1_000.0
+
+
+def _es_tabla_toda_por_accion(matriz: list[list[str]]) -> bool:
+    """¿La tabla completa está en dólares por acción, sin ninguna columna de monto?
+
+    No basta con que diga "per share": la conciliación de Extra Space Storage
+    también lo dice, y sí trae los montos al lado. La distinción es que ahí conviven
+    las dos magnitudes, y aquí no hay ninguna cifra grande en toda la tabla.
+    """
+    texto = " ".join(" ".join(fila) for fila in matriz)
+    if not _RE_MARCA_POR_ACCION.search(texto):
+        return False
+    mayor = 0.0
+    for fila in matriz:
+        for valor in _valores_alineados(fila):
+            # Los AÑOS del encabezado son numéricos y arruinan la comparación: un
+            # "2026" de encabezado hacía ver como importe una tabla cuyo mayor
+            # renglón real era 4.28.
+            if valor is None or _parece_anio(valor):
+                continue
+            mayor = max(mayor, abs(valor))
+    return mayor < _TOPE_POR_ACCION
+
+
+def _parece_anio(valor: float) -> bool:
+    return float(valor).is_integer() and 1900 <= valor <= 2100
+
 
 def _secciones(
     matriz: list[list[str]], contexto: str, encabezado: str
 ) -> list[tuple[list[Periodo], list[list[str]]]]:
     """Parte la tabla en bloques, cada uno con su propio conjunto de periodos."""
-    indices = [
+    # Un encabezado de guía CIERRA la sección anterior aunque no abra una nueva.
+    # Sin eso, las filas proyectadas se cuelgan del último periodo realizado y
+    # heredan su fecha: la guía anual entra a la serie histórica disfrazada de
+    # trimestre, con cifras por acción leídas como miles.
+    fronteras = [
         i for i, fila in enumerate(matriz)
-        if fila and _RE_ENCABEZADO_PERIODO.search(" ".join(fila))
+        if fila and (_RE_ENCABEZADO_PERIODO.search(" ".join(fila)) or _declara_guia(" ".join(fila)))
+    ]
+    indices = [
+        i for i in fronteras
+        if _RE_ENCABEZADO_PERIODO.search(" ".join(matriz[i]))
+        and not _declara_guia(" ".join(matriz[i]))
     ]
     if not indices:
         periodos = detectar_periodos(contexto + " " + encabezado)
         return [(periodos, matriz)] if periodos else []
 
     secciones: list[tuple[list[Periodo], list[list[str]]]] = []
-    for k, inicio in enumerate(indices):
-        fin = indices[k + 1] if k + 1 < len(indices) else len(matriz)
+    for inicio in indices:
+        siguientes = [j for j in fronteras if j > inicio]
+        fin = siguientes[0] if siguientes else len(matriz)
         # El encabezado suele venir partido en dos filas: una con la duración
         # ("Three months ended June 30,") y la siguiente con los años ("2026 2025").
         # Buscar la fecha completa en una sola fila pierde esas tablas por completo,
@@ -828,12 +911,22 @@ def _valores_alineados(fila: list[str]) -> list[float | None]:
     """
     valores: list[float | None] = []
     negativo_pendiente = False
-    for celda in fila[1:]:
-        limpia = celda.strip()
+    celdas = [c.strip() for c in fila[1:]]
+    for i, limpia in enumerate(celdas):
         if limpia == "(":
             negativo_pendiente = True
             continue
         if limpia in {"$", ")", "%", ""}:
+            continue
+        # Un PORCENTAJE DE CAMBIO no es una columna de datos. Public Storage lo
+        # intercala —"742,935 | 604,494 | 22.9 | % | 1,515,661"— y solo en los
+        # renglones de subtotal: las partidas de detalle no lo traen. Con las filas
+        # así de desparejas, repartir "columna i → periodo i" le daba al semestre
+        # el 22.9% en lugar de su FFO. El signo lo delata: el número viene pegado a
+        # una celda con solo "%", o lo trae él mismo al final.
+        siguiente = celdas[i + 1] if i + 1 < len(celdas) else ""
+        if siguiente == "%" or limpia.endswith("%"):
+            negativo_pendiente = False
             continue
         # Tercera variante del mismo problema: el paréntesis de apertura viene
         # PEGADO al número y solo el de cierre queda en su propia celda —
@@ -849,17 +942,43 @@ def _valores_alineados(fila: list[str]) -> list[float | None]:
     return valores
 
 
+# Extra Space Storage pone el monto y la cifra POR ACCIÓN del mismo periodo en
+# columnas contiguas de la misma fila, y declara cuáles son cuáles en una fila de
+# encabezado que dice "(per share)". Su conciliación del segundo trimestre se ve así:
+#
+#     Real estate depreciation | 171,249 | 0.77 | 164,707 | 0.74 | 342,144 | ...
+#                                Q2-26     Q2-26   Q2-25     Q2-25   H1-26
+#                                monto   /acción   monto   /acción   monto
+#
+# Con cuatro periodos y ocho columnas, repartir "columna i → periodo i" le asigna
+# al segundo periodo el POR ACCIÓN del primero. El resultado es una conciliación
+# internamente consistente —0.77 + 1.25 + … cuadra contra un FFO de 2.07— colgada
+# del periodo equivocado y multiplicada por la escala del documento, así que un
+# FFO de 457 millones entra como 2,070. Ninguna suma lo delata.
+_RE_MARCA_POR_ACCION = re.compile(r"per\s+(?:diluted\s+)?share", re.I)
+
+
 def _mapear_columnas(matriz: list[list[str]], periodos: list[Periodo]) -> dict[int, Periodo]:
     """Asocia índices de columna numérica con periodos.
 
     Cuenta cuántas columnas de datos tiene la fila modal y las reparte entre los
     periodos detectados. Si no cuadra, prefiere no adivinar y usa las primeras.
+
+    Cuando la tabla declara columnas por acción y trae exactamente el doble de
+    columnas que periodos, las columnas van alternadas y solo las pares son montos.
     """
     conteos = [len(_valores_alineados(f)) for f in matriz if len(f) > 1]
     conteos = [c for c in conteos if c > 0]
     if not conteos:
         return {}
     ancho = max(set(conteos), key=conteos.count)
+
+    marcas = sum(
+        1 for fila in matriz for celda in fila if _RE_MARCA_POR_ACCION.search(celda or "")
+    )
+    if periodos and marcas >= len(periodos) and ancho == 2 * len(periodos):
+        return {2 * i: periodos[i] for i in range(len(periodos))}
+
     n = min(ancho, len(periodos))
     return {i: periodos[i] for i in range(n)}
 
