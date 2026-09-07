@@ -9,10 +9,20 @@ build/
 dist/
 
 # Base de datos generada y cachés de ingesta. El esquema y las semillas sí se versionan.
+#
+# `data/emisoras/` SÍ se versiona, y a propósito: son los estados financieros de
+# fuente primaria, el insumo de todo lo demás. Versionarlos hace que una
+# reexpresión de la emisora se vea en un `git diff` como lo que es —una línea que
+# cambió, con su fecha— en vez de como un archivo binario distinto. Son 1.5 MB.
 data/reit.db
 data/reit.db-journal
 data/cache/
 data/exportes/
+
+# El lienzo de diseño ya sembrado: 2.5 MB de payload regenerable desde los
+# `.dc.html` de `diseno/`, que sí se versionan. Es salida, no fuente.
+diseno/*.html
+!diseno/*.dc.html
 
 # Salidas locales
 *.xlsx

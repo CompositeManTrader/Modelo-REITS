@@ -376,3 +376,233 @@ def test_una_tabla_de_guia_no_entra_como_cifra_realizada():
         "Una tabla cuyo periodo termina DESPUÉS de la fecha del filing es guía, "
         "no resultados. La guía tiene su propia tabla con su propio versionado."
     )
+
+
+# --------------------------------------------------------------------------------------
+# El sufijo de segmento no puede volver a esconder un concepto
+# --------------------------------------------------------------------------------------
+#
+# Un mismo concepto puede aparecer en dos tramos de la conciliación, y el parser lo
+# guarda con sufijo para no mezclarlos. Todo lo que razona SOBRE el concepto tiene
+# que usar la clave base. `acumular` lo hacía; dos comprobaciones de olfato no, y
+# preguntaban por la clave exacta.
+#
+# El resultado no era un error visible sino algo peor: una alarma que se disparaba
+# con los SEIS emisores que sí reportan el ajuste, porque el puente al AFFO va
+# después del FFO y ahí la clave siempre llega sufijada. Una alarma que suena
+# siempre deja de leerse, y tapa el caso en que de verdad falte.
+
+
+def test_el_ajuste_de_renta_en_linea_recta_se_reconoce_con_sufijo_de_segmento():
+    """Cifras reales de Agree Realty: su ajuste llega como `renta_linea_recta#2`."""
+    from src.modelo.cascada import REPORTE, calcular_cascada
+
+    componentes = {
+        "utilidad_neta": 54_809_000.0,
+        "depreciacion_inmuebles": 46_210_000.0,
+        "deterioro": 5_900_000.0,
+        "ganancia_venta_inmuebles": -2_526_000.0,
+        "ffo": 124_722_000.0,
+        "ffo_normalizado": 136_039_000.0,
+        "affo": 137_983_000.0,
+        "renta_linea_recta#2": -4_583_000.0,
+    }
+    banderas = calcular_cascada(componentes, sector="Net Lease", signos=REPORTE).banderas
+    assert not [b for b in banderas if "línea recta" in b], (
+        "no reconoció un ajuste que el emisor SÍ reporta, por venir en un segmento posterior"
+    )
+
+
+def test_sin_el_ajuste_la_alarma_sigue_sonando():
+    """El control. Una alarma que nunca suena no sirve de nada."""
+    from src.modelo.cascada import REPORTE, calcular_cascada
+
+    banderas = calcular_cascada(
+        {
+            "utilidad_neta": 54_809_000.0,
+            "depreciacion_inmuebles": 46_210_000.0,
+            "ffo": 124_722_000.0,
+            "affo": 137_983_000.0,
+        },
+        sector="Net Lease", signos=REPORTE,
+    ).banderas
+    assert [b for b in banderas if "línea recta" in b]
+
+
+def test_valor_del_concepto_suma_todos_los_segmentos():
+    """Preguntar por un concepto es sumar sus partes, no leer una llave."""
+    from src.modelo.cascada import valor_del_concepto
+
+    componentes = {
+        "otros_ajustes_no_efectivo": 11_317_000.0,
+        "otros_ajustes_no_efectivo#1": 22_188_000.0,
+        "otros_ajustes_no_efectivo#2": 3_775_000.0,
+        "renta_linea_recta#2": -4_583_000.0,
+    }
+    assert valor_del_concepto(componentes, "otros_ajustes_no_efectivo") == pytest.approx(
+        11_317_000 + 22_188_000 + 3_775_000
+    )
+    assert valor_del_concepto(componentes, "renta_linea_recta") == pytest.approx(-4_583_000.0)
+    assert valor_del_concepto(componentes, "capex_mantenimiento") is None
+
+
+def test_ningun_emisor_del_repositorio_recibe_la_falsa_alarma(repo_sembrado):
+    """Contra la base, no contra una maqueta: la alarma no puede ser universal."""
+    import datetime as dt
+
+    from src.modelo.cascada import REPORTE, calcular_cascada
+
+    asof = dt.date(2026, 12, 31)
+    con_alarma, con_conciliacion = [], []
+    for ticker in repo_sembrado.emisores()["ticker"]:
+        hechos = repo_sembrado.hechos(
+            asof=asof, tickers=ticker, conceptos="affo", periodo_tipo="Q"
+        )
+        if hechos.empty:
+            continue
+        fecha = sorted(pd.to_datetime(hechos["fecha_dato"]).dt.date.unique())[-1]
+        conc = repo_sembrado.conciliacion(ticker, fecha, asof=asof)
+        if conc.empty:
+            continue
+        con_conciliacion.append(ticker)
+        lineas = {r["linea"]: float(r["valor"]) for _, r in conc.iterrows()}
+        banderas = calcular_cascada(lineas, signos=REPORTE).banderas
+        if [b for b in banderas if "línea recta" in b]:
+            con_alarma.append(ticker)
+
+    if not con_conciliacion:
+        pytest.skip("La semilla no trae conciliaciones línea por línea.")
+    assert len(con_alarma) < len(con_conciliacion), (
+        f"la alarma se dispara con TODOS los emisores ({con_alarma}): eso no es una "
+        "alarma, es ruido, y tapa el caso en que de verdad falte el ajuste"
+    )
+
+
+# --------------------------------------------------------------------------------------
+# Los escalones que la pantalla dibuja
+# --------------------------------------------------------------------------------------
+#
+# La cascada de la pantalla no es decorativa: pone un nombre sobre cada puente, y ese
+# nombre afirma DE QUÉ está hecha la diferencia entre dos cifras que el emisor publicó.
+# Nombrarlo mal es atribuirle al emisor una descomposición que nunca reportó.
+
+
+def test_el_puente_se_nombra_por_el_par_que_une_no_por_su_posicion():
+    """Realty Income salta el FFO Nareit: ese puente trae más que depreciación.
+
+    O va de la utilidad neta al FFO normalizado en un solo brinco —su tabla publica
+    "Cumulative adjustments to calculate Normalized FFO" y nunca un subtotal de FFO
+    Nareit—. Con etiquetas por posición, ese primer puente salía rotulado
+    "depreciación y deterioro", callando las partidas no recurrentes que también
+    lleva dentro.
+    """
+    from src.modelo.cascada import escalones_de_cascada
+
+    pasos = escalones_de_cascada({
+        "utilidad_neta": 344_035_000.0,
+        "ffo_normalizado": 998_722_000.0,
+        "affo": 1_022_055_000.0,
+    })
+    nombres = [n for n, _, es_subtotal in pasos if not es_subtotal]
+    assert nombres == ["depreciación y<br>no recurrentes", "renta lineal<br>y CapEx"]
+
+    # El escalón ausente no se inventa: tres subtotales, no cuatro.
+    subtotales = [n for n, _, es_subtotal in pasos if es_subtotal]
+    assert subtotales == ["Utilidad neta", "FFO normalizado", "AFFO"]
+
+
+def test_wpc_no_normaliza_y_su_puente_lo_dice():
+    """W. P. Carey va del FFO Nareit directo al AFFO, sin escalón intermedio."""
+    from src.modelo.cascada import escalones_de_cascada
+
+    pasos = escalones_de_cascada({
+        "utilidad_neta": 185_404_000.0,
+        "ffo": 342_518_000.0,
+        "affo": 305_449_000.0,
+    })
+    nombres = [n for n, _, es_subtotal in pasos if not es_subtotal]
+    assert nombres == ["depreciación<br>y deterioro", "no recurrentes,<br>renta y CapEx"]
+
+
+def test_quien_reporta_core_ffo_no_dibuja_un_affo_que_no_publica():
+    """Public Storage termina en Core FFO: repetirlo con dos nombres es un puente falso.
+
+    El escalón final se llama como la medida que el emisor sí publica, y el FFO
+    normalizado no aparece dos veces con un puente de cero entre medias.
+    """
+    from src.modelo.cascada import escalones_de_cascada
+
+    componentes = {
+        "utilidad_neta": 450_301_000.0,
+        "ffo": 742_935_000.0,
+        "ffo_normalizado": 736_117_000.0,
+    }
+    pasos = escalones_de_cascada(componentes, medida_flujo="Core FFO")
+    subtotales = [n for n, _, es_subtotal in pasos if es_subtotal]
+    assert subtotales == ["Utilidad neta", "FFO Nareit", "Core FFO"]
+    assert [n for n, _, es in pasos if not es] == [
+        "depreciación<br>y deterioro", "partidas no<br>recurrentes",
+    ]
+
+    # Y con AFFO como medida, el mismo insumo dibuja el FFO normalizado con su nombre.
+    con_affo = escalones_de_cascada(componentes, medida_flujo="AFFO")
+    assert [n for n, _, es in con_affo if es] == [
+        "Utilidad neta", "FFO Nareit", "FFO normalizado",
+    ]
+
+
+def test_los_escalones_se_leen_con_sufijo_de_segmento():
+    """Un subtotal repetido en dos tramos llega con sufijo, y sigue siendo el subtotal."""
+    from src.modelo.cascada import escalones_de_cascada
+
+    pasos = escalones_de_cascada({
+        "utilidad_neta#1": 100.0,
+        "ffo#2": 250.0,
+        "affo#3": 300.0,
+    })
+    assert [n for n, _, es in pasos if es] == ["Utilidad neta", "FFO Nareit", "AFFO"]
+    assert [v for _, v, es in pasos if not es] == [150.0, 50.0]
+
+
+def test_el_puente_vale_la_diferencia_entre_los_subtotales_que_une():
+    """Los puentes deben reconstruir la cascada: sumar todo devuelve el último escalón."""
+    from src.modelo.cascada import escalones_de_cascada
+
+    pasos = escalones_de_cascada({
+        "utilidad_neta": 54_809_000.0,
+        "ffo": 124_722_000.0,
+        "ffo_normalizado": 135_983_000.0,
+        "affo": 137_983_000.0,
+    })
+    inicio = next(v for _, v, es in pasos if es)
+    puentes = sum(v for _, v, es in pasos if not es)
+    ultimo = [v for _, v, es in pasos if es][-1]
+    assert inicio + puentes == pytest.approx(ultimo)
+
+
+def test_el_self_storage_no_tiene_renta_en_linea_recta_que_reclamarle():
+    """Se renta mes con mes: no hay contrato de varios años que promediar.
+
+    Public Storage y Extra Space no publican ese ajuste porque en su negocio no
+    existe. Reclamárselo es la misma falsa alarma de antes con otra cara, y cada
+    falsa alarma le quita peso a la que sí importa: la del net lease.
+    """
+    componentes = {
+        "utilidad_neta": 450_301_000.0,
+        "depreciacion_inmuebles": 284_729_000.0,
+        "ffo": 742_935_000.0,
+    }
+    sin_sector = calcular_cascada(componentes, signos=REPORTE).banderas
+    assert [b for b in sin_sector if "línea recta" in b], (
+        "sin sector no se puede descartar: la alarma se queda"
+    )
+
+    storage = calcular_cascada(componentes, sector="Self Storage", signos=REPORTE).banderas
+    assert not [b for b in storage if "línea recta" in b]
+
+    hoteles = calcular_cascada(componentes, sector="Hoteles", signos=REPORTE).banderas
+    assert not [b for b in hoteles if "línea recta" in b]
+
+    # Y donde el contrato sí dura años con escalador, la alarma sigue sonando.
+    net_lease = calcular_cascada(componentes, sector="Net Lease", signos=REPORTE).banderas
+    assert [b for b in net_lease if "línea recta" in b]

@@ -1,0 +1,282 @@
+{
+  "version": 1,
+  "actualizado_en": "2026-09-07T01:41:12+00:00",
+  "emisoras": {
+    "ADC": {
+      "ticker": "ADC",
+      "cik": "0000917251",
+      "nombre": "Agree Realty Corporation",
+      "ultimo_accession": "0000917251-26-000063",
+      "ultimo_formulario": "10-Q",
+      "ultima_fecha_presentacion": "2026-07-30",
+      "descargado_en": "2026-09-07T01:41:02+00:00",
+      "n_hechos_crudos": 10523,
+      "periodos_trimestrales": 25,
+      "periodos_anuales": 7,
+      "lineas_encontradas": 60,
+      "lineas_totales": 75,
+      "huellas": {
+        "hechos.csv.gz": "7d2479b64b9c20b4",
+        "estado_resultados_trimestral.csv": "39318c22637c67a3",
+        "estado_resultados_anual.csv": "37da849a7de97c43",
+        "balance.csv": "14c015b89cc46479",
+        "flujo_efectivo_trimestral.csv": "d86d8d7f5eb34813",
+        "flujo_efectivo_anual.csv": "b2a8eb488f57e37b",
+        "cobertura.csv": "c08acda1b77ef865"
+      },
+      "incidencias": [
+        "AVISO ADC · etiqueta_alterna: «Deterioro de activos» se armó con «ImpairmentOfRealEstate», y «AssetImpairmentCharges» cubre 1 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO ADC · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpense», y «InterestExpenseNonoperating» cubre 9 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO ADC · etiqueta_alterna: «Ganancia por venta de inmuebles» se armó con «GainsLossesOnSalesOfInvestmentRealEstate», y «GainLossOnDispositionOfAssets1» cubre 1 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
+      ]
+    },
+    "EPRT": {
+      "ticker": "EPRT",
+      "cik": "0001728951",
+      "nombre": "Essential Properties Realty Trust",
+      "ultimo_accession": "0001728951-26-000052",
+      "ultimo_formulario": "10-Q",
+      "ultima_fecha_presentacion": "2026-07-22",
+      "descargado_en": "2026-09-07T01:41:05+00:00",
+      "n_hechos_crudos": 11379,
+      "periodos_trimestrales": 29,
+      "periodos_anuales": 7,
+      "lineas_encontradas": 54,
+      "lineas_totales": 75,
+      "huellas": {
+        "hechos.csv.gz": "af25d8f531961940",
+        "estado_resultados_trimestral.csv": "67ae746d6cfa8af2",
+        "estado_resultados_anual.csv": "df4ff34e613808ce",
+        "balance.csv": "82395c25d842c30c",
+        "flujo_efectivo_trimestral.csv": "3ccdc619e25cf68d",
+        "flujo_efectivo_anual.csv": "368cc22968823820",
+        "cobertura.csv": "626d579b12324b38"
+      },
+      "incidencias": [
+        "AVISO EPRT · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpense», y «InterestExpenseNonoperating» cubre 9 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO EPRT · etiqueta_alterna: «Utilidad antes de impuestos» se armó con «IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest», y «IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments» cubre 5 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
+      ]
+    },
+    "EXR": {
+      "ticker": "EXR",
+      "cik": "0001289490",
+      "nombre": "Extra Space Storage Inc.",
+      "ultimo_accession": "0001289490-26-000053",
+      "ultimo_formulario": "10-Q",
+      "ultima_fecha_presentacion": "2026-07-31",
+      "descargado_en": "2026-09-07T01:41:09+00:00",
+      "n_hechos_crudos": 10388,
+      "periodos_trimestrales": 24,
+      "periodos_anuales": 7,
+      "lineas_encontradas": 55,
+      "lineas_totales": 75,
+      "huellas": {
+        "hechos.csv.gz": "f8c3572d2eb7b910",
+        "estado_resultados_trimestral.csv": "4a21a5a7c26df525",
+        "estado_resultados_anual.csv": "1fb057dc1b024495",
+        "balance.csv": "53dd4380f974626f",
+        "flujo_efectivo_trimestral.csv": "27eb51b4acd19f03",
+        "flujo_efectivo_anual.csv": "83812f021e86fb30",
+        "cobertura.csv": "9ce2c427787c092d"
+      },
+      "incidencias": [
+        "AVISO EXR · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpense», y «InterestExpenseDebt» cubre 2 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO EXR · etiqueta_alterna: «Ganancia por venta de inmuebles» se armó con «GainsLossesOnSalesOfInvestmentRealEstate», y «GainLossOnDispositionOfAssets1» cubre 2 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO EXR · etiqueta_alterna: «Adquisición de inmuebles» se armó con «PaymentsToAcquireProductiveAssets», y «PaymentsToAcquireRealEstate» cubre 6 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO EXR · etiqueta_alterna: «Emisión de acciones» se armó con «ProceedsFromIssuanceOfCommonStock», y «ProceedsFromIssuanceOrSaleOfEquity» cubre 11 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
+      ]
+    },
+    "GNL": {
+      "ticker": "GNL",
+      "cik": "0001526113",
+      "nombre": "Global Net Lease, Inc.",
+      "ultimo_accession": "0001628280-26-053396",
+      "ultimo_formulario": "10-Q",
+      "ultima_fecha_presentacion": "2026-08-05",
+      "descargado_en": "2026-09-07T01:41:06+00:00",
+      "n_hechos_crudos": 10031,
+      "periodos_trimestrales": 30,
+      "periodos_anuales": 7,
+      "lineas_encontradas": 56,
+      "lineas_totales": 75,
+      "huellas": {
+        "hechos.csv.gz": "076cbcc61f46de2c",
+        "estado_resultados_trimestral.csv": "af6f6674caca766d",
+        "estado_resultados_anual.csv": "5fa6b1983e50ee60",
+        "balance.csv": "dd012c7692065e54",
+        "flujo_efectivo_trimestral.csv": "769ea9d71db9929b",
+        "flujo_efectivo_anual.csv": "476454b8d17fa105",
+        "cobertura.csv": "32b1507ba1021c93"
+      },
+      "incidencias": [
+        "AVISO GNL · etiqueta_alterna: «Gastos totales» se armó con «CostsAndExpenses», y «OperatingExpenses» cubre 1 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO GNL · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpense», y «InterestExpenseNonoperating» cubre 9 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO GNL · etiqueta_alterna: «Utilidad por acción, básica» se armó con «EarningsPerShareBasic», y «EarningsPerShareBasicAndDiluted» cubre 3 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO GNL · etiqueta_alterna: «Utilidad por acción, diluida» se armó con «EarningsPerShareDiluted», y «EarningsPerShareBasicAndDiluted» cubre 3 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO GNL · etiqueta_alterna: «Adquisición de inmuebles» se armó con «PaymentsToAcquireCommercialRealEstate», y «PaymentsToAcquireRealEstate» cubre 1 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
+      ]
+    },
+    "NNN": {
+      "ticker": "NNN",
+      "cik": "0000751364",
+      "nombre": "NNN REIT, Inc.",
+      "ultimo_accession": "0001193125-26-333967",
+      "ultimo_formulario": "10-Q",
+      "ultima_fecha_presentacion": "2026-08-05",
+      "descargado_en": "2026-09-07T01:41:01+00:00",
+      "n_hechos_crudos": 8838,
+      "periodos_trimestrales": 23,
+      "periodos_anuales": 7,
+      "lineas_encontradas": 51,
+      "lineas_totales": 75,
+      "huellas": {
+        "hechos.csv.gz": "752daf71c29b916d",
+        "estado_resultados_trimestral.csv": "37d9c3fbe6a18633",
+        "estado_resultados_anual.csv": "6c5528d02cf33d2b",
+        "balance.csv": "93779633cf443ae8",
+        "flujo_efectivo_trimestral.csv": "56efb72ec891ec6a",
+        "flujo_efectivo_anual.csv": "99af8d6c9c4e9f1c",
+        "cobertura.csv": "32aaf7cf842b513a"
+      },
+      "incidencias": [
+        "AVISO NNN · etiqueta_alterna: «Amortización de deuda» se armó con «RepaymentsOfNotesPayable», y «RepaymentsOfLongTermDebt» cubre 1 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
+      ]
+    },
+    "O": {
+      "ticker": "O",
+      "cik": "0000726728",
+      "nombre": "Realty Income Corporation",
+      "ultimo_accession": "0000726728-26-000048",
+      "ultimo_formulario": "10-Q",
+      "ultima_fecha_presentacion": "2026-08-06",
+      "descargado_en": "2026-09-07T01:41:00+00:00",
+      "n_hechos_crudos": 10431,
+      "periodos_trimestrales": 25,
+      "periodos_anuales": 7,
+      "lineas_encontradas": 60,
+      "lineas_totales": 75,
+      "huellas": {
+        "hechos.csv.gz": "a6c7abe80ae53913",
+        "estado_resultados_trimestral.csv": "c3b4e2e1f4cd69ee",
+        "estado_resultados_anual.csv": "c4822c89b1b511c0",
+        "balance.csv": "35b94be6456714f5",
+        "flujo_efectivo_trimestral.csv": "5f51b90aaed2daa8",
+        "flujo_efectivo_anual.csv": "1136190be725affe",
+        "cobertura.csv": "45852331a367d695"
+      },
+      "incidencias": [
+        "AVISO O · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpense», y «InterestExpenseOperating» cubre 7 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO O · etiqueta_alterna: «Utilidad neta atribuible a comunes» se armó con «NetIncomeLoss», y «NetIncomeLossAvailableToCommonStockholdersBasic» cubre 2 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO O · etiqueta_alterna: «Utilidad por acción, básica» se armó con «EarningsPerShareBasic», y «EarningsPerShareBasicAndDiluted» cubre 2 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO O · etiqueta_alterna: «Utilidad por acción, diluida» se armó con «EarningsPerShareDiluted», y «EarningsPerShareBasicAndDiluted» cubre 2 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
+      ]
+    },
+    "PLD": {
+      "ticker": "PLD",
+      "cik": "0001045609",
+      "nombre": "Prologis, Inc.",
+      "ultimo_accession": "0001193125-26-323746",
+      "ultimo_formulario": "10-Q",
+      "ultima_fecha_presentacion": "2026-07-29",
+      "descargado_en": "2026-09-07T01:41:10+00:00",
+      "n_hechos_crudos": 9256,
+      "periodos_trimestrales": 29,
+      "periodos_anuales": 7,
+      "lineas_encontradas": 56,
+      "lineas_totales": 75,
+      "huellas": {
+        "hechos.csv.gz": "862a361e993c7128",
+        "estado_resultados_trimestral.csv": "24b4b0a6c609c170",
+        "estado_resultados_anual.csv": "f2e2527df8bd4772",
+        "balance.csv": "83f01249e33c7a27",
+        "flujo_efectivo_trimestral.csv": "819b75b3a26f3e65",
+        "flujo_efectivo_anual.csv": "dcb0758048803980",
+        "cobertura.csv": "6f0b704dcad75301"
+      },
+      "incidencias": [
+        "AVISO PLD · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpense», y «InterestExpenseNonoperating» cubre 5 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
+      ]
+    },
+    "PSA": {
+      "ticker": "PSA",
+      "cik": "0001393311",
+      "nombre": "Public Storage",
+      "ultimo_accession": "0001628280-26-050612",
+      "ultimo_formulario": "10-Q",
+      "ultima_fecha_presentacion": "2026-07-29",
+      "descargado_en": "2026-09-07T01:41:08+00:00",
+      "n_hechos_crudos": 8694,
+      "periodos_trimestrales": 24,
+      "periodos_anuales": 7,
+      "lineas_encontradas": 54,
+      "lineas_totales": 75,
+      "huellas": {
+        "hechos.csv.gz": "3209ec7a3b4b4c6c",
+        "estado_resultados_trimestral.csv": "5a811987ec6e0b9b",
+        "estado_resultados_anual.csv": "878feb783d61785e",
+        "balance.csv": "f9038839b47b8307",
+        "flujo_efectivo_trimestral.csv": "33e173e76bb684ad",
+        "flujo_efectivo_anual.csv": "a8c227ca1d7a7192",
+        "cobertura.csv": "cd39b6946533151a"
+      },
+      "incidencias": [
+        "AVISO PSA · etiqueta_alterna: «Dividendo declarado por acción» se armó con «CommonStockDividendsPerShareDeclared», y «CommonStockDividendsPerShareCashPaid» cubre 2 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO PSA · etiqueta_alterna: «Desarrollo y mejoras» se armó con «PaymentsToDevelopRealEstateAssets», y «PaymentsForCapitalImprovements» cubre 5 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
+      ]
+    },
+    "WELL": {
+      "ticker": "WELL",
+      "cik": "0000766704",
+      "nombre": "Welltower Inc.",
+      "ultimo_accession": "0000766704-26-000030",
+      "ultimo_formulario": "10-Q",
+      "ultima_fecha_presentacion": "2026-07-28",
+      "descargado_en": "2026-09-07T01:41:12+00:00",
+      "n_hechos_crudos": 13112,
+      "periodos_trimestrales": 24,
+      "periodos_anuales": 7,
+      "lineas_encontradas": 64,
+      "lineas_totales": 75,
+      "huellas": {
+        "hechos.csv.gz": "81a227ca13657c64",
+        "estado_resultados_trimestral.csv": "ccd9cfa33a1d7bba",
+        "estado_resultados_anual.csv": "0042a26e24487342",
+        "balance.csv": "3031edd5939a649f",
+        "flujo_efectivo_trimestral.csv": "3ba252250ed4780f",
+        "flujo_efectivo_anual.csv": "79737b5dd10d579b",
+        "cobertura.csv": "489b2c78dac36d94"
+      },
+      "incidencias": [
+        "AVISO WELL · etiqueta_alterna: «Dividendo declarado por acción» se armó con «CommonStockDividendsPerShareCashPaid», y «CommonStockDividendsPerShareDeclared» cubre 4 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO WELL · etiqueta_alterna: «Adquisición de inmuebles» se armó con «PaymentsToAcquireCommercialRealEstate», y «PaymentsToAcquireRealEstate» cubre 7 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO WELL · etiqueta_alterna: «Emisión de acciones» se armó con «ProceedsFromIssuanceOfCommonStock», y «ProceedsFromIssuanceOrSaleOfEquity» cubre 4 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
+      ]
+    },
+    "WPC": {
+      "ticker": "WPC",
+      "cik": "0001025378",
+      "nombre": "W. P. Carey Inc.",
+      "ultimo_accession": "0001025378-26-000119",
+      "ultimo_formulario": "10-Q",
+      "ultima_fecha_presentacion": "2026-07-29",
+      "descargado_en": "2026-09-07T01:41:04+00:00",
+      "n_hechos_crudos": 11685,
+      "periodos_trimestrales": 30,
+      "periodos_anuales": 7,
+      "lineas_encontradas": 54,
+      "lineas_totales": 75,
+      "huellas": {
+        "hechos.csv.gz": "d0b5b0bbfa45226b",
+        "estado_resultados_trimestral.csv": "a4dc7542f317df1b",
+        "estado_resultados_anual.csv": "3d43792c517c014e",
+        "balance.csv": "03db99a4f91a06de",
+        "flujo_efectivo_trimestral.csv": "710cd492476073c9",
+        "flujo_efectivo_anual.csv": "154312311d7e2ec5",
+        "cobertura.csv": "9beb58b09782b377"
+      },
+      "incidencias": [
+        "AVISO WPC · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpense», y «InterestExpenseDebt» cubre 2 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
+      ]
+    }
+  }
+}

@@ -34,11 +34,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pandas as pd  # noqa: E402
-from sqlalchemy import delete, select  # noqa: E402
+from sqlalchemy import and_, delete, or_, select  # noqa: E402
 
 from src.config import FUENTES_PRIMARIAS, RUTA_BD, Estado  # noqa: E402
 from src.datos import esquema  # noqa: E402
 from src.datos.repositorio import Repositorio  # noqa: E402
+from src.validacion.cuadre import cuadrar_conciliacion  # noqa: E402
 
 CONCEPTOS_ACCIONES = ("acciones_basicas", "acciones_diluidas")
 
@@ -117,6 +118,15 @@ def olvidar_sospechosos(repo: Repositorio, *, tickers: list[str] | None, aplicar
     se corrige una ficha o el parser, hay que olvidarlos para que la corrección
     llegue a la base. Es lo que le pasó a EPRT y GNL: sus fichas nuevas cuadraban
     los cinco y catorce periodos, y la base seguía mostrándolos en blanco.
+
+    Se olvida también la CONCILIACIÓN de esos mismos periodos, y por la misma
+    razón: es la lectura línea por línea del filing, la evidencia sobre la que el
+    validador emitió el juicio. Su llave única tampoco incluye el estado, así que
+    sin borrarla el parser corregido vuelve a leer bien y la base sigue mostrando
+    la lectura vieja. Public Storage lo enseñó completo: con su ficha nueva, la
+    depreciación del trimestre suma 295.6 millones —la línea principal más la de
+    entidades no consolidadas—, y la pantalla seguía mostrando 10.9, solo la
+    segunda, porque la conciliación de esa publicación ya existía.
     """
     condiciones = [esquema.hechos.c.estado == Estado.SOSPECHOSO]
     if tickers:
@@ -134,20 +144,116 @@ def olvidar_sospechosos(repo: Repositorio, *, tickers: list[str] | None, aplicar
     ).iterrows():
         print(f"  {r['ticker']:5s} {int(r['n']):>4d}")
 
+    periodos = (
+        filas[["ticker", "periodo_tipo", "fecha_dato", "fecha_publicacion"]]
+        .drop_duplicates()
+        .itertuples(index=False)
+    )
+    donde_conciliacion = or_(*[
+        and_(
+            esquema.conciliacion.c.ticker == p.ticker,
+            esquema.conciliacion.c.periodo_tipo == p.periodo_tipo,
+            esquema.conciliacion.c.fecha_dato == p.fecha_dato,
+            esquema.conciliacion.c.fecha_publicacion == p.fecha_publicacion,
+        )
+        for p in periodos
+    ])
+
     if not aplicar:
-        print("\nEn seco. Corre con --aplicar para borrarlos.")
+        with repo.motor.begin() as cx:
+            n_conc = len(pd.read_sql(select(esquema.conciliacion).where(donde_conciliacion), cx))
+        print(f"\nY {n_conc} línea(s) de conciliación de esos mismos periodos.")
+        print("En seco. Corre con --aplicar para borrarlos.")
         return 0
 
     with repo.motor.begin() as cx:
         borradas = cx.execute(delete(esquema.hechos).where(*condiciones)).rowcount or 0
+        borradas_conc = (
+            cx.execute(delete(esquema.conciliacion).where(donde_conciliacion)).rowcount or 0
+        )
     repo.registrar_bitacora(
         "reparacion",
-        f"Se olvidaron {borradas} registros sospechosos"
+        f"Se olvidaron {borradas} registros sospechosos y {borradas_conc} líneas de su "
+        "conciliación"
         + (f" de {', '.join(tickers)}" if tickers else "")
         + ". Eran evidencia de un parser anterior, no datos de fuente. "
         "Hay que correr la ingesta para volver a leerlos.",
     )
-    print(f"\nBorrados {borradas}. Corre `python scripts/ingesta.py` para volver a leerlos.")
+    print(
+        f"\nBorrados {borradas} hechos y {borradas_conc} líneas de conciliación. "
+        "Corre `python scripts/ingesta.py` para volver a leerlos."
+    )
+    return 0
+
+
+def olvidar_descuadres(repo: Repositorio, *, tickers: list[str] | None, aplicar: bool) -> int:
+    """Borra las conciliaciones que no cuadran, para que el parser vuelva a leerlas.
+
+    Olvidar por estado no alcanza. Un periodo puede tener sus HECHOS válidos —el
+    FFO y el Core FFO que el emisor publica se leen bien— y a la vez una
+    conciliación vieja que no cuadra, porque las partidas se leyeron con una ficha
+    anterior. Public Storage es el caso: sus cifras del segundo trimestre de 2026
+    entraron como válidas, y la conciliación guardada seguía trayendo 10.9 millones
+    de depreciación en vez de 295.6, sin la línea principal. La pantalla mostraba
+    un tramo descuadrado por 279.6 millones que el filing no tiene.
+
+    Una conciliación que no cuadra es, por definición, evidencia de que el parser
+    que la produjo falló: no es un dato de fuente, es una LECTURA, y se rehace
+    leyendo otra vez el mismo filing. Borrarla no pierde nada —si la lectura nueva
+    tampoco cuadra, vuelve a entrar igual y la pantalla lo sigue diciendo—; no
+    borrarla congela para siempre la lectura equivocada, porque la llave única no
+    incluye el cuadre.
+    """
+    condiciones = []
+    if tickers:
+        condiciones.append(esquema.conciliacion.c.ticker.in_(tickers))
+    with repo.motor.begin() as cx:
+        filas = pd.read_sql(select(esquema.conciliacion).where(*condiciones), cx)
+    if filas.empty:
+        print("No hay conciliaciones en la base. Nada que olvidar.")
+        return 0
+
+    llaves = ["ticker", "periodo_tipo", "fecha_dato", "fecha_publicacion"]
+    descuadradas = []
+    for llave, g in filas.groupby(llaves):
+        lineas = {r["linea"]: float(r["valor"]) for _, r in g.iterrows()}
+        orden = {r["linea"]: int(r["orden"]) for _, r in g.iterrows()}
+        if not cuadrar_conciliacion(lineas, orden).cuadra:
+            descuadradas.append(llave)
+
+    if not descuadradas:
+        print("Todas las conciliaciones de la base cuadran. Nada que olvidar.")
+        return 0
+
+    print(f"{len(descuadradas)} conciliación(es) que no cuadran:\n")
+    por_emisor: dict[str, int] = {}
+    for tk, *_ in descuadradas:
+        por_emisor[tk] = por_emisor.get(tk, 0) + 1
+    for tk, n in sorted(por_emisor.items(), key=lambda kv: -kv[1]):
+        print(f"  {tk:5s} {n:>4d} periodo(s)")
+
+    donde = or_(*[
+        and_(*[
+            esquema.conciliacion.c[col] == val
+            for col, val in zip(llaves, llave, strict=True)
+        ])
+        for llave in descuadradas
+    ])
+    if not aplicar:
+        print(f"\nSon {int(filas.shape[0])} líneas en total en la base.")
+        print("En seco. Corre con --aplicar para borrar las que no cuadran.")
+        return 0
+
+    with repo.motor.begin() as cx:
+        borradas = cx.execute(delete(esquema.conciliacion).where(donde)).rowcount or 0
+    repo.registrar_bitacora(
+        "reparacion",
+        f"Se olvidaron {borradas} líneas de {len(descuadradas)} conciliación(es) que no "
+        "cuadraban" + (f" de {', '.join(tickers)}" if tickers else "")
+        + ". Eran lecturas de un parser anterior, no datos de fuente. "
+        "Hay que correr la ingesta para volver a leerlas.",
+    )
+    print(f"\nBorradas {borradas} línea(s). Corre `python scripts/ingesta.py` para releerlas.")
     return 0
 
 
@@ -160,13 +266,20 @@ def main() -> int:
         action="store_true",
         help="Borra los registros sospechosos para que un parser corregido los rehaga.",
     )
+    p.add_argument(
+        "--olvidar-descuadres",
+        action="store_true",
+        help="Borra las conciliaciones que no cuadran, aunque sus hechos sean válidos.",
+    )
     p.add_argument("--tickers", help="Solo estos emisores, separados por comas.")
     args = p.parse_args()
 
     repo = Repositorio(ruta=Path(args.bd))
+    tickers = [t.strip().upper() for t in args.tickers.split(",")] if args.tickers else None
     if args.olvidar_sospechosos:
-        tickers = [t.strip().upper() for t in args.tickers.split(",")] if args.tickers else None
         return olvidar_sospechosos(repo, tickers=tickers, aplicar=args.aplicar)
+    if args.olvidar_descuadres:
+        return olvidar_descuadres(repo, tickers=tickers, aplicar=args.aplicar)
     return reparar(repo, aplicar=args.aplicar)
 
 

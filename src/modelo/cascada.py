@@ -29,7 +29,11 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from src.config import CAPEX_ESPERADO_POR_SECTOR
+from src.config import (
+    CAPEX_ESPERADO_POR_SECTOR,
+    MEDIDA_AFFO,
+    SECTORES_SIN_RENTA_EN_LINEA_RECTA,
+)
 
 SEPARADOR_SEGMENTO = "#"
 
@@ -42,6 +46,23 @@ def clave_base(clave: str) -> str:
     razona sobre el concepto usa la clave base.
     """
     return clave.split(SEPARADOR_SEGMENTO, 1)[0]
+
+
+def valor_del_concepto(componentes: dict[str, float], clave: str) -> float | None:
+    """Suma TODOS los segmentos de un concepto. ``None`` si el emisor no lo reporta.
+
+    Es la forma correcta de preguntar «¿este emisor reporta X?», y la única. Un
+    ``componentes.get("renta_linea_recta")`` a secas devuelve ``None`` en cuanto el
+    emisor pone ese ajuste después de su primer subtotal —que es donde va siempre,
+    porque el puente al AFFO viene después del FFO—. El resultado es una alarma que
+    se dispara con los seis emisores que sí lo reportan: ruido puro, y peor que
+    ruido, porque tapa el caso en que de verdad falte.
+    """
+    partes = [
+        v for k, v in componentes.items()
+        if clave_base(k) == clave and v is not None
+    ]
+    return float(sum(partes)) if partes else None
 
 
 class Bloque:
@@ -549,7 +570,10 @@ def calcular_cascada(
     detalle = pd.DataFrame(filas)
 
     banderas.extend(_banderas_capex(componentes, noi, sector))
-    if "renta_linea_recta" not in componentes:
+    if (
+        valor_del_concepto(componentes, "renta_linea_recta") is None
+        and sector not in SECTORES_SIN_RENTA_EN_LINEA_RECTA
+    ):
         banderas.append(
             "No se encontró el ajuste de renta en línea recta. En un REIT con contratos "
             "con escalador, ese ajuste existe: si no aparece, el AFFO puede estar inflado."
@@ -591,7 +615,7 @@ def _banderas_capex(componentes: dict[str, float], noi: float | None, sector: st
     """Aplica la regla de olfato del CapEx recurrente contra el NOI."""
     if noi is None or noi <= 0:
         return []
-    capex = componentes.get("capex_mantenimiento")
+    capex = valor_del_concepto(componentes, "capex_mantenimiento")
     if capex is None:
         return [
             "El emisor no reporta CapEx recurrente de mantenimiento por separado. "
@@ -638,3 +662,65 @@ def coherencia_temporal(por_trimestre: dict[str, float]) -> dict[str, float | bo
         salida["dif_fy"] = fy - (q1 + q2 + q3 + q4)
         salida["cuadra_fy"] = abs(salida["dif_fy"]) <= max(0.01, abs(fy) * 1e-4)
     return salida
+
+
+# --------------------------------------------------------------------------------------
+# Los escalones que la pantalla dibuja
+# --------------------------------------------------------------------------------------
+
+# El puente se nombra por el PAR de subtotales que une, nunca por su posición en la
+# cascada. No todo emisor publica los cuatro escalones: Realty Income salta el FFO
+# Nareit y va de la utilidad neta al FFO normalizado en un solo brinco; W. P. Carey
+# no normaliza y va del FFO Nareit directo al AFFO. Con etiquetas por posición, ese
+# salto quedaba rotulado con los ajustes del escalón ausente —"depreciación" sobre
+# un puente que también trae las partidas no recurrentes—, que es afirmar sobre la
+# cifra del emisor algo que el emisor no dijo.
+PUENTES_DE_CASCADA: dict[tuple[str, str], str] = {
+    ("utilidad_neta", "ffo"): "depreciación<br>y deterioro",
+    ("utilidad_neta", "ffo_normalizado"): "depreciación y<br>no recurrentes",
+    ("utilidad_neta", "affo"): "todos los<br>ajustes",
+    ("ffo", "ffo_normalizado"): "partidas no<br>recurrentes",
+    ("ffo", "affo"): "no recurrentes,<br>renta y CapEx",
+    ("ffo_normalizado", "affo"): "renta lineal<br>y CapEx",
+}
+
+
+def escalones_de_cascada(
+    componentes: dict[str, float], *, medida_flujo: str = MEDIDA_AFFO
+) -> list[tuple[str, float, bool]]:
+    """Subtotales y puentes de la cascada, en el orden en que se dibujan.
+
+    Devuelve ``(etiqueta, valor, es_subtotal)``. Un escalón que el emisor no publica
+    se omite, y el puente que lo cruza se nombra por los dos subtotales que quedan
+    unidos, no por la posición que ocupa.
+
+    ``medida_flujo`` decide el último escalón: quien reporta Core FFO no publica un
+    AFFO debajo —el FFO normalizado ES su medida final—, y dibujarlo dos veces con
+    dos nombres sugeriría un puente que ese emisor nunca cruzó.
+    """
+    escalera = [("Utilidad neta", "utilidad_neta"), ("FFO Nareit", "ffo")]
+    if medida_flujo == MEDIDA_AFFO:
+        escalera += [("FFO normalizado", "ffo_normalizado"), (MEDIDA_AFFO, "affo")]
+    else:
+        escalera.append((medida_flujo, "ffo_normalizado"))
+
+    presentes = [
+        (nombre, clave, valor)
+        for nombre, clave in escalera
+        # Por clave base: el parser le pone sufijo de segmento (`ffo#2`) a todo
+        # concepto que aparece en más de un tramo, y un `.get("ffo")` a secas se
+        # queda en blanco justo en las conciliaciones más completas.
+        if (valor := valor_del_concepto(componentes, clave)) is not None
+    ]
+
+    pasos: list[tuple[str, float, bool]] = []
+    for i, (nombre, clave, valor) in enumerate(presentes):
+        if i:
+            _, clave_previa, anterior = presentes[i - 1]
+            pasos.append((
+                PUENTES_DE_CASCADA.get((clave_previa, clave), "ajustes"),
+                valor - anterior,
+                False,
+            ))
+        pasos.append((nombre, valor, True))
+    return pasos

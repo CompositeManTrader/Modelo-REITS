@@ -1,0 +1,480 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; background: #f4f2ee; font-family: Archivo, "Helvetica Neue", Arial, sans-serif; color: #16151a; }
+    a { color: #3d4f8a; text-decoration: none; }
+    a:hover { color: #26325c; }
+    .m { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .lbl { font-size: 10px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #6b6862; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; background: #f4f2ee; padding-bottom: 56px;">
+
+  <!-- ══ MASTHEAD ══════════════════════════════════════════════════════════ -->
+  <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; background: #16151a; color: #f4f2ee; padding: 22px 40px 20px;">
+    <div style="display: flex; align-items: flex-end; gap: 20px;">
+      <div class="m" style="font-size: 46px; font-weight: 600; line-height: 0.9; letter-spacing: -0.02em;">O</div>
+      <div style="display: flex; flex-direction: column; gap: 5px; padding-bottom: 3px;">
+        <div style="font-size: 17px; font-weight: 600; letter-spacing: -0.01em;">Realty Income Corporation</div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #16151a; background: #d8d4cb; padding: 3px 8px; border-radius: 2px;">Net Lease</span>
+          <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #16151a; background: #d8d4cb; padding: 3px 8px; border-radius: 2px;">AFFO</span>
+          <span class="m" style="font-size: 11px; color: #93908a;">NYSE · CIK 0000726728</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 40px; align-items: flex-end;">
+      <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 3px;">
+        <div class="lbl" style="color: #93908a;">Cierre sin ajustar</div>
+        <div class="m" style="font-size: 34px; font-weight: 600; line-height: 1; letter-spacing: -0.02em;">$61.25</div>
+        <div class="m" style="font-size: 11px; color: #93908a;">2026-09-05 · latencia 2 días</div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 3px; border-left: 1px solid #34322c; padding-left: 40px;">
+        <div class="lbl" style="color: #93908a;">Fecha de corte</div>
+        <div class="m" style="font-size: 20px; font-weight: 500; line-height: 1.3;">2026-09-07</div>
+        <div class="m" style="font-size: 11px; color: #93908a;">20 observaciones</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ZONA 1 · EL VEREDICTO ═════════════════════════════════════════════ -->
+  <div style="padding: 32px 40px 0;">
+    <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px;">
+      <span class="m" style="font-size: 11px; font-weight: 600; color: #6b6862;">01</span>
+      <span class="lbl" style="font-size: 11px;">El veredicto</span>
+      <div style="flex-grow: 1; height: 1px; background: #dedbd4;"></div>
+      <span style="font-size: 11px; color: #6b6862;">Tres puertas independientes. Solo la tercera vende.</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px;">
+
+      <!-- Veredicto dominante -->
+      <div style="grid-column: span 2; background: #ffffff; border: 1px solid #dedbd4; border-left: 6px solid #9a6700; padding: 28px 32px; display: flex; flex-direction: column; gap: 18px;">
+        <div style="display: flex; align-items: baseline; gap: 16px;">
+          <div style="font-size: 52px; font-weight: 800; letter-spacing: -0.035em; line-height: 0.95; color: #9a6700;">INCONCLUSO</div>
+          <div style="font-size: 13px; color: #6b6862; padding-bottom: 6px;">no es lo mismo que MANTENER</div>
+        </div>
+        <div style="font-size: 16px; line-height: 1.5; max-width: 62ch; color: #2f2d33;">
+          Hay <strong>20 observaciones</strong> de prima contra su propia historia, y el umbral para emitir
+          un percentil confiable son <strong>24</strong>. El modelo no tiene con qué opinar de valuación todavía,
+          y lo dice en vez de rellenar con un veredicto tibio.
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center; padding-top: 4px;">
+          <div style="height: 6px; flex-grow: 1; background: #eceae5; position: relative; overflow: hidden;">
+            <div style="position: absolute; inset: 0 17% 0 0; background: #9a6700;"></div>
+          </div>
+          <span class="m" style="font-size: 12px; color: #6b6862;">20 / 24</span>
+        </div>
+      </div>
+
+      <!-- Las tres puertas -->
+      <div style="background: #ffffff; border: 1px solid #dedbd4; padding: 20px 22px; display: flex; flex-direction: column; gap: 14px;">
+        <div class="lbl">Las tres puertas</div>
+
+        <div style="display: flex; flex-direction: column; gap: 11px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 10px; height: 10px; border-radius: 50%; background: #57606a; flex-shrink: 0;"></div>
+            <div style="flex-grow: 1;">
+              <div style="font-size: 13px; font-weight: 600;">1 · Calidad</div>
+              <div style="font-size: 11px; color: #6b6862;">Sin datos suficientes</div>
+            </div>
+            <div class="m" style="font-size: 11px; color: #57606a; font-weight: 600;">—</div>
+          </div>
+
+          <div style="height: 1px; background: #eceae5;"></div>
+
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 10px; height: 10px; border-radius: 50%; background: #b42318; flex-shrink: 0;"></div>
+            <div style="flex-grow: 1;">
+              <div style="font-size: 13px; font-weight: 600;">2 · Valuación</div>
+              <div style="font-size: 11px; color: #6b6862;">Percentil bajo: caro contra sí mismo</div>
+            </div>
+            <div class="m" style="font-size: 11px; color: #b42318; font-weight: 600;">13%</div>
+          </div>
+
+          <div style="height: 1px; background: #eceae5;"></div>
+
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 10px; height: 10px; border-radius: 50%; background: #1a7f37; flex-shrink: 0;"></div>
+            <div style="flex-grow: 1;">
+              <div style="font-size: 13px; font-weight: 600;">3 · Deterioro</div>
+              <div style="font-size: 11px; color: #6b6862;">Tesis intacta</div>
+            </div>
+            <div class="m" style="font-size: 11px; color: #1a7f37; font-weight: 600;">0/5</div>
+          </div>
+        </div>
+
+        <div style="font-size: 11px; line-height: 1.45; color: #6b6862; border-top: 1px solid #eceae5; padding-top: 11px;">
+          La Puerta 2 modula compras nuevas. <strong style="color: #2f2d33;">Nunca dispara venta por sí sola.</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cifras de cabecera -->
+    <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; background: #dedbd4; border: 1px solid #dedbd4; margin-top: 20px;">
+      <div style="background: #ffffff; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px;">
+        <div class="lbl">Yield de flujo</div>
+        <div class="m" style="font-size: 26px; font-weight: 600; letter-spacing: -0.02em;">7.15<span style="font-size: 16px; color: #6b6862;">%</span></div>
+        <div style="font-size: 11px; color: #6b6862;">AFFO TTM ÷ precio crudo</div>
+      </div>
+      <div style="background: #ffffff; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px;">
+        <div class="lbl">Prima sobre UST 10a</div>
+        <div class="m" style="font-size: 26px; font-weight: 600; letter-spacing: -0.02em;">238<span style="font-size: 16px; color: #6b6862;"> bps</span></div>
+        <div style="font-size: 11px; color: #6b6862;">contra 4.77% libre de riesgo</div>
+      </div>
+      <div style="background: #ffffff; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px;">
+        <div class="lbl">Payout sobre AFFO</div>
+        <div class="m" style="font-size: 26px; font-weight: 600; letter-spacing: -0.02em; color: #1a7f37;">74.0<span style="font-size: 16px; color: #6b6862;">%</span></div>
+        <div style="font-size: 11px; color: #6b6862;">holgado; el listón son 90%</div>
+      </div>
+      <div style="background: #ffffff; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px;">
+        <div class="lbl">Precio / flujo</div>
+        <div class="m" style="font-size: 26px; font-weight: 600; letter-spacing: -0.02em;">14.0<span style="font-size: 16px; color: #6b6862;">x</span></div>
+        <div style="font-size: 11px; color: #6b6862;">mediana propia 5a: 15.8x</div>
+      </div>
+      <div style="background: #ffffff; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px;">
+        <div class="lbl">Dividendo TTM</div>
+        <div class="m" style="font-size: 26px; font-weight: 600; letter-spacing: -0.02em;">5.29<span style="font-size: 16px; color: #6b6862;">%</span></div>
+        <div style="font-size: 11px; color: #6b6862;">3.24 USD por acción</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ZONA 2 · LA EVIDENCIA ═════════════════════════════════════════════ -->
+  <div style="padding: 40px 40px 0;">
+    <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px;">
+      <span class="m" style="font-size: 11px; font-weight: 600; color: #6b6862;">02</span>
+      <span class="lbl" style="font-size: 11px;">La evidencia</span>
+      <div style="flex-grow: 1; height: 1px; background: #dedbd4;"></div>
+      <span style="font-size: 11px; color: #6b6862;">Tres preguntas distintas. Ninguna se contesta con las otras.</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px;">
+
+      <!-- A · ¿Barato contra su propia historia? -->
+      <div style="background: #ffffff; border: 1px solid #dedbd4; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">¿Barato contra sí mismo?</div>
+          <div style="font-size: 12px; color: #6b6862; line-height: 1.45;">Percentil de la prima en ventana expandible, nunca contra otros emisores.</div>
+        </div>
+
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <div class="m" style="font-size: 40px; font-weight: 600; line-height: 1; letter-spacing: -0.03em; color: #b42318;">13<span style="font-size: 20px;">%</span></div>
+          <div style="font-size: 12px; color: #6b6862; padding-bottom: 4px;">de su propia historia<br>estuvo <em>más</em> barato</div>
+        </div>
+
+        <!-- Serie de prima -->
+        <div style="display: flex; align-items: flex-end; gap: 3px; height: 76px; padding-top: 4px;">
+          <div style="flex-grow: 1; height: 38%; background: #cfccc5;"></div>
+          <div style="flex-grow: 1; height: 52%; background: #cfccc5;"></div>
+          <div style="flex-grow: 1; height: 71%; background: #cfccc5;"></div>
+          <div style="flex-grow: 1; height: 64%; background: #cfccc5;"></div>
+          <div style="flex-grow: 1; height: 88%; background: #cfccc5;"></div>
+          <div style="flex-grow: 1; height: 100%; background: #cfccc5;"></div>
+          <div style="flex-grow: 1; height: 81%; background: #cfccc5;"></div>
+          <div style="flex-grow: 1; height: 69%; background: #cfccc5;"></div>
+          <div style="flex-grow: 1; height: 55%; background: #cfccc5;"></div>
+          <div style="flex-grow: 1; height: 47%; background: #cfccc5;"></div>
+          <div style="flex-grow: 1; height: 34%; background: #cfccc5;"></div>
+          <div style="flex-grow: 1; height: 29%; background: #b42318;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; border-top: 1px solid #eceae5; padding-top: 8px;">
+          <span class="m" style="font-size: 10px; color: #93908a;">2021-Q1</span>
+          <span class="m" style="font-size: 10px; color: #6b6862;">prima en bps</span>
+          <span class="m" style="font-size: 10px; color: #93908a;">2026-Q2</span>
+        </div>
+      </div>
+
+      <!-- B · ¿Alcanza el flujo? -->
+      <div style="background: #ffffff; border: 1px solid #dedbd4; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">¿Alcanza el flujo?</div>
+          <div style="font-size: 12px; color: #6b6862; line-height: 1.45;">El mismo dividendo, tres respuestas. La única que importa es la del AFFO.</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 13px;">
+          <div style="display: flex; flex-direction: column; gap: 5px;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <span style="font-size: 12px; font-weight: 600;">sobre AFFO</span>
+              <span class="m" style="font-size: 16px; font-weight: 600; color: #1a7f37;">74.0%</span>
+            </div>
+            <div style="height: 8px; background: #eceae5; position: relative;">
+              <div style="position: absolute; inset: 0 26% 0 0; background: #1a7f37;"></div>
+              <div style="position: absolute; left: 90%; top: -3px; bottom: -3px; width: 2px; background: #16151a;"></div>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 5px;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <span style="font-size: 12px; color: #6b6862;">sobre FFO</span>
+              <span class="m" style="font-size: 13px; color: #6b6862;">68.3%</span>
+            </div>
+            <div style="height: 6px; background: #eceae5; position: relative;">
+              <div style="position: absolute; inset: 0 32% 0 0; background: #cfccc5;"></div>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 5px;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <span style="font-size: 12px; color: #6b6862;">sobre utilidad neta</span>
+              <span class="m" style="font-size: 13px; color: #b42318;">220.3%</span>
+            </div>
+            <div style="height: 6px; background: #eceae5; position: relative; overflow: hidden;">
+              <div style="position: absolute; inset: 0; background: repeating-linear-gradient(90deg, #d99b93 0 6px, #eceae5 6px 9px);"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size: 11px; line-height: 1.5; color: #6b6862; border-top: 1px solid #eceae5; padding-top: 11px;">
+          El payout sobre utilidad neta pasa de 100% en casi todo REIT sano: la depreciación
+          contable no sale de la caja. <strong style="color: #2f2d33;">Usarlo como alarma es el error clásico.</strong>
+          La marca negra es el listón de 90% sobre AFFO.
+        </div>
+      </div>
+
+      <!-- C · ¿Qué descuenta el precio? -->
+      <div style="background: #ffffff; border: 1px solid #dedbd4; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-size: 15px; font-weight: 700; letter-spacing: -0.01em;">¿Qué descuenta el precio?</div>
+          <div style="font-size: 12px; color: #6b6862; line-height: 1.45;">Gordon despejado. Es aritmética, no un pronóstico.</div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;">
+          <div style="display: flex; flex-direction: column; gap: 3px;">
+            <div class="lbl">El precio pide</div>
+            <div class="m" style="font-size: 30px; font-weight: 600; line-height: 1; letter-spacing: -0.03em;">0.58<span style="font-size: 15px;">%</span></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 3px;">
+            <div class="lbl">Ha entregado</div>
+            <div class="m" style="font-size: 30px; font-weight: 600; line-height: 1; letter-spacing: -0.03em; color: #1a7f37;">3.81<span style="font-size: 15px;">%</span></div>
+          </div>
+        </div>
+
+        <div style="position: relative; height: 52px; background: #faf9f7; border: 1px solid #eceae5;">
+          <div style="position: absolute; left: 8%; top: 10px; bottom: 10px; width: 2px; background: #16151a;"></div>
+          <div style="position: absolute; left: 8%; right: 42%; top: 50%; height: 2px; background: #1a7f37; transform: translateY(-1px);"></div>
+          <div style="position: absolute; left: 58%; top: 10px; bottom: 10px; width: 2px; background: #1a7f37;"></div>
+          <div class="m" style="position: absolute; left: 20%; top: 6px; font-size: 11px; font-weight: 600; color: #1a7f37;">+323 bps de holgura</div>
+        </div>
+
+        <div style="font-size: 11px; line-height: 1.5; color: #6b6862; border-top: 1px solid #eceae5; padding-top: 11px;">
+          Para justificar $61.25 basta con que el AFFO por acción crezca <strong style="color: #2f2d33;">0.58% perpetuo</strong>.
+          Ha crecido 3.81%. La pregunta deja de ser cuánto vale y pasa a ser
+          <strong style="color: #2f2d33;">qué tendría que romperse</strong> para no llegar a ese piso.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ZONA 3 · LA CASCADA ═══════════════════════════════════════════════ -->
+  <div style="padding: 40px 40px 0;">
+    <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px;">
+      <span class="m" style="font-size: 11px; font-weight: 600; color: #6b6862;">03</span>
+      <span class="lbl" style="font-size: 11px;">La cascada</span>
+      <div style="flex-grow: 1; height: 1px; background: #dedbd4;"></div>
+      <span style="font-size: 11px; color: #6b6862;">Q2 2026 · Exhibit 99.1 del 8-K del 2026-08-05</span>
+    </div>
+
+    <div style="background: #ffffff; border: 1px solid #dedbd4; padding: 26px 32px 22px;">
+      <div style="display: flex; align-items: flex-end; gap: 0; height: 210px;">
+
+        <!-- Utilidad neta -->
+        <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; height: 100%; justify-content: flex-end;">
+          <div class="m" style="font-size: 13px; font-weight: 600;">248.7</div>
+          <div style="width: 100%; height: 32%; background: #b8b4ab;"></div>
+          <div style="font-size: 11px; font-weight: 600; text-align: center;">Utilidad neta</div>
+        </div>
+
+        <div style="width: 74px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding-bottom: 46px;">
+          <div class="m" style="font-size: 11px; color: #1a7f37; font-weight: 600;">+396.0</div>
+          <div style="width: 100%; height: 2px; background: #1a7f37;"></div>
+          <div style="font-size: 10px; color: #6b6862; text-align: center; line-height: 1.3;">depreciación<br>y deterioro</div>
+        </div>
+
+        <!-- FFO -->
+        <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; height: 100%; justify-content: flex-end;">
+          <div class="m" style="font-size: 13px; font-weight: 600;">644.7</div>
+          <div style="width: 100%; height: 83%; background: #8b8780;"></div>
+          <div style="font-size: 11px; font-weight: 600; text-align: center;">FFO Nareit</div>
+        </div>
+
+        <div style="width: 74px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding-bottom: 46px;">
+          <div class="m" style="font-size: 11px; color: #1a7f37; font-weight: 600;">+12.4</div>
+          <div style="width: 100%; height: 2px; background: #1a7f37;"></div>
+          <div style="font-size: 10px; color: #6b6862; text-align: center; line-height: 1.3;">partidas no<br>recurrentes</div>
+        </div>
+
+        <!-- FFO normalizado -->
+        <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; height: 100%; justify-content: flex-end;">
+          <div class="m" style="font-size: 13px; font-weight: 600;">657.1</div>
+          <div style="width: 100%; height: 85%; background: #6b6862;"></div>
+          <div style="font-size: 11px; font-weight: 600; text-align: center;">FFO normalizado</div>
+        </div>
+
+        <div style="width: 74px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding-bottom: 46px;">
+          <div class="m" style="font-size: 11px; color: #b42318; font-weight: 600;">−36.3</div>
+          <div style="width: 100%; height: 2px; background: #b42318;"></div>
+          <div style="font-size: 10px; color: #6b6862; text-align: center; line-height: 1.3;">renta lineal,<br>CapEx, acciones</div>
+        </div>
+
+        <!-- AFFO -->
+        <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; height: 100%; justify-content: flex-end;">
+          <div class="m" style="font-size: 15px; font-weight: 700;">620.8</div>
+          <div style="width: 100%; height: 80%; background: #16151a;"></div>
+          <div style="font-size: 12px; font-weight: 700; text-align: center;">AFFO</div>
+        </div>
+
+        <!-- Dividendo -->
+        <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; height: 100%; justify-content: flex-end; margin-left: 28px; border-left: 1px dashed #cfccc5; padding-left: 28px;">
+          <div class="m" style="font-size: 13px; font-weight: 600; color: #1a7f37;">459.6</div>
+          <div style="width: 100%; height: 59%; background: #ffffff; border: 2px solid #1a7f37;"></div>
+          <div style="font-size: 11px; font-weight: 600; text-align: center; color: #1a7f37;">Dividendo pagado</div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #eceae5; margin-top: 20px; padding-top: 14px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a7f37" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          <span style="font-size: 13px; font-weight: 600; color: #1a7f37;">La conciliación cuadra en sus 3 tramos</span>
+          <span style="font-size: 12px; color: #6b6862;">contra los subtotales que el propio emisor publica</span>
+        </div>
+        <span class="m" style="font-size: 11px; color: #93908a;">millones de USD · 20 renglones verificados</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ZONA 4 · MÉTODOS DE VALUACIÓN ═════════════════════════════════════ -->
+  <div style="padding: 40px 40px 0;">
+    <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px;">
+      <span class="m" style="font-size: 11px; font-weight: 600; color: #6b6862;">04</span>
+      <span class="lbl" style="font-size: 11px;">Qué se puede valuar, y qué falta</span>
+      <div style="flex-grow: 1; height: 1px; background: #dedbd4;"></div>
+      <span style="font-size: 11px; color: #6b6862;">Un hueco tiene nombre, no es un cero</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px;">
+
+      <div style="background: #ffffff; border: 1px solid #dedbd4; display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; gap: 14px; padding: 16px 24px; border-bottom: 1px solid #eceae5; background: #faf9f7;">
+          <div style="width: 8px; height: 8px; border-radius: 50%; background: #1a7f37;"></div>
+          <div style="flex-grow: 1;">
+            <div style="font-size: 14px; font-weight: 700;">Múltiplos · AFFO yield y P/AFFO</div>
+            <div style="font-size: 12px; color: #6b6862;">Qué paga hoy el mercado por su flujo</div>
+          </div>
+          <div class="m" style="font-size: 14px; font-weight: 600;">7.15% · 14.0x</div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 14px; padding: 16px 24px; border-bottom: 1px solid #eceae5;">
+          <div style="width: 8px; height: 8px; border-radius: 50%; background: #1a7f37;"></div>
+          <div style="flex-grow: 1;">
+            <div style="font-size: 14px; font-weight: 700;">Crecimiento implícito en el precio</div>
+            <div style="font-size: 12px; color: #6b6862;">Qué supone el mercado, despejando Gordon</div>
+          </div>
+          <div class="m" style="font-size: 14px; font-weight: 600;">0.58%</div>
+        </div>
+
+        <div style="display: flex; align-items: flex-start; gap: 14px; padding: 16px 24px; background: #fdf9f2;">
+          <div style="width: 8px; height: 8px; border-radius: 50%; background: #9a6700; margin-top: 6px;"></div>
+          <div style="flex-grow: 1;">
+            <div style="font-size: 14px; font-weight: 700; color: #9a6700;">NAV · NOI ÷ cap rate del sector</div>
+            <div style="font-size: 12px; color: #6b6862; line-height: 1.5; margin-top: 3px;">
+              Le falta <strong class="m" style="color: #2f2d33;">noi</strong>. Es una medida no-GAAP: no está en XBRL,
+              vive en el suplemento, y hay que extraerla emisora por emisora como el AFFO.
+            </div>
+          </div>
+          <div class="m" style="font-size: 12px; font-weight: 600; color: #9a6700;">bloqueado</div>
+        </div>
+      </div>
+
+      <!-- Sensibilidad al cap rate del sector -->
+      <div style="background: #ffffff; border: 1px solid #dedbd4; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-size: 14px; font-weight: 700;">Cap rate de <span style="color: #3d4f8a;">Net Lease</span></div>
+          <div style="font-size: 12px; color: #6b6862; line-height: 1.45;">
+            No es una constante universal: es la tasa a la que el mercado privado capitaliza <em>esta</em> renta.
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="m" style="font-size: 11px; color: #6b6862; width: 78px;">Self Storage</span>
+            <div style="flex-grow: 1; height: 5px; background: #eceae5; position: relative;"><div style="position: absolute; left: 0; width: 34%; top: 0; bottom: 0; background: #cfccc5;"></div></div>
+            <span class="m" style="font-size: 11px; color: #6b6862; width: 42px; text-align: right;">5.50%</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="m" style="font-size: 11px; font-weight: 700; width: 78px;">Net Lease</span>
+            <div style="flex-grow: 1; height: 9px; background: #eceae5; position: relative;"><div style="position: absolute; left: 0; width: 61%; top: 0; bottom: 0; background: #3d4f8a;"></div></div>
+            <span class="m" style="font-size: 11px; font-weight: 700; width: 42px; text-align: right;">6.75%</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="m" style="font-size: 11px; color: #6b6862; width: 78px;">Oficinas</span>
+            <div style="flex-grow: 1; height: 5px; background: #eceae5; position: relative;"><div style="position: absolute; left: 0; width: 100%; top: 0; bottom: 0; background: #cfccc5;"></div></div>
+            <span class="m" style="font-size: 11px; color: #6b6862; width: 42px; text-align: right;">8.75%</span>
+          </div>
+        </div>
+
+        <div style="font-size: 11px; line-height: 1.5; color: #6b6862; border-top: 1px solid #eceae5; padding-top: 11px;">
+          Valuar un self storage al cap rate de net lease le borra <strong style="color: #b42318;">más de una quinta parte del valor</strong>
+          sin que ningún número se vea raro: la aritmética sigue cuadrando, solo el supuesto está mal.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ZONA 5 · AUDITORÍA ════════════════════════════════════════════════ -->
+  <div style="padding: 40px 40px 0;">
+    <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px;">
+      <span class="m" style="font-size: 11px; font-weight: 600; color: #6b6862;">05</span>
+      <span class="lbl" style="font-size: 11px;">Auditoría</span>
+      <div style="flex-grow: 1; height: 1px; background: #dedbd4;"></div>
+      <span style="font-size: 11px; color: #6b6862;">Cerrado por omisión. Cada cifra rastreable hasta su documento.</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 1px; background: #dedbd4; border: 1px solid #dedbd4;">
+      <div style="background: #ffffff; display: flex; align-items: center; gap: 14px; padding: 15px 24px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b6862" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+        <span style="font-size: 13px; font-weight: 600; flex-grow: 1;">Serie trimestral completa</span>
+        <span class="m" style="font-size: 12px; color: #6b6862;">25 trimestres · 11 conceptos</span>
+      </div>
+      <div style="background: #ffffff; display: flex; align-items: center; gap: 14px; padding: 15px 24px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b6862" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+        <span style="font-size: 13px; font-weight: 600; flex-grow: 1;">Estados financieros completos</span>
+        <span class="m" style="font-size: 12px; color: #6b6862;">10,431 hechos · balance, resultados, flujo</span>
+      </div>
+      <div style="background: #ffffff; display: flex; align-items: center; gap: 14px; padding: 15px 24px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b6862" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+        <span style="font-size: 13px; font-weight: 600; flex-grow: 1;">Procedencia de cada cifra</span>
+        <span class="m" style="font-size: 12px; color: #6b6862;">fuente, fecha de publicación, enlace al filing</span>
+      </div>
+      <div style="background: #ffffff; display: flex; align-items: center; gap: 14px; padding: 15px 24px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b6862" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 12-4-4m4 4 4-4M2 17l.6 2.4A2 2 0 0 0 4.5 21h15a2 2 0 0 0 1.9-1.6L22 17"/></svg>
+        <span style="font-size: 13px; font-weight: 600; flex-grow: 1;">Exportar a Excel con fórmulas vivas</span>
+        <span class="m" style="font-size: 12px; color: #6b6862;">los supuestos quedan editables en la hoja</span>
+      </div>
+    </div>
+
+    <div style="font-size: 11px; line-height: 1.6; color: #6b6862; margin-top: 14px; max-width: 96ch;">
+      Esto es una herramienta de análisis, no asesoría de inversión. Toda métrica de desempeño va acompañada
+      de su conteo de apuestas efectivas. Cuando las observaciones son insuficientes el veredicto es
+      <strong style="color: #2f2d33;">INCONCLUSO</strong>, nunca GO.
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":1440,"height":2380}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>

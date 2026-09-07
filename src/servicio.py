@@ -15,6 +15,8 @@ import numpy as np
 import pandas as pd
 
 from src.config import (
+    MEDIDA_AFFO,
+    MEDIDA_CORE_FFO,
     SERIE_CPI,
     SERIE_INPC,
     SERIE_UDIBONO10,
@@ -200,10 +202,6 @@ def construir_panel(
         fuentes=fuentes,
         avisos=avisos,
     )
-
-
-MEDIDA_AFFO = "AFFO"
-MEDIDA_CORE_FFO = "Core FFO"
 
 
 def _elegir_medida_de_flujo(trimestral: pd.DataFrame) -> str:
