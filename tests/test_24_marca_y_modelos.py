@@ -544,6 +544,35 @@ def test_la_emisora_sin_fundamentales_recibe_diagnostico_y_no_pantalla_en_blanco
     assert "scripts/ingesta.py" in PAGINA_VALUACION
 
 
+def test_la_tabla_de_friccion_se_dibuja_en_porcentaje_y_no_en_dolares():
+    """Defecto preexistente, visible al abrir la sección: «$0.20» donde son 20%.
+
+    «Ganancia acumulada» y «Costo fiscal» caían en la familia de MONEDA porque
+    contienen los tokens `ganancia` y `costo`. La convención del proyecto es que
+    la CLAVE lleva la unidad y el encabezado va aparte, así que las claves pasan
+    a `*_pct`, `fraccion_*` y `*_bps`, y la prosa viaja en `column_config`.
+    """
+    from comun import familia_de_columna, formato_columnas
+
+    from src.modelo.kill import ETIQUETAS_FRICCION, tabla_liston_friccion
+
+    tabla = tabla_liston_friccion()
+    familias = {c: familia_de_columna(c, tabla[c]) for c in tabla.columns}
+    assert familias["ganancia_acumulada_pct"] == "porcentaje"
+    assert familias["fraccion_gravable"] == "porcentaje"
+    assert familias["costo_fiscal_pct"] == "porcentaje"
+    assert familias["ventaja_anual_bps"] == "bps"
+
+    # Y la escala se aplica de verdad: 0.20 se dibuja como 20, no como 0.20.
+    vista, config = formato_columnas(tabla, ETIQUETAS_FRICCION)
+    assert vista["ganancia_acumulada_pct"].iloc[0] == pytest.approx(20.0)
+    assert vista["costo_fiscal_pct"].iloc[0] == pytest.approx(1.6667, abs=0.001)
+    # Los bps ya nacen en puntos base: escalarlos otra vez daría 830,000.
+    assert vista["ventaja_anual_bps"].iloc[0] == pytest.approx(83)
+    # El encabezado sigue siendo legible.
+    assert config["ganancia_acumulada_pct"] == "Ganancia acumulada sobre el costo"
+
+
 def test_el_selector_de_emisora_vive_en_el_cuerpo_y_no_en_la_barra_lateral():
     """En pantalla angosta Streamlit arranca con la barra lateral PLEGADA.
 

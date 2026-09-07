@@ -81,7 +81,11 @@ from src.modelo.cascada import (  # noqa: E402
     escalones_de_cascada,
 )
 from src.modelo.formulas import modelos_de_valuacion  # noqa: E402
-from src.modelo.kill import tabla_liston_friccion, venta_parcial_sugerida  # noqa: E402
+from src.modelo.kill import (  # noqa: E402
+    ETIQUETAS_FRICCION,
+    tabla_liston_friccion,
+    venta_parcial_sugerida,
+)
 from src.modelo.sectorial import metricas_especificas, perfil  # noqa: E402
 from src.modelo.senal import sesgo_por_ventana_completa  # noqa: E402
 from src.modelo.valuacion import (  # noqa: E402
@@ -831,13 +835,25 @@ with st.expander("Quiero vender por valuación de todos modos"):
     valor_posicion = st.number_input("Valor de tu posición (USD)", 0.0, value=100_000.0, step=5_000.0)
     ganancia = st.slider("Ganancia acumulada sobre el costo", 0.0, 3.0, 0.40, 0.05, format="%.2f")
     sugerencia = venta_parcial_sugerida(valor_posicion, ganancia_acumulada=ganancia)
-    a, b, c = st.columns(3)
+    a, b, c, d = st.columns(4)
     a.metric("Venta parcial sugerida", f"{sugerencia['fraccion_sugerida']:.0%}")
-    b.metric("Costo fiscal estimado", dinero(sugerencia["costo_fiscal_estimado"]))
-    c.metric("Ventaja anual necesaria", f"{sugerencia['ventaja_anual_necesaria_bps']:,.0f} bps",
+    # La parte gravable va a la vista porque es el paso que el cálculo se
+    # saltaba: con 40% de ganancia SOBRE EL COSTO, la posición vale 1.4 veces lo
+    # que costó, así que solo 40/140 = 28.6% de lo que vendes es ganancia.
+    b.metric("Parte gravable de lo vendido", pct(sugerencia["fraccion_gravable"], 1),
+             help="El ISR se paga sobre la ganancia embebida en lo que vendes, no sobre el valor.")
+    c.metric("Costo fiscal estimado", dinero(sugerencia["costo_fiscal_estimado"]))
+    d.metric("Ventaja anual necesaria", f"{sugerencia['ventaja_anual_necesaria_bps']:,.0f} bps",
              help="Cuánto más tiene que rendir el destino, al año, para recuperar el costo fiscal en dos años.")
     st.warning(sugerencia["advertencia"])
-    mostrar_tabla(tabla_liston_friccion())
+    mostrar_tabla(tabla_liston_friccion(), column_config=ETIQUETAS_FRICCION)
+    st.caption(
+        "El ISR cedular de 10% se paga sobre la **ganancia**, no sobre el valor vendido. "
+        "Por eso la columna de en medio: con 100% de ganancia sobre el costo, la mitad de lo "
+        "que vendes es ganancia y el costo fiscal es 5% del valor — no 10%, como reportaba "
+        "la versión anterior de esta tabla. El cálculo ignora el efecto del tipo de cambio "
+        "sobre la ganancia en pesos, que es una simplificación y no un olvido."
+    )
 
 with st.expander(f"Qué mirar en un REIT de {panel.sector}"):
     perfil_sector = perfil(panel.sector)
