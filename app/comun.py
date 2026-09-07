@@ -518,8 +518,38 @@ def familia_de_columna(columna, serie: pd.Series | None = None) -> str:
     return "numero"
 
 
+# Un encabezado se escribe como se escribe en español. La clave de la columna va
+# sin acentos porque es un identificador, pero lo que se dibuja no es la clave: en
+# la tabla de atribución convivían un "Aporte" bien puesto y un "explicacion" crudo.
+# La regla cubre la familia que causa casi todos los casos —toda palabra terminada
+# en `-cion` o `-sion` lleva acento en singular— y el resto va declarado.
+_RE_TERMINACION_ACENTUADA = re.compile(r"\b(\w+)(cion|sion)\b")
+_PALABRAS_ACENTUADAS = {"razon": "razón", "indice": "índice"}
+# Las que ninguna regla acierta: una sigla que no se capitaliza como palabra, un
+# prefijo técnico que no se lee, y el sufijo con el que este proyecto marca los
+# porcentajes.
+_ETIQUETAS_EXPLICITAS = {
+    "retencion_eeuu": "Retención EE. UU.",
+    "n_observaciones": "Observaciones",
+    "ganancia_no_realizada_pct": "Ganancia no realizada %",
+}
+
+
+def etiqueta_de_columna(columna) -> str:
+    """Cómo se dibuja el nombre de una columna en un encabezado."""
+    clave = str(columna).strip().lower()
+    if clave in _ETIQUETAS_EXPLICITAS:
+        return _ETIQUETAS_EXPLICITAS[clave]
+    texto = clave.replace("_", " ")
+    texto = " ".join(_PALABRAS_ACENTUADAS.get(p, p) for p in texto.split())
+    texto = _RE_TERMINACION_ACENTUADA.sub(
+        lambda m: m.group(1) + ("ción" if m.group(2) == "cion" else "sión"), texto
+    )
+    return texto.capitalize()
+
+
 def _config_de_familia(familia: str, columna, serie: pd.Series) -> object:
-    etiqueta = str(columna).replace("_", " ").strip().capitalize()
+    etiqueta = etiqueta_de_columna(columna)
     if familia == "bps":
         return st.column_config.NumberColumn(etiqueta, format="%,.0f bps")
     if familia == "porcentaje":
@@ -554,6 +584,11 @@ def formato_columnas(df: pd.DataFrame, explicito: dict | None = None) -> tuple[p
     for columna in vista.columns:
         serie = vista[columna]
         if not pd.api.types.is_numeric_dtype(serie) or pd.api.types.is_bool_dtype(serie):
+            # Una columna de texto no tiene unidad ni formato, pero sí encabezado:
+            # sin esto se dibujaba con la clave cruda, y una misma tabla mezclaba
+            # "Aporte" con "explicacion".
+            if columna not in explicito:
+                config[columna] = st.column_config.Column(etiqueta_de_columna(columna))
             continue
         familia = familia_de_columna(columna, serie)
         if familia == "porcentaje":

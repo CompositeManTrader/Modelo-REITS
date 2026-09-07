@@ -193,13 +193,37 @@ def test_cada_familia_de_columna_recibe_su_unidad():
     assert _formato(config, "cap_rate_implicito").endswith("%%")
 
 
-def test_las_columnas_de_texto_se_dejan_en_paz():
-    """Formatear una columna de texto como número la rompe en Arrow."""
+def test_una_columna_de_texto_no_recibe_formato_numerico():
+    """Formatear una columna de texto como número la rompe en Arrow.
+
+    Sí recibe **etiqueta**, que es otra cosa: el encabezado no es el dato. Sin ella
+    la tabla dibujaba la clave cruda, y una misma tabla mezclaba un "Aporte" bien
+    puesto con un "explicacion" sin acento.
+    """
     df = pd.DataFrame({"ticker": ["O"], "accion": ["COMPRAR"], "precio": [60.25]})
+    vista, config = formato_columnas(df)
+
+    for columna in ("ticker", "accion"):
+        assert "format" not in config[columna].get("type_config", {}), (
+            f"{columna} es texto y no puede llevar formato numérico"
+        )
+        # Y el dato no se toca: escalarlo o convertirlo es lo que rompe Arrow.
+        assert list(vista[columna]) == list(df[columna])
+
+    assert _formato(config, "precio").startswith("$")
+
+
+def test_el_encabezado_se_escribe_en_espanol():
+    """La clave va sin acentos porque es un identificador; el encabezado no es la clave."""
+    df = pd.DataFrame({"explicacion": ["texto"], "accion": ["COMPRAR"],
+                       "retencion_eeuu": [12.5], "n_observaciones": [8]})
     _vista, config = formato_columnas(df)
-    assert "ticker" not in config
-    assert "accion" not in config
-    assert "precio" in config
+    etiquetas = {c: config[c]["label"] for c in config}
+    assert etiquetas["explicacion"] == "Explicación"
+    assert etiquetas["accion"] == "Acción"
+    # Una sigla no se capitaliza como palabra, y un prefijo técnico no se lee.
+    assert etiquetas["retencion_eeuu"] == "Retención EE. UU."
+    assert etiquetas["n_observaciones"] == "Observaciones"
 
 
 def test_la_columna_vacia_no_truena():
