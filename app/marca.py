@@ -47,6 +47,10 @@ LOSS = "#EA3943"         # pérdida — solo gráficas y estados de dato
 # El relleno de la zona de profit es un token FIJO de la guía: 14% sobre oscuro.
 # Estaba en 32% en piezas viejas y se leía como marrón sucio.
 RELLENO_PROFIT = "rgba(245,166,35,0.14)"
+# El mismo ámbar, aún más tenue: para las mil trayectorias de fondo de un Monte
+# Carlo, donde el trazo individual no es el dato —lo es la nube— y compite con
+# los percentiles si tiene peso propio.
+TRAZO_TENUE = "rgba(245,166,35,0.10)"
 
 # --------------------------------------------------------------------------------------
 # Semáforo de las tres puertas

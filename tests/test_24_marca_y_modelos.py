@@ -370,6 +370,34 @@ def test_ningun_color_suelto_fuera_de_la_paleta():
     assert not culpables, "colores fuera de la paleta:\n" + "\n".join(culpables)
 
 
+def test_tampoco_se_cuela_un_color_escrito_en_rgb():
+    """El azul se escapó así: `rgba(9,105,218,0.15)` no lo caza un patrón hexadecimal.
+
+    Eran las mil trayectorias de fondo del Monte Carlo, dibujadas en el azul que
+    la guía prohíbe, debajo de tres percentiles que sí estaban en la paleta. Es
+    exactamente la esquina sin teñir de la que habla el comentario del tema.
+    """
+    def _a_rgb(hex_: str) -> tuple[int, int, int]:
+        h = hex_.lstrip("#")
+        return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+    permitidos = {_a_rgb(c) for c in _PALETA} | {(0, 0, 0)}
+    culpables = []
+    for pagina in sorted((RAIZ / "app").rglob("*.py")):
+        for numero, linea in enumerate(pagina.read_text(encoding="utf-8").splitlines(), 1):
+            for cuerpo in re.findall(r"rgba?\(([^)]+)\)", linea):
+                partes = [p.strip() for p in cuerpo.split(",")]
+                if len(partes) < 3:
+                    continue
+                try:
+                    rgb = tuple(int(float(p)) for p in partes[:3])
+                except ValueError:
+                    continue
+                if rgb not in permitidos:
+                    culpables.append(f"{pagina.relative_to(RAIZ)}:{numero}: rgb{rgb}")
+    assert not culpables, "colores en rgb() fuera de la paleta:\n" + "\n".join(culpables)
+
+
 def test_ganancia_y_perdida_nunca_dependen_solo_del_color():
     """Regla daltónica de la guía, §8: siempre ▲ / ▼, y una captura en gris la conserva."""
     assert marca.signo(0.024) == "▲"

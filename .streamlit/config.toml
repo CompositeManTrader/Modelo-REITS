@@ -50,6 +50,17 @@ blueColor = "#F5A623"
 violetColor = "#F5A623"
 grayColor = "#9AA1A9"
 
+# El color del TEXTO dentro de un st.error / st.warning. Sin declararlo,
+# Streamlit lo deriva y sale un rosa que no es de la paleta: es justo la esquina
+# sin teñir que deja cualquier parche desde fuera.
+redTextColor = "#EA3943"
+orangeTextColor = "#F5A623"
+yellowTextColor = "#F5A623"
+greenTextColor = "#16C784"
+blueTextColor = "#F5A623"
+violetTextColor = "#F5A623"
+grayTextColor = "#9AA1A9"
+
 redBackgroundColor = "#2A1618"
 orangeBackgroundColor = "#2A2116"
 yellowBackgroundColor = "#2A2116"

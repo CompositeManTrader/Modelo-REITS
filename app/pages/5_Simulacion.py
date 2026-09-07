@@ -25,7 +25,7 @@ from comun import (  # noqa: E402
     suficiencia,
     veces,
 )
-from marca import AMBAR, GRIS, LOSS, PROFIT, encabezado, inyectar_estilos  # noqa: E402
+from marca import AMBAR, GRIS, LOSS, PROFIT, TRAZO_TENUE, encabezado, inyectar_estilos  # noqa: E402
 
 from src.portafolio.transacciones import procesar_libro  # noqa: E402
 from src.servicio import contexto_macro, tabla_universo  # noqa: E402
@@ -116,7 +116,7 @@ with pestanas[0]:
             figura = go.Figure()
             eje = np.arange(resultado.trayectorias.shape[1]) / 12
             for camino in muestra:
-                figura.add_scatter(x=eje, y=camino, line={"width": 0.5, "color": "rgba(9,105,218,0.15)"},
+                figura.add_scatter(x=eje, y=camino, line={"width": 0.5, "color": TRAZO_TENUE},
                                    showlegend=False, hoverinfo="skip")
             for q, color in ((10, LOSS), (50, AMBAR), (90, PROFIT)):
                 figura.add_scatter(
