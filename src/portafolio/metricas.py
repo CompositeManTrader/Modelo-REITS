@@ -26,6 +26,8 @@ import numpy as np
 import pandas as pd
 from scipy import optimize
 
+from src.portafolio.transacciones import TipoTx
+
 DIAS_ANIO = 365.25
 PERIODOS_ANIO_DIARIO = 252
 
@@ -393,6 +395,75 @@ def ingreso_real(
     from src.ingesta.tasas import deflactar
 
     return deflactar(ingreso_nominal, indice_precios, base=base)
+
+
+def ingreso_anual_por_dividendos(
+    transacciones: pd.DataFrame, *, hasta: dt.date | None = None
+) -> pd.Series:
+    """Dividendos EFECTIVAMENTE cobrados, por año calendario completo.
+
+    Sale del LIBRO, no de la tabla de dividendos del mercado, y la diferencia no es
+    de precisión sino de significado. La tabla de mercado guarda el dividendo POR
+    ACCIÓN de cada emisora: sumar el de Realty Income con el de Prologis da un
+    número que no es dinero ni tasa, y que sale igual con diez mil títulos de una
+    que con uno. El ingreso de un portafolio depende de cuántos títulos tiene.
+
+    Solo se devuelven **años completos**. Un año a medias entra a la serie como una
+    caída del 25% que nadie sufrió: el año en curso siempre lleva menos pagos que
+    uno cerrado, y el primero suele empezar a mitad. Con los dos extremos truncados,
+    el crecimiento anualizado se calcula entre dos muñones.
+
+    Completo significa dos cosas: que el corte cae después del 31 de diciembre —el
+    año en curso nunca entra— y que el libro ya estaba abierto en enero. Lo segundo
+    es una aproximación deliberada: quien compró en enero cobró los pagos del año y
+    quien compró en julio no. No mide el periodo de tenencia posición por posición,
+    que sería lo exacto; descarta el caso que de verdad distorsiona.
+    """
+    if transacciones is None or transacciones.empty:
+        return pd.Series(dtype="float64")
+
+    tx = transacciones.copy()
+    tx["fecha"] = pd.to_datetime(tx["fecha"])
+    dividendos = tx[tx["tipo"].astype(str).str.lower() == TipoTx.DIVIDENDO]
+    if dividendos.empty:
+        return pd.Series(dtype="float64")
+
+    # Misma convención que el libro: 'precio' es el monto por acción y 'cantidad'
+    # los títulos que lo cobraron; sin cantidad, 'precio' ya es el monto total.
+    cantidad = pd.to_numeric(dividendos.get("cantidad"), errors="coerce").fillna(0.0)
+    precio = pd.to_numeric(dividendos.get("precio"), errors="coerce").fillna(0.0)
+    bruto = (cantidad * precio).where(cantidad > 0, precio)
+
+    por_anio = bruto.groupby(dividendos["fecha"].dt.year).sum().sort_index()
+    if por_anio.empty:
+        return pd.Series(dtype="float64")
+
+    corte = pd.Timestamp(hasta) if hasta is not None else tx["fecha"].max()
+    primer_movimiento = tx["fecha"].min()
+    completos = [
+        anio for anio in por_anio.index
+        if primer_movimiento <= pd.Timestamp(year=int(anio), month=1, day=31)
+        and corte >= pd.Timestamp(year=int(anio), month=12, day=31)
+    ]
+    serie = por_anio.loc[completos]
+    serie.index = pd.to_datetime([f"{int(a)}-12-31" for a in serie.index])
+    return serie
+
+
+def suma_ttm(serie_trimestral: pd.Series, *, trimestres_atras: int = 0) -> float | None:
+    """Suma de cuatro trimestres consecutivos: los últimos, o los de un año antes.
+
+    Anualizar UN trimestre multiplicándolo por cuatro es más ruidoso y, en un
+    negocio con estacionalidad o partidas no recurrentes, sesgado. Sobre NNN la
+    diferencia no es cosmética: el crecimiento del AFFO sale en +5.88% con el ×4 y
+    en +3.55% con los cuatro trimestres, y el cambio de múltiplo —que es el término
+    que dice cuánto del retorno fue prestado— pasa de −2.77% a −0.58%.
+    """
+    s = pd.Series(serie_trimestral).dropna()
+    fin = len(s) - trimestres_atras
+    if fin < 4:
+        return None
+    return float(s.iloc[fin - 4 : fin].sum())
 
 
 def crecimiento_real_anualizado(

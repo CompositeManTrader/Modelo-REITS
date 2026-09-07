@@ -255,14 +255,18 @@ def avisos(lista: list[str]) -> None:
 
 def suficiencia(n_apuestas: int, etiqueta: str = "episodios") -> None:
     """Toda métrica de desempeño va acompañada de su conteo de apuestas efectivas."""
+    # El adjetivo concuerda con el sustantivo que le pasen. Fijarlo en masculino
+    # producía "139 transacciones efectivos" en la pantalla de portafolio.
+    femenino = etiqueta.endswith(("a", "as", "cion", "ciones", "sion", "siones", "dad", "dades"))
+    efectivos = "efectivas" if femenino else "efectivos"
     if n_apuestas >= MIN_APUESTAS_EFECTIVAS:
         st.caption(
-            f"Basado en {n_apuestas} {etiqueta} efectivos, arriba del umbral de "
+            f"Basado en {n_apuestas} {etiqueta} {efectivos}, arriba del umbral de "
             f"{MIN_APUESTAS_EFECTIVAS}."
         )
     else:
         st.warning(
-            f"**INCONCLUSO.** Solo {n_apuestas} {etiqueta} efectivos, debajo del umbral de "
+            f"**INCONCLUSO.** Solo {n_apuestas} {etiqueta} {efectivos}, debajo del umbral de "
             f"{MIN_APUESTAS_EFECTIVAS}. Cualquier métrica de desempeño calculada sobre esta "
             "muestra es ruido con decimales. El veredicto correcto es INCONCLUSO, no GO."
         )
@@ -456,12 +460,21 @@ _COLUMNAS_PORCENTAJE = (
     "rendimiento", "ocupacion", "cap_rate", "rate", "prima", "inflacion", "ltv",
     "peso", "fraccion", "spread", "dilucion", "error", "diferencia_relativa",
     "pct", "caida", "tir", "plusvalia", "brecha", "probabilidad", "cagr",
+    # La atribución del retorno reparte el resultado en componentes que son
+    # fracciones. Sin declararlo, la columna caía en "número" y no se escalaba,
+    # y la pantalla dibujaba 0.08% donde el emisor creció 7.6%.
+    "aporte",
 )
 _COLUMNAS_BPS = ("bps",)
 _COLUMNAS_MONEDA = (
-    "precio", "nav", "monto", "valor", "usd", "mxn", "dividendo", "costo", "flujo",
-    "saldo", "capital", "interes", "renta", "aportacion", "retiro", "neto", "isr",
-    "impuesto", "perdida", "ingreso", "utilidad", "ffo", "affo", "noi", "deuda",
+    "precio", "nav", "monto", "valor", "usd", "mxn", "dividendo", "dividendos",
+    "costo", "flujo", "saldo", "capital", "interes", "renta", "aportacion",
+    "retiro", "neto", "isr", "impuesto", "perdida", "ingreso", "utilidad",
+    # "ganancia" faltaba, así que en la tabla de posiciones convivían un costo
+    # total de "$24,000.00" y una ganancia de "1,417": la misma unidad con dos
+    # formatos, en columnas contiguas. El plural de dividendo tampoco casaba,
+    # porque la búsqueda es por token completo y no por subcadena.
+    "ganancia", "ffo", "affo", "noi", "deuda",
 )
 _COLUMNAS_POR_ACCION = ("por_accion", "per_share")
 _COLUMNAS_VECES = ("p_affo", "veces", "multiplo", "ebitdare", "cobertura", "razon")
