@@ -25,8 +25,8 @@ from comun import (  # noqa: E402
     suficiencia,
     veces,
 )
-from marca import AMBAR, GRIS, LOSS, PROFIT, TRAZO_TENUE, encabezado, inyectar_estilos  # noqa: E402
 
+from marca import AMBAR, GRIS, LOSS, PROFIT, TRAZO_TENUE, encabezado, inyectar_estilos  # noqa: E402
 from src.portafolio.transacciones import procesar_libro  # noqa: E402
 from src.servicio import contexto_macro, tabla_universo  # noqa: E402
 from src.simulacion.backtest import (  # noqa: E402

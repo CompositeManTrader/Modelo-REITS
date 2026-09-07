@@ -45,7 +45,6 @@ from marca import (  # noqa: E402
     SUPERFICIE,
     SUPERFICIE_2,
 )
-
 from src.config import DESCARGO, MIN_APUESTAS_EFECTIVAS, RUTA_BD, Fuente  # noqa: E402
 from src.datos.repositorio import Repositorio  # noqa: E402
 

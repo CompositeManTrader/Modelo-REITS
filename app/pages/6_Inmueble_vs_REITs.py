@@ -23,8 +23,8 @@ from comun import (  # noqa: E402
     pct,
     selector_de_corte,
 )
-from marca import GRIS, PROFIT, encabezado, inyectar_estilos  # noqa: E402
 
+from marca import GRIS, PROFIT, encabezado, inyectar_estilos  # noqa: E402
 from src.fiscal.mexico import comparar_modalidades_arrendamiento  # noqa: E402
 from src.servicio import contexto_macro  # noqa: E402
 from src.simulacion.inmueble_cdmx import (  # noqa: E402

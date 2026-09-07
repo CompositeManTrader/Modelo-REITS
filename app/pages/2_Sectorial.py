@@ -21,6 +21,7 @@ from comun import (  # noqa: E402
     mostrar_tabla,
     selector_de_corte,
 )
+
 from marca import (  # noqa: E402
     AMBAR,
     GRIS,
@@ -30,7 +31,6 @@ from marca import (  # noqa: E402
     escala_ambar,
     inyectar_estilos,
 )
-
 from src.modelo.sectorial import (  # noqa: E402
     CONTEXTO_HISTORICO,
     DISPERSION_SECTORIAL,
