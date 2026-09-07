@@ -82,10 +82,24 @@ dataframe_util.convert_pandas_df_to_arrow_table = _convertir_vigilado
 
 _UMBRAL_FRACCION = 1.0
 
+# Las excepciones prometidas por el comentario de arriba: métricas que SÍ pueden
+# vivir legítimamente por debajo del 1%, así que un máximo chico no prueba nada.
+#
+# Un yield o un payout por debajo de 1% no existe en este universo, y por eso el
+# umbral funciona para ellos. Un CRECIMIENTO sí: puede ser 0.7%, puede ser cero
+# —la tabla de escenarios incluye "Sin crecimiento" a propósito— y puede ser
+# negativo. Con datos de demostración aleatorios, los cuatro escenarios caían a
+# veces todos bajo el 1% y la verificación marcaba un falso positivo: dos jobs
+# del MISMO commit daban resultados distintos.
+#
+# Se excluye por nombre y no bajando el umbral, que es lo que pide el comentario:
+# bajarlo dejaría de cazar el defecto real en las columnas donde sí aplica.
+_COLUMNAS_QUE_PUEDEN_SER_CHICAS = ("crecimiento", "cagr", "spread", "brecha", "diferencia")
+
 
 def _revisar_escala(prueba) -> list[str]:
     import pandas as pd
-    from comun import familia_de_columna
+    from comun import _canonizar_columna, familia_de_columna
 
     avisos = []
     for dibujada in prueba.dataframe:
@@ -95,6 +109,9 @@ def _revisar_escala(prueba) -> list[str]:
             if not pd.api.types.is_numeric_dtype(serie) or pd.api.types.is_bool_dtype(serie):
                 continue
             if familia_de_columna(columna, serie) != "porcentaje":
+                continue
+            canon = _canonizar_columna(columna)
+            if any(f"_{a}_" in canon for a in _COLUMNAS_QUE_PUEDEN_SER_CHICAS):
                 continue
             valores = serie.dropna().abs()
             valores = valores[valores > 0]
@@ -110,9 +127,19 @@ def _revisar_escala(prueba) -> list[str]:
 
 
 def _selector_de_emisor(prueba):
-    for s in prueba.selectbox:
-        if s.label == "Emisor":
-            return s
+    """El control que elige emisor, sea desplegable o fichas.
+
+    Estaba atado a `selectbox`, y cuando el selector pasó a `st.pills` esta
+    función empezó a devolver `None` **en silencio**: el recorrido dejó de
+    probar las diez emisoras y pasó a probar solo la que le tocaba ser primera,
+    que es exactamente lo que el docstring de `correr` dice que no sirve. Un
+    verificador que deja de verificar sin avisar es peor que no tenerlo, así que
+    ahora busca los dos y `correr` exige encontrar uno.
+    """
+    for grupo in (getattr(prueba, "pills", []), prueba.selectbox):
+        for control in grupo:
+            if control.label == "Emisor":
+                return control
     return None
 
 
@@ -132,6 +159,18 @@ def correr(ruta: Path, timeout: int = 240) -> tuple[bool, list[str]]:
     errores += _revisar_escala(prueba)
 
     selector = _selector_de_emisor(prueba)
+    # La página de valuación DEBE tener selector cuando hay emisores. Si no se
+    # encuentra, el recorrido se reduce a un solo emisor sin decirlo, que es cómo
+    # esta verificación se apagó sola al cambiar el control de desplegable a
+    # fichas. Con la base vacía no hay selector y eso es correcto: la página
+    # avisa que no hay emisores y se detiene, que es justo lo que se quiere
+    # probar en el segundo recorrido.
+    sin_emisores = any("No hay emisores" in str(w.value) for w in prueba.warning)
+    if selector is None and ruta.name.startswith("1_") and not sin_emisores:
+        errores.append(
+            "no se encontró el selector de emisor: el recorrido probaría UN solo "
+            "emisor en vez de todos, y las fallas viven en las diferencias entre ellos"
+        )
     if selector is not None:
         for opcion in list(selector.options):
             _FALLAS_DE_DIBUJO.clear()

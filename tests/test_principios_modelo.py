@@ -312,20 +312,74 @@ def test_spread_de_inversion_negativo_destruye_valor():
 # --------------------------------------------------------------------------------------
 
 
-def test_la_tabla_de_friccion_reproduce_los_numeros_del_proyecto():
-    """20% de ganancia cuesta 2.0% y exige 100 bps; 100% cuesta 10% y exige 500 bps."""
+def test_el_impuesto_se_paga_sobre_la_ganancia_no_sobre_el_valor():
+    """El ISR cedular grava la GANANCIA embebida en lo que vendes.
+
+    La versión anterior multiplicaba la ganancia sobre el COSTO por la tasa y
+    llamaba al resultado «% del valor». Una posición con 100% de ganancia vale
+    dos veces lo que costó: la mitad de lo que vendes es ganancia, así que el
+    costo fiscal es 5% del valor y no 10%. El error crecía con la ganancia —el
+    doble a 100%, cuatro veces al tope del deslizador, 300%— y el listón en
+    puntos base lo heredaba entero.
+    """
+    for ganancia, gravable in ((0.20, 0.20 / 1.20), (1.00, 0.50), (3.00, 0.75)):
+        liston = liston_de_friccion(ganancia, tasa_impuesto=0.10)
+        assert liston.fraccion_gravable == pytest.approx(gravable)
+        assert liston.costo_fiscal == pytest.approx(gravable * 0.10)
+
+    # El tamaño del error, contra la fórmula vieja escrita aquí literalmente.
+    # No se mide con `base="valor"` porque esa lectura acota la fracción gravable
+    # a 1.0 —una ganancia no puede ser más que el valor de lo que vendes— y el
+    # cálculo anterior no acotaba nada: al tope del deslizador reportaba un
+    # impuesto de 30% del valor, que no existe.
+    for ganancia, veces in ((0.40, 1.40), (1.00, 2.00), (3.00, 4.00)):
+        viejo = ganancia * 0.10
+        nuevo = liston_de_friccion(ganancia, tasa_impuesto=0.10).costo_fiscal
+        assert viejo / nuevo == pytest.approx(veces), (
+            f"con {ganancia:.0%} de ganancia el cálculo viejo sobreestimaba {veces:.1f} veces"
+        )
+
+
+def test_la_tabla_de_friccion_sale_de_la_fraccion_gravable():
+    """Los números nuevos, y la columna que explica por qué cambiaron."""
     tabla = tabla_liston_friccion()
-    columna_bps = [c for c in tabla.columns if "bps" in c][0]
+    assert "fraccion_gravable" in tabla.columns
+
+    # 20% sobre el costo -> 1/6 gravable -> 1.67% de costo fiscal -> 83 bps a 2 años.
+    esperados = {0.20: 83, 0.40: 143, 0.60: 188, 1.00: 250}
+    for ganancia, bps_esperados in esperados.items():
+        fila = tabla[tabla["ganancia_acumulada_pct"] == ganancia].iloc[0]
+        assert fila["ventaja_anual_bps"] == bps_esperados
+
+
+def test_la_lectura_vieja_sigue_disponible_y_declarada():
+    """`base="valor"` reproduce la tabla anterior, para quien la quiera comparar."""
+    vieja = tabla_liston_friccion(base="valor")
     esperados = {0.20: 100, 0.40: 200, 0.60: 300, 1.00: 500}
     for ganancia, bps_esperados in esperados.items():
-        fila = tabla[tabla["Ganancia acumulada"] == ganancia].iloc[0]
-        assert fila[columna_bps] == bps_esperados
+        fila = vieja[vieja["ganancia_acumulada_pct"] == ganancia].iloc[0]
+        assert fila["ventaja_anual_bps"] == bps_esperados
+    with pytest.raises(ValueError):
+        liston_de_friccion(0.40, base="inventada")
 
 
 def test_liston_de_friccion_con_comisiones():
+    """Las comisiones se suman al costo fiscal; no son parte de la ganancia gravable."""
     liston = liston_de_friccion(0.40, tasa_impuesto=0.10, comisiones=0.005)
-    assert liston.costo_fiscal == pytest.approx(0.045)
-    assert liston.ventaja_anual_necesaria == pytest.approx(0.0225)
+    gravable = 0.40 / 1.40
+    assert liston.costo_fiscal == pytest.approx(gravable * 0.10 + 0.005)
+    assert liston.ventaja_anual_necesaria == pytest.approx(liston.costo_fiscal / 2.0)
+
+
+def test_el_costo_fiscal_de_una_venta_parcial_es_el_impuesto_en_pesos():
+    """Multiplicar el monto vendido por el costo fiscal tiene que dar el ISR real."""
+    from src.modelo.kill import venta_parcial_sugerida
+
+    s = venta_parcial_sugerida(100_000.0, fraccion=0.275, ganancia_acumulada=0.40)
+    monto = 100_000.0 * 0.275
+    ganancia_embebida = monto * (0.40 / 1.40)
+    assert s["ganancia_gravable"] == pytest.approx(ganancia_embebida)
+    assert s["costo_fiscal_estimado"] == pytest.approx(ganancia_embebida * 0.10)
 
 
 def test_no_rotar_si_la_brecha_de_percentil_es_chica():

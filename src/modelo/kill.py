@@ -177,13 +177,18 @@ class CostoDeRotacion:
     anios_recuperacion: float
     ventaja_anual_necesaria: float
     comisiones: float = 0.0
+    # Qué proporción de lo que vendes es ganancia gravable. Va explícita porque
+    # es justo el paso que se saltaba el cálculo anterior.
+    fraccion_gravable: float = 0.0
+    base: str = "costo"
 
     def como_texto(self) -> str:
         return (
-            f"Con {self.ganancia_acumulada:.0%} de ganancia acumulada y tasa de "
-            f"{self.tasa_impuesto:.0%}, el costo fiscal es {self.costo_fiscal:.1%} del valor. "
-            f"Para recuperarlo en {self.anios_recuperacion:.0f} años, el destino tiene que "
-            f"rendir {self.ventaja_anual_necesaria * 10_000:,.0f} bps más al año."
+            f"Con {self.ganancia_acumulada:.0%} de ganancia acumulada sobre el {self.base} y "
+            f"tasa de {self.tasa_impuesto:.0%}, la parte gravable de lo que vendes es "
+            f"{self.fraccion_gravable:.1%} y el costo fiscal es {self.costo_fiscal:.1%} del "
+            f"valor. Para recuperarlo en {self.anios_recuperacion:.0f} años, el destino tiene "
+            f"que rendir {self.ventaja_anual_necesaria * 10_000:,.0f} bps más al año."
         )
 
 
@@ -193,17 +198,40 @@ def liston_de_friccion(
     tasa_impuesto: float = 0.10,
     anios: float = 2.0,
     comisiones: float = 0.0,
+    base: str = "costo",
 ) -> CostoDeRotacion:
     """Calcula el listón que el destino debe superar para que rotar valga la pena.
 
-    Reproduce la tabla del proyecto: 20% de ganancia cuesta 2.0% y exige 100 bps de
-    ventaja anual a dos años; 100% de ganancia cuesta 10% y exige 500 bps.
+    ``base`` dice contra qué está medida la ganancia, y no es un detalle:
+
+    * ``"costo"`` (por omisión, y lo que dicen todos los controles de la
+      aplicación) — una posición con 40% de ganancia sobre el costo vale 1.4
+      veces lo que costó, así que **la parte gravable de lo que vendes es
+      40/140 = 28.6%, no 40%**. El impuesto se paga sobre la ganancia, no sobre
+      el valor.
+    * ``"valor"`` — la lectura anterior, donde la ganancia ya venía expresada
+      como fracción del valor de mercado. Se conserva para reproducir la tabla
+      vieja del proyecto, pero no es lo que piden los deslizadores.
+
+    La versión anterior multiplicaba la ganancia sobre el COSTO por la tasa y
+    llamaba al resultado «% del valor». Con 40% sobreestimaba el impuesto en 40%;
+    con 100%, en el doble; y con 300% —el tope del deslizador— en cuatro veces.
+    El sesgo era conservador, en el sentido de desanimar la rotación, pero el
+    número era falso y el listón en puntos base lo heredaba entero.
 
     Es el cálculo que casi nadie hace antes de rotar y el que más veces evita la
     rotación. Rotar con dinero nuevo da la mayor parte del beneficio con cero costo
     fiscal y cero riesgo de reentrada.
     """
-    costo_fiscal = max(0.0, float(ganancia_acumulada)) * float(tasa_impuesto) + float(comisiones)
+    g = max(0.0, float(ganancia_acumulada))
+    if base == "valor":
+        fraccion_gravable = min(g, 1.0)
+    elif base == "costo":
+        fraccion_gravable = g / (1.0 + g)
+    else:
+        raise ValueError(f"base desconocida: {base!r}. Usa 'costo' o 'valor'.")
+
+    costo_fiscal = fraccion_gravable * float(tasa_impuesto) + float(comisiones)
     ventaja = costo_fiscal / anios if anios > 0 else float("inf")
     return CostoDeRotacion(
         ganancia_acumulada=float(ganancia_acumulada),
@@ -212,6 +240,8 @@ def liston_de_friccion(
         anios_recuperacion=float(anios),
         ventaja_anual_necesaria=ventaja,
         comisiones=float(comisiones),
+        fraccion_gravable=fraccion_gravable,
+        base=base,
     )
 
 
@@ -220,21 +250,44 @@ def tabla_liston_friccion(
     *,
     tasa_impuesto: float = 0.10,
     anios: float = 2.0,
+    base: str = "costo",
 ) -> pd.DataFrame:
-    """La tabla de fricción del proyecto, lista para mostrar en la interfaz."""
+    """La tabla de fricción, con la fracción gravable a la vista.
+
+    La columna de en medio es la que explica por qué los números cambiaron
+    respecto de la tabla vieja: el impuesto se paga sobre la ganancia embebida en
+    lo que vendes, no sobre el valor completo.
+    """
     filas = []
     for g in ganancias:
-        c = liston_de_friccion(g, tasa_impuesto=tasa_impuesto, anios=anios)
+        c = liston_de_friccion(g, tasa_impuesto=tasa_impuesto, anios=anios, base=base)
         filas.append(
             {
-                "Ganancia acumulada": g,
-                f"Costo fiscal ({tasa_impuesto:.0%} cedular)": c.costo_fiscal,
-                f"Ventaja anual necesaria a {anios:.0f} años (bps)": round(
-                    c.ventaja_anual_necesaria * 10_000
-                ),
+                # Los nombres llevan su unidad —`_pct`, `_bps`, `fraccion`— porque
+                # es así como la interfaz decide la escala y el formato. Con
+                # encabezados en prosa, «Ganancia acumulada» y «Costo fiscal»
+                # caían en la familia de MONEDA y la tabla dibujaba "$0.20" y
+                # "$0.02" donde son 20% y 2%.
+                "ganancia_acumulada_pct": g,
+                "fraccion_gravable": c.fraccion_gravable,
+                "costo_fiscal_pct": c.costo_fiscal,
+                "ventaja_anual_bps": round(c.ventaja_anual_necesaria * 10_000),
             }
         )
     return pd.DataFrame(filas)
+
+
+ETIQUETAS_FRICCION = {
+    "ganancia_acumulada_pct": "Ganancia acumulada sobre el costo",
+    "fraccion_gravable": "Parte gravable de lo que vendes",
+    "costo_fiscal_pct": "Costo fiscal (10% cedular)",
+    "ventaja_anual_bps": "Ventaja anual necesaria a 2 años",
+}
+"""Encabezados legibles de la tabla de fricción, para pasarlos como `column_config`.
+
+Van aparte de las claves porque la clave decide la UNIDAD y el encabezado decide
+la PRESENTACIÓN; mezclarlos es lo que rompía el formato.
+"""
 
 
 BRECHA_PERCENTIL_MINIMA = 0.40
@@ -298,9 +351,14 @@ def venta_parcial_sugerida(
     """
     monto = valor_posicion * fraccion
     liston = liston_de_friccion(ganancia_acumulada, tasa_impuesto=tasa_impuesto, anios=2.0)
+    # `costo_fiscal` es fracción del VALOR vendido, así que multiplicar por el
+    # monto da el impuesto en pesos: la ganancia embebida en lo que vendes ya
+    # está descontada dentro de `fraccion_gravable`.
     return {
         "fraccion_sugerida": fraccion,
         "monto_venta": monto,
+        "fraccion_gravable": liston.fraccion_gravable,
+        "ganancia_gravable": monto * liston.fraccion_gravable,
         "costo_fiscal_estimado": monto * liston.costo_fiscal,
         "ventaja_anual_necesaria_bps": liston.ventaja_anual_necesaria * 10_000,
         "advertencia": (

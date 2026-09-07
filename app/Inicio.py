@@ -26,6 +26,7 @@ from comun import (  # noqa: E402
     pct,
     selector_de_corte,
 )
+from marca import GRIS, LOSS, PROFIT, encabezado, inyectar_estilos  # noqa: E402
 
 from src.config import AVISO_TITULAR_12, RENDIMIENTOS_NAREIT_HISTORICOS  # noqa: E402
 from src.fiscal.mexico import DESCARGO_FISCAL, rendimiento_real_despues_de_impuestos  # noqa: E402
@@ -33,6 +34,8 @@ from src.servicio import contexto_macro, tabla_universo  # noqa: E402
 from src.simulacion.escenarios import comparar_contra_udibono, tabla_contexto_nareit  # noqa: E402
 
 configurar("Inicio")
+inyectar_estilos()
+encabezado("Inicio")
 st.title("Plataforma de valuación de REITs")
 st.caption(
     "Valuación con rigor de analista desde estados financieros originales, construcción de "
@@ -125,7 +128,7 @@ with col_a:
     figura.add_bar(
         x=["Udibono 10a (real, garantizado)", "REITs (real, esperado, neto de impuestos)"],
         y=[comparacion.real_udibono, comparacion.real_reits_despues_impuestos],
-        marker_color=["#57606a", "#1a7f37" if comparacion.brecha > 0 else "#b42318"],
+        marker_color=[GRIS, PROFIT if comparacion.brecha > 0 else LOSS],
         text=[pct(comparacion.real_udibono), pct(comparacion.real_reits_despues_impuestos)],
         textposition="outside",
     )
@@ -244,8 +247,8 @@ with c2:
     periodos = [p for p, _, r in RENDIMIENTOS_NAREIT_HISTORICOS if r is not None]
     nominales = [n for p, n, r in RENDIMIENTOS_NAREIT_HISTORICOS if r is not None]
     reales = [r for p, n, r in RENDIMIENTOS_NAREIT_HISTORICOS if r is not None]
-    figura.add_bar(x=periodos, y=nominales, name="Nominal", marker_color="#57606a")
-    figura.add_bar(x=periodos, y=reales, name="Real", marker_color="#1a7f37")
+    figura.add_bar(x=periodos, y=nominales, name="Nominal", marker_color=GRIS)
+    figura.add_bar(x=periodos, y=reales, name="Real", marker_color=PROFIT)
     figura.update_layout(
         height=300, barmode="group", yaxis_tickformat=".1%",
         margin={"t": 20, "b": 20, "l": 10, "r": 10}, legend={"orientation": "h", "y": 1.1},

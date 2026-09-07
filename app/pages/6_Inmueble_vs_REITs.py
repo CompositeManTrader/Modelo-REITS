@@ -23,6 +23,7 @@ from comun import (  # noqa: E402
     pct,
     selector_de_corte,
 )
+from marca import GRIS, PROFIT, encabezado, inyectar_estilos  # noqa: E402
 
 from src.fiscal.mexico import comparar_modalidades_arrendamiento  # noqa: E402
 from src.servicio import contexto_macro  # noqa: E402
@@ -41,6 +42,8 @@ from src.simulacion.inmueble_cdmx import (  # noqa: E402
 )
 
 configurar("Inmueble vs REITs", "🏘️")
+inyectar_estilos()
+encabezado("Inmueble vs REITs")
 st.title("Un departamento en CDMX contra un portafolio de REITs")
 
 repo = exigir_base()
@@ -198,9 +201,9 @@ if hipoteca > 0:
         real.loc[anio] = por_anio.loc[anio] / (1.0 + supuestos.inflacion) ** anio
     figura = go.Figure()
     figura.add_bar(x=por_anio.index, y=por_anio["interes"] + por_anio["capital"],
-                   name="Pago nominal", marker_color="#57606a")
+                   name="Pago nominal", marker_color=GRIS)
     figura.add_bar(x=real.index, y=real["interes"] + real["capital"],
-                   name="Pago en pesos de hoy", marker_color="#1a7f37")
+                   name="Pago en pesos de hoy", marker_color=PROFIT)
     figura.update_layout(height=320, barmode="overlay", xaxis_title="Año",
                          yaxis_title="MXN", margin={"t": 20, "b": 20, "l": 10, "r": 10},
                          legend={"orientation": "h", "y": 1.12})

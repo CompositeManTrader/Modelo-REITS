@@ -21,6 +21,15 @@ from comun import (  # noqa: E402
     mostrar_tabla,
     selector_de_corte,
 )
+from marca import (  # noqa: E402
+    AMBAR,
+    GRIS,
+    LOSS,
+    PROFIT,
+    encabezado,
+    escala_ambar,
+    inyectar_estilos,
+)
 
 from src.modelo.sectorial import (  # noqa: E402
     CONTEXTO_HISTORICO,
@@ -48,6 +57,8 @@ from src.modelo.senal import (  # noqa: E402
 from src.servicio import construir_panel, tabla_universo  # noqa: E402
 
 configurar("Sectorial", "🗺️")
+inyectar_estilos()
+encabezado("Sectorial")
 st.title("Valuación sectorial y comparativa")
 
 repo = exigir_base()
@@ -158,7 +169,7 @@ if seleccion:
         figura = go.Figure()
         figura.add_bar(
             x=comparacion["ticker"], y=comparacion["percentil_prima"],
-            marker_color=["#1a7f37" if v >= 0.7 else "#9a6700" if v >= 0.3 else "#b42318"
+            marker_color=[PROFIT if v >= 0.7 else AMBAR if v >= 0.3 else LOSS
                           for v in comparacion["percentil_prima"]],
             # Los mismos decimales que la tabla de arriba, y sobre el mismo dato ya
             # cuantizado: es lo que impide que el mismo percentil salga 12% aquí
@@ -247,7 +258,7 @@ if historico:
         # justo lo que este gráfico existe para decir.
         matriz = muestrear_columnas(matriz)
         figura = px.imshow(
-            matriz, aspect="auto", color_continuous_scale="RdYlGn", zmin=0, zmax=1,
+            matriz, aspect="auto", color_continuous_scale=escala_ambar(), zmin=0, zmax=1,
             labels={"color": "Percentil de prima"},
         )
         figura.update_layout(height=340, margin={"t": 20, "b": 20, "l": 10, "r": 10})
@@ -274,8 +285,8 @@ if historico:
                 "percentil_sector": "Percentil de prima del sector",
             },
         )
-        figura.add_hline(y=0.5, line_dash="dot", line_color="#57606a")
-        figura.add_vline(x=0.0, line_dash="dot", line_color="#57606a")
+        figura.add_hline(y=0.5, line_dash="dot", line_color=GRIS)
+        figura.add_vline(x=0.0, line_dash="dot", line_color=GRIS)
         figura.update_layout(height=460, xaxis_tickformat=".0%", yaxis_tickformat=".0%")
         st.plotly_chart(figura)
         st.markdown(

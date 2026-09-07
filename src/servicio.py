@@ -114,6 +114,11 @@ def construir_panel(
             )
         trimestral["affo_por_accion_ttm"] = _ttm(trimestral, "affo_por_accion")
         trimestral["affo_ttm"] = _ttm(trimestral, "affo")
+        # El FFO y la utilidad neta se llevan a TTM con la MISMA regla que el
+        # AFFO —cuatro trimestres consecutivos y verificados contra el
+        # calendario—, porque los tres se comparan entre sí en la pantalla.
+        trimestral["ffo_ttm"] = _ttm(trimestral, "ffo")
+        trimestral["utilidad_neta_ttm"] = _ttm(trimestral, "utilidad_neta")
         # Si al AFFO por acción le falta un trimestre pero el monto sí está
         # completo, el TTM por acción se deduce del monto y del conteo de acciones.
         # Antes, un solo hueco en la serie por acción borraba al emisor de la
@@ -328,8 +333,16 @@ def _metricas(
         noi_trimestral=_f(fila.get("noi")),
         affo_ttm=_f(fila.get("affo_ttm")),
         affo_por_accion_ttm=_f(fila.get("affo_por_accion_ttm")),
-        ffo_ttm=_f(fila.get("ffo")) * 4 if _f(fila.get("ffo")) else None,
-        utilidad_neta_ttm=_f(fila.get("utilidad_neta")) * 4 if _f(fila.get("utilidad_neta")) else None,
+        # Los tres payouts se comparan entre sí en la misma tarjeta —"el mismo
+        # dividendo, tres respuestas"— así que los tres denominadores tienen que
+        # estar construidos igual. Anualizar UN trimestre por cuatro contra un
+        # AFFO que sí es TTM real no comparaba tres medidas del mismo dividendo:
+        # comparaba dos ventanas de tiempo distintas. En GNL el payout sobre FFO
+        # salía 288% donde el TTM da 181%, y en EPRT el payout sobre utilidad
+        # neta cruzaba el 100% —el umbral que pinta la barra de rojo— por el puro
+        # efecto de la anualización.
+        ffo_ttm=_f(fila.get("ffo_ttm")),
+        utilidad_neta_ttm=_f(fila.get("utilidad_neta_ttm")),
         dividendo_ttm_por_accion=div_ttm,
         sector=sector,
         **{k: v for k, v in balance.items() if k in InsumosValuacion.__dataclass_fields__},

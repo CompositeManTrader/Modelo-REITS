@@ -14,6 +14,7 @@ Lo que sí es real y se marca como tal:
 from __future__ import annotations
 
 import datetime as dt
+import zlib
 
 import numpy as np
 import pandas as pd
@@ -59,6 +60,19 @@ PERFIL_DEMO: dict[str, dict] = {
 INICIO_DEMO = dt.date(2015, 1, 1)
 
 
+def _semilla_estable(texto: str) -> int:
+    """Semilla reproducible a partir de un texto.
+
+    `hash()` de Python está ALEATORIZADO por proceso salvo que se fije
+    `PYTHONHASHSEED`, así que `abs(hash(ticker))` producía datos de demostración
+    distintos en cada corrida. Eso hizo que dos jobs de CI sobre el MISMO commit
+    dieran resultados distintos —uno verde y otro rojo— y que un fallo no se
+    pudiera reproducir en la máquina de nadie. `crc32` no es criptográfico, que
+    aquí no hace falta, pero sí es estable entre procesos y versiones.
+    """
+    return zlib.crc32(texto.encode("utf-8"))
+
+
 def _dias_habiles(inicio: dt.date, fin: dt.date) -> pd.DatetimeIndex:
     return pd.bdate_range(inicio, fin)
 
@@ -90,7 +104,7 @@ def generar_precios_demo(
     fin = fin or dt.date.today()
     perfil = PERFIL_DEMO.get(ticker, {"yield": 0.05, "vol": 0.20, "affo_2019": 2.5})
     fechas = _dias_habiles(inicio, fin)
-    rng = np.random.default_rng(abs(hash(ticker)) % (2**32) + semilla)
+    rng = np.random.default_rng(_semilla_estable(ticker) + semilla)
     n = len(fechas)
 
     # AFFO TTM por acción interpolado a diario, con el mismo crecimiento que la
@@ -204,7 +218,7 @@ def generar_fundamentales_demo(
     fin = fin or dt.date.today()
     perfil = PERFIL_DEMO.get(ticker, {"affo_2019": 2.0, "crec_affo": 0.03})
     trimestres = pd.date_range(inicio, fin, freq="QE")
-    rng = np.random.default_rng(abs(hash(ticker + "affo")) % (2**32))
+    rng = np.random.default_rng(_semilla_estable(ticker + "affo"))
 
     filas = []
     base = perfil.get("affo_2019", 2.0) / 4.0
