@@ -42,6 +42,7 @@ from src.ingesta.estados import (
     LINEA_POR_CLAVE,
     LINEAS,
     armar_estado,
+    balance_por_reporte,
     derivar_trimestres_faltantes,
     elegir_cadenas,
     elegir_tags,
@@ -353,12 +354,32 @@ def test_el_balance_que_cuadra_no_levanta_nada():
 
 
 def test_el_balance_descuadrado_es_error():
+    """Sin un total declarado que lo respalde, un descuadre es un error de lectura."""
+    tabla = _balance(activos_totales=100.0, pasivos_totales=60.0, capital_total=35.0)
+    incidencias = verificar_balance("X", tabla)
+    assert incidencias and all(i.severidad == ERROR for i in incidencias)
+
+
+def test_si_el_total_declarado_cuadra_falta_un_renglon_y_no_esta_mal_leido():
+    """La distinción que separa un balance roto de uno incompleto.
+
+    Si la emisora publicó su propio total de pasivo más capital y coincide con el
+    activo, SU balance cierra: las etiquetas de activo y total están bien leídas.
+    Que nuestra suma por partes no llegue significa que falta un renglón
+    intermedio —casi siempre el mezzanine—, y eso no invalida el estado ni toca
+    el apalancamiento, que sale de la deuda y el efectivo.
+
+    Meter los dos casos en el mismo cajón obligaba a elegir entre dos mentiras:
+    llamar error a un balance que cierra, o callar uno que no.
+    """
     tabla = _balance(
         activos_totales=100.0, pasivos_totales=60.0, capital_total=35.0,
         pasivo_mas_capital=100.0,
     )
     incidencias = verificar_balance("X", tabla)
-    assert incidencias and all(i.severidad == ERROR for i in incidencias)
+    assert incidencias, "un renglón que falta tiene que verse"
+    assert all(i.severidad == AVISO for i in incidencias)
+    assert all(i.prueba == "descomposicion_incompleta" for i in incidencias)
 
 
 def test_el_capital_temporal_forma_parte_de_la_identidad():
@@ -489,27 +510,6 @@ def test_hechos_crudos_no_repite_la_misma_observacion():
     assert len(hechos_crudos(companyfacts, "O")) == 1
 
 
-# Desde cuándo respondemos por la identidad contable del almacén.
-#
-# El almacén guarda la historia COMPLETA —hasta 2004 en algunas emisoras— porque
-# es barata y sirve para leer los estados. Pero en los periodos viejos el mapeo
-# de etiquetas está incompleto y el balance no cierra: treinta y cinco trimestres
-# repartidos entre 2008 y 2017, el más reciente de Prologis en el primer
-# trimestre de 2017. Son diferencias de entre 0.1% y 0.4%, y cada una es una
-# etiqueta de la época que ya nadie usa.
-#
-# Recortar la historia hasta que la prueba pase habría sido esconderlo, y decir
-# que todo cuadra habría sido falso. Se declara el límite: de esta fecha en
-# adelante el balance TIENE que cerrar, y es el tramo del que sale cualquier
-# decisión. Lo anterior queda en el almacén, visible, y con su propia prueba
-# para que no crezca en silencio.
-DESDE_VERIFICADO = dt.date(2018, 1, 1)
-
-# Lo que hoy NO cuadra, por emisora. No es una lista de pendientes que se tolera:
-# es un techo. Si sube, algo se rompió y la prueba lo dice.
-DESCUADRES_CONOCIDOS = {"WPC": 14, "PSA": 12, "WELL": 6, "PLD": 2, "EXR": 1}
-
-
 def _errores_de_balance(ticker: str) -> list:
     crudos = leer_crudos(ticker)
     if crudos.empty:
@@ -517,30 +517,27 @@ def _errores_de_balance(ticker: str) -> list:
     cadenas = elegir_cadenas(crudos, ticker)
     completos = derivar_trimestres_faltantes(crudos, cadenas)
     balance = armar_estado(completos, ticker, BALANCE, asof=dt.date.today(), tags=cadenas)
-    return [i for i in verificar_balance(ticker, balance) if i.severidad == ERROR]
+    por_reporte = balance_por_reporte(completos, ticker, asof=dt.date.today(), tags=cadenas)
+    return [
+        i for i in verificar_balance(ticker, balance, por_reporte) if i.severidad == ERROR
+    ]
 
 
-@pytest.mark.parametrize("ticker", ["O", "NNN", "WELL", "PSA"])
+@pytest.mark.parametrize("ticker", ["O", "NNN", "WELL", "PSA", "WPC", "PLD", "EXR"])
 def test_los_estados_guardados_siguen_cuadrando(ticker):
     """Corre contra lo que está versionado en el repositorio, sin red.
 
     Es la prueba que convierte «los datos están bien» en algo comprobable en cada
     push: si alguien edita un CSV a mano o una ficha se rompe, esto lo caza.
-    """
-    recientes = [i for i in _errores_de_balance(ticker) if i.periodo >= DESDE_VERIFICADO]
-    assert not recientes, "\n".join(i.como_texto() for i in recientes)
 
-
-@pytest.mark.parametrize("ticker", sorted(DESCUADRES_CONOCIDOS))
-def test_los_descuadres_viejos_no_crecen(ticker):
-    """El techo de lo que se sabe roto. Sin esto, «es historia vieja» tapa todo.
-
-    Un descuadre nuevo en un periodo viejo significa que una etiqueta cambió de
-    significado, y eso sí importa: la misma etiqueta alimenta los periodos
-    recientes.
+    Cubre la historia COMPLETA, hasta 2004. Hubo un momento en que no podía: el
+    almacén traía treinta y cinco cortes descuadrados entre 2008 y 2017, y la
+    prueba solo respondía de 2018 en adelante, con un techo para que los viejos
+    no crecieran. Ese límite ya no hace falta y por eso se quitó: los treinta y
+    cinco tenían causa —veintidós eran el mezzanine sin mapear, trece eran
+    reexpresiones parciales o renglones intermedios que faltaban— y ninguno era
+    lo que el nombre de la prueba dice. Una garantía con asterisco vale menos que
+    una sin él.
     """
     errores = _errores_de_balance(ticker)
-    assert len(errores) <= DESCUADRES_CONOCIDOS[ticker], (
-        f"{ticker} pasó de {DESCUADRES_CONOCIDOS[ticker]} a {len(errores)} descuadres:\n"
-        + "\n".join(i.como_texto() for i in errores)
-    )
+    assert not errores, "\n".join(i.como_texto() for i in errores)

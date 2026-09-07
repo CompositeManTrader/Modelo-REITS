@@ -66,6 +66,13 @@ class LineaEstado:
     reportado. Es el mismo criterio que en ``CONCEPTOS_GAAP``, y existe porque dos
     emisoras usan etiquetas distintas para el mismo renglón sin que ninguna esté
     mal: la taxonomía de la SEC admite varias.
+
+    ``alternativas_excluyentes`` marca los renglones cuyas etiquetas son NOMBRES
+    distintos de la misma partida, no partidas distintas: la emisora reporta una
+    sola de ellas en cada corte. Solo ahí se permite empalmar dos etiquetas que
+    nunca coinciden en un periodo —el empalme normal exige traslape para poder
+    comprobarlo—, y aun así el resultado tiene que sostenerse contra una prueba
+    independiente. Ver ``elegir_cadenas``.
     """
 
     clave: str
@@ -75,10 +82,17 @@ class LineaEstado:
     tags: tuple[str, ...] = ()
     subtotal: bool = False
     nota: str = ""
+    alternativas_excluyentes: bool = False
 
 
-def _l(clave, etiqueta, estado, orden, tags=(), subtotal=False, nota="") -> LineaEstado:
-    return LineaEstado(clave, etiqueta, estado, orden, tuple(tags), subtotal, nota)
+def _l(
+    clave, etiqueta, estado, orden, tags=(), subtotal=False, nota="",
+    alternativas_excluyentes=False,
+) -> LineaEstado:
+    return LineaEstado(
+        clave, etiqueta, estado, orden, tuple(tags), subtotal, nota,
+        alternativas_excluyentes,
+    )
 
 
 # --------------------------------------------------------------------------------------
@@ -405,19 +419,33 @@ _BALANCE: tuple[LineaEstado, ...] = (
     # del balance es Activo = Pasivo + temporal + permanente. En Realty Income son
     # 167 millones exactos: sin este renglón el balance descuadra por esa cifra y
     # parece un error de lectura de las otras líneas.
+    # El capital mezzanine es el renglón con MÁS nombres de toda la taxonomía, y
+    # es el que rompía veintiséis de los treinta y cinco descuadres del almacén.
+    # Va entre el pasivo y el capital permanente, así que si no se lee, el balance
+    # no cierra por su tamaño exacto — y eso es justo lo que pasaba: 12.3 MM en
+    # Public Storage, 7.7 MM en W. P. Carey.
+    #
+    # Las etiquetas son alternativas EXCLUYENTES: la emisora publica una sola por
+    # corte y va cambiando de nombre con los años. La prueba de que son la misma
+    # partida está en los periodos donde W. P. Carey reportó dos a la vez, y
+    # coinciden al peso: `TemporaryEquityCarryingAmount` = 7.7 MM y
+    # `TemporaryEquityRedemptionValue` = 7.7 MM en el cierre de 2009.
+    #
+    # El orden importa: primero el importe EN LIBROS, que es lo que suma al
+    # balance, y el valor de redención solo cuando la emisora no publicó otro.
     _l("capital_temporal", "Capital temporal (mezzanine)", BALANCE, 372, (
         "TemporaryEquityCarryingAmountAttributableToParent",
         "TemporaryEquityCarryingAmountIncludingPortionAttributableToNoncontrollingInterests",
+        # La etiqueta canónica y más corta, la que usaban las dos emisoras antes
+        # de 2012, no estaba mapeada.
+        "TemporaryEquityCarryingAmount",
         "RedeemableNoncontrollingInterestEquityCarryingAmount",
-        "RedeemableNoncontrollingInterestEquityFairValue",
-        "RedeemableNoncontrollingInterestEquityOtherFairValue",
-        # La variante "OtherCarryingAmount" faltaba, y con ella el balance de
-        # Public Storage no cerraba por 12.3 MM en 2008–2011: exactamente el
-        # tamaño de este renglón. Apareció al guardar la historia completa en el
-        # almacén; con la ventana corta esos periodos no se revisaban.
         "RedeemableNoncontrollingInterestEquityOtherCarryingAmount",
         "RedeemableNoncontrollingInterestEquityCommonCarryingAmount",
-    )),
+        "RedeemableNoncontrollingInterestEquityFairValue",
+        "RedeemableNoncontrollingInterestEquityOtherFairValue",
+        "TemporaryEquityRedemptionValue",
+    ), alternativas_excluyentes=True),
     _l("capital_total", "Capital contable total", BALANCE, 375, (
         "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
     ), subtotal=True,
@@ -925,17 +953,28 @@ def _series_por_tag(crudos: pd.DataFrame) -> dict[str, pd.Series]:
     }
 
 
-def _empalma(cubierto: pd.Series, otra: pd.Series) -> bool:
+def _empalma(cubierto: pd.Series, otra: pd.Series, *, excluyentes: bool = False) -> bool:
     """¿La segunda etiqueta es el mismo renglón que la primera?
 
     La prueba es empírica y se corre con los datos de la propia emisora: donde las
-    dos reportan el mismo periodo, tienen que coincidir. Si nunca se traslapan no
-    hay con qué probarlo y se rechaza —callar la duda saldría más caro que el
-    hueco—; si se traslapan y difieren, son conceptos distintos.
+    dos reportan el mismo periodo, tienen que coincidir. Si se traslapan y difieren
+    son conceptos distintos y no se pegan.
+
+    Sin traslape no hay con qué comprobarlo, y por omisión se rechaza: callar la
+    duda sale más caro que el hueco. La excepción son los renglones declarados de
+    ``alternativas_excluyentes`` —el capital mezzanine, que la taxonomía escribe
+    de nueve maneras—, donde la emisora publica un solo nombre por corte y el
+    traslape no puede existir por construcción. Ahí exigir traslape no protege de
+    nada: solo garantiza el hueco.
+
+    Y esos renglones no quedan sin verificar. Son de balance, así que tienen un
+    juez independiente y más duro que cualquier traslape: la partida doble. Si el
+    empalme estuviera mal, el activo dejaría de igualar al pasivo más el capital,
+    y hay una prueba que lo exige.
     """
     comunes = cubierto.index.intersection(otra.index)
     if comunes.empty:
-        return False
+        return excluyentes
     referencia = cubierto.loc[comunes]
     escala = referencia.abs()
     medibles = escala > 0
@@ -996,7 +1035,9 @@ def elegir_cadenas(crudos: pd.DataFrame, ticker: str) -> dict[str, tuple[str, ..
         for tag in candidatas[1:]:
             otra = series[tag]
             nuevos = otra.index.difference(cubierto.index)
-            if nuevos.empty or not _empalma(cubierto, otra):
+            if nuevos.empty:
+                continue
+            if not _empalma(cubierto, otra, excluyentes=linea.alternativas_excluyentes):
                 continue
             cadena.append(tag)
             cubierto = pd.concat([cubierto, otra.loc[nuevos]])
@@ -1047,6 +1088,7 @@ def armar_estado(
     asof: dt.date,
     periodo_tipo: str = "Q",
     tags: dict[str, str] | None = None,
+    campo: str = "valor",
 ) -> pd.DataFrame:
     """Arma un estado financiero al corte, en formato ancho: líneas × periodos.
 
@@ -1060,6 +1102,10 @@ def armar_estado(
     ``elegir_cadenas``. Con la cadena, la columna ``tag_gaap`` nombra a TODAS las
     que alimentaron el renglón, separadas por ``+``: si un renglón está empalmado,
     la tabla lo dice en lugar de esconderlo.
+
+    ``campo="fecha_publicacion"`` arma la MISMA tabla pero con el filing del que
+    salió cada celda en vez del número. Sirve para una pregunta que el valor solo
+    no contesta: si los renglones de un corte vienen todos del mismo reporte.
     """
     if crudos.empty:
         return pd.DataFrame()
@@ -1091,7 +1137,7 @@ def armar_estado(
         serie: dict = {}
         usadas: list[str] = []
         for tag in cadena:
-            parcial = _serie_de_linea(vista, tag)
+            parcial = _serie_de_linea(vista, tag, campo)
             if parcial is None:
                 continue
             # La cadena va en orden de uso: la etiqueta principal manda y las
@@ -1120,6 +1166,61 @@ def armar_estado(
     return tabla[["etiqueta", "tag_gaap", "subtotal", *periodos]]
 
 
+def balance_por_reporte(
+    crudos: pd.DataFrame,
+    ticker: str,
+    *,
+    asof: dt.date,
+    tags: dict | None = None,
+) -> pd.DataFrame:
+    """El balance SIN colapsar: una fila por renglón, corte y filing.
+
+    ``armar_estado`` se queda con la versión más reciente de cada renglón, que es
+    lo correcto para saber qué se sabe hoy. Pero la identidad contable no vive en
+    esa vista: vive dentro de CADA reporte. Una emisora reexpresa un renglón en el
+    10-Q del año siguiente y no vuelve a etiquetar los demás, y entonces el corte
+    colapsado mezcla dos balances —el activo de una reexpresión con el pasivo del
+    original— y deja de cuadrar sin que nadie haya leído mal nada.
+
+    Con esta tabla la pregunta se puede hacer bien: no "¿cuadra la vista de hoy?"
+    sino "¿hubo alguna vez un balance publicado que cuadre?". Si lo hubo, las
+    etiquetas están bien leídas.
+    """
+    if crudos.empty:
+        return pd.DataFrame(columns=["linea", "fecha_dato", "fecha_publicacion", "valor"])
+    cadenas = elegir_cadenas(crudos, ticker) if tags is None else {
+        c: (v,) if isinstance(v, str) else tuple(v) for c, v in tags.items()
+    }
+    vista = crudos.copy()
+    vista["fecha_publicacion"] = pd.to_datetime(vista["fecha_publicacion"]).dt.date
+    vista["fecha_dato"] = pd.to_datetime(vista["fecha_dato"]).dt.date
+    vista = vista[
+        (vista["fecha_publicacion"] <= asof) & (vista["periodo_tipo"] == "PUNTUAL")
+    ]
+    if vista.empty:
+        return pd.DataFrame(columns=["linea", "fecha_dato", "fecha_publicacion", "valor"])
+
+    filas = []
+    for linea in lineas_de(BALANCE):
+        cadena = cadenas.get(linea.clave, ())
+        sub = vista[vista["tag"].isin(cadena)]
+        if sub.empty:
+            continue
+        rango = sub["tag"].map({t: i for i, t in enumerate(cadena)})
+        gana = rango.groupby(
+            [sub["fecha_dato"], sub["fecha_publicacion"]], sort=False
+        ).transform("min")
+        sub = sub[rango == gana]
+        for r in sub.to_dict("records"):
+            filas.append({
+                "linea": linea.clave,
+                "fecha_dato": r["fecha_dato"],
+                "fecha_publicacion": r["fecha_publicacion"],
+                "valor": float(r["valor"]),
+            })
+    return pd.DataFrame(filas, columns=["linea", "fecha_dato", "fecha_publicacion", "valor"])
+
+
 def _fechas_de_balance(vista: pd.DataFrame, tags: dict[str, str]) -> set:
     """Fechas que de verdad son un corte de balance.
 
@@ -1138,7 +1239,7 @@ def _fechas_de_balance(vista: pd.DataFrame, tags: dict[str, str]) -> set:
     return fechas or set(vista["fecha_dato"])
 
 
-def _serie_de_linea(vista: pd.DataFrame, tag: str) -> dict | None:
+def _serie_de_linea(vista: pd.DataFrame, tag: str, campo: str = "valor") -> dict | None:
     """Valores por periodo de una etiqueta, en versión point-in-time.
 
     De cada periodo se toma la versión publicada más reciente **dentro del corte**.
@@ -1146,12 +1247,18 @@ def _serie_de_linea(vista: pd.DataFrame, tag: str) -> dict | None:
     ``LongTermDebt`` hasta 2023 y otra etiqueta desde 2024, pegar las dos series
     produce un salto que parece un evento de crédito y es un cambio de taxonomía.
     Cuál se usó queda declarado en la columna ``tag_gaap`` de cada estado.
+
+    Con ``campo="fecha_publicacion"`` devuelve, en vez del número, el filing del
+    que salió. Es lo que permite preguntarle a un balance si sus renglones vienen
+    todos del MISMO reporte, que no es lo mismo que preguntarle si cuadra.
     """
     sub = vista[vista["tag"] == tag]
     if sub.empty:
         return None
     sub = sub.sort_values("fecha_publicacion").drop_duplicates("fecha_dato", keep="last")
-    return dict(zip(sub["fecha_dato"], sub["valor"].astype(float), strict=True))
+    columna = "fecha_publicacion" if campo == "fecha_publicacion" else "valor"
+    valores = sub[columna] if columna == "fecha_publicacion" else sub[columna].astype(float)
+    return dict(zip(sub["fecha_dato"], valores, strict=True))
 
 
 def periodos_disponibles(crudos: pd.DataFrame, *, periodo_tipo: str = "Q") -> list[dt.date]:
@@ -1367,6 +1474,7 @@ __all__ = [
     "NOMBRE_ESTADO",
     "Fuente",
     "armar_estado",
+    "balance_por_reporte",
     "cobertura_de_lineas",
     "conceptos_no_mapeados",
     "derivar_trimestres_faltantes",
