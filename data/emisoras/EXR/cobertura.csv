@@ -1,0 +1,76 @@
+estado,linea,etiqueta,subtotal,tag_gaap,encontrada,propia_de_la_emisora
+estado_resultados,ingreso_rentas,Ingresos por arrendamiento,False,LeaseIncome,True,False
+estado_resultados,ingreso_renta_variable,Renta variable sobre ventas,False,,False,False
+estado_resultados,ingreso_reembolsos,Reembolsos de inquilinos,False,,False,False
+estado_resultados,ingreso_gestion,Comisiones por administración,False,,False,False
+estado_resultados,ingreso_otros,Otros ingresos,False,,False,False
+estado_resultados,ingresos_totales,Ingresos totales,True,Revenues,True,False
+estado_resultados,gasto_operacion_inmueble,Gastos de operación de inmuebles,False,,False,False
+estado_resultados,gasto_predial_seguro,Predial y seguros,False,,False,False
+estado_resultados,depreciacion_amortizacion,Depreciación y amortización,False,DepreciationDepletionAndAmortization,True,False
+estado_resultados,gasto_administracion,Gastos generales y de administración,False,GeneralAndAdministrativeExpense,True,False
+estado_resultados,deterioro,Deterioro de activos,False,,False,False
+estado_resultados,gasto_otros,Otros gastos de operación,False,,False,False
+estado_resultados,gastos_totales,Gastos totales,True,CostsAndExpenses,True,False
+estado_resultados,utilidad_operativa,Utilidad de operación,True,OperatingIncomeLoss,True,False
+estado_resultados,gasto_intereses,Gasto por intereses,False,InterestExpenseDebt,True,False
+estado_resultados,ingreso_intereses,Ingreso por intereses,False,InvestmentIncomeInterest,True,False
+estado_resultados,ganancia_venta_inmuebles,Ganancia por venta de inmuebles,False,GainsLossesOnSalesOfInvestmentRealEstate,True,False
+estado_resultados,resultado_no_consolidadas,Participación en no consolidadas,False,IncomeLossFromEquityMethodInvestments,True,False
+estado_resultados,otros_no_operativos,Otros resultados no operativos,False,,False,False
+estado_resultados,utilidad_antes_impuestos,Utilidad antes de impuestos,True,IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest,True,False
+estado_resultados,impuestos,Impuesto a la utilidad,False,IncomeTaxExpenseBenefit,True,False
+estado_resultados,utilidad_neta,Utilidad neta,True,ProfitLoss,True,False
+estado_resultados,utilidad_minoritarios,Participación no controladora,False,,False,False
+estado_resultados,dividendos_preferentes,Dividendos preferentes,False,,False,False
+estado_resultados,utilidad_neta_comun,Utilidad neta atribuible a comunes,True,NetIncomeLossAvailableToCommonStockholdersBasic,True,False
+estado_resultados,utilidad_por_accion_basica,"Utilidad por acción, básica",False,EarningsPerShareBasic,True,False
+estado_resultados,utilidad_por_accion_diluida,"Utilidad por acción, diluida",False,EarningsPerShareDiluted,True,False
+estado_resultados,acciones_basicas,"Acciones promedio, básicas",False,WeightedAverageNumberOfSharesOutstandingBasic,True,False
+estado_resultados,acciones_diluidas,"Acciones promedio, diluidas",False,WeightedAverageNumberOfDilutedSharesOutstanding,True,False
+estado_resultados,dividendo_declarado_por_accion,Dividendo declarado por acción,False,CommonStockDividendsPerShareDeclared,True,False
+balance,inmuebles_bruto,"Inmuebles, costo",False,RealEstateInvestmentPropertyAtCost,True,False
+balance,depreciacion_acumulada,Depreciación acumulada,False,RealEstateInvestmentPropertyAccumulatedDepreciation,True,False
+balance,inmuebles_neto,"Inmuebles, neto",True,RealEstateInvestmentPropertyNet,True,False
+balance,efectivo,Efectivo y equivalentes,False,CashAndCashEquivalentsAtCarryingValue,True,False
+balance,efectivo_restringido,Efectivo restringido,False,RestrictedCashAndCashEquivalents,True,False
+balance,cuentas_por_cobrar,Cuentas por cobrar,False,AccountsReceivableNet,True,False
+balance,renta_linea_recta_por_cobrar,Rentas por cobrar en línea recta,False,,False,False
+balance,intangibles_arrendamiento,Intangibles de arrendamiento,False,FiniteLivedIntangibleAssetsNet,True,False
+balance,goodwill,Crédito mercantil,False,Goodwill,True,False
+balance,inversiones_no_consolidadas,Inversiones en no consolidadas,False,EquityMethodInvestments,True,False
+balance,prestamos_por_cobrar,Préstamos por cobrar,False,,False,False
+balance,activos_mantenidos_venta,Activos mantenidos para la venta,False,,False,False
+balance,activos_otros,Otros activos,False,OtherAssets,True,False
+balance,activos_totales,Activos totales,True,Assets,True,False
+balance,deuda_hipotecaria,Deuda hipotecaria,False,,False,False
+balance,notas_senior,Notas senior no garantizadas,False,UnsecuredDebt,True,False
+balance,linea_de_credito,Línea de crédito revolvente,False,LineOfCredit,True,False
+balance,deuda_total,Deuda total,True,,False,False
+balance,cuentas_por_pagar,Cuentas por pagar y acumulados,False,AccountsPayableAndAccruedLiabilitiesCurrentAndNoncurrent,True,False
+balance,intangibles_pasivo,"Intangibles de arrendamiento, pasivo",False,,False,False
+balance,pasivos_otros,Otros pasivos,False,OtherLiabilities,True,False
+balance,pasivos_totales,Pasivos totales,True,Liabilities,True,False
+balance,capital_preferente,Capital preferente,False,PreferredStockValue,True,False
+balance,capital_comun,Capital social,False,CommonStockValue,True,False
+balance,prima_en_acciones,Prima en colocación de acciones,False,AdditionalPaidInCapitalCommonStock,True,False
+balance,utilidades_retenidas,Utilidades retenidas (déficit),False,RetainedEarningsAccumulatedDeficit,True,False
+balance,otro_resultado_integral,Otro resultado integral acumulado,False,AccumulatedOtherComprehensiveIncomeLossNetOfTax,True,False
+balance,participacion_no_controladora,Participación no controladora,False,,False,False
+balance,capital_contable,Capital contable de la controladora,True,StockholdersEquity,True,False
+balance,capital_temporal,Capital temporal (mezzanine),False,,False,False
+balance,capital_total,Capital contable total,True,StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest,True,False
+balance,pasivo_mas_capital,Pasivo más capital,True,LiabilitiesAndStockholdersEquity,True,False
+balance,acciones_en_circulacion,Acciones en circulación,False,CommonStockSharesOutstanding,True,False
+flujo_efectivo,flujo_operacion,Flujo de efectivo de operación,True,NetCashProvidedByUsedInOperatingActivities,True,False
+flujo_efectivo,compensacion_en_acciones,Compensación basada en acciones,False,ShareBasedCompensation,True,False
+flujo_efectivo,adquisicion_inmuebles,Adquisición de inmuebles,False,PaymentsToAcquireRealEstate,True,False
+flujo_efectivo,desarrollo_inmuebles,Desarrollo y mejoras,False,PaymentsToDevelopRealEstateAssets,True,False
+flujo_efectivo,venta_inmuebles,Producto de venta de inmuebles,False,ProceedsFromSaleOfRealEstateHeldforinvestment,True,False
+flujo_efectivo,flujo_inversion,Flujo de efectivo de inversión,True,NetCashProvidedByUsedInInvestingActivities,True,False
+flujo_efectivo,emision_deuda,Disposición de deuda,False,,False,False
+flujo_efectivo,pago_deuda,Amortización de deuda,False,RepaymentsOfNotesPayable,True,False
+flujo_efectivo,emision_acciones,Emisión de acciones,False,ProceedsFromIssuanceOfCommonStock,True,False
+flujo_efectivo,dividendos_pagados,Dividendos pagados,False,PaymentsOfDividendsCommonStock,True,False
+flujo_efectivo,flujo_financiamiento,Flujo de efectivo de financiamiento,True,NetCashProvidedByUsedInFinancingActivities,True,False
+flujo_efectivo,cambio_neto_efectivo,Variación neta de efectivo,True,CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect,True,False

@@ -1,0 +1,86 @@
+name: Estados financieros
+
+# Revisa a diario si alguna emisora presentó un 10-Q o un 10-K nuevo. Si lo hizo,
+# baja sus estados completos, los verifica y los COMETE al repositorio.
+#
+# Por qué diario y no solo en temporada de reportes: una enmienda (10-K/A) puede
+# llegar cualquier día del año, y una reexpresión cambia cifras que el modelo ya
+# está usando. Correrlo diario es barato porque el proceso es idempotente: si el
+# `accession` del último reporte no cambió, no se baja nada y no hay commit.
+#
+# Por qué SÍ se cometen estos datos y la base SQLite no: los estados financieros
+# son el insumo de todo lo demás, y quererlos auditables significa poder ver en un
+# `git diff` qué cambió entre dos corridas. Son 1.5 MB para las diez emisoras.
+
+on:
+  schedule:
+    # 12:00 UTC, de lunes a viernes. EDGAR publica durante la mañana de Nueva York.
+    - cron: "0 12 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      tickers:
+        description: "Emisores separados por comas (vacío = todo el universo)"
+        required: false
+        default: ""
+      forzar:
+        description: "Bajar aunque no haya reporte nuevo"
+        type: boolean
+        required: false
+        default: false
+
+# Dos corridas simultáneas cometerían sobre el mismo archivo.
+concurrency:
+  group: estados-financieros
+  cancel-in-progress: false
+
+jobs:
+  estados:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+
+    env:
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Descargar, armar y verificar
+        run: |
+          python scripts/estados.py \
+            ${{ inputs.tickers && format('--tickers {0}', inputs.tickers) || '' }} \
+            ${{ inputs.forzar && '--forzar' || '' }}
+
+      - name: Verificar de nuevo lo que quedó en disco
+        # La segunda pasada no toca la red: rearma los estados desde los archivos
+        # ya escritos y comprueba las huellas. Si esto falla después de que la
+        # primera pasó, el problema está en la escritura, no en la fuente.
+        run: python scripts/estados.py --revisar
+
+      - name: Cometer si algo cambió
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- data/emisoras; then
+            echo "Sin cambios: ninguna emisora presentó un reporte nuevo."
+            exit 0
+          fi
+          # El resumen del commit dice QUÉ emisoras se movieron, no solo que hubo
+          # cambios: es lo que hace legible el historial dentro de un año.
+          MOVIDAS=$(git diff --name-only -- data/emisoras \
+                    | awk -F/ '$3 != "" {print $3}' | sort -u | paste -sd, -)
+          git add data/emisoras
+          git commit -m "Estados financieros: ${MOVIDAS:-manifiesto}" \
+                     -m "Descarga automática tras detectar un reporte periódico nuevo en EDGAR."
+          git push

@@ -1,0 +1,13 @@
+linea,etiqueta,tag_gaap,subtotal,2025-12-31,2024-12-31,2023-12-31,2022-12-31,2021-12-31,2020-12-31,2019-12-31
+flujo_operacion,Flujo de efectivo de operación,NetCashProvidedByUsedInOperatingActivities,True,3994754000.0,3573276000.0,2958769000.0,2563856000.0,1322189000.0,1115543000.0,1068937000.0
+compensacion_en_acciones,Compensación basada en acciones,ShareBasedCompensation,False,30770000.0,57493000.0,26227000.0,21617000.0,41773000.0,16503000.0,13662000.0
+adquisicion_inmuebles,Adquisición de inmuebles,PaymentsToAcquireCommercialRealEstate,False,4647873000.0,3262437000.0,8053595000.0,8886436000.0,6313076000.0,2283130000.0,3572581000.0
+desarrollo_inmuebles,Desarrollo y mejoras,PaymentsForCapitalImprovements,False,131800000.0,121411000.0,68692000.0,95514000.0,19080000.0,8708000.0,23536000.0
+venta_inmuebles,Producto de venta de inmuebles,ProceedsFromSaleOfRealEstateHeldforinvestment,False,,,,,,,108911000.0
+flujo_inversion,Flujo de efectivo de inversión,NetCashProvidedByUsedInInvestingActivities,True,-5663173000.0,-3342883000.0,-9354854000.0,-8387076000.0,-6437695000.0,-2032379000.0,-3501809000.0
+emision_deuda,Disposición de deuda,ProceedsFromNotesPayable,False,2891750000.0,2657925000.0,4239745000.0,2154662000.0,1033387000.0,2200488000.0,897664000.0
+pago_deuda,Amortización de deuda,RepaymentsOfNotesPayable,False,1049997000.0,849999000.0,0.0,0.0,1700000000.0,250000000.0,0.0
+emision_acciones,Emisión de acciones,ProceedsFromIssuanceOfCommonStock,False,2364144000.0,1742810000.0,5439462000.0,4556028000.0,4442725000.0,1823821000.0,845061000.0
+dividendos_pagados,Dividendos pagados,PaymentsOfDividendsCommonStock,False,2920895000.0,2691719000.0,2111793000.0,1813431000.0,1169026000.0,964167000.0,852134000.0
+flujo_financiamiento,Flujo de efectivo de financiamiento,NetCashProvidedByUsedInFinancingActivities,True,1677795000.0,-21158000.0,6437356000.0,5738243000.0,4577120000.0,1692079000.0,2492602000.0
+cambio_neto_efectivo,Variación neta de efectivo,CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect,True,25250000.0,203331000.0,65294000.0,-105488000.0,-518310000.0,779674000.0,49934000.0

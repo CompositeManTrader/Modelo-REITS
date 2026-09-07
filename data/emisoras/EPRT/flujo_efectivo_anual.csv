@@ -1,0 +1,10 @@
+linea,etiqueta,tag_gaap,subtotal,2025-12-31,2024-12-31,2023-12-31,2022-12-31,2021-12-31,2020-12-31,2019-12-31
+flujo_operacion,Flujo de efectivo de operación,NetCashProvidedByUsedInOperatingActivities,True,381080000.0,308484000.0,254574000.0,211022000.0,167393000.0,99388000.0,88568000.0
+venta_inmuebles,Producto de venta de inmuebles,ProceedsFromSaleOfRealEstateHeldforinvestment,False,128562000.0,96928000.0,128598000.0,126610000.0,58381000.0,82889000.0,66765000.0
+flujo_inversion,Flujo de efectivo de inversión,NetCashProvidedByUsedInInvestingActivities,True,-1154047000.0,-1123168000.0,-857125000.0,-706078000.0,-829684000.0,-545509000.0,-607839000.0
+emision_deuda,Disposición de deuda,ProceedsFromLinesOfCredit,False,855000000.0,490000000.0,70000000.0,299000000.0,393000000.0,87000000.0,459000000.0
+pago_deuda,Amortización de deuda,RepaymentsOfLinesOfCredit,False,855000000.0,220000000.0,70000000.0,443000000.0,267000000.0,115000000.0,447000000.0
+emision_acciones,Emisión de acciones,ProceedsFromIssuanceOfCommonStock,False,657589000.0,570243000.0,507318000.0,403884000.0,458267000.0,461006000.0,411635000.0
+dividendos_pagados,Dividendos pagados,PaymentsOfDividends,False,233937000.0,199663000.0,168231000.0,141691000.0,112334000.0,86475000.0,63903000.0
+flujo_financiamiento,Flujo de efectivo de financiamiento,NetCashProvidedByUsedInFinancingActivities,True,798354000.0,810699000.0,580014000.0,506798000.0,689059000.0,457792000.0,524351000.0
+cambio_neto_efectivo,Variación neta de efectivo,CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect,True,25387000.0,-3985000.0,-22537000.0,11742000.0,26768000.0,11671000.0,5080000.0

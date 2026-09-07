@@ -1,0 +1,20 @@
+linea,etiqueta,tag_gaap,subtotal,2025-12-31,2024-12-31,2023-12-31,2022-12-31,2021-12-31,2020-12-31,2019-12-31
+ingreso_rentas,Ingresos por arrendamiento,LeaseIncome,False,2895190000.0,2803252000.0,2222578000.0,1654735000.0,1340990000.0,1157522000.0,1130177000.0
+ingresos_totales,Ingresos totales,Revenues,True,3377542000.0,3256902000.0,2560244000.0,1924170000.0,1577362000.0,1356212000.0,1308454000.0
+depreciacion_amortizacion,Depreciación y amortización,DepreciationDepletionAndAmortization,False,715177000.0,783023000.0,506053000.0,288316000.0,241879000.0,,219857000.0
+gasto_administracion,Gastos generales y de administración,GeneralAndAdministrativeExpense,False,186343000.0,167398000.0,146408000.0,129251000.0,102194000.0,96594000.0,89418000.0
+gastos_totales,Gastos totales,CostsAndExpenses,True,1888541000.0,1855873000.0,1390103000.0,888017000.0,742169000.0,708147000.0,674701000.0
+utilidad_operativa,Utilidad de operación,OperatingIncomeLoss,True,1412691000.0,1323360000.0,1170141000.0,1050402000.0,975953000.0,666140000.0,634958000.0
+gasto_intereses,Gasto por intereses,InterestExpense,False,,,419035000.0,219171000.0,166183000.0,,
+ingreso_intereses,Ingreso por intereses,InvestmentIncomeInterest,False,163202000.0,124422000.0,84857000.0,69422000.0,49703000.0,15192000.0,7467000.0
+ganancia_venta_inmuebles,Ganancia por venta de inmuebles,GainsLossesOnSalesOfInvestmentRealEstate,False,,-33662000.0,,14200000.0,,,
+resultado_no_consolidadas,Participación en no consolidadas,IncomeLossFromEquityMethodInvestments,False,68815000.0,67272000.0,54835000.0,41428000.0,32358000.0,,11274000.0
+utilidad_antes_impuestos,Utilidad antes de impuestos,IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments,True,940761000.0,852708000.0,817177000.0,900653000.0,859473000.0,509031000.0,451157000.0
+impuestos,Impuesto a la utilidad,IncomeTaxExpenseBenefit,False,41559000.0,33478000.0,21559000.0,20925000.0,20324000.0,13810000.0,11308000.0
+utilidad_neta,Utilidad neta,ProfitLoss,True,1022538000.0,900232000.0,850453000.0,921156000.0,877758000.0,517582000.0,451123000.0
+utilidad_neta_comun,Utilidad neta atribuible a comunes,NetIncomeLoss,True,973999000.0,854681000.0,803198000.0,860688000.0,827649000.0,481779000.0,419967000.0
+utilidad_por_accion_basica,"Utilidad por acción, básica",EarningsPerShareBasic,False,4.59,4.03,4.74,6.41,6.2,3.71,3.27
+utilidad_por_accion_diluida,"Utilidad por acción, diluida",EarningsPerShareDiluted,False,4.59,4.03,4.74,6.41,6.19,3.71,3.24
+acciones_basicas,"Acciones promedio, básicas",WeightedAverageNumberOfSharesOutstandingBasic,False,211850521.0,211575240.0,169216989.0,134050815.0,133374938.0,129541531.0,128203568.0
+acciones_diluidas,"Acciones promedio, diluidas",WeightedAverageNumberOfDilutedSharesOutstanding,False,211850521.0,211577680.0,169220882.0,141681388.0,140016028.0,129584829.0,136433769.0
+dividendo_declarado_por_accion,Dividendo declarado por acción,CommonStockDividendsPerShareCashPaid,False,6.48,6.48,6.48,6.0,4.5,3.6,3.56

@@ -14,6 +14,7 @@ python scripts/sembrar.py        # datos de DEMOSTRACIÓN, para recorrer la app
 streamlit run app/Inicio.py
 
 python scripts/ingesta.py        # datos de fuente primaria desde la SEC
+python scripts/estados.py        # estados financieros completos, si hay reporte nuevo
 python scripts/cobertura.py      # cuánto parsea y valida el sistema, por emisor
 pytest -q                        # las trece obligatorias y el resto
 ```
@@ -94,7 +95,7 @@ src/
 ├── export/excel.py      Libro con fórmulas VIVAS
 └── servicio.py          Capa que arma los paneles de la interfaz
 app/                     Streamlit: Inicio + seis páginas
-scripts/                 sembrar.py, ingesta.py, cobertura.py, ficha.py, humo_app.py
+scripts/                 sembrar.py, ingesta.py, estados.py, cobertura.py, ficha.py, humo_app.py
 tests/                   Las trece obligatorias, los principios, e integración
 ```
 
@@ -118,6 +119,94 @@ directamente y tarde o temprano alguna olvidaría el corte.
   `o-991q22026.htm`, sin la cadena "ex99" en ningún lado.
 - Límite de la SEC respetado: 10 solicitudes por segundo y User-Agent
   identificable (variable de entorno `SEC_USER_AGENT`).
+
+### Estados financieros completos, versionados en el repositorio
+
+`data/emisoras/<TICKER>/` guarda los tres estados —resultados, balance y flujo de
+efectivo— **trimestrales y anuales**, más los hechos crudos de los que salen. Son
+1.5 MB para las diez emisoras, y se versionan a propósito: una reexpresión tiene
+que verse en un `git diff` como lo que es —una cifra que cambió, con su fecha— y
+no como un archivo binario distinto.
+
+| Archivo | Qué es |
+|---|---|
+| `hechos.csv.gz` | **Todo** lo que trae `companyfacts`, sin interpretar: cada etiqueta us-gaap con su periodo, unidad, `filed` y `accession`. Todas las versiones publicadas. |
+| `estado_resultados_trimestral.csv` · `_anual.csv` | Renglones canónicos × periodos, con la etiqueta GAAP de la que salió cada uno |
+| `balance.csv` | Saldos por fecha de corte |
+| `flujo_efectivo_trimestral.csv` · `_anual.csv` | |
+| `cobertura.csv` | Qué renglones encontró esta emisora y con qué etiqueta |
+| `manifiesto.json` | El último reporte visto por emisora, huellas de cada archivo e incidencias |
+
+```bash
+python scripts/estados.py              # solo lo que tenga reporte nuevo
+python scripts/estados.py --revisar    # verifica lo guardado, sin red
+python scripts/estados.py --pendientes # etiquetas frecuentes por mapear
+```
+
+**La descarga se dispara con el reporte, no con el calendario.** El manifiesto
+guarda el `accession` del último 10-Q o 10-K de cada emisora; mientras la SEC no
+publique uno nuevo, no se baja nada. Correr la ingesta diez veces el mismo día
+baja los datos una vez, y por eso puede correr sola todos los días
+(`.github/workflows/estados.yml`). Se compara por `accession` y no por fecha: una
+emisora puede presentar el 10-K y una enmienda el mismo día, y comparar por fecha
+se salta el segundo documento en silencio.
+
+**Tres capas, y la distinción es lo que lo hace auditable.** El crudo es la fuente
+y se guarda entero, así que ampliar la taxonomía es un `git diff` y no una nueva
+descarga contra la SEC. Las líneas canónicas son el catálogo de 75 renglones con
+sus etiquetas GAAP. Los estados armados son la tabla ancha a una fecha de corte,
+respetando point-in-time: de cada periodo se toma la versión más reciente
+**conocida a esa fecha**.
+
+**La etiqueta se elige una sola vez por emisora**, sobre el conjunto completo de
+hechos. Si el estado trimestral y el anual eligieran por su cuenta podrían
+quedarse con etiquetas distintas, y entonces «los cuatro trimestres suman el año»
+compara dos conceptos y reprueba sin que ninguna cifra esté mal. Le pasaba a NNN.
+
+**El cuarto trimestre no existe en XBRL** —en Estados Unidos no se presenta un
+10-Q del Q4— así que se deriva, con la fórmula que corresponde a cada partida: un
+flujo se resta (`Q4 = FY − 9M`), un promedio ponderado no (`Q4 = 4·FY − 3·9M`).
+Restar promedios como flujos da un conteo de acciones negativo. La fecha de
+publicación del trimestre derivado es la más tardía de sus componentes: antes de
+esa fecha el número no era deducible ni con lápiz.
+
+#### Taxonomía por emisora, también aquí
+
+El mismo renglón lo etiqueta cada emisora a su manera y ninguna está mal: la
+taxonomía de la SEC admite varias etiquetas para el mismo concepto. Es la misma
+regla que en la ficha del AFFO — **la emisora declara SUS etiquetas y ganan sobre
+las compartidas** — en `FICHAS_ESTADOS` (`src/ingesta/estados.py`).
+
+| Emisora | Qué declara distinto |
+|---|---|
+| O | Etiqueta su renta como `LeaseIncome`, no `OperatingLeaseLeaseIncome` |
+| WPC | Conserva brazo de administración de inversiones: la comisión es ingreso recurrente |
+| PSA | Consolida Shurgard, así que el minoritario es material |
+| WELL | Estructura RIDEA, y su mezzanine va con la variante `...OtherFairValue` |
+| PLD | Coinversiones: el método de participación pesa |
+
+#### Qué se verifica en cada descarga
+
+«Sin errores» no es una promesa, es una lista que puede reprobar
+(`src/validacion/estados.py`):
+
+- **Activo = Pasivo + capital temporal + capital total.** Es la identidad de la
+  partida doble, y la SEC no acepta un balance que no cierre: si no cuadra, algún
+  renglón viene de una etiqueta que no es la que se cree.
+- **Los cuatro trimestres suman el año**, para las partidas de flujo.
+- **Nadie publica un periodo antes de que termine.** Protege P1 en el origen.
+- **Una línea no mezcla unidades ni etiquetas.**
+- **Ningún activo total ni conteo de acciones es negativo.**
+
+Las incidencias distinguen `ERROR` de `AVISO`, y esa distinción tiene contenido.
+Global Net Lease publicó un deterioro de 90.4 millones para 2024 en su 10-K de
+2025 y de 2.5 millones para el mismo año en el de 2026: vendió su portafolio
+multi-inquilino y reclasificó el cargo a operaciones discontinuadas. **Las dos
+cifras son correctas.** El sistema detecta que hay dos versiones publicadas del
+mismo periodo, lo llama reexpresión y avisa con las dos cifras y sus fechas, en
+vez de reprobar una lectura que está bien.
+
+Estado al corte: **104,337 hechos, cero errores** en las diez emisoras.
 
 **Tasas:** UST 10 años, CPI y USD/MXN desde FRED, sin llave. INPC, Cetes, Mbono y
 Udibono desde el SIE de Banxico, que sí requiere un token gratuito
@@ -238,7 +327,7 @@ necesario para recuperarlo en dos años.
 
 ---
 
-## Las diecisiete pruebas obligatorias
+## Las dieciocho pruebas obligatorias
 
 ```bash
 pytest -q                                   # todo
@@ -265,6 +354,7 @@ pytest -q -k "not libreoffice"              # sin LibreOffice instalado
 | 15 | El cap rate es del sector: cambiarlo mueve el NAV de verdad | `test_15_valuacion_por_sector.py` |
 | 16 | Un acumulado no siempre es una suma: el promedio se lleva a total | `test_16_derivacion_de_trimestres.py` |
 | 17 | Una columna que no es un periodo, y un flujo que no es AFFO | `test_17_columnas_y_medida_de_flujo.py` |
+| 18 | Descarga idempotente, escritura determinista y el Q4 que no existe | `test_18_estados_financieros.py` |
 
 Cada prueba obligatoria viene con su **control**, porque una prueba que no puede
 fallar no prueba nada:
