@@ -335,8 +335,20 @@ def detectar_periodos(texto_encabezado: str) -> list[Periodo]:
 # --------------------------------------------------------------------------------------
 
 
+# Caracteres de ancho cero: separan visualmente en el navegador y no son contenido.
+# `str.strip()` NO los quita —`"​".isspace()` es False— así que una celda que se
+# ve vacía llega como celda NO vacía. Agree Realty maqueta su conciliación con ellos,
+# y el resultado era que las filas de una misma tabla salían de largos distintos: las
+# que traen "$" gastan una celda en el símbolo, las demás la gastan en un ancho cero,
+# y repartir "columna i → periodo i" sobre filas desparejas le pone a cada periodo la
+# cifra del vecino. El trimestre de 2024 quedaba con el FFO de 2025 y nada protestaba,
+# porque cada número por separado sigue siendo plausible.
+_RE_ANCHO_CERO = re.compile(r"[​‌‍⁠﻿᠎]")
+
+
 def _texto_celda(celda) -> str:
-    return re.sub(r"\s+", " ", celda.get_text(" ", strip=True)).strip()
+    texto = _RE_ANCHO_CERO.sub("", celda.get_text(" ", strip=True))
+    return re.sub(r"\s+", " ", texto).strip()
 
 
 def _tabla_a_matriz(tabla) -> list[list[str]]:
