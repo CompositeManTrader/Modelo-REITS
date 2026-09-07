@@ -105,6 +105,7 @@ from src.servicio import (  # noqa: E402
     ORIGEN_DE_INSUMOS,
     construir_panel,
     contexto_macro,
+    diagnostico_de_insumos,
     estado_financiero,
     evaluar,
 )
@@ -160,8 +161,13 @@ cap_rate = st.sidebar.slider(
     ),
 )
 yield_adq = st.sidebar.slider(
-    "Yield de adquisiciones del emisor", 0.03, 0.12, 0.074, 0.0025, format="%.4f",
-    help="A qué cap rate está comprando activos. Contra el costo del capital da el spread de inversión.",
+    "Yield de adquisiciones del emisor", 0.03, 0.12, round(cr_base, 4), 0.0025, format="%.4f",
+    help=(
+        "A qué cap rate está comprando activos. Contra el costo del capital da el spread "
+        "de inversión. Arranca en el cap rate base de SU sector —el mismo del NAV—, no en "
+        "un número único: nadie publica el cap rate de sus adquisiciones, así que esto es "
+        "un supuesto, y uno solo para todos metía el sesgo del sector en un criterio binario."
+    ),
 )
 
 panel = construir_panel(
@@ -729,6 +735,43 @@ with met_der:
         "Valuar un self storage al cap rate de net lease le borra <strong>más de una quinta "
         "parte del valor</strong> sin que ningún número se vea raro: la aritmética sigue "
         "cuadrando, solo el supuesto está mal."
+    )
+
+# Un insumo que falta tiene nombre, fecha y consecuencia. Decir "INCONCLUSO" es
+# honesto pero no sirve para actuar: no distingue el dato que se puede conseguir
+# del que la emisora dejó de publicar.
+diag_insumos = diagnostico_de_insumos(panel)
+_ESTADO_INSUMO = {
+    "completo": ("VERDE", "Al corriente"),
+    "rezagado": ("AMBAR", "Se dejó de publicar"),
+    "ausente": ("ROJO", "Nunca se publicó"),
+}
+pendientes = diag_insumos[diag_insumos["estado"] != "completo"]
+if not pendientes.empty:
+    st.markdown("###### Insumos que le faltan a este emisor")
+    st.dataframe(
+        pd.DataFrame({
+            "Insumo": pendientes["insumo"],
+            "Estado": [_ESTADO_INSUMO[e][1] for e in pendientes["estado"]],
+            "Último trimestre": [
+                "—" if f is None else str(f) for f in pendientes["ultima_fecha"]
+            ],
+            "Trimestres en la base": pendientes["trimestres"],
+            "Sin él no hay": pendientes["sin_el_no_hay"],
+        }),
+        hide_index=True, use_container_width=True,
+    )
+    st.caption(
+        "**Se dejó de publicar** significa que la emisora usó esa etiqueta de XBRL y la "
+        "abandonó: el dato existe hasta esa fecha y de ahí en adelante no. Es el caso del "
+        "gasto por intereses de Extra Space y de Welltower, y es la razón —la única— de "
+        "que las dos se queden sin EBITDAre. `companyfacts` no expone las etiquetas de "
+        "extensión de cada emisora, así que ahí no está. Reconstruirlo se probó por tres "
+        "caminos y los tres se descartaron midiendo el error contra las emisoras que sí lo "
+        "reportan: desde la utilidad de operación (9% a 70%), con el interés pagado del "
+        "flujo de efectivo (5% a 11% de mediana, con dos años de Extra Space arriba de "
+        "600%) y como residual del estado de resultados (19% a 113%). Un apalancamiento "
+        "con ese error no es conservador, es inventado."
     )
 
 if valuacion_g is not None:

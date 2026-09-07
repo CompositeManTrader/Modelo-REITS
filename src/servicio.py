@@ -26,7 +26,7 @@ from src.config import (
 )
 from src.datos.repositorio import Repositorio
 from src.modelo import senal as mod_senal
-from src.modelo.valuacion import InsumosValuacion, panel_valuacion
+from src.modelo.valuacion import InsumosValuacion, panel_valuacion, rango_cap_rate
 
 CONCEPTOS_PANEL = (
     "affo",
@@ -63,7 +63,16 @@ CONCEPTOS_BALANCE = (
     "goodwill",
     "activos_totales",
     "inmuebles_neto",
+    # Los tres tramos de deuda y el pasivo total: no se publican como métrica,
+    # entran para poder ARMAR la deuda total del emisor que no la reporta junta.
+    "deuda_hipotecaria",
+    "notas_senior",
+    "linea_de_credito",
+    "pasivos_totales",
 )
+
+# Los tramos que suman deuda, en el orden en que aparecen en un balance de REIT.
+TRAMOS_DE_DEUDA = ("deuda_hipotecaria", "notas_senior", "linea_de_credito")
 
 
 # --------------------------------------------------------------------------------------
@@ -151,11 +160,18 @@ def construir_panel(
         # pantalla aunque toda la información necesaria estuviera en la base.
         acciones = pd.to_numeric(trimestral.get("acciones_diluidas"), errors="coerce")
         if acciones is not None:
-            deducido = trimestral["affo_ttm"] / acciones.where(acciones > 0)
+            vivas = acciones.where(acciones > 0)
+            deducido = trimestral["affo_ttm"] / vivas
             trimestral["affo_por_accion_ttm"] = trimestral["affo_por_accion_ttm"].fillna(deducido)
-        trimestral["crecimiento_affo_por_accion_yoy"] = (
-            pd.to_numeric(trimestral["affo_por_accion"], errors="coerce").pct_change(4)
-        )
+            # La misma deducción, trimestre a trimestre. Cinco emisoras —EPRT,
+            # PSA, EXR, PLD y WELL— publican el MONTO del flujo pero no su cifra
+            # por acción, y sin ella el criterio "AFFO por acción creciendo" no
+            # era medible: tres de ellas se quedaban en dos criterios de cinco y
+            # el veredicto salía INCONCLUSO teniendo el dato en la base.
+            trimestral["affo_por_accion"] = pd.to_numeric(
+                trimestral.get("affo_por_accion"), errors="coerce"
+            ).fillna(pd.to_numeric(trimestral.get("affo"), errors="coerce") / vivas)
+        trimestral["crecimiento_affo_por_accion_yoy"] = _yoy(trimestral, "affo_por_accion")
         trimestral["noi"] = _derivar_noi(trimestral)
         trimestral["ebitdare"] = _derivar_ebitdare(trimestral)
         trimestral["noi_ttm"] = _ttm(trimestral, "noi")
@@ -199,6 +215,17 @@ def construir_panel(
     # suyos: la pantalla de valuación deja mover supuestos, y lo explícito manda.
     saldos = _saldos_de_balance(repo, ticker, asof=asof)
     balance = {**saldos, **(balance or {})}
+
+    # El yield al que compra el emisor no está en XBRL: nadie publica el cap rate
+    # de sus adquisiciones. Sin un supuesto, `spread_inversion` salía nulo para
+    # las DIEZ emisoras y la Puerta 1 se quedaba con tres criterios medibles de
+    # cinco — incluso las que tienen el balance completo. El supuesto por omisión
+    # es el cap rate BASE DE SU SECTOR, el mismo con el que se arma el NAV: un
+    # industrial compra cerca de 5.5% y una oficina arriba de 8.75%, y un número
+    # único para todos metía un sesgo de sector en un criterio binario. Sigue
+    # siendo un supuesto y la pantalla lo dice; quien lo mueva, manda.
+    if yield_adquisiciones is None:
+        yield_adquisiciones = rango_cap_rate(sector)[1]
 
     metricas = _metricas(
         trimestral, precio, div_ttm, rf, cap_rate_mercado, yield_adquisiciones, balance, ticker, sector
@@ -305,6 +332,32 @@ def _ttm(trimestral: pd.DataFrame, concepto: str) -> pd.Series:
         if (fechas[i] - fechas[i - 3]).n != 3 or ventana.isna().any():
             continue
         salida.iloc[i] = float(ventana.sum())
+    return salida
+
+
+def _yoy(trimestral: pd.DataFrame, concepto: str) -> pd.Series:
+    """Variación contra el MISMO trimestre del año pasado, verificada en calendario.
+
+    ``pct_change(4)`` cuenta filas, no calendario — el mismo defecto que ``_ttm``
+    corrige para la suma. Si al panel le falta un trimestre, compara contra el de
+    hace cinco y el resultado se lee como crecimiento anual sin serlo. Y aquí
+    importa doble: de este número depende un criterio binario de la Puerta 1, así
+    que un año mal medido no da un número raro, da un veredicto equivocado.
+    """
+    if concepto not in trimestral:
+        return pd.Series(index=trimestral.index, dtype="float64")
+    serie = pd.to_numeric(trimestral[concepto], errors="coerce")
+    fechas = pd.PeriodIndex(pd.to_datetime(trimestral.index), freq="Q")
+    salida = pd.Series(index=trimestral.index, dtype="float64")
+    for i in range(4, len(serie)):
+        previo = serie.iloc[i - 4]
+        # Cuatro trimestres atrás son exactamente cuatro saltos de trimestre.
+        if (fechas[i] - fechas[i - 4]).n != 4 or pd.isna(previo) or previo == 0:
+            continue
+        actual = serie.iloc[i]
+        if pd.isna(actual):
+            continue
+        salida.iloc[i] = float(actual) / float(previo) - 1.0
     return salida
 
 
@@ -458,7 +511,37 @@ def _saldos_de_balance(repo: Repositorio, ticker: str, *, asof: dt.date) -> dict
     # justo al revés de su situación real.
     if saldos.get("deuda_total", 0.0) <= 0:
         saldos.pop("deuda_total", None)
+    if "deuda_total" not in saldos:
+        compuesta = _deuda_compuesta(saldos)
+        if compuesta is not None:
+            saldos["deuda_total"] = compuesta
     return saldos
+
+
+def _deuda_compuesta(saldos: dict[str, float]) -> float | None:
+    """La deuda total sumando sus tramos, para el emisor que no la reporta junta.
+
+    Global Net Lease no publica ningún renglón de deuda total: publica la
+    hipotecaria, las notas senior y la línea revolvente por separado, y sin
+    sumarlas no hay apalancamiento, ni LTV, ni NAV — su Puerta 1 se quedaba con
+    dos criterios medibles de cinco.
+
+    Sumar tramos tiene un riesgo asimétrico y conviene decirlo: si falta uno, la
+    deuda sale MENOR de la real y el emisor se dibuja más sano de lo que está.
+    Es justo lo que iba a pasar aquí. Con la hipotecaria (987 MM) y las notas
+    (940 MM) el total daba 1,927 MM; la revolvente —473 MM, otro 20%— estaba en
+    ``LineOfCredit`` y no la contaba nadie. Por eso los tres tramos entran juntos
+    y el resultado se contrasta contra el pasivo total: una suma que lo excede no
+    es deuda, es doble conteo, y entonces vale más no publicar nada.
+    """
+    tramos = {k: saldos[k] for k in TRAMOS_DE_DEUDA if saldos.get(k, 0.0) > 0}
+    if not tramos:
+        return None
+    total = float(sum(tramos.values()))
+    pasivos = saldos.get("pasivos_totales")
+    if pasivos is not None and total > float(pasivos):
+        return None
+    return total
 
 
 def _serie_affo_yield(trimestral: pd.DataFrame, precios: pd.Series) -> pd.Series:
@@ -658,6 +741,72 @@ ORIGEN_DE_INSUMOS: tuple[tuple[str, str, str], ...] = (
      "Sin ajustar por dividendos: ajustarlo mueve el yield histórico y lo vuelve "
      "incomparable consigo mismo."),
 )
+
+
+# Los insumos SIN LOS CUALES no hay veredicto, y qué criterio de la Puerta 1 se
+# lleva cada uno al faltar. Es el mapa que convierte un INCONCLUSO en una frase
+# accionable: no "faltan datos", sino "falta ESTE dato y por eso falta ESTE criterio".
+INSUMOS_CRITICOS: tuple[tuple[str, str], ...] = (
+    ("gasto_intereses", "EBITDAre, costo de la deuda y spread de inversión"),
+    ("depreciacion_amortizacion", "EBITDAre"),
+    ("utilidad_neta", "EBITDAre"),
+    ("ingreso_rentas", "NOI"),
+    ("acciones_diluidas", "flujo por acción"),
+)
+
+# Cuánto puede llevar una serie sin actualizarse antes de que deje de servir para
+# valuar HOY. Un trimestre se publica a las seis semanas del cierre; quince meses
+# deja pasar un rezago normal y marca lo que de verdad se quedó atrás.
+VIGENCIA_DE_INSUMO = pd.Timedelta(days=458)
+
+
+def diagnostico_de_insumos(
+    panel: PanelEmisor, *, asof: dt.date | None = None
+) -> pd.DataFrame:
+    """Por qué este emisor no llega a un veredicto, insumo por insumo.
+
+    "INCONCLUSO" es honesto pero no es accionable: no dice si falta un dato que se
+    puede conseguir, si la emisora dejó de publicarlo, o si nunca lo publicó. Y la
+    diferencia importa — dos emisoras del universo, Extra Space y Welltower, no
+    tienen EBITDAre por una sola razón concreta: **ninguna etiqueta su gasto por
+    intereses en XBRL**. Welltower dejó de hacerlo en el tercer trimestre de 2024 y
+    Extra Space en el primero de 2024, y `companyfacts` no expone las etiquetas de
+    extensión de cada emisora, así que ahí no está.
+
+    Se probaron tres caminos para reconstruirlo y los tres se descartaron **con
+    medición**, no por opinión: desde la utilidad de operación (9% a 70% de error
+    contra el interés reportado), con el interés PAGADO del flujo de efectivo (5%
+    a 11% de error de mediana, con dos años de Extra Space arriba de 600%) y como
+    residual del estado de resultados (19% a 113%). Un apalancamiento con 60% de
+    error no es un apalancamiento conservador, es uno inventado.
+
+    Devuelve una fila por insumo con su estado —``completo``, ``rezagado`` o
+    ``ausente``—, la última fecha con dato y qué se cae sin él.
+    """
+    corte = pd.Timestamp(asof or panel.asof)
+    trimestral = panel.trimestral
+    filas: list[dict] = []
+    for concepto, para_que in INSUMOS_CRITICOS:
+        serie = (
+            pd.to_numeric(trimestral[concepto], errors="coerce").dropna()
+            if concepto in trimestral
+            else pd.Series(dtype="float64")
+        )
+        ultima = pd.Timestamp(serie.index.max()) if not serie.empty else None
+        if ultima is None:
+            estado = "ausente"
+        elif corte - ultima > VIGENCIA_DE_INSUMO:
+            estado = "rezagado"
+        else:
+            estado = "completo"
+        filas.append({
+            "insumo": concepto,
+            "estado": estado,
+            "trimestres": int(serie.shape[0]),
+            "ultima_fecha": None if ultima is None else ultima.date(),
+            "sin_el_no_hay": para_que,
+        })
+    return pd.DataFrame(filas)
 
 
 # --------------------------------------------------------------------------------------

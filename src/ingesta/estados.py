@@ -608,8 +608,14 @@ def hechos_crudos(
 
 
 def _ordenar(df: pd.DataFrame) -> pd.DataFrame:
-    """Orden determinista. Sin esto, dos corridas producen diffs de git distintos."""
-    columnas = ["taxonomia", "tag", "unidad", "fecha_dato", "fecha_publicacion", "fecha_inicio"]
+    """Orden determinista. Sin esto, dos corridas producen diffs de git distintos.
+
+    ``concepto`` entra al orden desde que un mismo `tag` puede alimentar dos
+    renglones: sin él las dos filas quedan empatadas en todas las llaves y el
+    desempate lo decide el orden de llegada, que no es estable.
+    """
+    columnas = ["taxonomia", "tag", "concepto", "unidad",
+                "fecha_dato", "fecha_publicacion", "fecha_inicio"]
     return df.sort_values([c for c in columnas if c in df]).reset_index(drop=True)
 
 
@@ -636,6 +642,14 @@ TIPOS_DE_PERIODO = ("Q", "H1", "9M", "FY")
 # trimestral tiene un hueco anual que rompe cualquier TTM y cualquier comparación
 # contra el mismo trimestre del año pasado.
 #
+# El Q4 es el hueco SEGURO, pero no es el único. NNN publicó su 10-Q del segundo
+# trimestre de 2026 con la columna del semestre y la del trimestre, y el primer
+# trimestre no aparece en `companyfacts` por ninguna etiqueta: el hueco queda a
+# mitad de la serie y mata el TTM de los dos cortes siguientes. La aritmética que
+# rescata el Q4 lo rescata igual —`Q1 = H1 − Q2`—, así que se generaliza: de un
+# acumulado y los trimestres que lo componen, se deriva el que falte cuando falta
+# EXACTAMENTE uno. Nunca se fabrica un semestre ni un acumulado: solo trimestres.
+#
 # Se deriva. Y la fórmula NO es la misma para toda partida:
 #
 # * Un FLUJO acumula, así que `Q4 = FY − 9M`.
@@ -653,10 +667,79 @@ LINEAS_NO_DERIVABLES = frozenset(
 ) | frozenset({"utilidad_por_accion_basica", "utilidad_por_accion_diluida"})
 
 
-def derivar_cuarto_trimestre(
-    crudos: pd.DataFrame, tags: dict[str, str]
+def _trimestres(inicio, fin) -> int | None:
+    """Cuántos trimestres calendario cubre el periodo. ``None`` si no es exacto.
+
+    Devolver ``None`` ante cualquier duda es lo que hace segura la derivación: un
+    ejercicio de 52/53 semanas no cae en frontera de mes, y ahí no se resta nada.
+    """
+    if inicio is None or fin is None:
+        return None
+    try:
+        i = pd.Timestamp(inicio)
+        f = pd.Timestamp(fin) + pd.Timedelta(days=1)
+    except (TypeError, ValueError):
+        return None
+    if pd.isna(i) or pd.isna(f) or f.day != i.day:
+        return None
+    meses = (f.year - i.year) * 12 + (f.month - i.month)
+    if meses <= 0 or meses % 3:
+        return None
+    return meses // 3
+
+
+# Cuántos trimestres cubre cada tipo de periodo. Sirve para reconstruir el inicio
+# cuando el hecho no lo trae: `companyfacts` siempre manda `start`, pero un hecho
+# derivado o armado a mano puede no tenerlo, y ahí la duración la da el tipo.
+TRIMESTRES_POR_TIPO = {"Q": 1, "H1": 2, "9M": 3, "FY": 4}
+
+
+def _span(fila) -> tuple[dt.date, dt.date, int] | None:
+    """Inicio, fin y número de trimestres del periodo. ``None`` si no se puede.
+
+    El inicio REAL manda siempre que el hecho lo traiga —y `companyfacts` siempre
+    lo trae—. Solo cuando falta se reconstruye a partir del tipo de periodo. La
+    distinción no es cosmética: sustituir la frontera real por una calculada
+    convierte un ejercicio de 52/53 semanas en uno de meses cerrados sin avisar, y
+    entonces la resta despeja un "trimestre" cuyas fechas no son las de nadie.
+    """
+    fin = fila["fecha_dato"]
+    if fin is None or pd.isna(fin):
+        return None
+    fin = pd.Timestamp(fin).date()
+    inicio = fila["fecha_inicio"]
+    if inicio is not None and not pd.isna(inicio):
+        inicio = pd.Timestamp(inicio).date()
+        # La duración se toma del calendario; si el periodo no cae en trimestres
+        # cerrados, el conteo lo presta el tipo, pero las FECHAS siguen siendo las
+        # reales y el hueco que salga tendrá que probar por su cuenta que es un
+        # trimestre.
+        n = _trimestres(inicio, fin) or TRIMESTRES_POR_TIPO.get(fila["periodo_tipo"])
+        return (inicio, fin, n) if n else None
+    n = TRIMESTRES_POR_TIPO.get(fila["periodo_tipo"])
+    if not n:
+        return None
+    inicio = (pd.Timestamp(fin) + pd.Timedelta(days=1) - pd.DateOffset(months=3 * n)).date()
+    return inicio, fin, n
+
+
+def derivar_trimestres_faltantes(
+    crudos: pd.DataFrame,
+    tags: dict[str, str | tuple[str, ...]],
+    *,
+    por: str = "tag",
 ) -> pd.DataFrame:
-    """Agrega el Q4 que la SEC nunca recibe, derivándolo del año y los nueve meses.
+    """Agrega los trimestres que la SEC nunca recibe, restándolos de un acumulado.
+
+    El caso conocido es el Q4 —no hay 10-Q de cierre, así que ``Q4 = FY − 9M``—,
+    pero la identidad es general: de un acumulado de *n* trimestres y un tramo
+    contiguo de *k*, sale el trimestre que falta si y solo si ``n − k == 1``. Eso
+    cubre el Q4 (``FY − 9M``) y también el hueco a media serie (``Q1 = H1 − Q2``),
+    que es el que dejó a NNN sin EBITDAre en los dos últimos cortes.
+
+    Solo se acepta el tramo que empieza o termina junto con el acumulado: un hueco
+    en medio no se puede despejar con una sola resta, y adivinarlo sería inventar.
+    Nunca se emite algo que no sea un trimestre.
 
     La ``fecha_publicacion`` del trimestre derivado es la **más tardía** de sus dos
     componentes: antes de esa fecha el número no era deducible ni con lápiz, y
@@ -665,60 +748,93 @@ def derivar_cuarto_trimestre(
     Se marca con formulario ``DERIVADO`` para que en el archivo se distinga de lo
     que la emisora publicó.
     """
-    if crudos.empty:
+    if crudos.empty or por not in crudos.columns:
         return crudos
 
-    usados = {t: c for c, t in tags.items() if c not in LINEAS_NO_DERIVABLES}
-    vista = crudos[crudos["tag"].isin(usados)].copy()
+    clave_de: dict[str, str] = {}
+    for clave, valor in tags.items():
+        if clave in LINEAS_NO_DERIVABLES:
+            continue
+        for tag in (valor,) if isinstance(valor, str) else valor:
+            clave_de[clave if por != "tag" else tag] = clave
+
+    vista = crudos[crudos[por].isin(clave_de)]
     if vista.empty:
         return crudos
-    vista["anio"] = pd.to_datetime(vista["fecha_dato"]).dt.year
 
     nuevas: list[dict] = []
-    for (tag, anio), grupo in vista.groupby(["tag", "anio"], sort=True):
-        ultimo = grupo.sort_values("fecha_publicacion").drop_duplicates(
-            ["periodo_tipo", "fecha_dato"], keep="last"
+    for grupo, filas in vista.groupby(por, sort=True):
+        # La identidad de un hecho es su periodo, no su fecha de inicio: dos hechos
+        # pueden traer `start` vacío y el mismo cierre —el Q4 y el año— sin ser el
+        # mismo dato. Deduplicar por el inicio se comía el trimestre publicado y
+        # luego lo "derivaba", que es exactamente lo que no debe pasar.
+        conocidas = (
+            filas.sort_values("fecha_publicacion")
+            .drop_duplicates(["periodo_tipo", "fecha_dato"], keep="last")
         )
-        anual = ultimo[ultimo["periodo_tipo"] == "FY"]
-        nueve = ultimo[ultimo["periodo_tipo"] == "9M"]
-        cierre = dt.date(int(anio), 12, 31)
-        ya_esta = (
-            (ultimo["periodo_tipo"] == "Q")
-            & (pd.to_datetime(ultimo["fecha_dato"]).dt.date == cierre)
-        ).any()
-        if anual.empty or nueve.empty or ya_esta:
-            continue
+        # `tramos` clasifica cada periodo por su duración real, no por su etiqueta:
+        # es lo que permite tratar al FY y al H1 con la misma aritmética.
+        tramos = {}
+        for fila in conocidas.to_dict("records"):
+            span = _span(fila)
+            if span:
+                tramos[span[:2]] = (span[2], fila)
+        promedio = clave_de[grupo] in LINEAS_PROMEDIO
 
-        fila_anual, fila_nueve = anual.iloc[0], nueve.iloc[0]
-        clave = usados[tag]
-        if clave in LINEAS_PROMEDIO:
-            valor = 4 * float(fila_anual["valor"]) - 3 * float(fila_nueve["valor"])
-            if valor <= 0:
-                continue  # un conteo de acciones no positivo no es un dato
-        else:
-            valor = float(fila_anual["valor"]) - float(fila_nueve["valor"])
-
-        nuevas.append({
-            "ticker": fila_anual["ticker"],
-            "taxonomia": fila_anual["taxonomia"],
-            "tag": tag,
-            "unidad": fila_anual["unidad"],
-            "periodo_tipo": "Q",
-            "fecha_inicio": dt.date(int(anio), 10, 1),
-            "fecha_dato": cierre,
-            "fecha_publicacion": max(
-                pd.Timestamp(fila_anual["fecha_publicacion"]).date(),
-                pd.Timestamp(fila_nueve["fecha_publicacion"]).date(),
-            ),
-            "valor": valor,
-            "formulario": "DERIVADO",
-            "accession": fila_anual["accession"],
-            "marco": "",
-        })
+        # Punto fijo: derivar el Q1 de un semestre puede habilitar el Q3 de los
+        # nueve meses, y ese el Q4 del año. Se repite hasta que no salga nada nuevo.
+        while True:
+            derivada = _un_trimestre_faltante(tramos, promedio)
+            if derivada is None:
+                break
+            span, n_fila = derivada
+            tramos[span] = n_fila
+            nuevas.append(n_fila[1])
 
     if not nuevas:
         return crudos
     return _ordenar(pd.concat([crudos, pd.DataFrame(nuevas)], ignore_index=True))
+
+
+def _un_trimestre_faltante(tramos: dict, promedio: bool):
+    """El primer trimestre despejable de un acumulado, o ``None`` si no hay."""
+    for (ini_c, fin_c), (n, fila_c) in sorted(tramos.items(), key=lambda kv: kv[1][0]):
+        if n < 2:
+            continue
+        for (ini_s, fin_s), (k, fila_s) in tramos.items():
+            if k >= n:
+                continue
+            if ini_s == ini_c and fin_s < fin_c:      # tramo inicial: falta la cola
+                hueco = (pd.Timestamp(fin_s) + pd.Timedelta(days=1)).date(), fin_c
+            elif fin_s == fin_c and ini_s > ini_c:    # tramo final: falta la cabeza
+                hueco = ini_c, (pd.Timestamp(ini_s) - pd.Timedelta(days=1)).date()
+            else:
+                continue
+            if _trimestres(*hueco) != 1 or hueco in tramos:
+                continue
+            if promedio:
+                # El acumulado de un promedio ponderado no suma: es el promedio del
+                # periodo. La identidad correcta pesa cada tramo por su duración.
+                valor = n * float(fila_c["valor"]) - k * float(fila_s["valor"])
+                if valor <= 0:
+                    continue  # un conteo de acciones no positivo no es un dato
+            else:
+                valor = float(fila_c["valor"]) - float(fila_s["valor"])
+            fila = dict(fila_c)
+            fila.update({
+                "periodo_tipo": "Q",
+                "fecha_inicio": hueco[0],
+                "fecha_dato": hueco[1],
+                "fecha_publicacion": max(
+                    pd.Timestamp(fila_c["fecha_publicacion"]).date(),
+                    pd.Timestamp(fila_s["fecha_publicacion"]).date(),
+                ),
+                "valor": valor,
+                "formulario": "DERIVADO",
+                "marco": "",
+            })
+            return hueco, (1, fila)
+    return None
 
 
 # Cuánto puede llevar una etiqueta sin reportarse y seguir contando como vigente.
@@ -726,6 +842,103 @@ def derivar_cuarto_trimestre(
 # corte; una que solo se publica al cierre del año, a catorce. Dieciocho meses deja
 # pasar la segunda sin admitir una etiqueta abandonada hace años.
 VENTANA_DE_VIGENCIA = pd.DateOffset(months=18)
+
+# Cuánto se pueden separar dos etiquetas en los periodos que ambas reportan para
+# aceptar que son el MISMO renglón con otro nombre. Un 1% cubre el redondeo del
+# emisor sin dejar pasar dos conceptos distintos: Extra Space etiquetó el mismo
+# trimestre como `InterestExpenseDebt` = 5.7 MM y `InterestExpense` = 46.9 MM, y
+# empalmarlas habría cosido una serie que no es de nadie.
+TOLERANCIA_EMPALME = 0.01
+
+
+def _series_por_tag(crudos: pd.DataFrame) -> dict[str, pd.Series]:
+    """Por etiqueta, el último valor publicado de cada periodo."""
+    orden = crudos.sort_values("fecha_publicacion")
+    return {
+        tag: grupo.drop_duplicates(["periodo_tipo", "fecha_dato"], keep="last")
+        .set_index(["periodo_tipo", "fecha_dato"])["valor"]
+        .astype(float)
+        for tag, grupo in orden.groupby("tag", sort=False)
+    }
+
+
+def _empalma(cubierto: pd.Series, otra: pd.Series) -> bool:
+    """¿La segunda etiqueta es el mismo renglón que la primera?
+
+    La prueba es empírica y se corre con los datos de la propia emisora: donde las
+    dos reportan el mismo periodo, tienen que coincidir. Si nunca se traslapan no
+    hay con qué probarlo y se rechaza —callar la duda saldría más caro que el
+    hueco—; si se traslapan y difieren, son conceptos distintos.
+    """
+    comunes = cubierto.index.intersection(otra.index)
+    if comunes.empty:
+        return False
+    referencia = cubierto.loc[comunes]
+    escala = referencia.abs()
+    medibles = escala > 0
+    if not medibles.any():
+        return False
+    diferencia = (referencia[medibles] - otra.loc[comunes][medibles]).abs() / escala[medibles]
+    return bool(diferencia.max() <= TOLERANCIA_EMPALME)
+
+
+def elegir_cadenas(crudos: pd.DataFrame, ticker: str) -> dict[str, tuple[str, ...]]:
+    """Por renglón: la etiqueta principal y las que se le pueden EMPALMAR detrás.
+
+    Elegir UNA etiqueta por renglón —lo que hacía este módulo— deja fuera la mitad
+    de la serie cuando la emisora se cambia de etiqueta a media historia. Prologis
+    reportó su gasto por intereses en ``InterestExpense`` hasta el segundo trimestre
+    de 2024 y pasó a ``InterestExpenseNonoperating``; por cobertura ganaba la vieja
+    y la valuación se quedaba sin los ocho trimestres más recientes, que son
+    justamente los que importan.
+
+    Pegar series distintas, sin embargo, es peor que el hueco: produce un número
+    que no es de nadie y nadie lo nota. Por eso el empalme se **verifica** contra
+    los periodos en que las dos etiquetas coexisten (``_empalma``). En el universo
+    esa prueba acepta 46 empalmes y rechaza 57, y los que rechaza son los que hay
+    que rechazar: los intereses de Extra Space difieren 100% entre etiquetas.
+
+    La cadena va en orden de uso: la primera que tenga el periodo lo alimenta. La
+    principal se elige con el criterio de siempre —vigencia, cobertura, preferencia
+    declarada—; las demás solo rellenan lo que la principal no cubre.
+    """
+    if crudos.empty:
+        return {}
+    resumen = crudos.groupby("tag").agg(
+        cobertura=("fecha_dato", lambda s: len(set(zip(
+            crudos.loc[s.index, "periodo_tipo"], s, strict=True)))),
+        ultima=("fecha_dato", "max"),
+    )
+    if resumen.empty:
+        return {}
+    corte = pd.Timestamp(resumen["ultima"].max()) - VENTANA_DE_VIGENCIA
+    vigente = {t: pd.Timestamp(r.ultima) >= corte for t, r in resumen.iterrows()}
+    cobertura = resumen["cobertura"].to_dict()
+    series = _series_por_tag(crudos)
+
+    cadenas: dict[str, tuple[str, ...]] = {}
+    for linea in LINEAS:
+        preferencia = tags_de(ticker, linea.clave)
+        orden = {t: i for i, t in enumerate(preferencia)}
+        candidatas = [t for t in preferencia if cobertura.get(t, 0)]
+        if not candidatas:
+            continue
+        # Primero las vigentes; entre iguales, la de más cobertura; y a igualdad
+        # de cobertura manda el orden de preferencia declarado, para que el
+        # desempate sea por criterio y no por nombre.
+        candidatas.sort(key=lambda t: (vigente[t], cobertura[t], -orden[t]), reverse=True)
+
+        cadena = [candidatas[0]]
+        cubierto = series[candidatas[0]]
+        for tag in candidatas[1:]:
+            otra = series[tag]
+            nuevos = otra.index.difference(cubierto.index)
+            if nuevos.empty or not _empalma(cubierto, otra):
+                continue
+            cadena.append(tag)
+            cubierto = pd.concat([cubierto, otra.loc[nuevos]])
+        cadenas[linea.clave] = tuple(cadena)
+    return cadenas
 
 
 def elegir_tags(crudos: pd.DataFrame, ticker: str) -> dict[str, str]:
@@ -755,34 +968,12 @@ def elegir_tags(crudos: pd.DataFrame, ticker: str) -> dict[str, str]:
     Si ninguna candidata está vigente se conserva la de más cobertura: es
     preferible una serie que termina en 2017 a ninguna, siempre que la pantalla
     diga hasta cuándo llega — y lo dice, en la sección de procedencia.
-    """
-    if crudos.empty:
-        return {}
-    resumen = crudos.groupby("tag").agg(
-        cobertura=("fecha_dato", lambda s: len(set(zip(
-            crudos.loc[s.index, "periodo_tipo"], s, strict=True)))),
-        ultima=("fecha_dato", "max"),
-    )
-    if resumen.empty:
-        return {}
-    corte = pd.Timestamp(resumen["ultima"].max()) - VENTANA_DE_VIGENCIA
-    vigente = {t: pd.Timestamp(r.ultima) >= corte for t, r in resumen.iterrows()}
-    cobertura = resumen["cobertura"].to_dict()
 
-    elegidas: dict[str, str] = {}
-    for linea in LINEAS:
-        preferencia = tags_de(ticker, linea.clave)
-        orden = {t: i for i, t in enumerate(preferencia)}
-        candidatas = [t for t in preferencia if cobertura.get(t, 0)]
-        if not candidatas:
-            continue
-        # Primero las vigentes; entre iguales, la de más cobertura; y a igualdad
-        # de cobertura manda el orden de preferencia declarado, para que el
-        # desempate sea por criterio y no por nombre.
-        elegidas[linea.clave] = max(
-            candidatas, key=lambda t: (vigente[t], cobertura[t], -orden[t])
-        )
-    return elegidas
+    Es la **cabeza** de la cadena de ``elegir_cadenas``, que además rellena con las
+    etiquetas que pasan la prueba de empalme. Quien necesite la serie completa pide
+    la cadena; quien solo necesita saber de dónde sale el renglón, pide esto.
+    """
+    return {clave: cadena[0] for clave, cadena in elegir_cadenas(crudos, ticker).items()}
 
 
 def armar_estado(
@@ -801,11 +992,19 @@ def armar_estado(
     conocida a esa fecha**. Es la reconstrucción point-in-time (P1), y es lo que
     permite responder "¿qué decía el balance de este emisor en marzo de 2024?" con
     lo que se sabía entonces, no con la reexpresión de después.
+
+    ``tags`` admite una etiqueta por renglón o la cadena completa de
+    ``elegir_cadenas``. Con la cadena, la columna ``tag_gaap`` nombra a TODAS las
+    que alimentaron el renglón, separadas por ``+``: si un renglón está empalmado,
+    la tabla lo dice en lugar de esconderlo.
     """
     if crudos.empty:
         return pd.DataFrame()
 
-    tags = elegir_tags(crudos, ticker) if tags is None else tags
+    cadenas = elegir_cadenas(crudos, ticker) if tags is None else {
+        c: (v,) if isinstance(v, str) else tuple(v) for c, v in tags.items()
+    }
+    tags = {c: cadena[0] for c, cadena in cadenas.items() if cadena}
     tipo_buscado = "PUNTUAL" if estado in ESTADOS_DE_SALDO else periodo_tipo
     vista = crudos.copy()
     vista["fecha_publicacion"] = pd.to_datetime(vista["fecha_publicacion"]).dt.date
@@ -825,14 +1024,24 @@ def armar_estado(
     procedencia: dict[str, str] = {}
 
     for linea in lineas_de(estado):
-        tag = tags.get(linea.clave)
-        if not tag:
-            continue
-        serie = _serie_de_linea(vista, tag)
-        if serie is None:
+        cadena = cadenas.get(linea.clave, ())
+        serie: dict = {}
+        usadas: list[str] = []
+        for tag in cadena:
+            parcial = _serie_de_linea(vista, tag)
+            if parcial is None:
+                continue
+            # La cadena va en orden de uso: la etiqueta principal manda y las
+            # empalmadas solo rellenan el periodo que ella no trae.
+            nuevos = {f: v for f, v in parcial.items() if f not in serie}
+            if not nuevos:
+                continue
+            serie.update(nuevos)
+            usadas.append(tag)
+        if not serie:
             continue
         columnas[linea.clave] = serie
-        procedencia[linea.clave] = tag
+        procedencia[linea.clave] = " + ".join(usadas)
 
     if not columnas:
         return pd.DataFrame()
@@ -949,6 +1158,29 @@ def conceptos_no_mapeados(crudos: pd.DataFrame, ticker: str, *, minimo: int = 4)
 # --------------------------------------------------------------------------------------
 
 
+def _coalescer(crudos: pd.DataFrame, cadenas: dict[str, tuple[str, ...]]) -> pd.DataFrame:
+    """De hechos por etiqueta a hechos por renglón, resolviendo el empalme.
+
+    Por cada periodo gana la etiqueta de mayor prioridad de la cadena que lo tenga,
+    y se conservan TODAS sus versiones publicadas: quedarse con la última rompería
+    P1. Una misma etiqueta puede alimentar dos renglones —los ingresos totales y su
+    subtotal—, así que la fila se emite una vez por renglón.
+    """
+    partes: list[pd.DataFrame] = []
+    for clave, cadena in cadenas.items():
+        vista = crudos[crudos["tag"].isin(cadena)]
+        if vista.empty:
+            continue
+        rango = vista["tag"].map({t: i for i, t in enumerate(cadena)})
+        gana = rango.groupby(
+            [vista["periodo_tipo"], vista["fecha_dato"]], sort=False
+        ).transform("min")
+        partes.append(vista[rango == gana].assign(concepto=clave))
+    if not partes:
+        return pd.DataFrame(columns=[*crudos.columns, "concepto"])
+    return pd.concat(partes, ignore_index=True)
+
+
 def hechos_de_estados(
     companyfacts: dict,
     ticker: str,
@@ -974,54 +1206,54 @@ def hechos_de_estados(
 
     La etiqueta GAAP se elige UNA vez por emisora sobre el conjunto completo de
     hechos —no por tabla— para que el trimestre y el año hablen del mismo concepto,
-    y se deriva el Q4 que la SEC nunca recibe. Ambas cosas ya las hacía este
-    módulo; lo único que faltaba era escribir el resultado.
+    y se derivan los trimestres que la SEC nunca recibe. Ambas cosas ya las hacía
+    este módulo; lo único que faltaba era escribir el resultado.
+
+    Sobre la etiqueta única hay una corrección posterior: cuando la emisora se
+    cambia de etiqueta a media serie, la principal no alcanza y las que pasan la
+    prueba de empalme rellenan el resto (``elegir_cadenas``). El orden de las tres
+    operaciones importa: primero se deriva por etiqueta, luego se empalma, y luego
+    se vuelve a derivar sobre el renglón ya empalmado. Esa última pasada es la que
+    despeja un trimestre cuyo acumulado quedó en una etiqueta y su tramo en otra.
     """
     crudos = hechos_crudos(companyfacts, ticker, desde=desde)
     if crudos.empty:
         return pd.DataFrame(columns=list(COLUMNAS_HECHOS))
 
-    tags = elegir_tags(crudos, ticker)
-    if not tags:
+    cadenas = elegir_cadenas(crudos, ticker)
+    if not cadenas:
         return pd.DataFrame(columns=list(COLUMNAS_HECHOS))
-    crudos = derivar_cuarto_trimestre(crudos, tags)
+    crudos = derivar_trimestres_faltantes(crudos, cadenas)
 
-    # `tags` va de clave → etiqueta; aquí hace falta el camino inverso. Una misma
-    # etiqueta puede alimentar dos renglones (los ingresos totales y el subtotal,
-    # por ejemplo), así que se emite una fila por cada uno.
-    por_tag: dict[str, list[str]] = {}
-    for clave, tag in tags.items():
-        por_tag.setdefault(tag, []).append(clave)
-
-    vista = crudos[crudos["tag"].isin(por_tag)]
+    vista = _coalescer(crudos, cadenas)
     vista = vista[vista["periodo_tipo"].isin([*TIPOS_DE_PERIODO, "PUNTUAL"])]
     if vista.empty:
         return pd.DataFrame(columns=list(COLUMNAS_HECHOS))
+    vista = derivar_trimestres_faltantes(vista, cadenas, por="concepto")
 
     filas: list[dict] = []
     for r in vista.to_dict("records"):
         derivado = r["formulario"] == "DERIVADO"
-        for clave in por_tag[r["tag"]]:
-            filas.append(
-                {
-                    "ticker": ticker,
-                    "concepto": clave,
-                    "periodo_tipo": r["periodo_tipo"],
-                    "periodo_inicio": r["fecha_inicio"],
-                    "fecha_dato": r["fecha_dato"],
-                    "fecha_publicacion": r["fecha_publicacion"],
-                    "valor": float(r["valor"]),
-                    "unidad": r["unidad"],
-                    # Un Q4 derivado NO es primario: se calculó restando el año
-                    # menos los nueve meses, y hereda el error de sus dos
-                    # componentes. Decirlo es lo que separa un dato de la SEC de
-                    # una cuenta nuestra.
-                    "fuente": Fuente.DERIVADO if derivado else Fuente.SEC_XBRL,
-                    "es_primario": not derivado,
-                    "accession": r["accession"],
-                    "url_filing": _url_de_filing(cik, r["accession"]),
-                }
-            )
+        filas.append(
+            {
+                "ticker": ticker,
+                "concepto": r["concepto"],
+                "periodo_tipo": r["periodo_tipo"],
+                "periodo_inicio": r["fecha_inicio"],
+                "fecha_dato": r["fecha_dato"],
+                "fecha_publicacion": r["fecha_publicacion"],
+                "valor": float(r["valor"]),
+                "unidad": r["unidad"],
+                # Un trimestre derivado NO es primario: se calculó restándole a un
+                # acumulado el tramo que sí se publicó, y hereda el error de sus
+                # dos componentes. Decirlo es lo que separa un dato de la SEC de
+                # una cuenta nuestra.
+                "fuente": Fuente.DERIVADO if derivado else Fuente.SEC_XBRL,
+                "es_primario": not derivado,
+                "accession": r["accession"],
+                "url_filing": _url_de_filing(cik, r["accession"]),
+            }
+        )
     return pd.DataFrame(filas, columns=list(COLUMNAS_HECHOS))
 
 
@@ -1058,7 +1290,8 @@ __all__ = [
     "armar_estado",
     "cobertura_de_lineas",
     "conceptos_no_mapeados",
-    "derivar_cuarto_trimestre",
+    "derivar_trimestres_faltantes",
+    "elegir_cadenas",
     "elegir_tags",
     "hechos_crudos",
     "hechos_de_estados",
