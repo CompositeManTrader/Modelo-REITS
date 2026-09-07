@@ -1,0 +1,76 @@
+# Tema de marca — Spread Trading Club · "Terminal Pro"
+#
+# Registro visual: terminal financiero (Bloomberg) + pertenencia de Club. Casi
+# monocromo sobre negro, con UN SOLO acento ámbar. La disciplina de color es la
+# marca: más colores la diluyen.
+#
+# Esto va aquí y no en CSS inyectado porque Streamlit pinta sus propios widgets
+# —selectores, deslizadores, tablas, expansores— con estos tokens. Parcharlos
+# desde fuera deja siempre una esquina sin teñir, y es justo la que se nota.
+
+[theme]
+base = "dark"
+
+# Ámbar Terminal: el único color de marca. Contraste 9.6:1 sobre negro (AAA).
+primaryColor = "#F5A623"
+backgroundColor = "#0A0B0D"          # --black
+secondaryBackgroundColor = "#15171A"  # --surface (tarjetas, barra lateral)
+textColor = "#F4F5F6"                 # --white
+
+borderColor = "#262A30"               # --line
+dataframeBorderColor = "#262A30"
+dataframeHeaderBackgroundColor = "#1F2630"  # --surface-2
+showWidgetBorder = true
+showSidebarBorder = true
+
+linkColor = "#F5A623"
+linkUnderline = false
+codeTextColor = "#F5A623"
+codeBackgroundColor = "#15171A"
+
+# Radios de la guía: 10px tarjeta, 4px píldora.
+baseRadius = "10px"
+buttonRadius = "4px"
+
+# Space Grotesk titula, Inter lee, JetBrains Mono cifra. Las familias se cargan
+# por @import en `marca.inyectar_estilos`; aquí se declara cuál usa cada rol.
+font = "Inter, system-ui, -apple-system, sans-serif"
+headingFont = "Space Grotesk, Inter, system-ui, sans-serif"
+codeFont = "JetBrains Mono, ui-monospace, SFMono-Regular, monospace"
+baseFontSize = 16
+
+# La familia semántica de Streamlit (st.error, st.success, :red[...]) se reasigna
+# a los tokens de marca. Sin esto, un st.warning entra en naranja de fábrica y
+# mete un color que la guía prohíbe.
+redColor = "#EA3943"
+orangeColor = "#F5A623"
+yellowColor = "#F5A623"
+greenColor = "#16C784"
+blueColor = "#F5A623"
+violetColor = "#F5A623"
+grayColor = "#9AA1A9"
+
+redBackgroundColor = "#2A1618"
+orangeBackgroundColor = "#2A2116"
+yellowBackgroundColor = "#2A2116"
+greenBackgroundColor = "#132A22"
+blueBackgroundColor = "#1F2630"
+violetBackgroundColor = "#1F2630"
+grayBackgroundColor = "#1F2630"
+
+# Los gráficos SON la marca: ámbar primero, y el resto en grises discretos. El
+# verde y el rojo NO entran aquí — se reservan para ganancia/pérdida, y siempre
+# acompañados de ▲/▼ para que no dependan del color (regla daltónica).
+chartCategoricalColors = [
+  "#F5A623", "#9AA1A9", "#C9821A", "#6B6B66", "#F5C87A", "#4A5058",
+]
+chartSequentialColors = [
+  "#15171A", "#22201C", "#33291E", "#4A3720", "#664722", "#8A5C1E",
+  "#AE7119", "#C9821A", "#E09720", "#F5A623",
+]
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false

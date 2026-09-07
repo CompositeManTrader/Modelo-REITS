@@ -29,12 +29,25 @@ RAIZ = Path(__file__).resolve().parent.parent
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
+# Los tokens visuales viven en `marca.py`, que es la fuente única. Aquí solo se
+# reexportan para que las páginas sigan importándolos de un lugar.
+from marca import (  # noqa: E402
+    AMBAR,
+    BLANCO,
+    COLOR_LUZ,
+    GLIFO_LUZ,
+    GRIS,
+    GRIS_TENUE,
+    LINEA,
+    MONO,
+    RADIO_PILDORA,
+    RADIO_TARJETA,
+    SUPERFICIE,
+    SUPERFICIE_2,
+)
+
 from src.config import DESCARGO, MIN_APUESTAS_EFECTIVAS, RUTA_BD, Fuente  # noqa: E402
 from src.datos.repositorio import Repositorio  # noqa: E402
-
-COLOR_LUZ = {"VERDE": "#1a7f37", "AMARILLO": "#9a6700", "ROJO": "#b42318", "SIN DATOS": "#57606a"}
-ICONO_LUZ = {"VERDE": "🟢", "AMARILLO": "🟡", "ROJO": "🔴", "SIN DATOS": "⚪"}
-
 
 # --------------------------------------------------------------------------------------
 # Configuración de página y estado
@@ -187,17 +200,60 @@ def selector_de_corte(clave: str = "asof") -> dt.date:
 
 
 def selector_de_emisor(repo: Repositorio, clave: str = "ticker") -> str | None:
+    """Los emisores como fichas visibles, en el cuerpo y no en la barra lateral.
+
+    Antes era un desplegable en la barra lateral, debajo del selector de fecha y
+    de dos deslizadores. Eso tiene dos problemas y el segundo es serio: en
+    pantalla angosta Streamlit arranca con la barra lateral **plegada**, así que
+    el único control para cambiar de emisora quedaba fuera de la vista, y la
+    pantalla parecía servir un solo nombre.
+
+    Con fichas los diez emisores están a la vista y a un clic. Es una lista corta
+    y cerrada —el universo del modelo—, que es exactamente el caso para el que
+    sirven las fichas y no un desplegable.
+    """
     emisores = repo.emisores()
     if emisores.empty:
-        st.sidebar.warning("No hay emisores en la base.")
+        st.warning("No hay emisores en la base.")
         return None
-    opciones = emisores.sort_values("ticker")
-    etiquetas = {
-        r["ticker"]: f"{r['ticker']} — {r['nombre']} ({r['sector']})" for _, r in opciones.iterrows()
-    }
-    return st.sidebar.selectbox(
-        "Emisor", list(etiquetas), format_func=lambda t: etiquetas[t], key=clave
+    opciones = list(emisores.sort_values("ticker")["ticker"])
+    previo = st.session_state.get(clave)
+    elegido = st.pills(
+        "Emisor",
+        opciones,
+        default=previo if previo in opciones else opciones[0],
+        key=f"{clave}_fichas",
+        label_visibility="collapsed",
+        help="Cada ficha recarga la pantalla completa con los datos de esa emisora.",
     )
+    # `st.pills` admite deselección: al volver a pulsar la ficha activa devuelve
+    # `None`, y sin esta guarda la pantalla se quedaría sin emisora y se
+    # detendría. Se conserva la última elegida.
+    if elegido is None:
+        elegido = previo if previo in opciones else opciones[0]
+    st.session_state[clave] = elegido
+    return elegido
+
+
+def cobertura_de_emisores(repo, *, asof) -> pd.DataFrame:
+    """Cuántos trimestres de fundamentales tiene cada emisor al corte.
+
+    Sirve para que la pantalla pueda decir, ANTES de que alguien haga clic, cuál
+    emisora tiene datos y cuál no. Sin esto, elegir una emisora sin fundamentales
+    lleva a una pantalla en blanco con un renglón rojo, que es indistinguible de
+    una aplicación descompuesta.
+    """
+    emisores = repo.emisores()
+    if emisores.empty:
+        return pd.DataFrame(columns=["ticker", "nombre", "sector", "trimestres"])
+    filas = []
+    for _, e in emisores.sort_values("ticker").iterrows():
+        hechos = repo.hechos(asof=asof, tickers=e["ticker"], periodo_tipo="Q")
+        n = 0 if hechos.empty else int(pd.to_datetime(hechos["fecha_dato"]).nunique())
+        filas.append(
+            {"ticker": e["ticker"], "nombre": e["nombre"], "sector": e["sector"], "trimestres": n}
+        )
+    return pd.DataFrame(filas)
 
 
 # --------------------------------------------------------------------------------------
@@ -649,10 +705,18 @@ def mostrar_tabla(df: pd.DataFrame, *, column_config: dict | None = None, **kwar
 
 
 def semaforo_html(luz: str, texto: str) -> str:
-    color = COLOR_LUZ.get(luz, "#57606a")
+    """La luz con su glifo. El glifo no es adorno: es la regla daltónica de la guía.
+
+    Ganancia y pérdida nunca se distinguen solo por color, así que la luz viaja
+    siempre con ``▲``/``◆``/``▼``/``·``. Antes eran emojis de colores, que la guía
+    de marca prohíbe.
+    """
+    color = COLOR_LUZ.get(luz, GRIS)
     return (
-        f"<div style='border-left:4px solid {color};padding:0.4rem 0.8rem;margin:0.3rem 0;'>"
-        f"<strong style='color:{color}'>{ICONO_LUZ.get(luz, '⚪')} {luz}</strong><br>{texto}</div>"
+        f"<div style='border-left:3px solid {color};background:{SUPERFICIE};"
+        f"padding:0.5rem 0.9rem;margin:0.3rem 0;border-radius:{RADIO_PILDORA}'>"
+        f"<strong style='color:{color};font-family:{MONO}'>"
+        f"{GLIFO_LUZ.get(luz, '·')} {luz}</strong><br>{texto}</div>"
     )
 
 
@@ -669,56 +733,7 @@ def semaforo_html(luz: str, texto: str) -> str:
 # grande, la evidencia en paralelo, el detalle cerrado— y para que el sistema sea
 # el mismo en todas las páginas en vez de CSS suelto en cada una.
 #
-# Los colores semánticos son los que la aplicación ya usaba (`COLOR_LUZ`), porque
-# el código y las pruebas los tratan como significado, no como decoración.
-
-TINTA = "#16151a"
-TINTA_2 = "#2f2d33"
-TINTA_3 = "#6b6862"
-TINTA_4 = "#93908a"
-PAPEL = "#f4f2ee"
-PANEL = "#ffffff"
-BORDE = "#dedbd4"
-BORDE_2 = "#eceae5"
-AZUL = "#3d4f8a"
-
-# Toda cifra va en monoespaciada con dígitos tabulares. En una columna de números
-# proporcionales las unidades no se alinean, y comparar dos renglones deja de ser
-# instantáneo: hay que leerlos en vez de verlos.
-MONO = "'IBM Plex Mono', ui-monospace, Menlo, monospace"
-TEXTO = "Archivo, 'Helvetica Neue', Arial, sans-serif"
-
-
-def inyectar_estilos() -> None:
-    """Carga la tipografía y las reglas base. Una vez por sesión."""
-    if st.session_state.get("_estilos_inyectados"):
-        return
-    st.session_state["_estilos_inyectados"] = True
-    st.markdown(
-        # `@import` y no `<link>`: Streamlit descarta las etiquetas de enlace del
-        # markdown, y la fuente no cargaría sin decir por qué.
-        "<style>"
-        "@import url('https://fonts.googleapis.com/css2?"
-        "family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');"
-        f"[data-testid='stAppViewContainer'], [data-testid='stSidebar'] "
-        f"{{ font-family: {TEXTO}; }}"
-        # Streamlit dibuja sus flechas y chevrones con una fuente de ÍCONOS cuyo
-        # glifo se elige por ligadura: el texto del elemento es literalmente
-        # "keyboard_arrow_right". Si la regla de arriba le cambia la familia, la
-        # ligadura no existe y el nombre del ícono se dibuja como texto encima de
-        # la etiqueta. Se restituye explícitamente.
-        "[data-testid='stIconMaterial'], .material-icons, .material-icons-outlined, "
-        "[class*='material-symbols'] "
-        "{ font-family: 'Material Symbols Rounded', 'Material Icons' !important; }"
-        f".cifra {{ font-family: {MONO}; font-variant-numeric: tabular-nums; }}"
-        ".rotulo { font-size: 10px; font-weight: 600; letter-spacing: 0.09em; "
-        f"text-transform: uppercase; color: {TINTA_3}; }}"
-        # Streamlit deja un hueco fijo entre bloques. Con secciones que ya traen su
-        # propio marco, ese hueco duplica la separación y afloja toda la retícula.
-        "div[data-testid='stVerticalBlock'] { gap: 0.6rem; }"
-        "</style>",
-        unsafe_allow_html=True,
-    )
+# Los tokens de color y tipografía salen de `marca.py`. Aquí solo se ensamblan.
 
 
 def _html(bloque: str) -> None:
@@ -747,8 +762,8 @@ def banda_emisor(
     """
     chips = "".join(
         f"<span style='font-size:11px;font-weight:600;letter-spacing:.06em;"
-        f"text-transform:uppercase;color:{TINTA};background:#d8d4cb;padding:3px 8px;"
-        f"border-radius:2px;margin-right:6px'>{e}</span>"
+        f"text-transform:uppercase;color:{GRIS};background:{SUPERFICIE_2};"
+        f"padding:3px 8px;border-radius:{RADIO_PILDORA};margin-right:6px'>{e}</span>"
         for e in etiquetas if e
     )
     latencia = ""
@@ -757,7 +772,9 @@ def banda_emisor(
         latencia = f" · latencia {dias} día{'s' if dias != 1 else ''}"
     _html(f"""
       <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:32px;
-                  background:{TINTA};color:{PAPEL};padding:20px 28px;margin-bottom:18px">
+                  background:{SUPERFICIE};color:{BLANCO};border:1px solid {LINEA};
+                  border-left:3px solid {AMBAR};border-radius:{RADIO_TARJETA};
+                  padding:20px 28px;margin-bottom:18px">
         <div style="display:flex;align-items:flex-end;gap:18px">
           <div class="cifra" style="font-size:40px;font-weight:600;line-height:.9;
                                     letter-spacing:-.02em">{ticker}</div>
@@ -768,16 +785,16 @@ def banda_emisor(
         </div>
         <div style="display:flex;gap:32px;align-items:flex-end">
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
-            <div class="rotulo" style="color:{TINTA_4}">Cierre sin ajustar</div>
+            <div class="rotulo" style="color:{GRIS_TENUE}">Cierre sin ajustar</div>
             <div class="cifra" style="font-size:30px;font-weight:600;line-height:1;
                                       letter-spacing:-.02em">{dinero(precio)}</div>
-            <div class="cifra" style="font-size:11px;color:{TINTA_4}">{fecha_precio or '—'}{latencia}</div>
+            <div class="cifra" style="font-size:11px;color:{GRIS_TENUE}">{fecha_precio or '—'}{latencia}</div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;
-                      border-left:1px solid #34322c;padding-left:32px">
-            <div class="rotulo" style="color:{TINTA_4}">Fecha de corte</div>
+                      border-left:1px solid {LINEA};padding-left:32px">
+            <div class="rotulo" style="color:{GRIS_TENUE}">Fecha de corte</div>
             <div class="cifra" style="font-size:18px;font-weight:500">{corte or '—'}</div>
-            <div class="cifra" style="font-size:11px;color:{TINTA_4}">{nota_derecha}</div>
+            <div class="cifra" style="font-size:11px;color:{GRIS_TENUE}">{nota_derecha}</div>
           </div>
         </div>
       </div>
@@ -788,10 +805,10 @@ def zona(numero: str, titulo: str, nota: str = "") -> None:
     """Rótulo de sección numerado. Es lo que convierte el scroll en un recorrido."""
     _html(f"""
       <div style="display:flex;align-items:baseline;gap:12px;margin:26px 0 10px">
-        <span class="cifra" style="font-size:11px;font-weight:600;color:{TINTA_3}">{numero}</span>
+        <span class="cifra" style="font-size:11px;font-weight:600;color:{GRIS}">{numero}</span>
         <span class="rotulo" style="font-size:11px">{titulo}</span>
-        <div style="flex-grow:1;height:1px;background:{BORDE}"></div>
-        <span style="font-size:11px;color:{TINTA_3}">{nota}</span>
+        <div style="flex-grow:1;height:1px;background:{LINEA}"></div>
+        <span style="font-size:11px;color:{GRIS}">{nota}</span>
       </div>
     """)
 
@@ -807,21 +824,21 @@ def panel_veredicto(
         pct_barra = min(100, round(100 * hechas / faltan)) if faltan else 100
         barra = f"""
           <div style="display:flex;gap:10px;align-items:center;padding-top:2px">
-            <div style="height:6px;flex-grow:1;background:{BORDE_2};position:relative">
+            <div style="height:6px;flex-grow:1;background:{SUPERFICIE_2};position:relative">
               <div style="position:absolute;left:0;top:0;bottom:0;width:{pct_barra}%;
                           background:{color}"></div>
             </div>
-            <span class="cifra" style="font-size:12px;color:{TINTA_3}">{hechas} / {faltan}</span>
+            <span class="cifra" style="font-size:12px;color:{GRIS}">{hechas} / {faltan}</span>
           </div>"""
     _html(f"""
-      <div style="background:{PANEL};border:1px solid {BORDE};border-left:6px solid {color};
+      <div style="background:{SUPERFICIE};border:1px solid {LINEA};border-left:6px solid {color};
                   padding:24px 28px;display:flex;flex-direction:column;gap:14px;height:100%">
         <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
           <div style="font-size:44px;font-weight:800;letter-spacing:-.035em;line-height:.95;
                       color:{color}">{accion}</div>
-          <div style="font-size:13px;color:{TINTA_3};padding-bottom:4px">{coda}</div>
+          <div style="font-size:13px;color:{GRIS};padding-bottom:4px">{coda}</div>
         </div>
-        <div style="font-size:15px;line-height:1.5;color:{TINTA_2}">{explicacion}</div>
+        <div style="font-size:15px;line-height:1.5;color:{BLANCO}">{explicacion}</div>
         {barra}
       </div>
     """)
@@ -833,23 +850,23 @@ def puertas_html(puertas: Sequence[tuple[str, str, str, str]], pie: str = "") ->
     for i, (nombre, luz, lectura, cifra) in enumerate(puertas):
         color = COLOR_LUZ.get(luz, COLOR_LUZ["SIN DATOS"])
         if i:
-            filas.append(f"<div style='height:1px;background:{BORDE_2}'></div>")
+            filas.append(f"<div style='height:1px;background:{SUPERFICIE_2}'></div>")
         filas.append(f"""
           <div style="display:flex;align-items:center;gap:12px">
             <div style="width:10px;height:10px;border-radius:50%;background:{color};
                         flex-shrink:0"></div>
             <div style="flex-grow:1;min-width:0">
               <div style="font-size:13px;font-weight:600">{nombre}</div>
-              <div style="font-size:11px;color:{TINTA_3}">{lectura}</div>
+              <div style="font-size:11px;color:{GRIS}">{lectura}</div>
             </div>
             <div class="cifra" style="font-size:11px;color:{color};font-weight:600">{cifra}</div>
           </div>""")
     cierre = (
-        f"<div style='font-size:11px;line-height:1.45;color:{TINTA_3};"
-        f"border-top:1px solid {BORDE_2};padding-top:10px'>{pie}</div>" if pie else ""
+        f"<div style='font-size:11px;line-height:1.45;color:{GRIS};"
+        f"border-top:1px solid {SUPERFICIE_2};padding-top:10px'>{pie}</div>" if pie else ""
     )
     _html(f"""
-      <div style="background:{PANEL};border:1px solid {BORDE};padding:18px 20px;
+      <div style="background:{SUPERFICIE};border:1px solid {LINEA};padding:18px 20px;
                   display:flex;flex-direction:column;gap:12px;height:100%">
         <div class="rotulo">Las tres puertas</div>
         <div style="display:flex;flex-direction:column;gap:10px">{''.join(filas)}</div>
@@ -861,18 +878,18 @@ def puertas_html(puertas: Sequence[tuple[str, str, str, str]], pie: str = "") ->
 def rejilla_cifras(cifras: Sequence[tuple[str, str, str, str]]) -> None:
     """Banda de cifras de cabecera: rótulo, número grande, nota y su color."""
     celdas = "".join(
-        f"""<div style="background:{PANEL};padding:14px 18px;display:flex;
+        f"""<div style="background:{SUPERFICIE};padding:14px 18px;display:flex;
                         flex-direction:column;gap:3px">
               <div class="rotulo">{rotulo}</div>
               <div class="cifra" style="font-size:24px;font-weight:600;letter-spacing:-.02em;
-                                        color:{color or TINTA}">{valor}</div>
-              <div style="font-size:11px;color:{TINTA_3}">{nota}</div>
+                                        color:{color or BLANCO}">{valor}</div>
+              <div style="font-size:11px;color:{GRIS}">{nota}</div>
             </div>"""
         for rotulo, valor, nota, color in cifras
     )
     _html(f"""
       <div style="display:grid;grid-template-columns:repeat({len(cifras)},minmax(0,1fr));
-                  gap:1px;background:{BORDE};border:1px solid {BORDE};margin-top:14px">
+                  gap:1px;background:{LINEA};border:1px solid {LINEA};margin-top:14px">
         {celdas}
       </div>
     """)
@@ -885,21 +902,21 @@ def tarjeta_abre(titulo: str, subtitulo: str) -> None:
     puede meter dentro de una cadena de HTML.
     """
     _html(f"""
-      <div style="background:{PANEL};border:1px solid {BORDE};border-bottom:none;
+      <div style="background:{SUPERFICIE};border:1px solid {LINEA};border-bottom:none;
                   padding:18px 20px 10px">
         <div style="font-size:15px;font-weight:700;letter-spacing:-.01em">{titulo}</div>
-        <div style="font-size:12px;color:{TINTA_3};line-height:1.45;margin-top:3px">{subtitulo}</div>
+        <div style="font-size:12px;color:{GRIS};line-height:1.45;margin-top:3px">{subtitulo}</div>
       </div>
     """)
 
 
 def tarjeta_cierra(pie: str = "") -> None:
     cuerpo = (
-        f"<div style='font-size:11px;line-height:1.5;color:{TINTA_3};"
-        f"border-top:1px solid {BORDE_2};padding-top:10px'>{pie}</div>" if pie else ""
+        f"<div style='font-size:11px;line-height:1.5;color:{GRIS};"
+        f"border-top:1px solid {SUPERFICIE_2};padding-top:10px'>{pie}</div>" if pie else ""
     )
     _html(f"""
-      <div style="background:{PANEL};border:1px solid {BORDE};border-top:none;
+      <div style="background:{SUPERFICIE};border:1px solid {LINEA};border-top:none;
                   padding:4px 20px 16px">{cuerpo}</div>
     """)
 
@@ -920,23 +937,23 @@ def barra_comparativa(
         peso = "700" if destacada else "400"
         marca_html = (
             f"<div style='position:absolute;left:{min(100, marca / maximo * 100)}%;"
-            f"top:-3px;bottom:-3px;width:2px;background:{TINTA}'></div>"
+            f"top:-3px;bottom:-3px;width:2px;background:{BLANCO}'></div>"
             if marca is not None and destacada else ""
         )
         piezas.append(f"""
           <div style="display:flex;flex-direction:column;gap:4px">
             <div style="display:flex;justify-content:space-between;align-items:baseline">
-              <span style="font-size:12px;font-weight:{peso};color:{TINTA_2 if destacada else TINTA_3}">{etiqueta}</span>
+              <span style="font-size:12px;font-weight:{peso};color:{BLANCO if destacada else GRIS}">{etiqueta}</span>
               <span class="cifra" style="font-size:{15 if destacada else 13}px;
                                          font-weight:{peso};color:{color}">{texto}</span>
             </div>
-            <div style="height:{alto}px;background:{BORDE_2};position:relative">
+            <div style="height:{alto}px;background:{SUPERFICIE_2};position:relative">
               <div style="position:absolute;left:0;top:0;bottom:0;width:{ancho}%;
                           background:{color}"></div>{marca_html}
             </div>
           </div>""")
     _html(f"""
-      <div style="background:{PANEL};border-left:1px solid {BORDE};border-right:1px solid {BORDE};
+      <div style="background:{SUPERFICIE};border-left:1px solid {LINEA};border-right:1px solid {LINEA};
                   padding:4px 20px 12px;display:flex;flex-direction:column;gap:11px">
         {''.join(piezas)}
       </div>
@@ -956,7 +973,7 @@ def cascada_html(
     montos = [abs(v) for _, v, sub in pasos if sub and v is not None]
     tope = max(montos) if montos else 1.0
     piezas = []
-    tonos = ["#b8b4ab", "#8b8780", "#6b6862", TINTA]
+    tonos = ["#4A5058", "#6B6B66", "#9AA1A9", BLANCO]
     i_sub = 0
     for etiqueta, valor, es_subtotal in pasos:
         if es_subtotal:
@@ -982,17 +999,17 @@ def cascada_html(
                 <div class="cifra" style="font-size:11px;color:{color};font-weight:600">
                   {signo}{_millones(abs(valor) if valor is not None else None)}</div>
                 <div style="width:100%;height:2px;background:{color}"></div>
-                <div style="font-size:10px;color:{TINTA_3};text-align:center;
+                <div style="font-size:10px;color:{GRIS};text-align:center;
                             line-height:1.25;overflow-wrap:anywhere">{etiqueta}</div>
               </div>""")
     cierre = f"""
       <div style="display:flex;justify-content:space-between;align-items:center;
-                  border-top:1px solid {BORDE_2};margin-top:16px;padding-top:12px">
-        <span style="font-size:13px;font-weight:600;color:{color_pie or TINTA_3}">{pie}</span>
-        <span class="cifra" style="font-size:11px;color:{TINTA_4}">{unidad}</span>
+                  border-top:1px solid {SUPERFICIE_2};margin-top:16px;padding-top:12px">
+        <span style="font-size:13px;font-weight:600;color:{color_pie or GRIS}">{pie}</span>
+        <span class="cifra" style="font-size:11px;color:{GRIS_TENUE}">{unidad}</span>
       </div>""" if pie else ""
     _html(f"""
-      <div style="background:{PANEL};border:1px solid {BORDE};padding:22px 26px 18px">
+      <div style="background:{SUPERFICIE};border:1px solid {LINEA};padding:22px 26px 18px">
         <div style="display:flex;align-items:flex-end;gap:0;height:190px">{''.join(piezas)}</div>
         {cierre}
       </div>
@@ -1014,15 +1031,15 @@ def filas_metodo(metodos: Sequence[tuple[str, str, bool, str]]) -> None:
     filas = []
     for i, (nombre, descripcion, disponible, cifra_o_falta) in enumerate(metodos):
         color = COLOR_LUZ["VERDE"] if disponible else COLOR_LUZ["AMARILLO"]
-        fondo = PANEL if disponible else "#fdf9f2"
-        borde = f"border-top:1px solid {BORDE_2};" if i else ""
+        fondo = SUPERFICIE if disponible else SUPERFICIE_2
+        borde = f"border-top:1px solid {SUPERFICIE_2};" if i else ""
         derecha = (
             f"<div class='cifra' style='font-size:13px;font-weight:600'>{cifra_o_falta}</div>"
             if disponible else
             f"<div class='cifra' style='font-size:12px;font-weight:600;color:{color}'>bloqueado</div>"
         )
         detalle = (
-            f"<div style='font-size:12px;color:{TINTA_3};line-height:1.5;margin-top:2px'>"
+            f"<div style='font-size:12px;color:{GRIS};line-height:1.5;margin-top:2px'>"
             f"{cifra_o_falta}</div>" if not disponible else ""
         )
         filas.append(f"""
@@ -1032,13 +1049,13 @@ def filas_metodo(metodos: Sequence[tuple[str, str, bool, str]]) -> None:
                         margin-top:5px;flex-shrink:0"></div>
             <div style="flex-grow:1;min-width:0">
               <div style="font-size:14px;font-weight:700;
-                          color:{TINTA if disponible else color}">{nombre}</div>
-              <div style="font-size:12px;color:{TINTA_3}">{descripcion}</div>
+                          color:{BLANCO if disponible else color}">{nombre}</div>
+              <div style="font-size:12px;color:{GRIS}">{descripcion}</div>
               {detalle}
             </div>
             {derecha}
           </div>""")
-    _html(f"<div style='background:{PANEL};border:1px solid {BORDE}'>{''.join(filas)}</div>")
+    _html(f"<div style='background:{SUPERFICIE};border:1px solid {LINEA}'>{''.join(filas)}</div>")
 
 
 def tabla_metricas(metricas: dict, formato: dict[str, str] | None = None) -> pd.DataFrame:

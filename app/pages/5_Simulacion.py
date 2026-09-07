@@ -25,6 +25,7 @@ from comun import (  # noqa: E402
     suficiencia,
     veces,
 )
+from marca import AMBAR, GRIS, LOSS, PROFIT, encabezado, inyectar_estilos  # noqa: E402
 
 from src.portafolio.transacciones import procesar_libro  # noqa: E402
 from src.servicio import contexto_macro, tabla_universo  # noqa: E402
@@ -49,6 +50,8 @@ from src.simulacion.montecarlo import (  # noqa: E402
 )
 
 configurar("Simulación", "🎲")
+inyectar_estilos()
+encabezado("Simulación")
 st.title("Simulación")
 
 repo = exigir_base()
@@ -115,7 +118,7 @@ with pestanas[0]:
             for camino in muestra:
                 figura.add_scatter(x=eje, y=camino, line={"width": 0.5, "color": "rgba(9,105,218,0.15)"},
                                    showlegend=False, hoverinfo="skip")
-            for q, color in ((10, "#b42318"), (50, "#0969da"), (90, "#1a7f37")):
+            for q, color in ((10, LOSS), (50, AMBAR), (90, PROFIT)):
                 figura.add_scatter(
                     x=eje, y=np.percentile(resultado.trayectorias, q, axis=0),
                     name=f"P{q}", line={"color": color, "width": 2.5},
@@ -251,8 +254,8 @@ with pestanas[2]:
             if not historico_crecimiento.empty:
                 figura = go.Figure()
                 figura.add_histogram(x=historico_crecimiento.clip(-0.5, 0.5), nbinsx=60,
-                                     marker_color="#57606a", name="Historia del universo")
-                figura.add_vline(x=resultado.valor_requerido, line_color="#b42318", line_width=3,
+                                     marker_color=GRIS, name="Historia del universo")
+                figura.add_vline(x=resultado.valor_requerido, line_color=LOSS, line_width=3,
                                  annotation_text="Requerido")
                 figura.update_layout(height=300, xaxis_tickformat=".0%",
                                      xaxis_title="Crecimiento del AFFO por acción (YoY)",
@@ -282,7 +285,7 @@ with pestanas[3]:
     )
     figura = go.Figure()
     figura.add_bar(x=tabla["shock_bps"], y=tabla["cambio_pct"],
-                   marker_color=["#b42318" if v < 0 else "#1a7f37" for v in tabla["cambio_pct"]])
+                   marker_color=[LOSS if v < 0 else PROFIT for v in tabla["cambio_pct"]])
     figura.update_layout(height=300, yaxis_tickformat=".0%",
                          xaxis_title="Shock del UST 10 años (bps)", yaxis_title="Impacto en precio",
                          margin={"t": 20, "b": 20, "l": 10, "r": 10}, showlegend=False)
@@ -358,9 +361,9 @@ with pestanas[4]:
 
     figura = go.Figure()
     figura.add_scatter(x=resultado.riqueza_estrategia.index, y=resultado.riqueza_estrategia,
-                       name="Estrategia", line={"color": "#0969da"})
+                       name="Estrategia", line={"color": AMBAR})
     figura.add_scatter(x=resultado.riqueza_benchmark.index, y=resultado.riqueza_benchmark,
-                       name="Benchmark (mismo activo)", line={"color": "#57606a", "dash": "dash"})
+                       name="Benchmark (mismo activo)", line={"color": GRIS, "dash": "dash"})
     figura.update_layout(height=320, margin={"t": 20, "b": 20, "l": 10, "r": 10},
                          legend={"orientation": "h", "y": 1.12})
     st.plotly_chart(figura)

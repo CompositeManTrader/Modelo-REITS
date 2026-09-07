@@ -25,6 +25,7 @@ from comun import (  # noqa: E402
     suficiencia,
     veces,
 )
+from marca import AMBAR, GRIS, LOSS, PROFIT, encabezado, inyectar_estilos  # noqa: E402
 
 from src.fiscal.mexico import (  # noqa: E402
     DESCARGO_FISCAL,
@@ -62,6 +63,8 @@ from src.portafolio.transacciones import (  # noqa: E402
 from src.servicio import contexto_macro, tabla_universo  # noqa: E402
 
 configurar("Portafolio", "💼")
+inyectar_estilos()
+encabezado("Portafolio")
 st.title("Portafolio")
 
 repo = exigir_base()
@@ -126,10 +129,10 @@ with pestanas[0]:
         st.info(plan.como_texto())
         figura = go.Figure()
         figura.add_scatter(x=plan.trayectoria["mes"] / 12, y=plan.trayectoria["saldo"],
-                           name="Saldo", line={"color": "#0969da"})
+                           name="Saldo", line={"color": AMBAR})
         figura.add_scatter(x=plan.trayectoria["mes"] / 12, y=plan.trayectoria["aportado"],
-                           name="Aportado", line={"color": "#57606a", "dash": "dash"})
-        figura.add_hline(y=meta.capital_requerido_real, line_dash="dot", line_color="#1a7f37",
+                           name="Aportado", line={"color": GRIS, "dash": "dash"})
+        figura.add_hline(y=meta.capital_requerido_real, line_dash="dot", line_color=PROFIT,
                          annotation_text="Meta")
         figura.update_layout(height=320, xaxis_title="Años", yaxis_title="MXN reales de hoy",
                              margin={"t": 20, "b": 20, "l": 10, "r": 10},
@@ -151,7 +154,7 @@ with pestanas[0]:
         if not asignacion.pesos.empty:
             figura = go.Figure()
             figura.add_bar(x=asignacion.pesos.index, y=asignacion.pesos.to_numpy(),
-                           marker_color="#0969da",
+                           marker_color=AMBAR,
                            text=[f"{v:.1%}" for v in asignacion.pesos], textposition="outside")
             figura.update_layout(height=300, yaxis_tickformat=".0%",
                                  margin={"t": 20, "b": 20, "l": 10, "r": 10}, showlegend=False)
@@ -294,7 +297,7 @@ with pestanas[2]:
                 dd = drawdown(serie["valor"])
                 figura = go.Figure()
                 figura.add_scatter(x=dd.index, y=dd["drawdown"], fill="tozeroy",
-                                   line={"color": "#b42318"}, name="Drawdown")
+                                   line={"color": LOSS}, name="Drawdown")
                 figura.update_layout(height=260, yaxis_tickformat=".0%",
                                      margin={"t": 20, "b": 20, "l": 10, "r": 10}, showlegend=False)
                 st.plotly_chart(figura)

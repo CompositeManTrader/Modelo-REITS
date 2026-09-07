@@ -1,20 +1,22 @@
-"""Valuación individual, en cinco zonas de jerarquía descendente.
+"""Valuación individual, en seis zonas de jerarquía descendente.
 
 Antes esta pantalla eran diez secciones del mismo peso visual, apiladas en un
 scroll lineal. Eso obliga a leerlo todo para saber cualquier cosa, y para un
 operador que abre la pantalla entre dos llamadas es lo mismo que no tener nada.
 
-El orden ahora es el de una decisión, no el del código que la produce:
+El orden es el de una decisión, no el del código que la produce:
 
     01 VEREDICTO   una palabra y su razón. Tres segundos.
     02 EVIDENCIA   tres preguntas en paralelo. Ninguna se contesta con las otras.
-    03 CASCADA     el mecanismo: de dónde sale el AFFO y si cuadra.
+    03 CASCADA     el mecanismo: de dónde sale el flujo, y qué tramo NO se verificó.
     04 MÉTODOS     qué se puede valuar y qué le falta al que no, con nombre.
-    05 AUDITORÍA   cerrado por omisión, rastreable hasta el filing.
+    05 MODELOS     la aritmética abierta: cada fórmula con SUS números sustituidos.
+    06 AUDITORÍA   cerrado por omisión, rastreable hasta el filing.
 
-No se quitó nada de lo que la pantalla ya hacía: lo que era una sección propia y
-resultó ser detalle —la venta por valuación, el sesgo de la ventana completa, el
-perfil sectorial, la exportación— vive en la Zona 5, a un clic.
+La zona 05 es la que hace auditable a todo lo demás. Una cifra sola no se puede
+comprobar: `6.18%` puede ser correcto o puede ser un denominador equivocado, y
+desde la pantalla no había forma de distinguirlo. Ahí está la fórmula, están los
+números de ESTA emisora sustituidos, y está el resultado.
 """
 
 from __future__ import annotations
@@ -30,23 +32,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from comun import (  # noqa: E402
-    AZUL,
-    BORDE_2,
-    COLOR_LUZ,
-    TINTA_3,
     avisar_procedencia,
     avisos,
     banda_emisor,
     barra_comparativa,
     bps,
     cascada_html,
+    cobertura_de_emisores,
     configurar,
     descargo,
     dinero,
     exigir_base,
     explicar,
     filas_metodo,
-    inyectar_estilos,
     mostrar_tabla,
     numero,
     panel_veredicto,
@@ -61,6 +59,17 @@ from comun import (  # noqa: E402
     veces,
     zona,
 )
+from marca import (  # noqa: E402
+    AMBAR,
+    COLOR_LUZ,
+    GRIS,
+    GRIS_TENUE,
+    LINEA,
+    MONO,
+    encabezado,
+    inyectar_estilos,
+    plantilla_plotly,
+)
 
 from src.config import DIR_EXPORTES, UMBRALES  # noqa: E402
 from src.export.excel import DatosExportacion, exportar  # noqa: E402
@@ -71,6 +80,7 @@ from src.modelo.cascada import (  # noqa: E402
     clave_base,
     escalones_de_cascada,
 )
+from src.modelo.formulas import modelos_de_valuacion  # noqa: E402
 from src.modelo.kill import tabla_liston_friccion, venta_parcial_sugerida  # noqa: E402
 from src.modelo.sectorial import metricas_especificas, perfil  # noqa: E402
 from src.modelo.senal import sesgo_por_ventana_completa  # noqa: E402
@@ -89,9 +99,29 @@ inyectar_estilos()
 
 repo = exigir_base()
 asof = selector_de_corte()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Encabezado de marca y elección de emisora
+# ══════════════════════════════════════════════════════════════════════════════
+
+encabezado("Valuación")
+
+# La emisora se elige AQUÍ, en el cuerpo y con los diez nombres a la vista. En la
+# barra lateral quedaba debajo del corte y de dos deslizadores, y en pantalla
+# angosta Streamlit arranca con la barra plegada: el único control para cambiar
+# de emisora quedaba fuera de la vista y la pantalla parecía servir un nombre.
 ticker = selector_de_emisor(repo)
 if ticker is None:
     st.stop()
+
+cobertura = cobertura_de_emisores(repo, asof=asof)
+sin_datos = cobertura[cobertura["trimestres"] == 0]
+if not sin_datos.empty:
+    st.info(
+        f"**{len(sin_datos)} de {len(cobertura)} emisoras no tienen fundamentales al corte**: "
+        f"{', '.join(sin_datos['ticker'])}. Elegirlas no rompe nada, pero la pantalla no "
+        "puede valuar lo que no está en la base."
+    )
 
 sector_del_emisor = repo.sector_de(ticker)
 cr_min, cr_base, cr_max = rango_cap_rate(sector_del_emisor)
@@ -139,8 +169,42 @@ banda_emisor(
     nota_derecha=f"{panel.n_observaciones} observaciones",
 )
 
+# Un emisor sin fundamentales terminaba en un renglón rojo y `st.stop()`: la
+# pantalla entera en blanco, sin decir qué falta ni cómo traerlo. Es el único
+# camino de esta pantalla que produce exactamente el síntoma de "no puedo ver
+# otra emisora", y es también el menos informativo. Ahora diagnostica.
 if panel.trimestral.empty:
-    st.error("No hay fundamentales para este emisor al corte elegido.")
+    st.error(
+        f"**{ticker} no tiene fundamentales trimestrales al corte del {asof}.** "
+        "No es un error de la aplicación: la base no tiene qué valuar para esta emisora."
+    )
+    con_datos = cobertura[cobertura["trimestres"] > 0]
+    izq, der = st.columns([1, 1], gap="medium")
+    with izq:
+        st.markdown("**Qué sí hay en la base, al corte elegido**")
+        mostrar_tabla(cobertura, column_config={"trimestres": st.column_config.NumberColumn(
+            "Trimestres", format="%d")})
+    with der:
+        st.markdown("**Cómo se llena**")
+        st.markdown(
+            "La conciliación del AFFO se extrae del Exhibit 99.1 de los 8-K de resultados, "
+            "emisora por emisora. Es una medida **no-GAAP**: no está en XBRL, así que no se "
+            "puede pedir a una API.\n\n"
+            "```\npython scripts/ingesta.py\n```\n"
+            "En Streamlit Cloud el sistema de archivos es efímero: **cada reinicio del "
+            "contenedor borra la base** y la primera carga vuelve a ingestar. Si la ingesta "
+            "se corta a la mitad —la SEC limita la frecuencia de las peticiones— quedan "
+            "emisoras sin fundamentales, y esta pantalla es donde se nota."
+        )
+        if not con_datos.empty:
+            st.caption(
+                "Con datos ahora mismo: " + ", ".join(
+                    f"{r['ticker']} ({int(r['trimestres'])} trimestres)"
+                    for _, r in con_datos.iterrows()
+                )
+            )
+    avisos(panel.avisos)
+    descargo()
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -164,6 +228,18 @@ _CODA = {
     "NO COMPRAR MÁS": "modula compras nuevas, no dispara venta",
 }
 
+
+def _recorte(texto: str, largo: int = 52) -> str:
+    """Recorta sin fingir que el texto terminaba ahí.
+
+    Cortar en seco a 52 caracteres dejaba frases mutiladas que se leían como
+    completas. Los puntos suspensivos dicen que hay más, y el texto íntegro
+    sigue estando en la Zona 06.
+    """
+    texto = str(texto or "")
+    return texto if len(texto) <= largo else texto[: largo - 1].rstrip() + "…"
+
+
 minimo_obs = UMBRALES.valuacion.min_observaciones
 izq, der = st.columns([2, 1], gap="medium")
 with izq:
@@ -181,16 +257,24 @@ with der:
     percentil_txt = (
         f"{panel.percentil_actual:.0%}" if panel.percentil_actual is not None else "—"
     )
-    disparos = 0
-    if not semaforo.deterioro.criterios.empty and "dispara" in semaforo.deterioro.criterios:
-        disparos = int(semaforo.deterioro.criterios["dispara"].sum())
+    # Cuántos criterios DISPARARON, sobre cuántos se pudieron MEDIR. El
+    # denominador estaba fijo en 5, y hoy solo 2 de los 5 son medibles en las
+    # diez emisoras: "0/5" se leía como "medí cinco y ninguno disparó", que es
+    # una afirmación de cobertura que nadie hizo. La puerta ya distingue —pone
+    # luz SIN DATOS cuando no hay nada medible—; la ficha tiraba esa distinción.
+    criterios_p3 = semaforo.deterioro.criterios
+    if criterios_p3.empty or "dispara" not in criterios_p3:
+        medibles_p3 = disparos = 0
+    else:
+        medibles_p3 = int(criterios_p3["dispara"].notna().sum())
+        disparos = int(criterios_p3["dispara"].fillna(False).sum())
     puertas_html(
         [
-            ("1 · Calidad", semaforo.calidad.luz.value, semaforo.calidad.mensaje[:52], ""),
+            ("1 · Calidad", semaforo.calidad.luz.value, _recorte(semaforo.calidad.mensaje), ""),
             ("2 · Valuación", semaforo.valuacion.luz.value,
-             semaforo.valuacion.mensaje[:52], percentil_txt),
+             _recorte(semaforo.valuacion.mensaje), percentil_txt),
             ("3 · Deterioro", semaforo.deterioro.luz.value,
-             semaforo.deterioro.mensaje[:52], f"{disparos}/5"),
+             _recorte(semaforo.deterioro.mensaje), f"{disparos}/{medibles_p3} medibles"),
         ],
         pie="La Puerta 2 modula compras nuevas. <strong>Nunca dispara venta por sí sola.</strong>",
     )
@@ -251,21 +335,35 @@ with ev_a:
     if serie_prima.empty:
         st.caption("Sin historia de prima al corte.")
     else:
+        # El color de la última barra dice si HOY está barato o caro. La forma
+        # anterior era `(percentil or 1) < 0.5`, y el `or` convertía los dos
+        # casos que más importan en el color equivocado: sin percentil pintaba
+        # verde —hoy son ocho de diez emisoras—, y un percentil de 0.0, que es
+        # el más caro de toda su historia, también pintaba verde.
+        pa = panel.percentil_actual
+        if pa is None:
+            color_ultima = COLOR_LUZ["SIN DATOS"]
+        else:
+            color_ultima = COLOR_LUZ["ROJO"] if pa < 0.5 else COLOR_LUZ["VERDE"]
         figura = go.Figure()
         figura.add_bar(
             x=serie_prima.index, y=serie_prima * 10_000,
-            marker_color=["#cfccc5"] * (len(serie_prima) - 1) + [
-                COLOR_LUZ["ROJO"] if (panel.percentil_actual or 1) < 0.5 else COLOR_LUZ["VERDE"]
-            ],
+            marker_color=[GRIS_TENUE] * (len(serie_prima) - 1) + [color_ultima],
         )
+        figura.update_layout(**plantilla_plotly())
         figura.update_layout(
-            height=150, margin={"t": 6, "b": 6, "l": 4, "r": 4},
-            showlegend=False, plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
+            height=150, margin={"t": 6, "b": 6, "l": 4, "r": 4}, showlegend=False,
             xaxis={"showgrid": False, "showticklabels": False},
-            yaxis={"showgrid": False, "title": None, "tickfont": {"size": 9}},
+            yaxis={"showgrid": False, "title": None, "gridcolor": LINEA,
+                   "tickfont": {"size": 9, "color": GRIS, "family": MONO}},
             bargap=0.25,
         )
         st.plotly_chart(figura, key="prima_sparkline")
+        if pa is None:
+            st.caption(
+                f"La última barra va en gris: con {panel.n_observaciones} observaciones "
+                f"todavía no hay percentil, y pintarla de verde afirmaría que está barata."
+            )
     tarjeta_cierra(
         f"<strong>{percentil_txt}</strong> de su propia historia estuvo <em>más</em> barato. "
         f"{panel.n_observaciones} observaciones; el umbral para opinar son {minimo_obs}."
@@ -280,14 +378,26 @@ with ev_b:
     p_affo = m.get("payout_affo")
     p_ffo = m.get("payout_ffo")
     p_neta = m.get("payout_utilidad_neta")
+
+    def _color_payout(valor, listón) -> str:
+        """Un payout que falta no es un payout sano.
+
+        La forma anterior, `(p_affo or 0) < listón`, mandaba el hueco al lado
+        verde: `None` se volvía 0 y 0 siempre pasa el listón. En esta aplicación
+        el verde significa «lo medí y está sano», y aquí no se midió nada.
+        """
+        if valor is None:
+            return COLOR_LUZ["SIN DATOS"]
+        return COLOR_LUZ["VERDE"] if valor < listón else COLOR_LUZ["ROJO"]
+
     barra_comparativa(
         [
             (f"sobre {etiqueta_flujo}", p_affo, pct(p_affo),
-             COLOR_LUZ["VERDE"] if (p_affo or 0) < UMBRALES.calidad.payout_affo_max
-             else COLOR_LUZ["ROJO"], True),
-            ("sobre FFO", p_ffo, pct(p_ffo), "#cfccc5", False),
+             _color_payout(p_affo, UMBRALES.calidad.payout_affo_max), True),
+            ("sobre FFO", p_ffo, pct(p_ffo), GRIS_TENUE, False),
             ("sobre utilidad neta", p_neta, pct(p_neta),
-             COLOR_LUZ["ROJO"] if (p_neta or 0) > 1 else "#cfccc5", False),
+             COLOR_LUZ["SIN DATOS"] if p_neta is None
+             else (COLOR_LUZ["ROJO"] if p_neta > 1 else GRIS_TENUE), False),
         ],
         maximo=1.2,
         marca=UMBRALES.calidad.payout_affo_max,
@@ -301,6 +411,8 @@ with ev_b:
     tarjeta_cierra(
         "El payout sobre utilidad neta pasa de 100% en casi todo REIT sano: la depreciación "
         "contable no sale de la caja." + razon_txt
+        + " Los tres se calculan sobre TTM de cuatro trimestres consecutivos, para que los "
+          "tres denominadores midan la misma ventana de tiempo."
     )
 
 # C · ¿Qué descuenta el precio?
@@ -318,7 +430,11 @@ with ev_c:
     else:
         c_izq, c_der = st.columns(2)
         c_izq.metric("El precio pide", pct(valuacion_g.crecimiento_implicito))
-        c_der.metric("Ha entregado", pct(valuacion_g.crecimiento_historico))
+        c_der.metric(
+            "Ha entregado",
+            pct(valuacion_g.crecimiento_historico)
+            if valuacion_g.crecimiento_historico is not None else "—",
+        )
         tarjeta_cierra(valuacion_g.como_texto())
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -368,6 +484,7 @@ else:
     pasos = escalones_de_cascada(lineas, medida_flujo=panel.medida_flujo)
 
     verificables = [t for t in veredicto.tramos if t.verificable]
+    no_verificables = [t for t in veredicto.tramos if not t.verificable]
     cuadrando = sum(1 for t in verificables if t.cuadra)
     cascada_html(
         pasos,
@@ -382,6 +499,30 @@ else:
     )
     if not veredicto.cuadra:
         st.error(veredicto.motivo)
+
+    # Qué NO se verificó. Un "cuadra" en verde, sin esta salvedad, afirma más de
+    # lo que se comprobó: en las diez emisoras el tramo hacia el AFFO llega SIN
+    # desglosar en la tabla del emisor, así que es justo el tramo que la pantalla
+    # existe para auditar el que no se verifica. Y las partidas que caen después
+    # del último subtotal no entran en ninguna suma: entre ellas, la renta en
+    # línea recta y el CapEx de mantenimiento, dos de las tres trampas que esta
+    # misma pantalla marca con ⚠️ tres renglones más abajo.
+    if no_verificables or veredicto.partidas_ignoradas:
+        partes = []
+        if no_verificables:
+            partes.append(
+                "**Sin verificar: " + ", ".join(t.subtotal for t in no_verificables)
+                + "** — el emisor publica el subtotal pero no desglosa ese tramo, así que se "
+                "toma como lo reporta y no se comprueba."
+            )
+        if veredicto.partidas_ignoradas:
+            partes.append(
+                f"**{len(veredicto.partidas_ignoradas)} partida(s) fuera de todo tramo**, por "
+                "quedar después del último subtotal: "
+                + ", ".join(sorted(veredicto.partidas_ignoradas)) + "."
+            )
+        st.warning(" ".join(partes) + " El cuadre de arriba **no las cubre**.")
+
     for bandera in resultado.banderas:
         st.warning(bandera)
 
@@ -391,8 +532,12 @@ else:
         # primer subtotal y llega con sufijo de segmento, así que compararlo tal
         # cual contra el catálogo nunca lo marcaba.
         detalle["trampa"] = detalle["linea"].map(lambda k: clave_base(k) in CLAVES_TRAMPA)
+        ignoradas = set(veredicto.partidas_ignoradas)
         detalle["Línea"] = detalle.apply(
-            lambda r: ("⚠️ " if r["trampa"] else "") + str(r["etiqueta"]), axis=1
+            lambda r: ("⚠️ " if r["trampa"] else "")
+            + ("○ " if r["linea"] in ignoradas else "")
+            + str(r["etiqueta"]),
+            axis=1,
         )
         mostrar_tabla(
             detalle[["Línea", "valor", "linea"]].rename(
@@ -402,8 +547,9 @@ else:
         )
         st.caption(
             "⚠️ marca las tres trampas del AFFO: renta en línea recta, CapEx de mantenimiento y "
-            "revaluación a valor razonable. Los montos vienen con el signo del reporte, listos "
-            "para sumarse: así se reproduce exactamente el subtotal que publica el emisor."
+            "revaluación a valor razonable. **○ marca las partidas que no entran en ningún tramo "
+            "verificado.** Los montos vienen con el signo del reporte, listos para sumarse: así "
+            "se reproduce exactamente el subtotal que publica el emisor."
         )
         explicar("NOI", "FFO", "renta en línea recta", "CapEx de mantenimiento")
 
@@ -482,18 +628,20 @@ with met_der:
         figura = go.Figure()
         figura.add_scatter(
             x=tabla_sens["cap_rate"], y=tabla_sens["nav_por_accion"],
-            line={"color": AZUL, "width": 2.5}, name="NAV por acción",
+            line={"color": AMBAR, "width": 2.5}, name="NAV por acción",
         )
         if panel.precio:
             figura.add_hline(
                 y=panel.precio, line_dash="dash", line_color=COLOR_LUZ["ROJO"],
                 annotation_text="Precio", annotation_position="right",
             )
+        figura.update_layout(**plantilla_plotly())
         figura.update_layout(
             height=190, margin={"t": 8, "b": 8, "l": 4, "r": 4}, showlegend=False,
-            plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
-            xaxis={"tickformat": ".2%", "gridcolor": BORDE_2, "tickfont": {"size": 9}},
-            yaxis={"gridcolor": BORDE_2, "tickfont": {"size": 9}},
+            xaxis={"tickformat": ".2%", "gridcolor": LINEA,
+                   "tickfont": {"size": 9, "color": GRIS, "family": MONO}},
+            yaxis={"gridcolor": LINEA,
+                   "tickfont": {"size": 9, "color": GRIS, "family": MONO}},
         )
         st.plotly_chart(figura, key="sensibilidad_nav")
     tarjeta_cierra(
@@ -504,6 +652,17 @@ with met_der:
 
 if valuacion_g is not None:
     with st.expander("Escenarios de crecimiento y su valor por acción"):
+        # `(crec_hist or 0.0)` convertía "no sé cuánto ha crecido" en "ha crecido
+        # 0%", y desarmaba el filtro `if g is not None` que estaba justo para
+        # eso: en cinco de diez emisoras la tabla dibujaba tres renglones con el
+        # MISMO valor, y uno de ellos se llamaba "El que ha entregado".
+        candidatos = [("Sin crecimiento", 0.0)]
+        if crec_hist is not None:
+            candidatos += [
+                ("Mitad del entregado", crec_hist / 2),
+                ("El que ha entregado", crec_hist),
+            ]
+        candidatos.append(("Implícito en el precio", valuacion_g.crecimiento_implicito))
         escenarios = pd.DataFrame([
             {
                 "escenario": etiqueta,
@@ -514,15 +673,15 @@ if valuacion_g is not None:
                     else panel.precio / valuacion_g.valor_con(g) - 1.0
                 ),
             }
-            for etiqueta, g in (
-                ("Sin crecimiento", 0.0),
-                ("Mitad del entregado", (crec_hist or 0.0) / 2),
-                ("El que ha entregado", crec_hist or 0.0),
-                ("Implícito en el precio", valuacion_g.crecimiento_implicito),
-            )
-            if g is not None
+            for etiqueta, g in candidatos
         ])
         mostrar_tabla(escenarios)
+        if crec_hist is None:
+            st.caption(
+                "No aparecen los escenarios «mitad del entregado» ni «el que ha entregado»: "
+                "este emisor todavía no tiene historia de crecimiento del flujo por acción. "
+                "Dibujarlos en cero diría que ha crecido 0%, que es otra afirmación."
+            )
         st.caption(
             f"Tasa de descuento: UST 10 años {valuacion_g.tasa_libre_riesgo:.2%} más la prima "
             f"de {panel.sector}, {valuacion_g.prima_riesgo:.2%}. El premio/descuento se lee "
@@ -531,10 +690,99 @@ if valuacion_g is not None:
         )
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 05 · AUDITORÍA
+# 05 · LOS MODELOS, CON SUS NÚMEROS
 # ══════════════════════════════════════════════════════════════════════════════
 
-zona("05", "Auditoría", "Cerrado por omisión. Cada cifra rastreable hasta su documento.")
+zona("05", "Los modelos", "La aritmética abierta: cada fórmula con los números de esta emisora.")
+
+st.markdown(
+    f"<div style='font-size:13px;line-height:1.55;color:{GRIS};margin-bottom:10px'>"
+    "Una cifra sola no se puede auditar: <span class='cifra'>6.18%</span> puede ser correcto "
+    "o puede ser un denominador equivocado, y desde la pantalla no hay forma de distinguirlo. "
+    "Aquí está la fórmula, están los números de <strong>esta</strong> emisora sustituidos, y "
+    "está el resultado — para que la aritmética se pueda seguir con el dedo."
+    "</div>",
+    unsafe_allow_html=True,
+)
+
+fila_modelos = panel.trimestral.tail(1).iloc[0]
+ins_modelos = InsumosValuacion(
+    ticker=ticker,
+    precio=numero(panel.precio, 0.0),
+    acciones_diluidas=positivo(fila_modelos.get("acciones_diluidas"), 1.0),
+    noi_trimestral=positivo(fila_modelos.get("noi")),
+    affo_ttm=positivo(fila_modelos.get("affo_ttm")),
+    affo_por_accion_ttm=affo_ps_ttm,
+    ffo_ttm=positivo(fila_modelos.get("ffo_ttm")),
+    utilidad_neta_ttm=positivo(fila_modelos.get("utilidad_neta_ttm")),
+    dividendo_ttm_por_accion=panel.dividendo_ttm,
+    deuda_total=positivo(fila_modelos.get("deuda_total"), 0.0),
+    sector=panel.sector,
+)
+modelos = modelos_de_valuacion(
+    ins_modelos,
+    cap_rate_mercado=cap_rate,
+    tasa_libre_riesgo=macro.ust10,
+    medida_flujo=panel.medida_flujo,
+    yield_adquisiciones=yield_adq,
+)
+
+corren = [f for f in modelos if f.disponible]
+st.caption(
+    f"**{len(corren)} de {len(modelos)} modelos corren** con los insumos que hay para "
+    f"{ticker} al corte del {asof}. Los que no, dicen qué insumo les falta."
+)
+
+for f in modelos:
+    color = AMBAR if f.disponible else GRIS
+    with st.container(border=True):
+        cab, val = st.columns([3, 1])
+        with cab:
+            st.markdown(
+                f"<span class='rotulo' style='color:{color}'>{f.nombre}</span>",
+                unsafe_allow_html=True,
+            )
+        with val:
+            st.markdown(
+                f"<div class='cifra' style='text-align:right;font-size:19px;font-weight:600;"
+                f"color:{color}'>{f.texto_resultado()}</div>",
+                unsafe_allow_html=True,
+            )
+        st.latex(f.latex)
+        if f.sustitucion:
+            st.latex(f.sustitucion)
+        else:
+            st.markdown(
+                f"<div style='font-size:12px;color:{COLOR_LUZ['AMARILLO']}'>"
+                f"No se puede calcular: le falta <strong>{', '.join(f.falta)}</strong>.</div>",
+                unsafe_allow_html=True,
+            )
+        st.caption(f.definicion + (f" · {f.nota}" if f.nota else ""))
+
+with st.expander("El percentil, que no es una fórmula cerrada"):
+    st.markdown(
+        "El percentil de la prima no se calcula con una fórmula: es una **posición dentro de "
+        "una muestra que crece**. En cada fecha $t$:"
+    )
+    st.latex(
+        r"\text{percentil}_t = \frac{\#\{\,\pi_s \le \pi_t \;:\; s \le t\,\}}"
+        r"{\#\{\,s \le t\,\}}, \qquad \#\{s \le t\} \ge "
+        + str(UMBRALES.valuacion.min_observaciones)
+    )
+    st.markdown(
+        f"La condición de la derecha es la que hace honesto al número: **solo la historia "
+        f"hasta $t$**, nunca la muestra completa. Usar la muestra completa sería fijar "
+        f"umbrales con información del futuro — el modelo «sabría» en 2019 que el yield iba a "
+        f"llegar a su máximo en 2023. Y con menos de "
+        f"{UMBRALES.valuacion.min_observaciones} observaciones no se emite: no es un percentil, "
+        f"es una opinión. Aquí hay **{panel.n_observaciones}**."
+    )
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 06 · AUDITORÍA
+# ══════════════════════════════════════════════════════════════════════════════
+
+zona("06", "Auditoría", "Cerrado por omisión. Cada cifra rastreable hasta su documento.")
 
 with st.expander("Las tres puertas, criterio por criterio"):
     for puerta, titulo in (
@@ -560,13 +808,12 @@ with st.expander("Por qué el percentil usa ventana expandible y no la muestra c
         sesgo = sesgo_por_ventana_completa(panel.prima.dropna())
         fig2 = go.Figure()
         fig2.add_scatter(x=sesgo.index, y=sesgo["expandible"], name="Expandible (lo correcto)",
-                         line={"color": COLOR_LUZ["VERDE"]})
+                         line={"color": AMBAR})
         fig2.add_scatter(x=sesgo.index, y=sesgo["muestra_completa"],
                          name="Muestra completa (usa el futuro)",
                          line={"color": COLOR_LUZ["ROJO"], "dash": "dash"})
+        fig2.update_layout(**plantilla_plotly())
         fig2.update_layout(height=260, yaxis_tickformat=".0%",
-                           margin={"t": 20, "b": 20, "l": 10, "r": 10},
-                           plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
                            legend={"orientation": "h", "y": 1.15})
         st.plotly_chart(fig2, key="sesgo_ventana")
         brecha = sesgo["diferencia"].abs().mean()
@@ -606,16 +853,42 @@ with st.expander(f"Qué mirar en un REIT de {panel.sector}"):
     for metrica, explicacion in metricas_especificas(panel.sector).items():
         st.markdown(f"- **{metrica}** — {explicacion}")
 
-with st.expander("Serie trimestral completa"):
-    mostrar_tabla(panel.trimestral.tail(20))
+# Un título que dice "completa" sobre una tabla recortada es una afirmación
+# falsa, y esta pantalla vive de que sus afirmaciones se puedan verificar. PSA
+# tiene 73 trimestres y se dibujaban 20.
+_MAX_TRIMESTRES = 20
+_n_tri = len(panel.trimestral)
+_titulo_tri = (
+    f"Serie trimestral completa ({_n_tri} trimestres)" if _n_tri <= _MAX_TRIMESTRES
+    else f"Serie trimestral — últimos {_MAX_TRIMESTRES} de {_n_tri} trimestres"
+)
+with st.expander(_titulo_tri):
+    mostrar_tabla(panel.trimestral.tail(_MAX_TRIMESTRES))
+    if _n_tri > _MAX_TRIMESTRES:
+        st.caption(
+            f"Se dibujan los {_MAX_TRIMESTRES} más recientes de {_n_tri}. La serie íntegra sale "
+            "en el libro de Excel de abajo."
+        )
 
-with st.expander("Procedencia de cada cifra"):
+_MAX_FUENTES = 60
+_n_fuentes = len(panel.fuentes)
+_titulo_fuentes = (
+    f"Procedencia de cada cifra ({_n_fuentes} registros)" if _n_fuentes <= _MAX_FUENTES
+    else f"Procedencia — {_MAX_FUENTES} de {_n_fuentes} registros"
+)
+with st.expander(_titulo_fuentes):
     st.caption(
         "Primario significa que viene directo de la SEC o de un banco central. Derivado o "
         "reconstruido significa que lo calculó el modelo y hereda el error de sus componentes."
     )
     if not panel.fuentes.empty:
-        mostrar_tabla(panel.fuentes.head(60))
+        mostrar_tabla(panel.fuentes.head(_MAX_FUENTES))
+        if _n_fuentes > _MAX_FUENTES:
+            st.caption(
+                f"**Se dibujan {_MAX_FUENTES} de {_n_fuentes} registros**, los más recientes. "
+                "Una sección de trazabilidad que recorta en silencio deja de servir para "
+                "trazar: el libro de Excel lleva la lista íntegra."
+            )
 
 with st.expander("Exportar a Excel con fórmulas vivas"):
     st.caption(
@@ -628,11 +901,10 @@ with st.expander("Exportar a Excel con fórmulas vivas"):
             st.error("No hay un trimestre completo para exportar.")
         else:
             fila = ultima.iloc[0]
-            # Anualizar el trimestre por cuatro es una aproximación, y se marca como
-            # tal: solo se usa para el contraste entre AFFO, FFO y utilidad neta, no
-            # para valuar. Si el trimestre falta, el resultado es faltante, no cero.
-            ffo_trimestral = positivo(fila.get("ffo"))
-            utilidad_trimestral = positivo(fila.get("utilidad_neta"))
+            # El FFO y la utilidad neta van en TTM real, con la misma regla de
+            # cuatro trimestres consecutivos que el AFFO. Antes se anualizaba un
+            # trimestre por cuatro, y el libro exportado llevaba ese error a la
+            # hoja de cálculo del usuario.
             ins = InsumosValuacion(
                 ticker=ticker,
                 precio=numero(panel.precio, 0.0),
@@ -640,8 +912,8 @@ with st.expander("Exportar a Excel con fórmulas vivas"):
                 noi_trimestral=positivo(fila.get("noi")),
                 affo_ttm=positivo(fila.get("affo_ttm")),
                 affo_por_accion_ttm=positivo(fila.get("affo_por_accion_ttm")),
-                ffo_ttm=None if ffo_trimestral is None else ffo_trimestral * 4,
-                utilidad_neta_ttm=None if utilidad_trimestral is None else utilidad_trimestral * 4,
+                ffo_ttm=positivo(fila.get("ffo_ttm")),
+                utilidad_neta_ttm=positivo(fila.get("utilidad_neta_ttm")),
                 dividendo_ttm_por_accion=panel.dividendo_ttm,
                 sector=panel.sector,
             )
@@ -660,7 +932,10 @@ with st.expander("Exportar a Excel con fórmulas vivas"):
                 cap_rate_mercado=cap_rate,
                 tasa_libre_riesgo=panel.tasa_libre_riesgo or 0.042,
                 yield_adquisiciones=yield_adq,
-                fuentes=panel.fuentes.head(200).to_dict("records") if not panel.fuentes.empty else [],
+                # La procedencia va íntegra al libro. Recortarla a 200 dejaba
+                # fuera 269 registros de Realty Income sin decirlo, ni en la
+                # pantalla ni en el archivo.
+                fuentes=panel.fuentes.to_dict("records") if not panel.fuentes.empty else [],
             )
             ruta = exportar(datos, DIR_EXPORTES / f"{ticker}_{asof}.xlsx")
             st.success(f"Libro generado: `{ruta}`")
@@ -671,10 +946,12 @@ with st.expander("Exportar a Excel con fórmulas vivas"):
                 )
 
 st.markdown(
-    f"<div style='font-size:11px;line-height:1.6;color:{TINTA_3};margin-top:18px'>"
-    "Esto es una herramienta de análisis, no asesoría de inversión. Toda métrica de desempeño "
-    "va acompañada de su conteo de apuestas efectivas. Cuando las observaciones son "
-    "insuficientes el veredicto es <strong>INCONCLUSO</strong>, nunca GO.</div>",
+    f"<div style='font-size:11px;line-height:1.6;color:{GRIS};margin-top:18px;"
+    f"border-top:1px solid {LINEA};padding-top:12px'>"
+    "Contenido educativo y de análisis. <strong>No es asesoría de inversión.</strong> Toda "
+    "métrica de desempeño va acompañada de su conteo de apuestas efectivas. Cuando las "
+    "observaciones son insuficientes el veredicto es <strong>INCONCLUSO</strong>, nunca GO. "
+    "Resultados pasados no garantizan resultados futuros.</div>",
     unsafe_allow_html=True,
 )
 descargo()

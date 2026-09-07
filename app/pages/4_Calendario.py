@@ -21,6 +21,7 @@ from comun import (  # noqa: E402
     mostrar_tabla,
     selector_de_corte,
 )
+from marca import GRIS, PROFIT, encabezado, inyectar_estilos  # noqa: E402
 
 from src.ingesta.tasas import deflactar  # noqa: E402
 from src.portafolio.transacciones import procesar_libro  # noqa: E402
@@ -28,6 +29,8 @@ from src.servicio import contexto_macro  # noqa: E402
 from src.simulacion.escenarios import rastrear_dividendo_real  # noqa: E402
 
 configurar("Calendario", "📅")
+inyectar_estilos()
+encabezado("Calendario")
 st.title("Calendario de distribuciones")
 
 repo = exigir_base()
@@ -124,7 +127,7 @@ if not historico.empty:
     if posiciones:
         por_mes = proyeccion.groupby("mes")["ingreso_proyectado"].sum()
         figura = go.Figure()
-        figura.add_bar(x=por_mes.index, y=por_mes.to_numpy(), marker_color="#1a7f37")
+        figura.add_bar(x=por_mes.index, y=por_mes.to_numpy(), marker_color=PROFIT)
         figura.update_layout(height=300, yaxis_title="USD proyectados",
                              margin={"t": 20, "b": 20, "l": 10, "r": 10}, showlegend=False)
         st.plotly_chart(figura)
@@ -155,9 +158,9 @@ if len(anual) >= 3 and not macro.inpc.empty:
     real = deflactar(anual, macro.inpc)
     figura = go.Figure()
     figura.add_scatter(x=anual.index, y=anual.to_numpy(), name="Dividendo nominal",
-                       line={"color": "#57606a"})
+                       line={"color": GRIS})
     figura.add_scatter(x=real.index, y=real.to_numpy(), name="Dividendo REAL (pesos de hoy)",
-                       line={"color": "#1a7f37", "width": 3})
+                       line={"color": PROFIT, "width": 3})
     figura.update_layout(height=340, yaxis_title="USD por título",
                          margin={"t": 20, "b": 20, "l": 10, "r": 10},
                          legend={"orientation": "h", "y": 1.12})
