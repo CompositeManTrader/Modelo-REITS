@@ -68,6 +68,37 @@ FUENTES_PRIMARIAS = frozenset(
 )
 
 
+# Qué procedencia gana cuando DOS caminos producen el mismo hecho, del mismo
+# periodo y publicado el mismo día. Pasa de verdad: tres rutas distintas derivan
+# el Q4 —`estados.py`, `xbrl.py` y la reconstrucción desde acumulados— y en 421
+# celdas del universo llegan a números que difieren entre 0.3% y 0.6%. La
+# restricción única de `hechos` incluye la fuente, así que las dos filas conviven
+# como debe ser: el archivo conserva todo lo que se supo.
+#
+# Lo que NO puede quedar al azar es cuál de las dos usa el modelo. Antes ganaba
+# la de `id` más alto —la que se hubiera insertado después—, de modo que una
+# cifra reconstruida le ganaba a la que reportó la SEC por el orden en que
+# corrió la ingesta. El criterio correcto es la cercanía a la fuente.
+PRECEDENCIA_FUENTE: dict[str, int] = {
+    # Lo que publicó el emisor o el banco central. Nada le gana.
+    **dict.fromkeys(FUENTES_PRIMARIAS, 40),
+    Fuente.MERCADO: 30,
+    # Una captura humana es una afirmación deliberada: vale más que una cuenta
+    # nuestra, y menos que el documento original.
+    Fuente.MANUAL: 20,
+    # Calculado a partir de otros datos de la base, con su aritmética explícita.
+    Fuente.DERIVADO: 10,
+    # Rellenado a partir de acumulados. Es el más lejano al documento.
+    Fuente.RECONSTRUIDO: 5,
+    # La semilla de demostración nunca le gana a un dato real.
+    Fuente.DEMO: 0,
+}
+
+# Una fuente que nadie registró en la tabla anterior no puede colarse por encima
+# de un dato primario solo por ser desconocida.
+PRECEDENCIA_DESCONOCIDA = 1
+
+
 class Estado:
     """Estado de validación de un registro."""
 

@@ -22,7 +22,13 @@ from pathlib import Path
 import pandas as pd
 from sqlalchemy import Engine, create_engine, delete, insert, select, text
 
-from src.config import RUTA_BD, Estado, asegurar_directorios
+from src.config import (
+    PRECEDENCIA_DESCONOCIDA,
+    PRECEDENCIA_FUENTE,
+    RUTA_BD,
+    Estado,
+    asegurar_directorios,
+)
 from src.datos import esquema
 
 Fecha = dt.date | str | pd.Timestamp
@@ -537,9 +543,24 @@ def _filtro_in(q, columna, valores):
 
 
 def _ultima_version(df: pd.DataFrame, llave: list[str]) -> pd.DataFrame:
-    """Se queda con la fila publicada más recientemente por celda conceptual."""
+    """Se queda con la fila publicada más recientemente por celda conceptual.
+
+    A igualdad de fecha de publicación manda la PROCEDENCIA, no el orden en que
+    se escribió. Tres caminos derivan el mismo Q4 y a veces difieren; con el
+    desempate por ``id`` ganaba el que se hubiera insertado al final, así que la
+    cifra que usaba el modelo dependía del orden de la ingesta. Ahora gana la
+    más cercana a la fuente, y ante empate total el ``id``, que es estable.
+    """
+    orden = df.copy()
+    if "fuente" in orden:
+        orden["_precedencia"] = (
+            orden["fuente"].map(PRECEDENCIA_FUENTE).fillna(PRECEDENCIA_DESCONOCIDA)
+        )
+    else:
+        orden["_precedencia"] = PRECEDENCIA_DESCONOCIDA
     return (
-        df.sort_values([*llave, "fecha_publicacion", "id"])
+        orden.sort_values([*llave, "fecha_publicacion", "_precedencia", "id"])
         .drop_duplicates(llave, keep="last")
+        .drop(columns="_precedencia")
         .reset_index(drop=True)
     )

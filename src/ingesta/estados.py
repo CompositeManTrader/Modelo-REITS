@@ -194,6 +194,9 @@ _RESULTADOS: tuple[LineaEstado, ...] = (
     _l("dividendos_preferentes", "Dividendos preferentes", ESTADO_RESULTADOS, 300, (
         "PreferredStockDividendsAndOtherAdjustments",
         "DividendsPreferredStock",
+        # Le pega DIRECTO al flujo de los comunes: es lo que se paga antes que
+        # ellos. Cinco de diez emisoras lo publican con esta etiqueta.
+        "PreferredStockDividendsIncomeStatementImpact",
     )),
     _l("utilidad_neta_comun", "Utilidad neta atribuible a comunes", ESTADO_RESULTADOS, 310, (
         "NetIncomeLossAvailableToCommonStockholdersBasic",
@@ -231,6 +234,18 @@ _BALANCE: tuple[LineaEstado, ...] = (
         "RealEstateInvestmentPropertyAtCost",
         "RealEstateGrossAtCarryingValue",
     )),
+    _l("terreno", "Terreno", BALANCE, 12, (
+        "Land",
+        "LandAndLandImprovements",
+    )),
+    _l("edificios", "Edificios y mejoras", BALANCE, 14, (
+        "InvestmentBuildingAndBuildingImprovements",
+        "BuildingsAndImprovementsGross",
+    )),
+    _l("desarrollo_en_proceso", "Desarrollo en proceso", BALANCE, 16, (
+        "DevelopmentInProcess",
+        "ConstructionInProgressGross",
+    )),
     _l("depreciacion_acumulada", "Depreciación acumulada", BALANCE, 20, (
         "RealEstateInvestmentPropertyAccumulatedDepreciation",
         "AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment",
@@ -246,6 +261,9 @@ _BALANCE: tuple[LineaEstado, ...] = (
     _l("efectivo_restringido", "Efectivo restringido", BALANCE, 50, (
         "RestrictedCashAndCashEquivalents",
         "RestrictedCashAndInvestmentsCurrent",
+        # La etiqueta corta la usan seis de las diez y no estaba: el renglón
+        # aparecía en UNA emisora de diez.
+        "RestrictedCash",
     )),
     _l("cuentas_por_cobrar", "Cuentas por cobrar", BALANCE, 60, (
         "AccountsReceivableNetNoncurrent",
@@ -255,6 +273,7 @@ _BALANCE: tuple[LineaEstado, ...] = (
     _l("renta_linea_recta_por_cobrar", "Rentas por cobrar en línea recta", BALANCE, 70, (
         "DeferredRentReceivablesNet",
         "StraightLineRentAdjustments",
+        "StraightLineRent",
     )),
     _l("intangibles_arrendamiento", "Intangibles de arrendamiento", BALANCE, 80, (
         "FiniteLivedIntangibleAssetsNet",
@@ -310,6 +329,44 @@ _BALANCE: tuple[LineaEstado, ...] = (
     )),
     _l("intangibles_pasivo", "Intangibles de arrendamiento, pasivo", BALANCE, 260, (
         "OffMarketLeaseUnfavorable",
+        # El arrendamiento por debajo de mercado es un pasivo intangible que se
+        # amortiza CONTRA la renta: infla el ingreso reportado sin efectivo
+        # detrás. Siete de diez emisoras lo publican y no se estaba leyendo.
+        "BelowMarketLeaseNet",
+    )),
+    # La ESCALERA DE VENCIMIENTOS. No es un renglón del balance sino una nota,
+    # y es la que dice cuánta deuda hay que refinanciar y cuándo. Para un REIT
+    # apalancado es la diferencia entre un balance sano y uno que depende de que
+    # el mercado de crédito siga abierto el año que entra: el apalancamiento
+    # total no distingue entre deber a doce meses y deber a diez años. Seis de
+    # las diez emisoras la publican y no se estaba leyendo ninguna.
+    _l("vencimiento_12m", "Vencimientos a 12 meses", BALANCE, 241, (
+        "LongTermDebtMaturitiesRepaymentsOfPrincipalInNextTwelveMonths",
+        "LongTermDebtMaturitiesRepaymentsOfPrincipalRemainderOfFiscalYear",
+    )),
+    _l("vencimiento_ano_2", "Vencimientos al año 2", BALANCE, 242, (
+        "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearTwo",
+    )),
+    _l("vencimiento_ano_3", "Vencimientos al año 3", BALANCE, 243, (
+        "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearThree",
+    )),
+    _l("vencimiento_ano_4", "Vencimientos al año 4", BALANCE, 244, (
+        "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFour",
+    )),
+    _l("vencimiento_ano_5", "Vencimientos al año 5", BALANCE, 245, (
+        "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFive",
+    )),
+    _l("vencimiento_despues", "Vencimientos posteriores", BALANCE, 246, (
+        "LongTermDebtMaturitiesRepaymentsOfPrincipalAfterYearFive",
+    )),
+    # El arrendamiento operativo es deuda por otro nombre: obliga a pagar renta
+    # de un terreno durante décadas. Siete de diez lo publican.
+    _l("pasivo_arrendamiento", "Pasivo por arrendamiento operativo", BALANCE, 250, (
+        "OperatingLeaseLiability",
+        "OperatingLeaseLiabilityNoncurrent",
+    )),
+    _l("activo_arrendamiento", "Activo por derecho de uso", BALANCE, 95, (
+        "OperatingLeaseRightOfUseAsset",
     )),
     _l("pasivos_otros", "Otros pasivos", BALANCE, 270, (
         "OtherLiabilities",
@@ -354,6 +411,12 @@ _BALANCE: tuple[LineaEstado, ...] = (
         "RedeemableNoncontrollingInterestEquityCarryingAmount",
         "RedeemableNoncontrollingInterestEquityFairValue",
         "RedeemableNoncontrollingInterestEquityOtherFairValue",
+        # La variante "OtherCarryingAmount" faltaba, y con ella el balance de
+        # Public Storage no cerraba por 12.3 MM en 2008–2011: exactamente el
+        # tamaño de este renglón. Apareció al guardar la historia completa en el
+        # almacén; con la ventana corta esos periodos no se revisaban.
+        "RedeemableNoncontrollingInterestEquityOtherCarryingAmount",
+        "RedeemableNoncontrollingInterestEquityCommonCarryingAmount",
     )),
     _l("capital_total", "Capital contable total", BALANCE, 375, (
         "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
@@ -1216,7 +1279,23 @@ def hechos_de_estados(
     se vuelve a derivar sobre el renglón ya empalmado. Esa última pasada es la que
     despeja un trimestre cuyo acumulado quedó en una etiqueta y su tramo en otra.
     """
-    crudos = hechos_crudos(companyfacts, ticker, desde=desde)
+    return hechos_de_crudos(hechos_crudos(companyfacts, ticker, desde=desde), ticker, cik)
+
+
+def hechos_de_crudos(crudos: pd.DataFrame, ticker: str, cik: str = "") -> pd.DataFrame:
+    """Lo mismo, pero partiendo de los hechos crudos YA leídos, sin tocar la red.
+
+    Es la mitad que hacía falta para cumplir la promesa del encabezado de este
+    módulo: "si mañana mejora la taxonomía, se rearman los estados sin volver a
+    bajar nada". El crudo está versionado en ``data/emisoras/<TICKER>/`` desde
+    hace tiempo, pero la única forma de rearmar era volver a pedirle a la SEC los
+    128 MB de `companyfacts` que ya estaban en el repositorio en 1.5 MB.
+
+    Separarlo tiene una segunda consecuencia, más importante que el ahorro:
+    ampliar el catálogo deja de depender de la red y de que la SEC esté arriba,
+    así que se puede probar un cambio de taxonomía contra el universo entero en
+    segundos y de forma reproducible.
+    """
     if crudos.empty:
         return pd.DataFrame(columns=list(COLUMNAS_HECHOS))
 
@@ -1294,6 +1373,7 @@ __all__ = [
     "elegir_cadenas",
     "elegir_tags",
     "hechos_crudos",
+    "hechos_de_crudos",
     "hechos_de_estados",
     "lineas_de",
     "periodos_disponibles",
