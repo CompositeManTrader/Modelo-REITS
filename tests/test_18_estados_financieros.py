@@ -42,7 +42,7 @@ from src.ingesta.estados import (
     LINEA_POR_CLAVE,
     LINEAS,
     armar_estado,
-    derivar_cuarto_trimestre,
+    derivar_trimestres_faltantes,
     elegir_tags,
     hechos_crudos,
     tags_de,
@@ -211,7 +211,7 @@ def test_el_cuarto_trimestre_se_deriva_del_ano_menos_nueve_meses():
         _hecho("Revenues", "FY", dt.date(2025, 12, 31), dt.date(2026, 2, 24), 5_749_377_000.0),
     ])
     tags = {"ingresos_totales": "Revenues"}
-    salida = derivar_cuarto_trimestre(crudos, tags)
+    salida = derivar_trimestres_faltantes(crudos, tags)
 
     q4 = salida[(salida["periodo_tipo"] == "Q") & (salida["formulario"] == "DERIVADO")]
     assert len(q4) == 1
@@ -225,7 +225,7 @@ def test_el_trimestre_derivado_se_fecha_cuando_ya_era_deducible():
         _hecho("Revenues", "9M", dt.date(2025, 9, 30), dt.date(2025, 11, 4), 100.0),
         _hecho("Revenues", "FY", dt.date(2025, 12, 31), dt.date(2026, 2, 24), 140.0),
     ])
-    salida = derivar_cuarto_trimestre(crudos, {"ingresos_totales": "Revenues"})
+    salida = derivar_trimestres_faltantes(crudos, {"ingresos_totales": "Revenues"})
     derivado = salida[salida["formulario"] == "DERIVADO"].iloc[0]
     assert derivado["fecha_publicacion"] == dt.date(2026, 2, 24)
 
@@ -244,7 +244,7 @@ def test_el_conteo_de_acciones_se_deriva_como_promedio_no_como_flujo():
                dt.date(2025, 12, 31), dt.date(2026, 2, 24), 913_000_000.0, "shares"),
     ])
     tags = {"acciones_diluidas": "WeightedAverageNumberOfDilutedSharesOutstanding"}
-    salida = derivar_cuarto_trimestre(crudos, tags)
+    salida = derivar_trimestres_faltantes(crudos, tags)
     q4 = float(salida[salida["formulario"] == "DERIVADO"]["valor"].iloc[0])
 
     assert q4 == pytest.approx(4 * 913_000_000 - 3 * 910_000_000)
@@ -265,7 +265,7 @@ def test_no_se_deriva_un_trimestre_que_la_emisora_si_publico():
         _hecho("Revenues", "Q", dt.date(2025, 12, 31), dt.date(2026, 2, 24), 40.0),
         _hecho("Revenues", "FY", dt.date(2025, 12, 31), dt.date(2026, 2, 24), 140.0),
     ])
-    salida = derivar_cuarto_trimestre(crudos, {"ingresos_totales": "Revenues"})
+    salida = derivar_trimestres_faltantes(crudos, {"ingresos_totales": "Revenues"})
     assert (salida["formulario"] == "DERIVADO").sum() == 0
 
 
@@ -275,7 +275,7 @@ def test_un_saldo_de_balance_no_se_deriva():
         _hecho("Assets", "PUNTUAL", dt.date(2025, 9, 30), dt.date(2025, 11, 4), 100.0),
         _hecho("Assets", "PUNTUAL", dt.date(2025, 12, 31), dt.date(2026, 2, 24), 140.0),
     ])
-    salida = derivar_cuarto_trimestre(crudos, {"activos_totales": "Assets"})
+    salida = derivar_trimestres_faltantes(crudos, {"activos_totales": "Assets"})
     assert (salida["formulario"] == "DERIVADO").sum() == 0
 
 
@@ -500,7 +500,7 @@ def test_los_estados_guardados_siguen_cuadrando(ticker):
         pytest.skip(f"{ticker} todavía no está descargado en el almacén.")
 
     tags = elegir_tags(crudos, ticker)
-    completos = derivar_cuarto_trimestre(crudos, tags)
+    completos = derivar_trimestres_faltantes(crudos, tags)
     balance = armar_estado(completos, ticker, BALANCE, asof=dt.date.today(), tags=tags)
     errores = [i for i in verificar_balance(ticker, balance) if i.severidad == ERROR]
     assert not errores, "\n".join(i.como_texto() for i in errores)

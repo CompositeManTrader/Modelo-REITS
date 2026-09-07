@@ -65,7 +65,7 @@ from src.ingesta.estados import (  # noqa: E402
     armar_estado,
     cobertura_de_lineas,
     conceptos_no_mapeados,
-    derivar_cuarto_trimestre,
+    derivar_trimestres_faltantes,
     elegir_tags,
     hechos_crudos,
     periodos_disponibles,
@@ -91,7 +91,7 @@ def armar_y_verificar(ticker: str, crudos: pd.DataFrame, *, asof: dt.date):
     10-Q del cuarto trimestre y sin él la serie trimestral tiene un hueco anual.
     """
     tags = elegir_tags(crudos, ticker)
-    completos = derivar_cuarto_trimestre(crudos, tags)
+    completos = derivar_trimestres_faltantes(crudos, tags)
     estados = {}
     for estado, tipo in COMBINACIONES:
         estados[(estado, tipo)] = armar_estado(
