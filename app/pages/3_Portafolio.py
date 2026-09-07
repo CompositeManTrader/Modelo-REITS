@@ -38,7 +38,9 @@ from src.portafolio.metricas import (  # noqa: E402
     atribuir_retorno,
     crecimiento_real_anualizado,
     drawdown,
+    ingreso_anual_por_dividendos,
     resumen_desempeno,
+    suma_ttm,
 )
 from src.portafolio.rebalanceo import (  # noqa: E402
     PREFERENCIA_DINERO_NUEVO,
@@ -269,7 +271,9 @@ with pestanas[2]:
                 m1.metric("TWR anualizado", pct(resumen["twr_anualizado"]))
                 m2.metric("TIR (money-weighted)", pct(resumen["tir"]))
                 m3.metric("Drawdown máximo", pct(resumen["drawdown_maximo"]))
-                m4.metric("Sharpe", veces(resumen["sharpe"]) if resumen["sharpe"] else "—")
+                # `veces` ya dibuja el hueco si no hay dato; la guardia extra
+                # convertía un Sharpe de 0.00x en un guion de dato faltante.
+                m4.metric("Sharpe", veces(resumen["sharpe"]))
 
                 if resumen.get("brecha_twr_tir") is not None:
                     brecha = resumen["brecha_twr_tir"]
@@ -303,40 +307,67 @@ with pestanas[2]:
             objetivo = st.selectbox("Posición", sorted(estado.posiciones), key="attrib")
             panel_precios = repo.serie_precio(objetivo, asof=asof)
             hechos = repo.serie(objetivo, "affo_por_accion", asof=asof, periodo_tipo="Q")
-            if len(panel_precios) > 250 and len(hechos) > 5:
-                p0 = float(panel_precios.iloc[-252])
+            hace_un_anio = panel_precios[
+                panel_precios.index <= pd.Timestamp(asof) - pd.DateOffset(years=1)
+            ]
+            # El AFFO de cada extremo son sus CUATRO trimestres, no uno multiplicado
+            # por cuatro: la descomposición compara doce meses contra doce meses.
+            a0 = suma_ttm(hechos, trimestres_atras=4)
+            a1 = suma_ttm(hechos)
+            if not hace_un_anio.empty and a0 and a1:
+                p0 = float(hace_un_anio.iloc[-1])
                 p1 = float(panel_precios.iloc[-1])
-                a0 = float(hechos.iloc[-5]) * 4
-                a1 = float(hechos.iloc[-1]) * 4
                 divs = repo.dividendos(objetivo, asof=asof)
                 div_12m = float(
                     divs[divs["fecha_ex"] > pd.Timestamp(asof) - pd.DateOffset(years=1)]["monto"].sum()
                 ) if not divs.empty else 0.0
                 atribucion = atribuir_retorno(p0, p1, a0, a1, div_12m)
                 if atribucion:
-                    mostrar_tabla(atribucion.como_tabla(),
-                                 column_config={"aporte": st.column_config.NumberColumn(
-                                     "Aporte", format="%.2f%%")})
+                    # Sin column_config: la columna `aporte` es una fracción y el
+                    # formato de la casa ya la escala. Pasar aquí un formato de
+                    # porcentaje sobre el decimal crudo dibujaba 0.08% donde el
+                    # emisor creció 7.6%, y el pie pedía multiplicar por cien de
+                    # memoria en vez de arreglarlo.
+                    mostrar_tabla(atribucion.como_tabla())
                     st.caption(
-                        "Los aportes están en decimal; multiplica por 100 mentalmente o mira la "
-                        "gráfica. El total cierra exacto porque el término cruzado se reporta "
-                        "por separado en vez de repartirse."
+                        f"AFFO por acción de los últimos doce meses ({a1:,.2f}) contra los doce "
+                        f"anteriores ({a0:,.2f}). El total cierra exacto porque el término "
+                        "cruzado se reporta por separado en vez de repartirse."
                     )
             else:
-                st.info("Hace falta más de un año de precios y cinco trimestres de AFFO para atribuir.")
+                st.info(
+                    "Hace falta un año de precios y ocho trimestres de AFFO para atribuir: "
+                    "cuatro que cierran hoy y cuatro que cierran hace un año."
+                )
 
             st.subheader("Ingreso en términos reales")
-            divs = repo.dividendos(list(estado.posiciones), asof=asof)
-            if not divs.empty and not macro.inpc.empty:
-                serie_ingreso = (
-                    divs.set_index("fecha_ex")["monto"].resample("YE").sum()
+            # Del LIBRO y por años completos. Leer la tabla de dividendos del mercado
+            # sumaba el monto POR ACCIÓN de cada emisora sin ponderar por títulos:
+            # un número que no es dinero ni tasa, y que sale igual con diez mil
+            # títulos de una emisora que con uno.
+            serie_ingreso = ingreso_anual_por_dividendos(transacciones, hasta=asof)
+            if len(serie_ingreso) < 2:
+                st.info(
+                    "Hacen falta dos años calendario COMPLETOS de dividendos cobrados en el "
+                    "libro. Un año a medias entra a la serie como una caída que nadie sufrió."
                 )
+            elif macro.inpc.empty:
+                st.info("Falta el INPC para deflactar el ingreso.")
+            else:
                 real = crecimiento_real_anualizado(serie_ingreso, macro.inpc)
                 a, b, c = st.columns(3)
-                a.metric("Crecimiento nominal del ingreso", pct(real["nominal"]) if real["nominal"] else "—")
-                b.metric("Inflación", pct(real["inflacion"]) if real["inflacion"] else "—")
-                c.metric("Crecimiento REAL", pct(real["real"]) if real["real"] else "—",
+                # `pct` ya dibuja el hueco cuando no hay dato. Poner además una
+                # guardia por valor falsy convertía un crecimiento REAL de 0.00%
+                # —que es el hallazgo de esta sección— en un guion de dato faltante.
+                a.metric("Crecimiento nominal del ingreso", pct(real["nominal"]))
+                b.metric("Inflación", pct(real["inflacion"]))
+                c.metric("Crecimiento REAL", pct(real["real"]),
                          delta_color="normal" if (real["real"] or 0) > 0 else "inverse")
+                st.caption(
+                    f"Sobre dividendos efectivamente cobrados en {len(serie_ingreso)} años "
+                    f"completos ({serie_ingreso.index[0].year}–{serie_ingreso.index[-1].year}). "
+                    "El año en curso queda fuera hasta que cierre."
+                )
                 if real["real"] is not None and real["real"] <= 0.005:
                     st.error(
                         "Tu ingreso por dividendos está **plano o cayendo en poder adquisitivo**. "
@@ -481,25 +512,45 @@ with pestanas[5]:
     )
     detalle = rendimiento_real_despues_de_impuestos(yield_cartera, crecimiento, inflacion)
 
+    # Una columna nominal y una real, y la resta la hace la pantalla. Publicar una
+    # sola columna con unos renglones reales y otros nominales, y pedir en el pie
+    # que el lector le reste la inflación a unos sí y a otros no, es dejar a medias
+    # justo la comparación que la sección dice ser la única honesta —teniendo el
+    # insumo de inflación capturado tres renglones arriba—.
+    # Fisher en las dos direcciones, no una suma en una y un cociente en la otra:
+    # con 3% de inflación la diferencia entre `r + i` y `(1+r)(1+i) − 1` son 10 bps,
+    # y una tabla que existe para comparar renglones no puede armarlos con dos
+    # convenciones distintas.
+    def _a_nominal(real: float | None) -> float | None:
+        return None if real is None else (1 + real) * (1 + inflacion) - 1
+
     filas = [
-        {"Instrumento": "Portafolio de REITs (real, neto de impuestos)",
-         "Rendimiento": detalle["real_despues_de_impuestos"], "Garantizado": "No"},
-        {"Instrumento": "Udibono 10 años (real)", "Rendimiento": macro.udibono10, "Garantizado": "Sí"},
-        {"Instrumento": "Cetes 28 días (nominal)",
-         "Rendimiento": repo.valor_tasa("CETES28", asof=asof), "Garantizado": "Sí"},
-        {"Instrumento": "Mbono 10 años (nominal)",
-         "Rendimiento": repo.valor_tasa("MBONO10", asof=asof), "Garantizado": "Sí"},
-        {"Instrumento": "UST 10 años (nominal, USD)", "Rendimiento": macro.ust10, "Garantizado": "Sí"},
+        {"Instrumento": "Portafolio de REITs (neto de impuestos)",
+         "Rendimiento nominal": _a_nominal(detalle["real_despues_de_impuestos"]),
+         "Rendimiento real": detalle["real_despues_de_impuestos"], "Garantizado": "No"},
+        {"Instrumento": "Udibono 10 años",
+         "Rendimiento nominal": _a_nominal(macro.udibono10),
+         "Rendimiento real": macro.udibono10, "Garantizado": "Sí"},
+        {"Instrumento": "Cetes 28 días", "Rendimiento nominal": repo.valor_tasa("CETES28", asof=asof),
+         "Garantizado": "Sí"},
+        {"Instrumento": "Mbono 10 años", "Rendimiento nominal": repo.valor_tasa("MBONO10", asof=asof),
+         "Garantizado": "Sí"},
+        {"Instrumento": "UST 10 años (USD)", "Rendimiento nominal": macro.ust10, "Garantizado": "Sí"},
     ]
     df = pd.DataFrame(filas)
-    df["Rendimiento"] = pd.to_numeric(df["Rendimiento"], errors="coerce")
-    mostrar_tabla(
-        df,
-        column_config={"Rendimiento": st.column_config.NumberColumn(format="%.2f%%")},
+    for columna in ("Rendimiento nominal", "Rendimiento real"):
+        df[columna] = pd.to_numeric(df.get(columna), errors="coerce")
+    # El Udibono y los REITs nacen reales, así que su nominal se reconstruye
+    # sumando la inflación; los demás nacen nominales y se deflactan aquí.
+    faltan = df["Rendimiento real"].isna()
+    df.loc[faltan, "Rendimiento real"] = (
+        (1 + df.loc[faltan, "Rendimiento nominal"]) / (1 + inflacion) - 1
     )
+    mostrar_tabla(df)
     st.caption(
-        "Ojo: solo la fila de REITs y la del Udibono están en términos **reales**. Las demás son "
-        "nominales y hay que restarles la inflación esperada antes de compararlas."
+        f"La columna **Rendimiento real** descuenta la inflación esperada de {inflacion:.2%} que capturaste "
+        "arriba. Es la única columna comparable entre renglones: un Cete nominal y un Udibono "
+        "real no se comparan de frente."
     )
     explicar("Udibono")
 

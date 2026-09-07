@@ -255,14 +255,18 @@ def avisos(lista: list[str]) -> None:
 
 def suficiencia(n_apuestas: int, etiqueta: str = "episodios") -> None:
     """Toda métrica de desempeño va acompañada de su conteo de apuestas efectivas."""
+    # El adjetivo concuerda con el sustantivo que le pasen. Fijarlo en masculino
+    # producía "139 transacciones efectivos" en la pantalla de portafolio.
+    femenino = etiqueta.endswith(("a", "as", "cion", "ciones", "sion", "siones", "dad", "dades"))
+    efectivos = "efectivas" if femenino else "efectivos"
     if n_apuestas >= MIN_APUESTAS_EFECTIVAS:
         st.caption(
-            f"Basado en {n_apuestas} {etiqueta} efectivos, arriba del umbral de "
+            f"Basado en {n_apuestas} {etiqueta} {efectivos}, arriba del umbral de "
             f"{MIN_APUESTAS_EFECTIVAS}."
         )
     else:
         st.warning(
-            f"**INCONCLUSO.** Solo {n_apuestas} {etiqueta} efectivos, debajo del umbral de "
+            f"**INCONCLUSO.** Solo {n_apuestas} {etiqueta} {efectivos}, debajo del umbral de "
             f"{MIN_APUESTAS_EFECTIVAS}. Cualquier métrica de desempeño calculada sobre esta "
             "muestra es ruido con decimales. El veredicto correcto es INCONCLUSO, no GO."
         )
@@ -456,12 +460,21 @@ _COLUMNAS_PORCENTAJE = (
     "rendimiento", "ocupacion", "cap_rate", "rate", "prima", "inflacion", "ltv",
     "peso", "fraccion", "spread", "dilucion", "error", "diferencia_relativa",
     "pct", "caida", "tir", "plusvalia", "brecha", "probabilidad", "cagr",
+    # La atribución del retorno reparte el resultado en componentes que son
+    # fracciones. Sin declararlo, la columna caía en "número" y no se escalaba,
+    # y la pantalla dibujaba 0.08% donde el emisor creció 7.6%.
+    "aporte",
 )
 _COLUMNAS_BPS = ("bps",)
 _COLUMNAS_MONEDA = (
-    "precio", "nav", "monto", "valor", "usd", "mxn", "dividendo", "costo", "flujo",
-    "saldo", "capital", "interes", "renta", "aportacion", "retiro", "neto", "isr",
-    "impuesto", "perdida", "ingreso", "utilidad", "ffo", "affo", "noi", "deuda",
+    "precio", "nav", "monto", "valor", "usd", "mxn", "dividendo", "dividendos",
+    "costo", "flujo", "saldo", "capital", "interes", "renta", "aportacion",
+    "retiro", "neto", "isr", "impuesto", "perdida", "ingreso", "utilidad",
+    # "ganancia" faltaba, así que en la tabla de posiciones convivían un costo
+    # total de "$24,000.00" y una ganancia de "1,417": la misma unidad con dos
+    # formatos, en columnas contiguas. El plural de dividendo tampoco casaba,
+    # porque la búsqueda es por token completo y no por subcadena.
+    "ganancia", "ffo", "affo", "noi", "deuda",
 )
 _COLUMNAS_POR_ACCION = ("por_accion", "per_share")
 _COLUMNAS_VECES = ("p_affo", "veces", "multiplo", "ebitdare", "cobertura", "razon")
@@ -505,8 +518,38 @@ def familia_de_columna(columna, serie: pd.Series | None = None) -> str:
     return "numero"
 
 
+# Un encabezado se escribe como se escribe en español. La clave de la columna va
+# sin acentos porque es un identificador, pero lo que se dibuja no es la clave: en
+# la tabla de atribución convivían un "Aporte" bien puesto y un "explicacion" crudo.
+# La regla cubre la familia que causa casi todos los casos —toda palabra terminada
+# en `-cion` o `-sion` lleva acento en singular— y el resto va declarado.
+_RE_TERMINACION_ACENTUADA = re.compile(r"\b(\w+)(cion|sion)\b")
+_PALABRAS_ACENTUADAS = {"razon": "razón", "indice": "índice"}
+# Las que ninguna regla acierta: una sigla que no se capitaliza como palabra, un
+# prefijo técnico que no se lee, y el sufijo con el que este proyecto marca los
+# porcentajes.
+_ETIQUETAS_EXPLICITAS = {
+    "retencion_eeuu": "Retención EE. UU.",
+    "n_observaciones": "Observaciones",
+    "ganancia_no_realizada_pct": "Ganancia no realizada %",
+}
+
+
+def etiqueta_de_columna(columna) -> str:
+    """Cómo se dibuja el nombre de una columna en un encabezado."""
+    clave = str(columna).strip().lower()
+    if clave in _ETIQUETAS_EXPLICITAS:
+        return _ETIQUETAS_EXPLICITAS[clave]
+    texto = clave.replace("_", " ")
+    texto = " ".join(_PALABRAS_ACENTUADAS.get(p, p) for p in texto.split())
+    texto = _RE_TERMINACION_ACENTUADA.sub(
+        lambda m: m.group(1) + ("ción" if m.group(2) == "cion" else "sión"), texto
+    )
+    return texto.capitalize()
+
+
 def _config_de_familia(familia: str, columna, serie: pd.Series) -> object:
-    etiqueta = str(columna).replace("_", " ").strip().capitalize()
+    etiqueta = etiqueta_de_columna(columna)
     if familia == "bps":
         return st.column_config.NumberColumn(etiqueta, format="%,.0f bps")
     if familia == "porcentaje":
@@ -541,6 +584,11 @@ def formato_columnas(df: pd.DataFrame, explicito: dict | None = None) -> tuple[p
     for columna in vista.columns:
         serie = vista[columna]
         if not pd.api.types.is_numeric_dtype(serie) or pd.api.types.is_bool_dtype(serie):
+            # Una columna de texto no tiene unidad ni formato, pero sí encabezado:
+            # sin esto se dibujaba con la clave cruda, y una misma tabla mezclaba
+            # "Aporte" con "explicacion".
+            if columna not in explicito:
+                config[columna] = st.column_config.Column(etiqueta_de_columna(columna))
             continue
         familia = familia_de_columna(columna, serie)
         if familia == "porcentaje":
