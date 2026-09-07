@@ -82,12 +82,31 @@ def _periodos(tabla: pd.DataFrame) -> list:
 # --------------------------------------------------------------------------------------
 
 
-def verificar_balance(ticker: str, balance: pd.DataFrame) -> list[Incidencia]:
+def verificar_balance(
+    ticker: str,
+    balance: pd.DataFrame,
+    por_reporte: pd.DataFrame | None = None,
+) -> list[Incidencia]:
     """Activo = Pasivo + Capital. Es la identidad que define la partida doble.
 
     Si no se cumple, alguna de las tres líneas viene de una etiqueta que no es la
     que se cree. No hay forma de que la emisora la haya publicado descuadrada: la
     SEC no acepta un balance que no cierre.
+
+    Con una salvedad que hay que nombrar, porque produce descuadres que NO son
+    errores de lectura. Cada renglón se toma en su versión publicada más reciente,
+    que es lo correcto para saber qué se sabe hoy de esa línea; pero cuando la
+    emisora reexpresa una y no vuelve a etiquetar las otras, el corte queda armado
+    con dos reportes distintos y la identidad deja de aplicar. Prologis reexpresó
+    su activo del primer trimestre de 2017 en el 10-Q del año siguiente —29,481 MM
+    contra 29,815— y nunca volvió a publicar el pasivo más capital de ese corte:
+    compararlos es comparar dos balances, no encontrar un error.
+
+    ``por_reporte`` es el balance sin colapsar —un renglón por corte y por filing—.
+    Con él la pregunta se hace bien: si ALGÚN reporte publicado cuadra, las
+    etiquetas están bien leídas y el descuadre de la vista de hoy es la mezcla, no
+    un error; se reporta como AVISO con su propio nombre. Solo cuando ningún
+    reporte cuadra hay ERROR. Sin este argumento el comportamiento es el de antes.
     """
     incidencias: list[Incidencia] = []
     if balance.empty:
@@ -99,9 +118,23 @@ def verificar_balance(ticker: str, balance: pd.DataFrame) -> list[Incidencia]:
         suma_declarada = _valor(balance, "pasivo_mas_capital", periodo)
         capital = _capital_total(balance, periodo)
 
-        if activos is not None and suma_declarada is not None and not _cerca(
-            activos, suma_declarada, activos
-        ):
+        cierra_el_declarado = (
+            activos is not None
+            and suma_declarada is not None
+            and _cerca(activos, suma_declarada, activos)
+        )
+        descuadra_declarado = (
+            activos is not None and suma_declarada is not None and not cierra_el_declarado
+        )
+        if descuadra_declarado and _algun_reporte_cuadra(por_reporte, periodo):
+            incidencias.append(Incidencia(
+                ticker, AVISO, "balance_de_dos_reportes",
+                f"la vista de hoy toma el activo de una reexpresión ({activos:,.0f}) y el "
+                f"pasivo más capital del reporte original ({suma_declarada:,.0f}); dentro "
+                "de su propio filing el balance sí cuadra",
+                periodo,
+            ))
+        elif descuadra_declarado:
             incidencias.append(Incidencia(
                 ticker, ERROR, "balance_cuadra",
                 f"activos {activos:,.0f} contra pasivo+capital declarado "
@@ -113,14 +146,92 @@ def verificar_balance(ticker: str, balance: pd.DataFrame) -> list[Incidencia]:
             # El capital temporal va ENTRE el pasivo y el capital permanente.
             calculado = pasivos + capital + (_valor(balance, "capital_temporal", periodo) or 0.0)
             if not _cerca(activos, calculado, activos):
-                incidencias.append(Incidencia(
-                    ticker, ERROR, "balance_cuadra",
-                    f"activos {activos:,.0f} contra pasivos {pasivos:,.0f} + capital "
-                    f"{capital:,.0f} (+ temporal) = {calculado:,.0f} "
-                    f"(diferencia {activos - calculado:,.0f})",
-                    periodo,
-                ))
+                # Tres diagnósticos distintos que antes salían con el mismo nombre,
+                # y el orden en que se preguntan es lo que los separa.
+                #
+                # 1. Si el total que declara LA EMISORA cuadra contra el activo en
+                #    esta misma vista, su balance cierra y nuestras etiquetas de
+                #    activo y de total están bien. Que la suma por partes no
+                #    llegue significa que falta un renglón INTERMEDIO —casi
+                #    siempre el mezzanine, que la taxonomía escribe de nueve
+                #    maneras—. No invalida el estado ni toca el apalancamiento,
+                #    que sale de la deuda y el efectivo, no de esta suma.
+                # 2. Si no cuadra aquí pero SÍ cuadró en algún reporte publicado,
+                #    lo que falla es la mezcla: una reexpresión tocó unos
+                #    renglones y no otros.
+                # 3. Si no cuadra en ninguna parte, entonces sí: alguna línea
+                #    viene de una etiqueta que no es la que creemos.
+                if cierra_el_declarado:
+                    incidencias.append(Incidencia(
+                        ticker, AVISO, "descomposicion_incompleta",
+                        f"activos {activos:,.0f} contra pasivos {pasivos:,.0f} + capital "
+                        f"{capital:,.0f} (+ temporal) = {calculado:,.0f} "
+                        f"(diferencia {activos - calculado:,.0f}); el total que declara la "
+                        "emisora sí cuadra, así que falta un renglón intermedio y no está "
+                        "mal leído el balance",
+                        periodo,
+                    ))
+                elif _algun_reporte_cuadra(por_reporte, periodo):
+                    incidencias.append(Incidencia(
+                        ticker, AVISO, "balance_de_dos_reportes",
+                        "la vista de hoy mezcla dos filings —una reexpresión tocó unos "
+                        "renglones y no otros— pero el balance SÍ cuadra dentro del "
+                        "reporte en que se publicó, así que las etiquetas están bien",
+                        periodo,
+                    ))
+                else:
+                    incidencias.append(Incidencia(
+                        ticker, ERROR, "balance_cuadra",
+                        f"activos {activos:,.0f} contra pasivos {pasivos:,.0f} + capital "
+                        f"{capital:,.0f} (+ temporal) = {calculado:,.0f} "
+                        f"(diferencia {activos - calculado:,.0f})",
+                        periodo,
+                    ))
     return incidencias
+
+
+# Los renglones que entran a la identidad. Si no salen todos del mismo reporte,
+# el corte es una mezcla y no hay identidad que comprobar.
+_LINEAS_DE_LA_IDENTIDAD = (
+    "activos_totales", "pasivos_totales", "pasivo_mas_capital",
+    "capital_total", "capital_contable", "participacion_no_controladora",
+    "capital_temporal",
+)
+
+
+def _algun_reporte_cuadra(por_reporte: pd.DataFrame | None, periodo) -> bool:
+    """¿Existió algún filing donde este corte cuadre?
+
+    Basta uno. Si la emisora publicó alguna vez un balance de este periodo que
+    cierra, las etiquetas que estamos leyendo son las correctas y el descuadre de
+    la vista colapsada viene de mezclar una reexpresión con el reporte original.
+    """
+    if por_reporte is None or por_reporte.empty:
+        return False
+    sub = por_reporte[por_reporte["fecha_dato"] == periodo]
+    if sub.empty:
+        return False
+    for _, filing in sub.groupby("fecha_publicacion"):
+        v = dict(zip(filing["linea"], filing["valor"], strict=True))
+        activos = v.get("activos_totales")
+        pasivos = v.get("pasivos_totales")
+        capital = v.get("capital_total")
+        if capital is None and v.get("capital_contable") is not None:
+            capital = v["capital_contable"] + v.get("participacion_no_controladora", 0.0)
+        if activos is None:
+            continue
+        # La evidencia más directa es el total que declara la propia emisora: si
+        # su `LiabilitiesAndStockholdersEquity` iguala al activo, ese reporte
+        # cuadra y no hace falta rearmarlo por partes.
+        declarado = v.get("pasivo_mas_capital")
+        if declarado is not None and _cerca(activos, declarado, activos):
+            return True
+        if None in (pasivos, capital):
+            continue
+        calculado = pasivos + capital + v.get("capital_temporal", 0.0)
+        if _cerca(activos, calculado, activos):
+            return True
+    return False
 
 
 def _capital_total(balance: pd.DataFrame, periodo) -> float | None:
@@ -423,18 +534,23 @@ def verificar_todo(
     ticker: str,
     crudos: pd.DataFrame,
     estados: dict[tuple[str, str | None], pd.DataFrame],
+    por_reporte: pd.DataFrame | None = None,
 ) -> list[Incidencia]:
     """Corre todas las comprobaciones y devuelve las incidencias, ordenadas.
 
     ``estados`` mapea ``(estado, periodo_tipo)`` a la tabla armada. El balance va
     con ``periodo_tipo=None`` porque es un saldo, no un periodo.
+
+    ``por_reporte`` es el balance sin colapsar, y sin él la verificación del
+    balance no puede distinguir un renglón mal leído de una reexpresión que solo
+    tocó parte del corte. Ver ``verificar_balance``.
     """
     incidencias: list[Incidencia] = []
     incidencias += verificar_point_in_time(ticker, crudos)
     incidencias += verificar_unidades(ticker, crudos)
 
     balance = estados.get((BALANCE, None), pd.DataFrame())
-    incidencias += verificar_balance(ticker, balance)
+    incidencias += verificar_balance(ticker, balance, por_reporte)
     incidencias += verificar_signos(ticker, balance)
 
     for estado_nombre in (ESTADO_RESULTADOS, FLUJO_EFECTIVO):
