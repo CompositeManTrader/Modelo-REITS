@@ -1,0 +1,156 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; background: #0f1113; font-family: Archivo, "Helvetica Neue", Arial, sans-serif; color: #e8e6e1; }
+    a { color: #7c9bd6; } a:hover { color: #a8bde6; }
+    .m { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .lbl { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #7b7972; }
+  </style>
+</helmet>
+
+<div style="width: 1080px; background: #0f1113; padding: 0 0 32px;">
+
+  <div style="display: flex; align-items: baseline; justify-content: space-between; padding: 18px 28px; border-bottom: 1px solid #26292d;">
+    <div style="display: flex; align-items: baseline; gap: 14px;">
+      <span class="m" style="font-size: 28px; font-weight: 600; letter-spacing: -0.02em;">O</span>
+      <span style="font-size: 14px; color: #a8a49c;">Realty Income · Net Lease</span>
+    </div>
+    <div style="display: flex; align-items: baseline; gap: 24px;">
+      <span class="m" style="font-size: 24px; font-weight: 600;">61.25</span>
+      <span class="m" style="font-size: 12px; color: #7b7972;">2026-09-07</span>
+    </div>
+  </div>
+
+  <div style="padding: 24px 28px 0;">
+    <div class="lbl" style="margin-bottom: 10px;">01 · Veredicto</div>
+    <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px;">
+      <div style="background: #16191c; border: 1px solid #26292d; border-left: 4px solid #d9a441; padding: 22px 24px;">
+        <div style="font-size: 42px; font-weight: 800; letter-spacing: -0.03em; color: #d9a441; line-height: 1;">INCONCLUSO</div>
+        <div style="font-size: 14px; color: #a8a49c; line-height: 1.5; margin-top: 12px; max-width: 56ch;">
+          20 de 24 observaciones. El modelo no tiene con qué opinar de valuación, y lo dice.
+        </div>
+      </div>
+      <div style="background: #16191c; border: 1px solid #26292d; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 8px; height: 8px; border-radius: 50%; background: #6b6f76;"></div>
+          <span style="font-size: 12px; flex-grow: 1;">Calidad</span>
+          <span class="m" style="font-size: 11px; color: #7b7972;">—</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 8px; height: 8px; border-radius: 50%; background: #e5534b;"></div>
+          <span style="font-size: 12px; flex-grow: 1;">Valuación</span>
+          <span class="m" style="font-size: 11px; color: #e5534b;">13%</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 8px; height: 8px; border-radius: 50%; background: #3fb950;"></div>
+          <span style="font-size: 12px; flex-grow: 1;">Deterioro</span>
+          <span class="m" style="font-size: 11px; color: #3fb950;">0/5</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; background: #26292d; border: 1px solid #26292d; margin-top: 16px;">
+      <div style="background: #16191c; padding: 13px 16px;">
+        <div class="lbl">Yield</div>
+        <div class="m" style="font-size: 21px; font-weight: 600; margin-top: 3px;">7.15%</div>
+      </div>
+      <div style="background: #16191c; padding: 13px 16px;">
+        <div class="lbl">Prima</div>
+        <div class="m" style="font-size: 21px; font-weight: 600; margin-top: 3px;">238bp</div>
+      </div>
+      <div style="background: #16191c; padding: 13px 16px;">
+        <div class="lbl">Payout</div>
+        <div class="m" style="font-size: 21px; font-weight: 600; margin-top: 3px; color: #3fb950;">74.0%</div>
+      </div>
+      <div style="background: #16191c; padding: 13px 16px;">
+        <div class="lbl">P / flujo</div>
+        <div class="m" style="font-size: 21px; font-weight: 600; margin-top: 3px;">14.0x</div>
+      </div>
+      <div style="background: #16191c; padding: 13px 16px;">
+        <div class="lbl">Div. yield</div>
+        <div class="m" style="font-size: 21px; font-weight: 600; margin-top: 3px;">5.29%</div>
+      </div>
+    </div>
+
+    <div class="lbl" style="margin: 24px 0 10px;">02 · Evidencia</div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+      <div style="background: #16191c; border: 1px solid #26292d; padding: 18px 20px;">
+        <div style="font-size: 13px; font-weight: 700;">¿Barato contra sí mismo?</div>
+        <div class="m" style="font-size: 32px; font-weight: 600; color: #e5534b; margin: 10px 0 8px;">13%</div>
+        <div style="display: flex; align-items: flex-end; gap: 2px; height: 48px;">
+          <div style="flex-grow: 1; height: 38%; background: #3a3e44;"></div>
+          <div style="flex-grow: 1; height: 62%; background: #3a3e44;"></div>
+          <div style="flex-grow: 1; height: 88%; background: #3a3e44;"></div>
+          <div style="flex-grow: 1; height: 100%; background: #3a3e44;"></div>
+          <div style="flex-grow: 1; height: 71%; background: #3a3e44;"></div>
+          <div style="flex-grow: 1; height: 47%; background: #3a3e44;"></div>
+          <div style="flex-grow: 1; height: 29%; background: #e5534b;"></div>
+        </div>
+      </div>
+      <div style="background: #16191c; border: 1px solid #26292d; padding: 18px 20px;">
+        <div style="font-size: 13px; font-weight: 700;">¿Alcanza el flujo?</div>
+        <div class="m" style="font-size: 32px; font-weight: 600; color: #3fb950; margin: 10px 0 8px;">74.0%</div>
+        <div style="height: 8px; background: #26292d; position: relative;">
+          <div style="position: absolute; inset: 0 26% 0 0; background: #3fb950;"></div>
+          <div style="position: absolute; left: 90%; top: -3px; bottom: -3px; width: 2px; background: #e8e6e1;"></div>
+        </div>
+        <div style="font-size: 11px; color: #7b7972; margin-top: 10px; line-height: 1.45;">sobre AFFO. Sobre utilidad neta da 220% y no significa nada.</div>
+      </div>
+      <div style="background: #16191c; border: 1px solid #26292d; padding: 18px 20px;">
+        <div style="font-size: 13px; font-weight: 700;">¿Qué descuenta?</div>
+        <div style="display: flex; align-items: baseline; gap: 12px; margin: 10px 0 8px;">
+          <span class="m" style="font-size: 26px; font-weight: 600;">0.58%</span>
+          <span class="m" style="font-size: 16px; color: #3fb950;">vs 3.81%</span>
+        </div>
+        <div style="font-size: 11px; color: #7b7972; line-height: 1.45;">El precio pide 323 bps menos de lo que ha entregado.</div>
+      </div>
+    </div>
+
+    <div class="lbl" style="margin: 24px 0 10px;">03 · Cascada</div>
+    <div style="background: #16191c; border: 1px solid #26292d; padding: 20px 24px;">
+      <div style="display: flex; align-items: flex-end; gap: 0; height: 120px;">
+        <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; justify-content: flex-end; height: 100%;">
+          <div class="m" style="font-size: 11px;">248.7</div>
+          <div style="width: 100%; height: 32%; background: #3a3e44;"></div>
+          <div style="font-size: 10px; color: #a8a49c;">Utilidad neta</div>
+        </div>
+        <div style="width: 52px; text-align: center; padding-bottom: 30px;"><div class="m" style="font-size: 10px; color: #3fb950;">+396</div><div style="height: 2px; background: #3fb950; margin-top: 4px;"></div></div>
+        <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; justify-content: flex-end; height: 100%;">
+          <div class="m" style="font-size: 11px;">644.7</div>
+          <div style="width: 100%; height: 83%; background: #565b63;"></div>
+          <div style="font-size: 10px; color: #a8a49c;">FFO</div>
+        </div>
+        <div style="width: 52px; text-align: center; padding-bottom: 30px;"><div class="m" style="font-size: 10px; color: #3fb950;">+12</div><div style="height: 2px; background: #3fb950; margin-top: 4px;"></div></div>
+        <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; justify-content: flex-end; height: 100%;">
+          <div class="m" style="font-size: 11px;">657.1</div>
+          <div style="width: 100%; height: 85%; background: #6f757e;"></div>
+          <div style="font-size: 10px; color: #a8a49c;">FFO norm.</div>
+        </div>
+        <div style="width: 52px; text-align: center; padding-bottom: 30px;"><div class="m" style="font-size: 10px; color: #e5534b;">−36</div><div style="height: 2px; background: #e5534b; margin-top: 4px;"></div></div>
+        <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; justify-content: flex-end; height: 100%;">
+          <div class="m" style="font-size: 13px; font-weight: 700;">620.8</div>
+          <div style="width: 100%; height: 80%; background: #e8e6e1;"></div>
+          <div style="font-size: 11px; font-weight: 700;">AFFO</div>
+        </div>
+      </div>
+      <div style="border-top: 1px solid #26292d; margin-top: 14px; padding-top: 11px; font-size: 12px; color: #3fb950; font-weight: 600;">
+        ✓ La conciliación cuadra en sus 3 tramos
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":1080,"height":880}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>

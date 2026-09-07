@@ -1,0 +1,15 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1440, "h": 2380,
+      "title": "Valuación — dirección principal (claro, denso)" },
+    { "file": "TerminalOscuro.dc.html", "x": 1600, "y": 0, "w": 1080, "h": 880,
+      "title": "Alterna — terminal oscuro" }
+  ],
+  "annotations": [
+    { "id": "jerarquia", "x": 0, "y": -190, "w": 700,
+      "text": "La jerarquía es la decisión de diseño, no el color.\n\n01 VEREDICTO   una palabra y una razón, legible en 3 segundos\n02 EVIDENCIA   tres preguntas distintas, en paralelo\n03 CASCADA     el mecanismo: de dónde sale el AFFO\n04 MÉTODOS     qué se puede valuar y qué le falta, con nombre\n05 AUDITORÍA   cerrado por omisión, rastreable hasta el filing\n\nHoy son 10 secciones al mismo peso, en scroll lineal." },
+    { "id": "alterna", "x": 1600, "y": -190, "w": 620,
+      "text": "Alterna: misma jerarquía, densidad de mesa.\n\nFondo oscuro, tipografía más chica, sin tarjetas blancas.\nEl eje real de decisión no es claro contra oscuro: es\ncuánta explicación acompaña a cada cifra.\n\nLa principal explica; esta supone que ya sabes leerla." }
+  ],
+  "launch": { "view": "focused", "file": "Main.dc.html" }
+}

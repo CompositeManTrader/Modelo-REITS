@@ -19,6 +19,11 @@ data/reit.db-journal
 data/cache/
 data/exportes/
 
+# El lienzo de diseño ya sembrado: 2.5 MB de payload regenerable desde los
+# `.dc.html` de `diseno/`, que sí se versionan. Es salida, no fuente.
+diseno/*.html
+!diseno/*.dc.html
+
 # Salidas locales
 *.xlsx
 !tests/fixtures/*.xlsx
