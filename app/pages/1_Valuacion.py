@@ -64,7 +64,13 @@ from comun import (  # noqa: E402
 
 from src.config import DIR_EXPORTES, UMBRALES  # noqa: E402
 from src.export.excel import DatosExportacion, exportar  # noqa: E402
-from src.modelo.cascada import CLAVES_TRAMPA, REPORTE, calcular_cascada  # noqa: E402
+from src.modelo.cascada import (  # noqa: E402
+    CLAVES_TRAMPA,
+    REPORTE,
+    calcular_cascada,
+    clave_base,
+    escalones_de_cascada,
+)
 from src.modelo.kill import tabla_liston_friccion, venta_parcial_sugerida  # noqa: E402
 from src.modelo.sectorial import metricas_especificas, perfil  # noqa: E402
 from src.modelo.senal import sesgo_por_ventana_completa  # noqa: E402
@@ -76,6 +82,7 @@ from src.modelo.valuacion import (  # noqa: E402
     valuar_por_crecimiento,
 )
 from src.servicio import MEDIDA_AFFO, construir_panel, contexto_macro, evaluar  # noqa: E402
+from src.validacion.cuadre import cuadrar_conciliacion  # noqa: E402
 
 configurar("Valuación", "📊")
 inyectar_estilos()
@@ -196,7 +203,7 @@ avisos(panel.avisos)
 
 prima_actual = panel.prima.dropna().iloc[-1] if not panel.prima.dropna().empty else None
 payout = m.get("payout_affo")
-etiqueta_flujo = "AFFO" if panel.medida_flujo == MEDIDA_AFFO else "Core FFO"
+etiqueta_flujo = panel.medida_flujo
 rejilla_cifras([
     ("Yield de flujo", pct(m.get("affo_yield")),
      f"{etiqueta_flujo} TTM ÷ precio crudo", ""),
@@ -318,7 +325,11 @@ with ev_c:
 # 03 · LA CASCADA
 # ══════════════════════════════════════════════════════════════════════════════
 
-periodos = repo.hechos(asof=asof, tickers=ticker, conceptos="affo", periodo_tipo="Q")
+# Los trimestres que se pueden ofrecer son los de la medida que este emisor sí
+# publica: pedir siempre "affo" dejaba sin cascada a PSA, EXR y WELL, que reportan
+# Core FFO y nunca un AFFO, aunque su conciliación esté completa en la base.
+concepto_flujo = "affo" if panel.medida_flujo == MEDIDA_AFFO else "ffo_normalizado"
+periodos = repo.hechos(asof=asof, tickers=ticker, conceptos=concepto_flujo, periodo_tipo="Q")
 opciones = (
     sorted(pd.to_datetime(periodos["fecha_dato"]).dt.date.unique(), reverse=True)
     if not periodos.empty else []
@@ -345,53 +356,41 @@ if conciliacion.empty:
     )
 else:
     lineas = {r["linea"]: float(r["valor"]) for _, r in conciliacion.iterrows()}
+    orden_lineas = {r["linea"]: int(r["orden"]) for _, r in conciliacion.iterrows()}
     resultado = calcular_cascada(lineas, sector=panel.sector, signos=REPORTE)
+    # Dos preguntas distintas, y confundirlas fue un error mío del rediseño: el
+    # CUADRE es aritmético —¿las partidas reproducen el subtotal que el emisor
+    # publica?— y las BANDERAS son cualitativas —¿falta una de las tres trampas,
+    # el CapEx se ve raro contra el NOI?—. Poner el conteo de banderas bajo la
+    # etiqueta "tramos sin cuadrar" decía que una conciliación exacta no cuadraba.
+    veredicto = cuadrar_conciliacion(lineas, orden_lineas)
 
-    def _val(clave: str) -> float | None:
-        v = lineas.get(clave)
-        return None if v is None else float(v)
+    pasos = escalones_de_cascada(lineas, medida_flujo=panel.medida_flujo)
 
-    def _puente(desde: str, hasta: str) -> float | None:
-        a, b = _val(desde), _val(hasta)
-        return None if a is None or b is None else b - a
-
-    subtotales = [
-        ("Utilidad neta", _val("utilidad_neta")),
-        ("FFO Nareit", _val("ffo")),
-        ("FFO normalizado", _val("ffo_normalizado")),
-        (etiqueta_flujo, _val("affo")),
-    ]
-    presentes = [(n, v) for n, v in subtotales if v is not None]
-    pasos: list[tuple[str, float | None, bool]] = []
-    for i, (nombre_sub, valor_sub) in enumerate(presentes):
-        if i:
-            anterior = presentes[i - 1][1]
-            # El salto de línea va como `<br>`: un `\n` dentro de HTML se colapsa a
-            # espacio, y la etiqueta de una sola línea se desborda sobre la barra
-            # siguiente en vez de partirse.
-            pasos.append((
-                "depreciación<br>y deterioro" if i == 1 else
-                "partidas no<br>recurrentes" if i == 2 else "renta lineal<br>y CapEx",
-                valor_sub - anterior, False,
-            ))
-        pasos.append((nombre_sub, valor_sub, True))
-
-    cuadra = not resultado.banderas
+    verificables = [t for t in veredicto.tramos if t.verificable]
+    cuadrando = sum(1 for t in verificables if t.cuadra)
     cascada_html(
         pasos,
         pie=(
-            "La conciliación cuadra contra los subtotales que el propio emisor publica"
-            if cuadra else f"{len(resultado.banderas)} tramo(s) sin cuadrar"
+            f"La conciliación cuadra en sus {cuadrando} tramo(s) verificables, contra los "
+            "subtotales que el propio emisor publica"
+            if veredicto.cuadra else
+            f"{len(verificables) - cuadrando} de {len(verificables)} tramo(s) no cuadran"
         ),
-        color_pie=COLOR_LUZ["VERDE"] if cuadra else COLOR_LUZ["AMARILLO"],
+        color_pie=COLOR_LUZ["VERDE"] if veredicto.cuadra else COLOR_LUZ["ROJO"],
         unidad=f"millones de USD · {len(conciliacion)} renglones",
     )
+    if not veredicto.cuadra:
+        st.error(veredicto.motivo)
     for bandera in resultado.banderas:
         st.warning(bandera)
 
     with st.expander("Ver la conciliación renglón por renglón"):
         detalle = conciliacion.copy()
-        detalle["trampa"] = detalle["linea"].isin(CLAVES_TRAMPA)
+        # Con la clave base: el ajuste de renta en línea recta vive DESPUÉS del
+        # primer subtotal y llega con sufijo de segmento, así que compararlo tal
+        # cual contra el catálogo nunca lo marcaba.
+        detalle["trampa"] = detalle["linea"].map(lambda k: clave_base(k) in CLAVES_TRAMPA)
         detalle["Línea"] = detalle.apply(
             lambda r: ("⚠️ " if r["trampa"] else "") + str(r["etiqueta"]), axis=1
         )

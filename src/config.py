@@ -159,6 +159,24 @@ CAPEX_ESPERADO_POR_SECTOR: dict[str, tuple[float, float]] = {
     "Especializado": (0.05, 0.20),
 }
 
+# Sectores donde NO existe ajuste de renta en línea recta, y su ausencia no dice nada.
+# El ajuste nace de promediar contablemente un contrato de varios años con escalador:
+# donde el contrato dura un mes —el self storage se renta mes con mes— o una noche
+# —el hotel—, no hay nada que promediar. Reclamarlo ahí es ruido, y el ruido tapa el
+# caso del net lease, donde la ausencia sí significa que el AFFO puede estar inflado.
+SECTORES_SIN_RENTA_EN_LINEA_RECTA: frozenset[str] = frozenset({
+    "Self Storage",
+    "Hoteles",
+})
+
+# Con qué medida de flujo se valúa a un emisor. No todos publican AFFO: el self
+# storage y buena parte de salud terminan su conciliación en el Core FFO. El texto
+# es a la vez el valor y la etiqueta que se muestra, y vive aquí —y no en la capa de
+# servicio— para que el modelo pueda decidir la forma de la cascada sin importar
+# hacia arriba.
+MEDIDA_AFFO = "AFFO"
+MEDIDA_CORE_FFO = "Core FFO"
+
 
 # --------------------------------------------------------------------------------------
 # Cap rate por sector: (mínimo, base, máximo)
