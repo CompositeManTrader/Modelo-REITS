@@ -374,6 +374,130 @@ def _numeros_de_fila(fila: list[str]) -> list[float]:
     return [v for v in valores if v is not None]
 
 
+# --------------------------------------------------------------------------------------
+# La conciliación que no viene en una tabla
+# --------------------------------------------------------------------------------------
+#
+# Prologis presenta su suplemento como IMÁGENES —46 archivos `.jpg`, una por
+# diapositiva— y junto a cada imagen el agente de presentación incrusta el texto
+# completo de esa página en un `<font>` blanco de 1 punto: la capa de texto
+# buscable del PDF. La conciliación entera está ahí, cifra por cifra, pero sin un
+# solo `<table>`: para un parser que recorre `<table>` el documento está vacío, y
+# por eso la única emisora industrial del universo llevaba meses sin llegar a la
+# pantalla.
+#
+# El texto plano SÍ tiene estructura: cada partida es una etiqueta seguida de
+# exactamente tantos importes como columnas tenga la página. Con ese invariante se
+# reconstruye la matriz, y de ahí en adelante corre el mismo camino que cualquier
+# tabla —fichas del emisor, signos, segmentos, cuadre—, sin código paralelo que
+# mantener.
+
+_GUIONES_RANURA = frozenset({"-", "—", "–", "‒", "―"})
+_RE_RANURA = re.compile(r"^\(?\$?-?[\d,]+(?:\.\d+)?\)?%?$")
+# Un importe con separador de miles, o entre paréntesis: marca dónde termina el
+# encabezado y empiezan los datos.
+_RE_MONTO = re.compile(r"^\(\$?-?[\d,.]+\)$|^\$?-?\d{1,3}(?:,\d{3})+(?:\.\d+)?$")
+
+
+def _es_ranura(token: str) -> bool:
+    """¿Este token ocupa una columna de la tabla reconstruida?"""
+    if token in _GUIONES_RANURA:
+        # El guion es una celda vacía y ocupa columna: tratarlo como texto corre
+        # todos los importes de ese renglón una posición a la izquierda.
+        return True
+    # Un token que termina en coma no es un importe sino parte de una frase —"June
+    # 30," en el encabezado—. El separador de miles va siempre DENTRO del número.
+    if token.endswith(","):
+        return False
+    return bool(_RE_RANURA.match(token)) and any(c.isdigit() for c in token)
+
+
+def _etiqueta_de_partida(palabras: list[str]) -> str:
+    """La etiqueta real de una partida, sin el encabezado de tramo que la precede.
+
+    En el texto plano no hay renglón que separe "Add (deduct) AFFO defined
+    adjustments:" de la primera partida que le sigue, así que llegan pegados. Lo
+    que va después del último dos puntos es la partida.
+    """
+    texto = " ".join(palabras)
+    return texto.rsplit(":", 1)[-1].strip() if ":" in texto else texto
+
+
+def _matriz_de_texto_plano(texto: str, n_columnas: int) -> list[list[str]]:
+    """Reconstruye ``[etiqueta, valor, valor, ...]`` desde un párrafo corrido."""
+    etiqueta: list[str] = []
+    ranuras: list[str] = []
+    filas: list[list[str]] = []
+
+    def cerrar() -> None:
+        nonlocal etiqueta, ranuras
+        filas.append([_etiqueta_de_partida(etiqueta)] + ranuras)
+        etiqueta, ranuras = [], []
+
+    for token in texto.split():
+        if token == "$":
+            continue  # marca de moneda, no una columna
+        if _es_ranura(token):
+            ranuras.append(token)
+            if len(ranuras) == n_columnas:
+                cerrar()
+        else:
+            if ranuras:
+                # Menos importes que columnas: el renglón venía incompleto y se
+                # cierra como está, para no arrastrar su desfase al siguiente.
+                cerrar()
+            etiqueta.append(token)
+    if etiqueta or ranuras:
+        cerrar()
+    return filas
+
+
+def _encabezado_de_pagina(texto: str) -> str:
+    """El prefijo del párrafo hasta el primer importe: ahí viven los periodos.
+
+    Cortar antes del primer importe evita que los años de las cifras de detalle
+    entren a la detección de periodos y multipliquen las columnas.
+    """
+    palabras = texto.split()
+    for i, token in enumerate(palabras):
+        if token == "$" or _RE_MONTO.match(token):
+            return " ".join(palabras[:i])
+    return " ".join(palabras[:80])
+
+
+# La página tiene que ANUNCIARSE como conciliación. En un documento de
+# diapositivas el título dice qué es cada página, y sin esa exigencia entran
+# también las que solo mencionan el FFO: el resumen de "Company Performance
+# Highlights" —que mezcla millones redondeados con cifras por acción— y las
+# tablas de las co-inversiones. Ninguna concilia nada, y la de resumen es
+# peligrosa porque sus cifras se parecen a las buenas: 1,323 millones contra
+# 1,322,967 miles. Ante la duda, esta vía no extrae: es el respaldo de un
+# documento que de otro modo se lee entero como vacío, no una segunda opinión.
+_RE_PAGINA_DE_CONCILIACION = re.compile(r"reconciliation", re.I)
+
+
+def _paginas_de_texto_plano(sopa) -> list[str]:
+    """Bloques de texto corrido que se anuncian como conciliación y no traen tabla."""
+    paginas: list[str] = []
+    for bloque in sopa.find_all(["p", "div", "font", "span"]):
+        if bloque.find("table") is not None or bloque.find(["p", "div", "font", "span"]):
+            continue  # solo el bloque más interno, para no contar el texto dos veces
+        texto = re.sub(r"\s+", " ", bloque.get_text(" ", strip=True))
+        if len(texto) < 400:
+            continue
+        if not _es_tabla_de_conciliacion([[texto]]):
+            continue
+        # En el TÍTULO, que son las primeras palabras: casi toda página de un
+        # suplemento remite en su nota al pie a "Please see reconciliations", y
+        # una ventana más ancha vuelve a admitirlas todas. Con doce palabras
+        # entraba de nuevo el resumen de "Company Performance", cuyo pie de página
+        # empieza justo después del título de dos palabras.
+        if not _RE_PAGINA_DE_CONCILIACION.search(" ".join(texto.split()[:6])):
+            continue
+        paginas.append(texto)
+    return paginas
+
+
 @dataclass
 class ConciliacionExtraida:
     """Resultado del parseo de una tabla de conciliación."""
@@ -497,6 +621,56 @@ def parsear_conciliacion(
                     filas, columnas, ticker, fecha_publicacion, url_filing, escala
                 )
             )
+
+    if not salida:
+        # Solo cuando el camino normal no encontró NADA. Un documento que sí trae
+        # tablas ya se leyó por donde debía, y dejar corriendo además el
+        # reconstructor de texto plano sobre él sería releer lo mismo por una vía
+        # más frágil, con riesgo de duplicar renglones.
+        salida.extend(
+            _parsear_texto_plano(
+                sopa, ticker, fecha_publicacion, url_filing, escala_doc, aplicar_escala
+            )
+        )
+    return salida
+
+
+def _parsear_texto_plano(
+    sopa,
+    ticker: str,
+    fecha_publicacion: dt.date,
+    url_filing: str,
+    escala_doc: float,
+    aplicar_escala: bool,
+) -> list[ConciliacionExtraida]:
+    """Lee las conciliaciones de un documento cuyas páginas son texto corrido."""
+    salida: list[ConciliacionExtraida] = []
+    for texto in _paginas_de_texto_plano(sopa):
+        encabezado = _encabezado_de_pagina(texto)
+        if _declara_guia(encabezado):
+            continue
+        periodos = detectar_periodos(encabezado)
+        if not periodos:
+            continue
+
+        matriz = _matriz_de_texto_plano(texto, len(periodos))
+        if len(matriz) < 3 or not _es_tabla_de_conciliacion(matriz):
+            continue
+        if _es_tabla_toda_por_accion(matriz):
+            continue
+
+        escala = detectar_escala(encabezado) if aplicar_escala else 1.0
+        if escala == 1.0:
+            escala = escala_doc
+
+        columnas = _mapear_columnas(matriz, periodos)
+        if not columnas:
+            continue
+        salida.extend(
+            _extraer_columnas(
+                matriz, columnas, ticker, fecha_publicacion, url_filing, escala
+            )
+        )
     return salida
 
 

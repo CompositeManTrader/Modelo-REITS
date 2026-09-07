@@ -647,3 +647,71 @@ registrar(_ficha(
     nota="Publica el FFO con la sigla de Nareit por delante, y a veces en un solo renglón "
          "con el normalizado.",
 ))
+
+
+# --------------------------------------------------------------------------------------
+# PLD — Prologis
+# --------------------------------------------------------------------------------------
+#
+# Prologis publica CUATRO subtotales, uno más que cualquier otro emisor del
+# universo: el FFO de Nareit, su propia versión modificada, el Core FFO y el AFFO.
+# El intermedio —"FFO, as modified by Prologis"— se deja SIN declarar a propósito.
+# No es un descuido: la cascada del modelo tiene tres escalones, y meterlo a la
+# fuerza en uno partiría en dos el tramo que va del FFO al Core FFO. Sin declararlo,
+# las partidas de ambos puentes se acumulan en ese único tramo y la suma cierra
+# exactamente contra el Core FFO que el propio emisor publica, que es lo que el
+# cuadre verifica.
+#
+# El AFFO de Prologis descuenta las tres trampas completas: renta en línea recta,
+# mejoras a la propiedad (su CapEx de mantenimiento) y los costos de rotación de
+# inquilinos, que es como llama a las comisiones de arrendamiento.
+registrar(_ficha(
+    "PLD",
+    "Prologis, Inc.",
+    subtotales=("ffo", "ffo_normalizado", "affo"),
+    lineas={
+        "Net earnings attributable to common stockholders": "utilidad_neta",
+        "Real estate related depreciation and amortization": "depreciacion_inmuebles",
+        "Gains on other dispositions of investments in real estate, net of taxes "
+        "(excluding development properties and land)": "ganancia_venta_inmuebles",
+        "Adjustments related to noncontrolling interests": "no_consolidadas_y_minoritarios",
+        "Our proportionate share of adjustments related to unconsolidated entities":
+            "no_consolidadas_y_minoritarios",
+        "NAREIT defined FFO attributable to common stockholders/unitholders": "ffo",
+        # Puente del FFO de Nareit al Core FFO. Prologis lo parte en dos con un
+        # subtotal intermedio que el modelo no necesita: ver la nota de arriba.
+        "Unrealized foreign currency, derivative and other losses (gains), net":
+            "otros_ajustes_no_efectivo",
+        "Deferred income tax expense (benefit)": "otros_ajustes_no_efectivo",
+        "Gains on dispositions of development properties and land, net":
+            "ganancia_venta_inmuebles",
+        "Current income tax expense (benefit) on dispositions": "otros_ajustes_no_efectivo",
+        "Current income tax benefit (expense) on dispositions": "otros_ajustes_no_efectivo",
+        "Current income tax expense on dispositions": "otros_ajustes_no_efectivo",
+        # Solo aparece en 2023, y son los 11,003 miles exactos por los que ese
+        # cuarto trimestre y ese año no cuadraban.
+        "Current income tax benefit on dispositions related to acquired tax liabilities":
+            "otros_ajustes_no_efectivo",
+        "Losses (gains) on early extinguishment of debt, net": "partidas_no_recurrentes",
+        "Gains on early extinguishment of debt, net": "partidas_no_recurrentes",
+        "Venture formation costs": "partidas_no_recurrentes",
+        "Core FFO attributable to common stockholders/unitholders": "ffo_normalizado",
+        # Puente al AFFO, con las tres trampas.
+        "Straight-lined rents and amortization of lease intangibles": "renta_linea_recta",
+        "Property improvements": "capex_mantenimiento",
+        "Turnover costs": "comisiones_arrendamiento",
+        "Amortization of debt discount, financing costs and management contracts, net":
+            "amortizacion_costos_financieros",
+        "Stock compensation amortization expense": "compensacion_en_acciones",
+        "AFFO attributable to common stockholders/unitholders": "affo",
+        # Encabezados de tramo y renglones de estructura.
+        "Add (deduct) NAREIT defined adjustments": IGNORAR,
+        "Add (deduct) our modified adjustments": IGNORAR,
+        "Add (deduct) Core FFO defined adjustments": IGNORAR,
+        "Add (deduct) AFFO defined adjustments": IGNORAR,
+        "FFO, as modified by Prologis attributable to common stockholders/unitholders":
+            IGNORAR,
+    },
+    nota="Presenta su suplemento como imágenes con el texto incrustado, sin tablas HTML. "
+         "Publica cuatro subtotales; el intermedio de Prologis no entra a la cascada.",
+))
