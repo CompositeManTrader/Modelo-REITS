@@ -20,6 +20,7 @@ import pandas as pd
 
 from src.config import EMISOR_POR_TICKER, UNIVERSO_INICIAL, Estado, Fuente
 from src.datos.repositorio import RegistroRechazado, Repositorio
+from src.ingesta import estados as mod_estados
 from src.ingesta import precios, xbrl
 from src.ingesta.edgar import ClienteEdgar, ErrorEdgar
 from src.ingesta.parser_affo import (
@@ -218,6 +219,45 @@ def _guardar_extraccion(repo: Repositorio, extraccion, resumen: ResumenIngesta, 
     _ = sector
 
 
+def ingestar_estados(
+    repo: Repositorio,
+    cliente: ClienteEdgar,
+    ticker: str,
+    cik: str,
+    *,
+    desde: dt.date | None = None,
+) -> ResumenIngesta:
+    """Persiste los tres estados financieros completos desde companyfacts.
+
+    `xbrl.py` mapea quince conceptos —los que alimentan la cascada del AFFO— y
+    era lo único que se guardaba. `estados.py` define setenta y cinco renglones
+    de estado de resultados, balance y flujo de efectivo, y sabía armarlos desde
+    hace tiempo, pero **nadie los escribía**: sesenta de esos setenta y cinco no
+    tenían ni un dato en la base.
+
+    Con ellos entran las tres piezas que la valuación necesitaba para dejar de
+    decir INCONCLUSO en todo el universo: el gasto por intereses del estado de
+    resultados, la deuda total del balance y los impuestos. Sin las tres no hay
+    EBITDAre, ni costo de la deuda, ni apalancamiento, y la Puerta 1 se quedaba
+    con dos criterios medibles de cinco cuando exige tres.
+    """
+    resumen = ResumenIngesta(ticker=ticker)
+    try:
+        datos = cliente.companyfacts(cik)
+    except ErrorEdgar as exc:
+        resumen.errores.append(f"estados financieros: {exc}")
+        return resumen
+    df = mod_estados.hechos_de_estados(datos, ticker, cik, desde=desde)
+    if df.empty:
+        return resumen
+    filas = df.to_dict("records")
+    for f in filas:
+        f["estado"] = Estado.VALIDO
+    resumen.hechos_guardados = repo.guardar_hechos(filas)
+    resumen.validos = resumen.hechos_guardados
+    return resumen
+
+
 def ingestar_xbrl(
     repo: Repositorio,
     cliente: ClienteEdgar,
@@ -389,6 +429,12 @@ def correr_ingesta(
             r_xbrl = ingestar_xbrl(repo, cliente, e.ticker, e.cik, desde=desde)
             resumen.hechos_guardados += r_xbrl.hechos_guardados
             resumen.errores.extend(r_xbrl.errores)
+            # Los tres estados completos. Van en la misma descarga de
+            # companyfacts que ya hizo el cliente —queda en su caché— así que no
+            # cuestan una petición más contra el límite de la SEC.
+            r_est = ingestar_estados(repo, cliente, e.ticker, e.cik, desde=desde)
+            resumen.hechos_guardados += r_est.hechos_guardados
+            resumen.errores.extend(r_est.errores)
         if con_precios:
             r_px = ingestar_precios(repo, e.ticker)
             resumen.precios_guardados = r_px.precios_guardados

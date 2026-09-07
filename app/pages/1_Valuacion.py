@@ -1,4 +1,4 @@
-"""Valuación individual, en seis zonas de jerarquía descendente.
+"""Valuación individual, en siete zonas de jerarquía descendente.
 
 Antes esta pantalla eran diez secciones del mismo peso visual, apiladas en un
 scroll lineal. Eso obliga a leerlo todo para saber cualquier cosa, y para un
@@ -8,12 +8,17 @@ El orden es el de una decisión, no el del código que la produce:
 
     01 VEREDICTO   una palabra y su razón. Tres segundos.
     02 EVIDENCIA   tres preguntas en paralelo. Ninguna se contesta con las otras.
-    03 CASCADA     el mecanismo: de dónde sale el flujo, y qué tramo NO se verificó.
-    04 MÉTODOS     qué se puede valuar y qué le falta al que no, con nombre.
-    05 MODELOS     la aritmética abierta: cada fórmula con SUS números sustituidos.
-    06 AUDITORÍA   cerrado por omisión, rastreable hasta el filing.
+    03 ESTADOS     el punto de partida: resultados, balance y flujo, como los publicó la SEC.
+    04 CASCADA     el mecanismo: de dónde sale el flujo, y qué tramo NO se verificó.
+    05 MÉTODOS     qué se puede valuar y qué le falta al que no, con nombre.
+    06 MODELOS     la aritmética abierta: cada fórmula con SUS números sustituidos.
+    07 AUDITORÍA   cerrado por omisión, rastreable hasta el filing.
 
-La zona 05 es la que hace auditable a todo lo demás. Una cifra sola no se puede
+La cadena se lee de arriba abajo y es completa: de los estados financieros salen
+el NOI y el EBITDAre; de la conciliación del 8-K sale el AFFO; de los dos juntos
+salen los modelos. Cada eslabón dice de dónde viene el anterior.
+
+La zona 06 es la que hace auditable a todo lo demás. Una cifra sola no se puede
 comprobar: `6.18%` puede ser correcto o puede ser un denominador equivocado, y
 desde la pantalla no había forma de distinguirlo. Ahí está la fórmula, están los
 números de ESTA emisora sustituidos, y está el resultado.
@@ -59,6 +64,7 @@ from comun import (  # noqa: E402
     veces,
     zona,
 )
+
 from marca import (  # noqa: E402
     AMBAR,
     COLOR_LUZ,
@@ -70,7 +76,6 @@ from marca import (  # noqa: E402
     inyectar_estilos,
     plantilla_plotly,
 )
-
 from src.config import DIR_EXPORTES, UMBRALES  # noqa: E402
 from src.export.excel import DatosExportacion, exportar  # noqa: E402
 from src.modelo.cascada import (  # noqa: E402
@@ -95,7 +100,14 @@ from src.modelo.valuacion import (  # noqa: E402
     sensibilidad_nav_sectorial,
     valuar_por_crecimiento,
 )
-from src.servicio import MEDIDA_AFFO, construir_panel, contexto_macro, evaluar  # noqa: E402
+from src.servicio import (  # noqa: E402
+    MEDIDA_AFFO,
+    ORIGEN_DE_INSUMOS,
+    construir_panel,
+    contexto_macro,
+    estado_financiero,
+    evaluar,
+)
 from src.validacion.cuadre import cuadrar_conciliacion  # noqa: E402
 
 configurar("Valuación", "📊")
@@ -442,7 +454,72 @@ with ev_c:
         tarjeta_cierra(valuacion_g.como_texto())
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 03 · LA CASCADA
+# 03 · LOS ESTADOS FINANCIEROS
+# ══════════════════════════════════════════════════════════════════════════════
+
+zona("03", "Los estados financieros", "El punto de partida, tal como los publicó la SEC.")
+
+st.markdown(
+    f"<div style='font-size:13px;line-height:1.55;color:{GRIS};margin-bottom:10px'>"
+    "Aquí empieza todo lo demás. Cada renglón sale de <strong>companyfacts</strong> de la SEC "
+    "con su etiqueta GAAP, y está filtrado por <strong>fecha de publicación</strong>: lo que "
+    "ves es lo que se sabía al corte, no la reexpresión posterior. Del estado de resultados "
+    "salen el NOI y el EBITDAre; del balance, la deuda neta. La conciliación del AFFO de la "
+    "zona siguiente <em>no</em> sale de aquí — es no-GAAP y vive en el comunicado de resultados."
+    "</div>",
+    unsafe_allow_html=True,
+)
+
+_ESTADOS = (
+    ("estado_resultados", "Estado de resultados", "Trimestral. Cuatro trimestres seguidos son el TTM."),
+    ("balance", "Balance general", "Saldos a la fecha de corte del trimestre. No se anualizan."),
+    ("flujo_efectivo", "Flujo de efectivo", "Trimestral, derivado de los acumulados que publica la SEC."),
+)
+pestanas = st.tabs([n for _, n, _ in _ESTADOS])
+for pestana, (clave_estado, nombre_estado, nota_estado) in zip(pestanas, _ESTADOS, strict=True):
+    with pestana:
+        tabla = estado_financiero(repo, ticker, clave_estado, asof=asof, n_periodos=6)
+        if tabla.empty:
+            st.info(
+                f"No hay {nombre_estado.lower()} para {ticker} al corte del {asof}. "
+                "Se arma desde companyfacts de la SEC: corre `python scripts/ingesta.py`."
+            )
+            continue
+        st.caption(nota_estado)
+        # Los montos van en millones: un balance en unidades obliga a contar ceros,
+        # y esta tabla existe para leerse de un vistazo.
+        vista_estado = tabla.copy()
+        for columna in vista_estado.columns[1:]:
+            vista_estado[columna] = pd.to_numeric(vista_estado[columna], errors="coerce") / 1e6
+        mostrar_tabla(
+            vista_estado,
+            column_config={
+                c: st.column_config.NumberColumn(c, format="%,.0f")
+                for c in vista_estado.columns[1:]
+            },
+        )
+        st.caption("Cifras en millones de USD, salvo las de por acción y el conteo de acciones.")
+
+with st.expander("De qué renglón sale cada insumo del modelo"):
+    st.caption(
+        "La tabla que contesta «¿de dónde salió este número?» sin abrir el código. A la "
+        "izquierda lo que consume la valuación; a la derecha, las líneas que la SEC publicó."
+    )
+    mostrar_tabla(
+        pd.DataFrame(
+            [{"Insumo del modelo": a, "Se arma con": b, "Por qué así": c}
+             for a, b, c in ORIGEN_DE_INSUMOS]
+        ),
+    )
+    st.markdown(
+        "**Lo que NO se puede sacar de aquí**, dicho para que no parezca un olvido: el "
+        "**grado de inversión** es una calificación crediticia y no existe en XBRL, así que "
+        "ese criterio de la Puerta 1 se queda sin medir para todas las emisoras. Se puede "
+        "capturar a mano; no se puede ingerir."
+    )
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 04 · LA CASCADA
 # ══════════════════════════════════════════════════════════════════════════════
 
 # Los trimestres que se pueden ofrecer son los de la medida que este emisor sí
@@ -457,7 +534,7 @@ opciones = (
 fecha_cascada = opciones[0] if opciones else None
 
 zona(
-    "03", "La cascada",
+    "04", "La cascada",
     "De dónde sale el flujo, y si cuadra contra el subtotal que publica el emisor.",
 )
 if opciones:
@@ -558,10 +635,10 @@ else:
         explicar("NOI", "FFO", "renta en línea recta", "CapEx de mantenimiento")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 04 · QUÉ SE PUEDE VALUAR
+# 05 · QUÉ SE PUEDE VALUAR
 # ══════════════════════════════════════════════════════════════════════════════
 
-zona("04", "Qué se puede valuar, y qué falta", "Un hueco tiene nombre, no es un cero.")
+zona("05", "Qué se puede valuar, y qué falta", "Un hueco tiene nombre, no es un cero.")
 
 fila_ultima = (
     panel.trimestral.tail(1).iloc[0] if not panel.trimestral.empty else pd.Series(dtype="float64")
@@ -694,10 +771,10 @@ if valuacion_g is not None:
         )
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 05 · LOS MODELOS, CON SUS NÚMEROS
+# 06 · LOS MODELOS, CON SUS NÚMEROS
 # ══════════════════════════════════════════════════════════════════════════════
 
-zona("05", "Los modelos", "La aritmética abierta: cada fórmula con los números de esta emisora.")
+zona("06", "Los modelos", "La aritmética abierta: cada fórmula con los números de esta emisora.")
 
 st.markdown(
     f"<div style='font-size:13px;line-height:1.55;color:{GRIS};margin-bottom:10px'>"
@@ -783,10 +860,10 @@ with st.expander("El percentil, que no es una fórmula cerrada"):
     )
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 06 · AUDITORÍA
+# 07 · AUDITORÍA
 # ══════════════════════════════════════════════════════════════════════════════
 
-zona("06", "Auditoría", "Cerrado por omisión. Cada cifra rastreable hasta su documento.")
+zona("07", "Auditoría", "Cerrado por omisión. Cada cifra rastreable hasta su documento.")
 
 with st.expander("Las tres puertas, criterio por criterio"):
     for puerta, titulo in (

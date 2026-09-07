@@ -37,6 +37,32 @@ CONCEPTOS_PANEL = (
     "utilidad_neta",
     "acciones_diluidas",
     "ingreso_rentas",
+    # Del estado de resultados y del flujo, para armar el NOI y el EBITDAre. Sin
+    # estos, tres de los cinco criterios de la Puerta 1 quedaban sin medir y el
+    # veredicto era INCONCLUSO para las diez emisoras.
+    "gasto_operacion_inmueble",
+    "gastos_operativos_inmueble",
+    "gasto_predial_seguro",
+    "gasto_intereses",
+    "impuestos",
+    "depreciacion_amortizacion",
+    "deterioro",
+    "ganancia_venta_inmuebles",
+    "ingresos",
+)
+
+# Rubros de BALANCE. Van aparte porque XBRL los fecha como saldo a una fecha
+# —`periodo_tipo="PUNTUAL"`— y no como un flujo de un trimestre. Pedirlos junto
+# con los demás, en la misma consulta de `periodo_tipo="Q"`, devolvía cero filas:
+# es la segunda razón por la que la deuda nunca llegaba a la valuación.
+CONCEPTOS_BALANCE = (
+    "deuda_total",
+    "efectivo",
+    "prestamos_por_cobrar",
+    "inversiones_no_consolidadas",
+    "goodwill",
+    "activos_totales",
+    "inmuebles_neto",
 )
 
 
@@ -130,6 +156,11 @@ def construir_panel(
         trimestral["crecimiento_affo_por_accion_yoy"] = (
             pd.to_numeric(trimestral["affo_por_accion"], errors="coerce").pct_change(4)
         )
+        trimestral["noi"] = _derivar_noi(trimestral)
+        trimestral["ebitdare"] = _derivar_ebitdare(trimestral)
+        trimestral["noi_ttm"] = _ttm(trimestral, "noi")
+        trimestral["ebitdare_ttm"] = _ttm(trimestral, "ebitdare")
+        trimestral["gasto_intereses_ttm"] = _ttm(trimestral, "gasto_intereses")
 
     precios = repo.serie_precio(ticker, asof=asof)
     precio = float(precios.iloc[-1]) if not precios.empty else None
@@ -164,11 +195,18 @@ def construir_panel(
                 prima, min_observaciones=UMBRALES.valuacion.min_observaciones
             )
 
+    # Los saldos de balance salen de la base salvo que quien llama traiga los
+    # suyos: la pantalla de valuación deja mover supuestos, y lo explícito manda.
+    saldos = _saldos_de_balance(repo, ticker, asof=asof)
+    balance = {**saldos, **(balance or {})}
+
     metricas = _metricas(
         trimestral, precio, div_ttm, rf, cap_rate_mercado, yield_adquisiciones, balance, ticker, sector
     )
 
-    fuentes = repo.hechos(asof=asof, tickers=ticker, conceptos=list(CONCEPTOS_PANEL))
+    fuentes = repo.hechos(
+        asof=asof, tickers=ticker, conceptos=[*CONCEPTOS_PANEL, *CONCEPTOS_BALANCE]
+    )
     if not fuentes.empty:
         fuentes = fuentes[
             ["concepto", "periodo_tipo", "fecha_dato", "fecha_publicacion", "valor",
@@ -270,6 +308,159 @@ def _ttm(trimestral: pd.DataFrame, concepto: str) -> pd.Series:
     return salida
 
 
+def _col(df: pd.DataFrame, *nombres: str) -> pd.Series:
+    """La primera columna que exista, como serie numérica; ceros si ninguna.
+
+    Las emisoras no etiquetan igual: unas reportan los gastos del inmueble bajo
+    ``gasto_operacion_inmueble`` y otras bajo ``gastos_operativos_inmueble``.
+    Devolver ceros en vez de propagar ``NaN`` es deliberado **solo para las
+    partidas que suman**: un deterioro ausente es un deterioro de cero, y exigirlo
+    borraría el EBITDAre de media docena de emisoras por un renglón que no
+    tuvieron. Las partidas sin las cuales el resultado no significa nada se
+    verifican aparte, en la función que llama.
+    """
+    for nombre in nombres:
+        if nombre in df:
+            serie = pd.to_numeric(df[nombre], errors="coerce")
+            if serie.notna().any():
+                # Los huecos POR RENGLÓN también son ceros, y esto no es un
+                # detalle: un trimestre sin deterioro —que es el trimestre
+                # normal— dejaba `NaN`, el EBITDAre de ese trimestre salía nulo,
+                # y con él se caía el TTM entero de cuatro trimestres seguidos.
+                # Media docena de emisoras se quedaban sin apalancamiento por un
+                # renglón que la emisora no tuvo que reportar.
+                return serie.fillna(0.0)
+    return pd.Series(0.0, index=df.index)
+
+
+# Un NOI de propiedad por debajo de esta fracción del ingreso significa que la
+# derivación no cubre el negocio, no que el negocio sea malo. Un REIT de renta
+# pura ronda 65%–75%; uno con operación propia baja, pero no a un dígito.
+PISO_NOI_SOBRE_INGRESO = 0.20
+
+
+def _col_estricta(df: pd.DataFrame, *nombres: str) -> pd.Series | None:
+    """Como `_col`, pero devuelve ``None`` si ninguna columna trae datos.
+
+    Para las partidas SIN LAS CUALES el resultado no significa nada. La
+    diferencia con `_col` no es de estilo: ahí un hueco es un cero legítimo
+    —nadie reporta un deterioro que no tuvo— y aquí un hueco invalida el cálculo.
+    """
+    for nombre in nombres:
+        if nombre in df:
+            serie = pd.to_numeric(df[nombre], errors="coerce")
+            if serie.notna().any():
+                return serie.fillna(0.0)
+    return None
+
+
+def _derivar_noi(trimestral: pd.DataFrame) -> pd.Series:
+    """``NOI = ingreso por renta − gastos operativos del inmueble``.
+
+    Se deriva porque XBRL no tiene una etiqueta de NOI: es una medida de la
+    industria inmobiliaria, no del GAAP. Si la emisora publicó un NOI propio, ese
+    manda; solo se reconstruye cuando falta.
+
+    Excluye a propósito corporativo, depreciación e intereses: el NOI mide lo que
+    produce el ladrillo antes de cómo esté financiado, y meterle el corporativo lo
+    convierte en otra cosa que además no es comparable entre emisores.
+
+    Se exigen **las dos piernas**: el ingreso por renta y el gasto del inmueble.
+    Derivarlo con una sola produce un número peor que el hueco, y las dos formas
+    de romperlo se vieron al construir esto. Sin la pierna de gastos, el NOI sale
+    igual al ingreso —margen de 100%— y el NAV se dispara. Y usar el ingreso
+    TOTAL como sustituto de la renta rompe a las emisoras cuya facturación no es
+    renta: Welltower, con su operación de vivienda para adultos mayores, quedaba
+    con un cap rate implícito de 0.89% y un NAV de 19 dólares para una acción que
+    cotiza arriba de 150. Ninguno de los dos números levanta una excepción.
+    """
+    reportado = (
+        pd.to_numeric(trimestral["noi"], errors="coerce")
+        if "noi" in trimestral else pd.Series(index=trimestral.index, dtype="float64")
+    )
+    renta = _col_estricta(trimestral, "ingreso_rentas")
+    gastos = _col_estricta(trimestral, "gasto_operacion_inmueble", "gastos_operativos_inmueble")
+    if renta is None or gastos is None:
+        return reportado
+    derivado = renta - gastos - _col(trimestral, "gasto_predial_seguro")
+    # Un NOI no positivo no es un NOI: es una pierna que no cuadra con la otra.
+    derivado = derivado.where((renta > 0) & (derivado > 0))
+
+    # Y un NOI que es una astilla del ingreso tampoco lo es. Welltower factura la
+    # mayor parte por operación de vivienda para adultos mayores, no por renta
+    # triple neta: derivar su NOI de la línea de renta captura una fracción del
+    # negocio y da un cap rate implícito de 0.89% con un NAV de 19 dólares para
+    # una acción que cotiza arriba de 150. La aritmética es correcta; el alcance
+    # no. Cuando el NOI derivado no llega a una quinta parte del ingreso, la
+    # derivación no está viendo el negocio y se prefiere no publicar número.
+    ingresos = _col_estricta(trimestral, "ingresos", "ingreso_rentas")
+    if ingresos is not None:
+        derivado = derivado.where(
+            (ingresos <= 0) | (derivado / ingresos >= PISO_NOI_SOBRE_INGRESO)
+        )
+    return reportado.fillna(derivado)
+
+
+def _derivar_ebitdare(trimestral: pd.DataFrame) -> pd.Series:
+    """EBITDAre según Nareit, que no es el EBITDA de un industrial.
+
+    ``utilidad neta + intereses + impuestos + depreciación y amortización
+    + deterioro − ganancia por venta de inmuebles``
+
+    Las dos últimas partidas son las que lo separan del EBITDA común y las que lo
+    hacen servir para un REIT: sin quitar la ganancia por venta, un emisor que
+    vendió un edificio grande aparece desapalancado un trimestre y vuelve a estar
+    apalancado el siguiente, sin que su deuda se haya movido.
+
+    Exige utilidad neta e intereses. Sin intereses el resultado no es EBITDAre
+    —es utilidad operativa con otro nombre— y el apalancamiento que salga de ahí
+    estaría sistemáticamente sobrestimado.
+    """
+    if "utilidad_neta" not in trimestral:
+        return pd.Series(index=trimestral.index, dtype="float64")
+    utilidad = pd.to_numeric(trimestral["utilidad_neta"], errors="coerce")
+    intereses = _col(trimestral, "gasto_intereses")
+    if not (intereses > 0).any():
+        return pd.Series(index=trimestral.index, dtype="float64")
+    suma = (
+        utilidad
+        + intereses
+        + _col(trimestral, "impuestos")
+        + _col(trimestral, "depreciacion_amortizacion")
+        + _col(trimestral, "deterioro")
+        - _col(trimestral, "ganancia_venta_inmuebles")
+    )
+    return suma.where(utilidad.notna() & (intereses > 0))
+
+
+def _saldos_de_balance(repo: Repositorio, ticker: str, *, asof: dt.date) -> dict[str, float]:
+    """El último saldo de cada rubro de balance conocido al corte.
+
+    Un saldo no se anualiza ni se promedia: ya viene a una fecha. Se toma el más
+    reciente **publicado** antes del corte, que es lo que un analista tendría ese
+    día en la mano.
+    """
+    hechos = repo.hechos(
+        asof=asof, tickers=ticker, conceptos=list(CONCEPTOS_BALANCE), periodo_tipo="PUNTUAL"
+    )
+    if hechos.empty:
+        return {}
+    hechos = hechos.sort_values(["fecha_dato", "fecha_publicacion"])
+    ultimos = hechos.drop_duplicates("concepto", keep="last")
+    saldos = {
+        r["concepto"]: float(r["valor"])
+        for _, r in ultimos.iterrows()
+        if pd.notna(r["valor"])
+    }
+    # Un REIT con deuda cero no existe: es una etiqueta GAAP mal elegida, no un
+    # balance sin apalancamiento. Global Net Lease salía con deuda de cero y un
+    # apalancamiento negativo, que se dibuja como si estuviera desapalancado —
+    # justo al revés de su situación real.
+    if saldos.get("deuda_total", 0.0) <= 0:
+        saldos.pop("deuda_total", None)
+    return saldos
+
+
 def _serie_affo_yield(trimestral: pd.DataFrame, precios: pd.Series) -> pd.Series:
     """AFFO yield TTM por fecha de trimestre, sobre precio de cierre **sin ajustar**."""
     if "affo_por_accion_ttm" not in trimestral:
@@ -343,6 +534,19 @@ def _metricas(
         # efecto de la anualización.
         ffo_ttm=_f(fila.get("ffo_ttm")),
         utilidad_neta_ttm=_f(fila.get("utilidad_neta_ttm")),
+        # El NOI anualizado sale del TTM real cuando existe, y solo se cae al
+        # trimestre por cuatro si no hay cuatro trimestres seguidos. El NAV y el
+        # cap rate implícito cuelgan de este número, y anualizar un trimestre en
+        # un negocio con adquisiciones desiguales mueve el NAV más que cualquier
+        # otro supuesto salvo el propio cap rate.
+        noi_anualizado=_f(fila.get("noi_ttm")),
+        # EBITDAre de los últimos doce meses: es el denominador del apalancamiento
+        # y sin él la Puerta 1 se quedaba sin uno de sus cinco criterios.
+        ebitdare_ttm=_f(fila.get("ebitdare_ttm")),
+        # El gasto por intereses TTM, del estado de resultados. `intereses_ttm`
+        # alimenta el costo implícito de la deuda, que a su vez alimenta el costo
+        # marginal del capital y con él el spread de inversión: otro criterio.
+        intereses_ttm=_f(fila.get("gasto_intereses_ttm")),
         dividendo_ttm_por_accion=div_ttm,
         sector=sector,
         **{k: v for k, v in balance.items() if k in InsumosValuacion.__dataclass_fields__},
@@ -351,6 +555,16 @@ def _metricas(
         ins, cap_rate_mercado=cap_rate, yield_adquisiciones=yield_adq, tasa_libre_riesgo=rf
     )
     metricas["crecimiento_affo_por_accion_yoy"] = _f(fila.get("crecimiento_affo_por_accion_yoy"))
+
+    # `InsumosValuacion` da por omisión una deuda de cero, que es razonable para
+    # un supuesto pero no para un emisor cuyo balance no se pudo leer: con deuda
+    # cero y efectivo positivo la deuda NETA sale negativa, y el apalancamiento
+    # se dibuja en −0.87x, que se lee como «menos que desapalancado» justo en el
+    # emisor más endeudado del universo. Lo que no se sabe no se publica.
+    if "deuda_total" not in balance:
+        for clave in ("deuda_neta", "deuda_neta_ebitdare", "ltv", "costo_implicito_deuda",
+                      "costo_marginal_capital", "spread_inversion"):
+            metricas[clave] = None
     return metricas
 
 
@@ -358,6 +572,92 @@ def _f(v) -> float | None:
     if v is None or (isinstance(v, float) and np.isnan(v)) or pd.isna(v):
         return None
     return float(v)
+
+
+# --------------------------------------------------------------------------------------
+# Estados financieros
+# --------------------------------------------------------------------------------------
+
+
+def estado_financiero(
+    repo: Repositorio,
+    ticker: str,
+    estado: str,
+    *,
+    asof: dt.date,
+    periodo_tipo: str = "Q",
+    n_periodos: int = 8,
+) -> pd.DataFrame:
+    """Un estado financiero al corte, en formato ancho: renglones × periodos.
+
+    Se arma desde la base y no desde EDGAR: los tres estados ya están persistidos
+    como conceptos, así que dibujarlos no cuesta una descarga. El orden de los
+    renglones es el de la taxonomía —ingresos arriba, utilidad neta abajo— y no el
+    alfabético, porque un estado financiero desordenado no es un estado
+    financiero.
+
+    Todo pasa por ``repo.hechos``, que filtra por fecha de publicación: lo que se
+    ve es lo que se sabía al corte, no la reexpresión posterior.
+    """
+    from src.ingesta.estados import ESTADOS_DE_SALDO, LINEA_POR_CLAVE, lineas_de
+
+    lineas = lineas_de(estado)
+    if not lineas:
+        return pd.DataFrame()
+    claves = [ln.clave for ln in lineas]
+    tipo = "PUNTUAL" if estado in ESTADOS_DE_SALDO else periodo_tipo
+
+    hechos = repo.hechos(asof=asof, tickers=ticker, conceptos=claves, periodo_tipo=tipo)
+    if hechos.empty:
+        return pd.DataFrame()
+
+    # De cada periodo, la versión más reciente conocida al corte.
+    hechos = hechos.sort_values(["fecha_dato", "concepto", "fecha_publicacion"])
+    hechos = hechos.drop_duplicates(["concepto", "fecha_dato"], keep="last")
+
+    ancho = hechos.pivot(index="concepto", columns="fecha_dato", values="valor")
+    # Fuera las fechas que no son un corte contable. El conteo de acciones en
+    # circulación se fecha en la PORTADA del 10-Q —un día de abril o de julio— y
+    # abría una columna con un solo renglón lleno junto al balance de verdad, que
+    # se lee como si al trimestre le faltara todo lo demás.
+    if len(ancho.columns) > 1:
+        llenado = ancho.notna().mean()
+        ancho = ancho.loc[:, llenado >= 0.25]
+    if ancho.empty or not len(ancho.columns):
+        return pd.DataFrame()
+    ancho = ancho[sorted(ancho.columns)[-n_periodos:]]
+    ancho = ancho.reindex([c for c in claves if c in ancho.index])
+    ancho.insert(0, "Renglón", [LINEA_POR_CLAVE[c].etiqueta for c in ancho.index])
+    ancho.columns = [
+        c if isinstance(c, str) else pd.Timestamp(c).date().isoformat() for c in ancho.columns
+    ]
+    return ancho.reset_index(drop=True)
+
+
+# Qué renglón del estado financiero alimenta cada insumo del modelo. Es la tabla
+# que contesta «¿de dónde salió este número?» sin abrir el código: a la izquierda
+# lo que usa la valuación, a la derecha las líneas que la SEC publicó.
+ORIGEN_DE_INSUMOS: tuple[tuple[str, str, str], ...] = (
+    ("NOI trimestral", "ingreso_rentas − gasto_operacion_inmueble − gasto_predial_seguro",
+     "XBRL no tiene etiqueta de NOI: es una medida de la industria, no del GAAP. "
+     "Si la emisora publica el suyo, ese manda."),
+    ("EBITDAre TTM",
+     "utilidad_neta + gasto_intereses + impuestos + depreciacion_amortizacion "
+     "+ deterioro − ganancia_venta_inmuebles",
+     "Definición Nareit. Las dos últimas partidas son las que lo separan del "
+     "EBITDA común y las que lo hacen servir para un REIT."),
+    ("Deuda neta", "deuda_total − efectivo",
+     "Saldos del balance a la última fecha publicada antes del corte."),
+    ("Acciones diluidas", "acciones_diluidas",
+     "Incluye las unidades de la sociedad operativa: es el conteo que reparte el flujo."),
+    ("AFFO / Core FFO TTM", "affo (conciliación del 8-K), cuatro trimestres consecutivos",
+     "No sale de XBRL: es no-GAAP y vive en el Exhibit 99.1 del comunicado."),
+    ("Dividendo TTM", "dividendos con fecha ex dentro de los últimos doce meses",
+     "Del calendario de dividendos, no del estado de resultados."),
+    ("Precio", "cierre sin ajustar",
+     "Sin ajustar por dividendos: ajustarlo mueve el yield histórico y lo vuelve "
+     "incomparable consigo mismo."),
+)
 
 
 # --------------------------------------------------------------------------------------
