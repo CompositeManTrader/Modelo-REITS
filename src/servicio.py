@@ -235,6 +235,20 @@ def construir_panel(
     saldos = _saldos_de_balance(repo, ticker, asof=asof)
     balance = {**saldos, **(balance or {})}
 
+    corte_balance = _corte_de_balance(repo, ticker, asof=asof)
+    corte_resultados = (
+        pd.to_datetime(trimestral.index).max().date()
+        if not trimestral.empty and len(trimestral.index) else None
+    )
+    if corte_balance is not None and corte_resultados is not None and corte_balance < corte_resultados:
+        avisos.append(
+            f"El balance de {ticker} es del {corte_balance} y sus resultados llegan al "
+            f"{corte_resultados}: un trimestre de diferencia. El apalancamiento y el LTV "
+            "de esta pantalla mezclan una deuda vieja con un flujo nuevo. Suele ser que "
+            "`companyfacts` va atrasado para este emisor —el dato sí está en su 10-Q—, "
+            "no que la emisora no haya reportado."
+        )
+
     # El yield al que compra el emisor no está en XBRL: nadie publica el cap rate
     # de sus adquisiciones. Sin un supuesto, `spread_inversion` salía nulo para
     # las DIEZ emisoras y la Puerta 1 se quedaba con tres criterios medibles de
@@ -571,6 +585,27 @@ def _saldos_de_balance(repo: Repositorio, ticker: str, *, asof: dt.date) -> dict
     ):
         saldos["deuda_total"] = compuesta
     return saldos
+
+
+def _corte_de_balance(repo: Repositorio, ticker: str, *, asof: dt.date) -> dt.date | None:
+    """La fecha del balance más reciente que conocemos de este emisor.
+
+    Existe para poder contrastarla contra la fecha de sus RESULTADOS. Cuando el
+    balance se queda atrás y el estado de resultados no, el apalancamiento y el
+    LTV combinan una deuda de un trimestre con un flujo de otro, y nada en el
+    número lo delata: sale un ratio perfectamente plausible.
+
+    Es lo que pasa hoy con Prologis y Welltower. Sus 10-Q de junio están
+    presentados —el balance está impreso ahí— pero `companyfacts` todavía publica
+    marzo como su último corte, mientras el AFFO y la utilidad de junio sí entran
+    porque vienen del 8-K. La emisora no va tarde: la API sí.
+    """
+    hechos = repo.hechos(
+        asof=asof, tickers=ticker, conceptos=list(CONCEPTOS_BALANCE), periodo_tipo="PUNTUAL"
+    )
+    if hechos.empty:
+        return None
+    return pd.to_datetime(hechos["fecha_dato"]).max().date()
 
 
 def _deuda_compuesta(saldos: dict[str, float]) -> float | None:
