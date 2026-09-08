@@ -50,6 +50,7 @@ class InsumosValuacion:
     affo_ttm: float | None = None
     affo_por_accion_ttm: float | None = None
     ffo_ttm: float | None = None
+    ffo_por_accion_ttm: float | None = None
     utilidad_neta_ttm: float | None = None
     dividendo_ttm_por_accion: float | None = None
     deuda_total: float = 0.0
@@ -146,9 +147,28 @@ def payout_affo(ins: InsumosValuacion) -> float | None:
 
 
 def payout_ffo(ins: InsumosValuacion) -> float | None:
-    if not ins.ffo_ttm or ins.acciones_diluidas <= 0 or ins.dividendo_ttm_por_accion is None:
+    """Payout sobre FFO. Prefiere la cifra POR ACCIÓN sobre el monto.
+
+    No es un detalle de implementación. Realty Income dejó de publicar el FFO
+    como subtotal en monto en septiembre de 2024 —su conciliación va de la
+    utilidad neta al FFO Normalizado sin pasar por el de Nareit— pero sigue
+    imprimiendo "FFO per share" cada trimestre. Exigir el monto dejaba el renglón
+    vacío teniendo el dato.
+
+    Y cuando las dos existen, la de por acción es MEJOR, no solo un respaldo: el
+    monto entre acciones vuelve a dividir por un conteo que el emisor ya usó, y
+    los dos conteos no siempre son el mismo —el flujo por acción de un UPREIT se
+    reparte entre acciones más unidades de la sociedad operativa—. Usar la cifra
+    que el emisor publicó evita reconstruir un denominador que él ya resolvió.
+    """
+    if ins.dividendo_ttm_por_accion is None:
         return None
-    return ins.dividendo_ttm_por_accion / (ins.ffo_ttm / ins.acciones_diluidas)
+    por_accion = ins.ffo_por_accion_ttm
+    if not por_accion and ins.ffo_ttm and ins.acciones_diluidas > 0:
+        por_accion = ins.ffo_ttm / ins.acciones_diluidas
+    if not por_accion:
+        return None
+    return ins.dividendo_ttm_por_accion / por_accion
 
 
 def payout_utilidad_neta(ins: InsumosValuacion) -> float | None:
