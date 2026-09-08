@@ -63,13 +63,15 @@ CONCEPTOS_BALANCE = (
     "goodwill",
     "activos_totales",
     "inmuebles_neto",
-    # Los tres tramos de deuda y el pasivo total: no se publican como métrica,
-    # entran para poder ARMAR la deuda total del emisor que no la reporta junta.
+    # Los tramos de deuda y el pasivo total: no se publican como métrica, entran
+    # para poder ARMAR la deuda total del emisor que no la reporta junta — y para
+    # DESMENTIR al que la reporta incompleta.
     "deuda_hipotecaria",
     "notas_senior",
     "linea_de_credito",
     "deuda_no_garantizada",
     "otras_notas_por_pagar",
+    "prestamos_a_plazo",
     "pasivos_totales",
 )
 
@@ -82,8 +84,14 @@ VIGENCIA_DE_SALDO = pd.Timedelta(days=190)
 # Los tramos que suman deuda, en el orden en que aparecen en un balance de REIT.
 TRAMOS_DE_DEUDA = (
     "deuda_hipotecaria", "notas_senior", "linea_de_credito",
-    "deuda_no_garantizada", "otras_notas_por_pagar",
+    "deuda_no_garantizada", "otras_notas_por_pagar", "prestamos_a_plazo",
 )
+
+# Cuánto pueden exceder los tramos al total declarado antes de creerles a ellos.
+# No es una tolerancia de redondeo: es el margen que separa "los tramos y el total
+# describen lo mismo" de "el total no es un total". Un 1% sobre una deuda de
+# 25 mil millones son 250 MM, que ningún desfase de fechas de corte produce.
+MARGEN_DE_TRAMOS = 0.01
 
 
 # --------------------------------------------------------------------------------------
@@ -539,11 +547,29 @@ def _saldos_de_balance(repo: Repositorio, ticker: str, *, asof: dt.date) -> dict
     # justo al revés de su situación real.
     if saldos.get("deuda_total", 0.0) <= 0:
         saldos.pop("deuda_total", None)
-    if "deuda_total" not in saldos:
-        # Sin un total vigente, se arma de sus tramos — que sí lo están.
-        compuesta = _deuda_compuesta(saldos)
-        if compuesta is not None:
-            saldos["deuda_total"] = compuesta
+
+    # Sin un total vigente se arma de sus tramos. Y con él también, si los tramos
+    # lo superan: un "total" al que sus propias partes le ganan no es un total,
+    # es un tramo con nombre de total.
+    #
+    # Realty Income es el caso. `NotesPayable` se leía como su deuda total y son
+    # sus notas senior: 25,092 MM de los 30,652 que debe. Faltaban los préstamos a
+    # plazo (2,760) y la revolvente con el papel comercial (2,763). Nada en el
+    # resultado lo delataba —el número es grande, creciente y con historia— y el
+    # error empujaba el apalancamiento de 5.68x a 4.63x y el NAV de 53.54 a 59.49
+    # dólares: el emisor se veía más sano y más barato de lo que está, que son las
+    # dos direcciones en las que un error de balance sí cambia una decisión.
+    #
+    # La comparación es contra los tramos IDENTIFICADOS, así que la guarda solo
+    # puede corregir hacia arriba y nunca inventa deuda: cada peso que suma salió
+    # de una etiqueta del propio emisor, y `_deuda_compuesta` descarta la suma que
+    # excede su pasivo total, que es la forma en que un doble conteo se delata.
+    compuesta = _deuda_compuesta(saldos)
+    declarada = saldos.get("deuda_total")
+    if compuesta is not None and (
+        declarada is None or compuesta > declarada * (1.0 + MARGEN_DE_TRAMOS)
+    ):
+        saldos["deuda_total"] = compuesta
     return saldos
 
 

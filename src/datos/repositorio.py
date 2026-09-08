@@ -153,6 +153,40 @@ class Repositorio:
         """
         return self._insertar(esquema.hechos, filas, fechas=("fecha_dato", "fecha_publicacion", "periodo_inicio"))
 
+    def purgar_hechos_derivados(self, ticker: str, fuentes: Sequence[str]) -> int:
+        """Borra los hechos de un emisor que la reconstrucción vuelve a producir.
+
+        Esto NO contradice el append-only ni P1, y la diferencia importa. Lo que
+        P1 protege es lo que PUBLICÓ el emisor: una reexpresión es una fila nueva
+        y las dos versiones conviven, porque las dos existieron. El crudo de XBRL
+        —que es ese registro— vive en ``data/emisoras/hechos.csv.gz``, está
+        versionado en git y esta función no lo toca.
+
+        La tabla ``hechos`` es otra cosa: es la PROYECCIÓN del crudo bajo el
+        catálogo de renglones vigente. Cuando el catálogo cambia, la proyección
+        tiene que recalcularse, y sin borrar no se puede: la llave point-in-time
+        es la misma, así que el valor corregido choca con el viejo y se descarta
+        en silencio. Es exactamente lo que pasó con el efectivo de Realty Income
+        —495.5 MM incluyendo el restringido donde iban 445.0— y con su deuda:
+        reconstruir insertaba cero filas y el arreglo del catálogo no llegaba
+        nunca a la base. La promesa de la instantánea es que una mejora del
+        catálogo entra sin descargar nada; sin esto solo entraba si AGREGABA
+        renglones, nunca si CORREGÍA uno.
+
+        Por eso pide las fuentes explícitas: solo se borra lo que la misma pasada
+        vuelve a escribir. Lo que el usuario capturó a mano no se toca.
+        """
+        if not fuentes:
+            return 0
+        with self.motor.begin() as cx:
+            resultado = cx.execute(
+                delete(esquema.hechos).where(
+                    esquema.hechos.c.ticker == ticker,
+                    esquema.hechos.c.fuente.in_(list(fuentes)),
+                )
+            )
+        return int(resultado.rowcount or 0)
+
     def guardar_guias(self, filas: Sequence[dict]) -> int:
         return self._insertar(esquema.guias, filas, fechas=("fecha_publicacion",))
 

@@ -135,10 +135,16 @@ def test_un_hecho_de_segmento_no_se_confunde_con_el_consolidado():
 
 
 def test_sin_etiquetas_declaradas_no_se_lee_nada():
-    """El camino caro solo se paga donde hace falta."""
+    """El camino caro solo se paga donde hace falta.
+
+    El control era Realty Income hasta que resultó tener su propia etiqueta de
+    extensión —la revolvente con el papel comercial, ver la prueba 31—, así que
+    ahora lo hace NNN. Lo que se comprueba es lo mismo: que la ausencia de
+    declaración signifique cero peticiones al documento XBRL.
+    """
     assert hechos_de_instancia(_INSTANCIA, "EXR", set(),
                                fecha_publicacion=dt.date(2026, 7, 31)).empty
-    assert etiquetas_de_instancia("O") == set()
+    assert etiquetas_de_instancia("NNN") == set()
     assert etiquetas_de_instancia("EXR")
 
 
