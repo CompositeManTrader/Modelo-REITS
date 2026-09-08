@@ -747,18 +747,27 @@ def tags_de(ticker: str, clave: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys((*propias, *compartidas)))
 
 
-def etiquetas_de_balance(ticker: str) -> set[str]:
-    """TODAS las etiquetas que alimentan un renglón de balance de esta emisora.
+def etiquetas_del_catalogo(ticker: str) -> set[str]:
+    """TODAS las etiquetas que alimentan cualquier renglón de esta emisora.
 
     Se arma del catálogo en vez de listarse a mano para que no se desincronice:
-    un renglón de balance nuevo entra solo, y la ficha de la emisora entra con
-    él. Es el conjunto que se le pide al documento XBRL del filing cuando
-    `companyfacts` va atrasado y hay que ir por el balance a la fuente.
+    un renglón nuevo entra solo, y la ficha de la emisora entra con él. Es el
+    conjunto que se le pide al documento XBRL del filing cuando `companyfacts`
+    va atrasado y hay que ir a la fuente.
+
+    Cubre los tres estados a propósito. La versión anterior pedía solo el
+    balance, porque el balance fue donde se vio el problema —el apalancamiento
+    salía de una deuda vieja con un flujo nuevo—. Pero el rezago de la API no es
+    de un estado: es de un FILING entero. Al 8 de septiembre de 2026, a Prologis
+    y a Welltower les faltaba de su 10-Q de junio el estado de resultados y el de
+    flujo completos, no nada más el balance, y con ellos las acciones diluidas
+    que son el denominador de todo lo que se mide por acción.
+
+    Pedir los tres no cuesta una petición más: el documento ya se bajó, y las
+    etiquetas se leen del mismo árbol ya parseado.
     """
     salida: set[str] = set()
     for linea in LINEAS:
-        if linea.estado != BALANCE:
-            continue
         salida.update(tags_de(ticker, linea.clave))
     return salida
 
@@ -1619,6 +1628,7 @@ __all__ = [
     "derivar_trimestres_faltantes",
     "elegir_cadenas",
     "etiquetas_de_instancia",
+    "etiquetas_del_catalogo",
     "elegir_tags",
     "hechos_crudos",
     "hechos_de_crudos",

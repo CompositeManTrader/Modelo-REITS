@@ -219,6 +219,22 @@ def construir_panel(
         trimestral["ebitdare_ttm"] = _ttm(trimestral, "ebitdare")
         trimestral["gasto_intereses_ttm"] = _ttm(trimestral, "gasto_intereses")
 
+        # Decir por qué se cayó el apalancamiento. `_derivar_ebitdare` prefiere no
+        # dar número antes que dar uno sin depreciación, y esa decisión es
+        # correcta pero muda: en la pantalla el criterio aparece SIN DATOS y no
+        # hay forma de saber si la emisora no reportó, si el dato viene en camino
+        # o si el catálogo falló. Es el mismo hueco de siempre —un dato que falta
+        # y no se anuncia— solo que ahora del lado de la explicación.
+        if not _cuadro_con_depreciacion(trimestral):
+            ultimo = trimestral.index[-1].date()
+            avisos.append(
+                f"El trimestre al {ultimo} de {ticker} trae utilidad e intereses pero no la "
+                "depreciación, que en un REIT es la mayor de las partidas que se suman de "
+                "vuelta. Sin ella no se calcula EBITDAre —el apalancamiento queda SIN DATOS "
+                "en vez de salir subestimado— y el TTM que se usa termina en el trimestre "
+                "anterior."
+            )
+
     precios = repo.serie_precio(ticker, asof=asof)
     precio = float(precios.iloc[-1]) if not precios.empty else None
     precio_fecha = precios.index[-1].date() if not precios.empty else None
@@ -514,6 +530,30 @@ def _derivar_noi(trimestral: pd.DataFrame) -> pd.Series:
     return reportado.fillna(derivado)
 
 
+def _cuadro_con_depreciacion(trimestral: pd.DataFrame) -> bool:
+    """¿El último trimestre tiene lo que hace falta para un EBITDAre completo?
+
+    Devuelve True también cuando el trimestre no tiene ni utilidad ni intereses:
+    ahí el hueco es evidente en la propia serie y no necesita aviso. Lo que se
+    quiere señalar es el caso callado —el trimestre que sí llegó, pero incompleto
+    justo en la partida más grande.
+    """
+    if trimestral.empty:
+        return True
+    ultimo = trimestral.iloc[-1]
+    cifras = pd.to_numeric(
+        pd.Series(
+            [ultimo.get(c) for c in
+             ("utilidad_neta", "gasto_intereses", "depreciacion_amortizacion")]
+        ),
+        errors="coerce",
+    )
+    utilidad, intereses, depreciacion = cifras
+    if pd.isna(utilidad) or pd.isna(intereses) or intereses <= 0:
+        return True
+    return not pd.isna(depreciacion)
+
+
 def _derivar_ebitdare(trimestral: pd.DataFrame) -> pd.Series:
     """EBITDAre según Nareit, que no es el EBITDA de un industrial.
 
@@ -525,9 +565,28 @@ def _derivar_ebitdare(trimestral: pd.DataFrame) -> pd.Series:
     vendió un edificio grande aparece desapalancado un trimestre y vuelve a estar
     apalancado el siguiente, sin que su deuda se haya movido.
 
-    Exige utilidad neta e intereses. Sin intereses el resultado no es EBITDAre
-    —es utilidad operativa con otro nombre— y el apalancamiento que salga de ahí
-    estaría sistemáticamente sobrestimado.
+    Exige utilidad neta, intereses y DEPRECIACIÓN. Sin intereses el resultado no
+    es EBITDAre —es utilidad operativa con otro nombre— y el apalancamiento que
+    salga de ahí estaría sistemáticamente sobrestimado.
+
+    La depreciación se exige por la razón contraria y más grande. En un REIT es
+    la mayor de todas las partidas que se suman de vuelta: en Welltower vale más
+    que la utilidad neta y los intereses juntos. Tratarla como opcional la
+    convertía en cero, y un cero ahí no produce un EBITDAre incompleto: produce
+    otro número, más chico, que entra al ratio de apalancamiento como si fuera
+    el bueno.
+
+    Pasó en el trimestre de junio de 2026 de Welltower. Su 10-Q sí trae la
+    depreciación —737.8 millones— pero bajo una etiqueta que la cadena de este
+    renglón no alcanza, porque las dos etiquetas que la emisora usó difieren
+    hasta 24% entre 2009 y 2012 y el empalme verificado las rechaza, con razón.
+    Con la depreciación en cero el trimestre daba un EBITDAre de 608.7 en vez de
+    1,320.7, el TTM caía a 4,109 y el apalancamiento salía en 3.84x cuando es
+    3.27x. Nada en la pantalla lo delataba.
+
+    Que falte el dato es un problema; que falte y el número salga igual es peor.
+    Cuesta cinco trimestres en todo el universo —cuatro de 2009 y el de junio de
+    2026, los cinco de Welltower— y a cambio el ratio no miente nunca.
     """
     if "utilidad_neta" not in trimestral:
         return pd.Series(index=trimestral.index, dtype="float64")
@@ -535,15 +594,19 @@ def _derivar_ebitdare(trimestral: pd.DataFrame) -> pd.Series:
     intereses = _col(trimestral, "gasto_intereses")
     if not (intereses > 0).any():
         return pd.Series(index=trimestral.index, dtype="float64")
+    depreciacion = pd.to_numeric(
+        trimestral.get("depreciacion_amortizacion", pd.Series(index=trimestral.index, dtype="float64")),
+        errors="coerce",
+    )
     suma = (
         utilidad
         + intereses
         + _col(trimestral, "impuestos")
-        + _col(trimestral, "depreciacion_amortizacion")
+        + depreciacion.fillna(0.0)
         + _col(trimestral, "deterioro")
         - _col(trimestral, "ganancia_venta_inmuebles")
     )
-    return suma.where(utilidad.notna() & (intereses > 0))
+    return suma.where(utilidad.notna() & (intereses > 0) & depreciacion.notna())
 
 
 def _saldos_de_balance(repo: Repositorio, ticker: str, *, asof: dt.date) -> dict[str, float]:

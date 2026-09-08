@@ -222,51 +222,69 @@ def descargar_instancias(
     )
 
 
-# Cuántos reportes se leen para rellenar un balance rezagado. Dos cubren el caso
+# Cuántos reportes se leen para rellenar un filing rezagado. Dos cubren el caso
 # normal —la API va un trimestre atrás— y el de la emisora que lleva dos sin
 # aparecer, sin pagar los ocho que cuesta reconstruir una serie de flujo.
-FILINGS_DE_BALANCE = 2
+FILINGS_REZAGADOS = 2
 
 
-def _ultima_publicacion(crudos: pd.DataFrame) -> dt.date | None:
-    """La fecha del filing más reciente que `companyfacts` alcanzó a publicar."""
-    if crudos is None or crudos.empty or "fecha_publicacion" not in crudos:
-        return None
-    fechas = pd.to_datetime(crudos["fecha_publicacion"], errors="coerce").dropna()
-    return fechas.max().date() if not fechas.empty else None
+def _accesiones(crudos: pd.DataFrame) -> set[str]:
+    """Los filings que `companyfacts` ya ingirió, por su número de accession.
+
+    Sin guiones: la API los da con ellos y el índice de filings también, pero el
+    formato no es parte de la identidad y no vale la pena que una discrepancia
+    de puntuación decida si se baja un documento de cinco megabytes.
+    """
+    if crudos is None or crudos.empty or "accession" not in crudos:
+        return set()
+    columna = crudos["accession"].dropna().astype(str)
+    return {a.replace("-", "") for a in columna if a}
 
 
-def rellenar_balance_rezagado(
+def rellenar_filing_rezagado(
     cliente,
     ticker: str,
     cik: str,
-    crudos: pd.DataFrame,
+    crudos_del_api: pd.DataFrame,
     etiquetas: set[str],
     *,
-    limite: int = FILINGS_DE_BALANCE,
+    limite: int = FILINGS_REZAGADOS,
 ) -> pd.DataFrame:
-    """El balance del documento XBRL, cuando `companyfacts` todavía no lo publica.
+    """El filing completo del documento XBRL, cuando `companyfacts` no lo publica.
 
     Por qué hace falta
     ------------------
     `companyfacts` se atrasa por emisor, y el atraso no se anuncia. Al 8 de
-    septiembre de 2026 publicaba marzo como el último balance de Prologis y de
+    septiembre de 2026 publicaba marzo como el último corte de Prologis y de
     Welltower, más de un mes después de que las dos presentaran su 10-Q de junio:
-    el balance está impreso en el filing y la API no lo tenía.
+    el reporte estaba en EDGAR y la API no lo tenía.
 
-    Lo que vuelve peligroso ese atraso es que es PARCIAL. El AFFO y la utilidad
-    del trimestre entran igual porque vienen del 8-K, así que el apalancamiento y
-    el LTV combinaban una deuda de un trimestre con un flujo de otro y el ratio
-    salía perfectamente plausible. Un saldo viejo no se ve; es la misma
-    invisibilidad de la prueba 30, ahora entre dos fuentes.
+    Lo que vuelve peligroso ese atraso es que es PARCIAL entre FUENTES. El AFFO y
+    la utilidad del trimestre entran igual porque vienen del 8-K, así que el
+    apalancamiento y el LTV combinaban una deuda de un trimestre con un flujo de
+    otro y el ratio salía perfectamente plausible. Un saldo viejo no se ve; es la
+    misma invisibilidad de la prueba 30, ahora entre dos fuentes.
+
+    Lo que NO es parcial es el filing dentro de la API: cuando `companyfacts` va
+    atrasada, le falta el reporte ENTERO. A Prologis y a Welltower no les faltaba
+    el balance de junio: les faltaban también el estado de resultados y el de
+    flujo, y con ellos las acciones diluidas —el denominador de todo lo que se
+    mide por acción—. La primera versión de esto pedía solo las etiquetas de
+    balance y por eso cerró un tercio del hueco creyendo que lo cerraba todo.
 
     Cómo decide si vale la pena bajar algo
     --------------------------------------
-    Compara la última fecha de publicación que el crudo ya tiene contra la del
-    reporte periódico más reciente del emisor. Si `companyfacts` ya alcanzó ese
-    filing, no baja nada: el índice de filings es barato y el documento XBRL no.
-    Así el camino caro se paga solo donde la API se quedó corta, y deja de pagarse
-    en cuanto se pone al día.
+    Pregunta si la API ya tiene ESE filing, por su accession. El índice de
+    filings es barato y el documento XBRL no, así que el camino caro se paga solo
+    donde la API se quedó corta y deja de pagarse en cuanto se pone al día.
+
+    ``crudos_del_api`` tiene que ser lo que devolvió `companyfacts` y NADA MÁS.
+    Si se le pasa el crudo ya concatenado con lo que bajó `descargar_instancias`,
+    la guarda se contesta a sí misma: las etiquetas de extensión de Realty Income
+    y de Extra Space se leen del mismo documento y lo marcan como presente, así
+    que el rezago de la API quedaría tapado justo en las dos emisoras que más
+    caminos usan. Comparar fechas de publicación en vez de accessions tenía el
+    mismo agujero.
     """
     vacio = pd.DataFrame(columns=list(COLUMNAS_CRUDOS))
     if not etiquetas:
@@ -276,8 +294,8 @@ def rellenar_balance_rezagado(
     if not filings:
         return vacio
 
-    ultima = _ultima_publicacion(crudos)
-    pendientes = [f for f in filings if ultima is None or f.fecha_presentacion > ultima]
+    presentes = _accesiones(crudos_del_api)
+    pendientes = [f for f in filings if f.accession.replace("-", "") not in presentes]
     if not pendientes:
         return vacio
 
@@ -325,4 +343,4 @@ def _ruta_instancia(cliente, filing) -> str | None:
     return None
 
 
-__all__ = ["descargar_instancias", "hechos_de_instancia", "rellenar_balance_rezagado"]
+__all__ = ["descargar_instancias", "hechos_de_instancia", "rellenar_filing_rezagado"]
