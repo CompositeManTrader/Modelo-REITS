@@ -747,6 +747,22 @@ def tags_de(ticker: str, clave: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys((*propias, *compartidas)))
 
 
+def etiquetas_de_balance(ticker: str) -> set[str]:
+    """TODAS las etiquetas que alimentan un renglón de balance de esta emisora.
+
+    Se arma del catálogo en vez de listarse a mano para que no se desincronice:
+    un renglón de balance nuevo entra solo, y la ficha de la emisora entra con
+    él. Es el conjunto que se le pide al documento XBRL del filing cuando
+    `companyfacts` va atrasado y hay que ir por el balance a la fuente.
+    """
+    salida: set[str] = set()
+    for linea in LINEAS:
+        if linea.estado != BALANCE:
+            continue
+        salida.update(tags_de(ticker, linea.clave))
+    return salida
+
+
 # --------------------------------------------------------------------------------------
 # Capa 1 — Hechos crudos
 # --------------------------------------------------------------------------------------

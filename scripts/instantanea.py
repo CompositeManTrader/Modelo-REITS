@@ -53,11 +53,15 @@ from src.datos.almacen import (  # noqa: E402
 from src.datos.repositorio import Repositorio  # noqa: E402
 from src.ingesta.edgar import ClienteEdgar  # noqa: E402
 from src.ingesta.estados import (  # noqa: E402
+    etiquetas_de_balance,
     etiquetas_de_instancia,
     hechos_crudos,
     hechos_de_crudos,
 )
-from src.ingesta.instancia import descargar_instancias  # noqa: E402
+from src.ingesta.instancia import (  # noqa: E402
+    descargar_instancias,
+    rellenar_balance_rezagado,
+)
 from src.ingesta.instantanea import reconstruir  # noqa: E402
 
 COLUMNAS_CONCILIACION = [
@@ -91,6 +95,22 @@ def exportar(repo: Repositorio, tickers: list[str] | None) -> int:
         )
         if not extension.empty:
             crudos = pd.concat([crudos, extension], ignore_index=True)
+
+        # Y el balance que `companyfacts` todavía no publica. La API se atrasa
+        # POR EMISOR y sin avisar: al 8 de septiembre de 2026 daba marzo como el
+        # último balance de Prologis y Welltower, más de un mes después de sus
+        # 10-Q de junio. El atraso es parcial —el AFFO del trimestre sí entra,
+        # porque viene del 8-K— así que el apalancamiento mezclaba una deuda
+        # vieja con un flujo nuevo y el ratio salía plausible.
+        #
+        # No cuesta una petición cuando la API está al día: la decisión se toma
+        # con el índice de filings, que es barato, y solo se baja el documento
+        # XBRL de los reportes que el crudo todavía no tiene.
+        rezagado = rellenar_balance_rezagado(
+            cliente, e.ticker, e.cik, crudos, etiquetas_de_balance(e.ticker)
+        )
+        if not rezagado.empty:
+            crudos = pd.concat([crudos, rezagado], ignore_index=True)
         huella = escribir_crudos(e.ticker, crudos)
 
         # Lo derivable del crudo NO se guarda aparte: se recalcula. Lo que se

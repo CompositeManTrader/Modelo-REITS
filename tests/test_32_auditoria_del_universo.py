@@ -16,6 +16,12 @@ distintos:
   corte aunque sus 10-Q de junio estén presentados. Como el AFFO y la utilidad de
   junio sí entran —vienen del 8-K—, el apalancamiento mezclaba una deuda vieja
   con un flujo nuevo sin que nada lo dijera (32.2).
+
+El aviso de 32.2 fue la primera respuesta a ese rezago y la prueba 33 lo cerró,
+yendo por el balance al documento XBRL del filing. El aviso se queda igual: la
+API se volverá a atrasar, y es la red que atrapa el caso que ese camino no
+alcance a cubrir. Por eso sus pruebas ya no dependen de que hoy haya una emisora
+rezagada — no la hay— sino que construyen el caso.
 """
 
 from __future__ import annotations
@@ -42,9 +48,8 @@ from src.servicio import (  # noqa: E402
 
 # Deuda total según el BALANCE del 10-Q de cada emisora al 30 de junio de 2026,
 # en millones de dólares. Se leyó del documento XBRL de cada filing, no de
-# `companyfacts`. Prologis y Welltower quedan fuera: su balance de esa fecha no
-# está publicado en la API todavía (32.2), así que compararlos aquí mediría el
-# atraso de la API y no nuestro mapeo.
+# `companyfacts`. Prologis y Welltower entraron a esta lista con la prueba 33,
+# que cierra el rezago de la API yendo por su balance al mismo documento.
 DEUDA_SEGUN_EL_10Q = {
     "O": 30_651.7,
     "NNN": 5_001.2,
@@ -54,6 +59,8 @@ DEUDA_SEGUN_EL_10Q = {
     "GNL": 2_399.8,
     "PSA": 10_180.2,
     "EXR": 13_646.6,
+    "PLD": 36_442.1,
+    "WELL": 17_726.3,
 }
 
 
@@ -184,11 +191,12 @@ def test_el_corte_de_balance_es_la_fecha_del_balance(tmp_path):
     assert _corte_de_balance(repo, "X", asof=dt.date(2026, 9, 8)) == dt.date(2026, 6, 30)
 
 
-def test_solo_las_emisoras_con_la_api_atrasada_levantan_el_aviso():
+def test_el_aviso_no_se_dispara_solo():
     """Sobre datos reales: el aviso tiene que ser específico, no ambiental.
 
-    Un aviso que sale en las diez no informa nada. Este sale exactamente en las
-    dos cuyo balance de junio `companyfacts` todavía no publica.
+    Un aviso que sale en las diez no informa nada. Desde la prueba 33 no sale en
+    ninguna, porque ya no hay balance rezagado; lo que se comprueba aquí es que
+    tampoco aparece donde no corresponde.
     """
     repo = Repositorio()
     hoy = dt.date.today()
@@ -199,11 +207,14 @@ def test_solo_las_emisoras_con_la_api_atrasada_levantan_el_aviso():
             pytest.skip("No hay base cargada.")
         if any("un trimestre de diferencia" in a for a in panel.avisos):
             con_aviso.add(e.ticker)
-    assert con_aviso <= {"PLD", "WELL"}, f"aviso inesperado en {con_aviso - {'PLD', 'WELL'}}"
+    assert con_aviso == set(), f"aviso inesperado en {con_aviso}"
 
 
-def test_el_balance_de_las_demas_llega_al_ultimo_corte():
-    """El control del universo: ocho de diez tienen balance de junio de 2026."""
+def test_el_balance_de_todas_llega_al_ultimo_corte():
+    """El control del universo: las DIEZ tienen balance de junio de 2026.
+
+    Eran ocho hasta que la prueba 33 cerró el rezago de Prologis y Welltower.
+    """
     repo = Repositorio()
     hoy = dt.date.today()
     al_dia = 0
@@ -213,21 +224,27 @@ def test_el_balance_de_las_demas_llega_al_ultimo_corte():
             pytest.skip("No hay base cargada.")
         if corte >= dt.date(2026, 6, 30):
             al_dia += 1
-    assert al_dia >= 8, f"solo {al_dia} emisoras tienen el balance del último corte"
+    assert al_dia == len(UNIVERSO_INICIAL), (
+        f"solo {al_dia} de {len(UNIVERSO_INICIAL)} tienen el balance del último corte"
+    )
 
 
-def test_el_aviso_nombra_la_causa_probable():
+def test_el_aviso_nombra_la_causa_probable(tmp_path):
     """Decir «falta el dato» manda a buscar donde no está.
 
     El 10-Q de Prologis está presentado y su balance impreso; lo que va atrasado
     es la API. Un aviso que no distingue las dos cosas hace perder el tiempo
     buscando un reporte que ya existe.
     """
-    repo = Repositorio(ruta=None)
-    panel = construir_panel(repo, "PLD", asof=dt.date.today())
-    avisos = [a for a in panel.avisos if "un trimestre de diferencia" in a]
-    if not avisos:
-        pytest.skip("PLD ya está al día en la base.")
+    repo = Repositorio(ruta=tmp_path / "b.db")
+    _guardar(repo, "pasivos_totales", dt.date(2026, 3, 31), 40_185e6)
+    _guardar(repo, "utilidad_neta", dt.date(2026, 6, 30), 500e6,
+             tipo="Q", inicio=dt.date(2026, 4, 1))
+    avisos = [
+        a for a in construir_panel(repo, "X", asof=dt.date(2026, 9, 8)).avisos
+        if "un trimestre de diferencia" in a
+    ]
+    assert avisos, "no se emitió el aviso"
     assert "companyfacts" in avisos[0]
     assert "10-Q" in avisos[0]
 
