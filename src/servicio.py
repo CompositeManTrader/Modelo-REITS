@@ -68,11 +68,22 @@ CONCEPTOS_BALANCE = (
     "deuda_hipotecaria",
     "notas_senior",
     "linea_de_credito",
+    "deuda_no_garantizada",
+    "otras_notas_por_pagar",
     "pasivos_totales",
 )
 
+# Cuánto puede rezagarse un SALDO respecto del último balance de la emisora y
+# seguir contando como vigente. Un trimestre se reporta a las seis semanas del
+# cierre, así que medio año deja pasar un rezago normal —y una reexpresión que
+# solo tocó algunos renglones— sin admitir un saldo de hace años.
+VIGENCIA_DE_SALDO = pd.Timedelta(days=190)
+
 # Los tramos que suman deuda, en el orden en que aparecen en un balance de REIT.
-TRAMOS_DE_DEUDA = ("deuda_hipotecaria", "notas_senior", "linea_de_credito")
+TRAMOS_DE_DEUDA = (
+    "deuda_hipotecaria", "notas_senior", "linea_de_credito",
+    "deuda_no_garantizada", "otras_notas_por_pagar",
+)
 
 
 # --------------------------------------------------------------------------------------
@@ -500,10 +511,27 @@ def _saldos_de_balance(repo: Repositorio, ticker: str, *, asof: dt.date) -> dict
         return {}
     hechos = hechos.sort_values(["fecha_dato", "fecha_publicacion"])
     ultimos = hechos.drop_duplicates("concepto", keep="last")
+
+    # Un saldo VIEJO no es el saldo de hoy, y en un balance esa diferencia es
+    # invisible. En una serie de flujo se ve que los datos se acaban; un saldo se
+    # presenta como "el último conocido" y entra al ratio como si fuera actual.
+    #
+    # Extra Space traía su deuda total de `NotesPayable`, cuya última observación
+    # es del 30 de septiembre de 2021: cinco años vieja. Con ella el
+    # apalancamiento salía en 2.0x —de los más sanos del universo— cuando sus
+    # tramos vigentes suman más del doble de esa deuda. Conservar la etiqueta con
+    # más cobertura cuando ninguna está viva es razonable para un flujo, cuya
+    # antigüedad la pantalla declara, y es peligroso para un saldo.
+    #
+    # El corte se mide contra el balance MÁS RECIENTE de la propia emisora, no
+    # contra el calendario: quien no ha reportado en un año no tiene un saldo
+    # viejo, tiene un reporte pendiente.
+    corte_balance = pd.Timestamp(ultimos["fecha_dato"].max())
     saldos = {
         r["concepto"]: float(r["valor"])
         for _, r in ultimos.iterrows()
         if pd.notna(r["valor"])
+        and pd.Timestamp(r["fecha_dato"]) >= corte_balance - VIGENCIA_DE_SALDO
     }
     # Un REIT con deuda cero no existe: es una etiqueta GAAP mal elegida, no un
     # balance sin apalancamiento. Global Net Lease salía con deuda de cero y un
@@ -512,6 +540,7 @@ def _saldos_de_balance(repo: Repositorio, ticker: str, *, asof: dt.date) -> dict
     if saldos.get("deuda_total", 0.0) <= 0:
         saldos.pop("deuda_total", None)
     if "deuda_total" not in saldos:
+        # Sin un total vigente, se arma de sus tramos — que sí lo están.
         compuesta = _deuda_compuesta(saldos)
         if compuesta is not None:
             saldos["deuda_total"] = compuesta

@@ -39,6 +39,7 @@ from src.datos.almacen import (
 from src.ingesta.estados import (
     BALANCE,
     ESTADO_RESULTADOS,
+    FICHAS_ESTADOS,
     LINEA_POR_CLAVE,
     LINEAS,
     armar_estado,
@@ -320,9 +321,25 @@ def test_la_ficha_de_la_emisora_gana_sobre_las_etiquetas_compartidas():
     assert "TemporaryEquityCarryingAmountAttributableToParent" in propias
 
 
-def test_toda_linea_del_catalogo_tiene_al_menos_una_etiqueta():
-    huerfanas = [ln.clave for ln in LINEAS if not ln.tags]
-    assert not huerfanas, f"líneas sin ninguna etiqueta GAAP: {huerfanas}"
+def test_toda_linea_del_catalogo_es_alcanzable():
+    """Ninguna línea puede quedar sin forma de llenarse.
+
+    El invariante era "toda línea trae etiqueta por omisión", y se quedó corto
+    cuando apareció una que NO puede traerla: `deuda_no_garantizada` la declara
+    solo Extra Space, porque su candidata natural —`UnsecuredDebt`— ya alimenta a
+    `notas_senior`, y en las emisoras que la usan para eso tener las dos líneas
+    leyendo la misma etiqueta contaría la deuda dos veces.
+
+    Lo que importa no es de dónde salga la etiqueta sino que alguien pueda
+    llenarla. Una línea sin etiqueta por omisión Y sin emisora que la declare
+    sigue siendo un renglón muerto, y eso es lo que esta prueba caza.
+    """
+    huerfanas = [
+        ln.clave
+        for ln in LINEAS
+        if not ln.tags and not any(tags_de(t, ln.clave) for t in FICHAS_ESTADOS)
+    ]
+    assert not huerfanas, f"líneas que nadie puede llenar: {huerfanas}"
 
 
 def test_ninguna_clave_del_catalogo_se_repite():

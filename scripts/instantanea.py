@@ -52,7 +52,12 @@ from src.datos.almacen import (  # noqa: E402
 )
 from src.datos.repositorio import Repositorio  # noqa: E402
 from src.ingesta.edgar import ClienteEdgar  # noqa: E402
-from src.ingesta.estados import hechos_crudos, hechos_de_crudos  # noqa: E402
+from src.ingesta.estados import (  # noqa: E402
+    etiquetas_de_instancia,
+    hechos_crudos,
+    hechos_de_crudos,
+)
+from src.ingesta.instancia import descargar_instancias  # noqa: E402
 from src.ingesta.instantanea import reconstruir  # noqa: E402
 
 COLUMNAS_CONCILIACION = [
@@ -77,6 +82,15 @@ def exportar(repo: Repositorio, tickers: list[str] | None) -> int:
         # observaciones de la prima para dar un percentil confiable: la
         # instantánea corta habría cambiado velocidad por veredictos.
         crudos = hechos_crudos(cliente.companyfacts(e.cik), e.ticker, desde=None)
+
+        # Las etiquetas de EXTENSIÓN no están en `companyfacts` y hay que leerlas
+        # del documento XBRL de cada filing. Se pagan una vez, aquí, y quedan
+        # versionadas junto al resto: reconstruir sigue sin tocar la red.
+        extension = descargar_instancias(
+            cliente, e.ticker, e.cik, etiquetas_de_instancia(e.ticker)
+        )
+        if not extension.empty:
+            crudos = pd.concat([crudos, extension], ignore_index=True)
         huella = escribir_crudos(e.ticker, crudos)
 
         # Lo derivable del crudo NO se guarda aparte: se recalcula. Lo que se
