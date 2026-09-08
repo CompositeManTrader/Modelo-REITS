@@ -843,6 +843,99 @@ def _f(v) -> float | None:
 # --------------------------------------------------------------------------------------
 
 
+def panel_de_conceptos(
+    repo: Repositorio,
+    ticker: str,
+    *,
+    asof: dt.date,
+    periodo_tipo: str = "Q",
+    n_periodos: int = 8,
+) -> pd.DataFrame:
+    """TODO el catálogo al corte, ancho: periodos × conceptos.
+
+    Existe porque el panel del modelo no sirve para dibujar un estado. Ese panel
+    carga los conceptos que la valuación consume —`CONCEPTOS_PANEL`— y ninguno de
+    balance, porque un saldo no entra a un TTM. Armar la vista de Bloomberg desde
+    ahí daba un balance de cero renglones sobre veintiocho y un estado de
+    resultados de quince sobre treinta y cinco, con los huecos justo donde el
+    catálogo sí tiene el dato.
+
+    El balance se pega por FECHA a los periodos de flujo. Es correcto porque el
+    corte del saldo y el cierre del trimestre son el mismo día: el balance al 30
+    de junio acompaña al trimestre que cierra el 30 de junio. No es un empalme,
+    es la definición de un estado financiero trimestral.
+    """
+    from src.ingesta.estados import ESTADOS as ESTADOS_DEL_CATALOGO
+    from src.ingesta.estados import ESTADOS_DE_SALDO, LINEA_POR_CLAVE, lineas_de
+
+    partes = []
+    fechas_de_flujo: set = set()
+    for estado in ESTADOS_DEL_CATALOGO:
+        tabla = estado_financiero(
+            repo, ticker, estado, asof=asof, periodo_tipo=periodo_tipo, n_periodos=n_periodos
+        )
+        if tabla.empty:
+            continue
+        if estado not in ESTADOS_DE_SALDO:
+            fechas_de_flujo.update(c for c in tabla.columns if c != "Renglón")
+        indexada = tabla.set_index("Renglón")
+        # De vuelta a la clave: la etiqueta es para leer, la clave para calcular.
+        presentes = set(indexada.index)
+        etiqueta_a_clave = {
+            LINEA_POR_CLAVE[ln.clave].etiqueta: ln.clave
+            for ln in lineas_de(estado) if ln.etiqueta in presentes
+        }
+        indexada.index = [etiqueta_a_clave.get(e, e) for e in indexada.index]
+        partes.append(indexada.T)
+    if not partes:
+        return pd.DataFrame()
+
+    panel = pd.concat(partes, axis=1)
+    panel = panel.loc[:, ~panel.columns.duplicated()]
+
+    # El balance se pide siempre PUNTUAL, así que trae los cortes de los cuatro
+    # trimestres aunque se haya pedido la vista anual. Sin recortarlo, el panel
+    # anual terminaba en el 30 de junio —un corte de balance sin ejercicio— y el
+    # estado de resultados salía vacío en la última columna, que es justo la que
+    # se mira. Manda la frecuencia del FLUJO: es la que define el periodo.
+    if fechas_de_flujo:
+        panel = panel.loc[[i for i in panel.index if i in fechas_de_flujo]]
+
+    panel.index = pd.to_datetime(panel.index)
+    panel = panel.sort_index()
+
+    # El AFFO, el FFO y sus cifras por acción NO son renglones de ningún estado:
+    # son no-GAAP y viven en el Exhibit 99.1 del 8-K. Se traen aparte porque sin
+    # ellos la vista de Bloomberg se queda sin su cascada de FFO —que es media
+    # plantilla— y los ratios de la vista propia se quedan sin payout ni AFFO
+    # sobre FFO, que son los dos que un tenedor de REIT mira primero.
+    extra = repo.hechos(
+        asof=asof, tickers=ticker, conceptos=list(CONCEPTOS_FUERA_DEL_ESTADO),
+        periodo_tipo=("FY" if periodo_tipo == "FY" else "Q"),
+    )
+    if not extra.empty:
+        extra = extra.sort_values(["fecha_dato", "concepto", "fecha_publicacion"])
+        extra = extra.drop_duplicates(["concepto", "fecha_dato"], keep="last")
+        ancho = extra.pivot(index="fecha_dato", columns="concepto", values="valor")
+        ancho.index = pd.to_datetime(ancho.index)
+        for columna in ancho.columns:
+            if columna not in panel.columns:
+                panel[columna] = ancho[columna].reindex(panel.index)
+
+    # Y los dos derivados que el modelo calcula y el catálogo no guarda, con la
+    # MISMA regla que usa la valuación: sin depreciación no hay EBITDAre.
+    panel["noi"] = _derivar_noi(panel)
+    panel["ebitdare"] = _derivar_ebitdare(panel)
+    return panel
+
+
+# Conceptos que la vista necesita y que no son renglón de ningún estado: el
+# no-GAAP del comunicado de resultados.
+CONCEPTOS_FUERA_DEL_ESTADO = (
+    "affo", "ffo", "ffo_normalizado", "affo_por_accion", "ffo_por_accion",
+)
+
+
 def estado_financiero(
     repo: Repositorio,
     ticker: str,
@@ -1103,3 +1196,184 @@ def _inflacion_anual(indice: pd.Series) -> float | None:
     if previo.empty or previo.iloc[-1] <= 0:
         return None
     return float(s.iloc[-1] / previo.iloc[-1] - 1.0)
+
+
+# --------------------------------------------------------------------------------------
+# Las tres vistas de los estados financieros
+# --------------------------------------------------------------------------------------
+#
+# El mismo trimestre se puede ver de tres formas y las tres son legítimas:
+#
+# * **As reported** — lo que la emisora imprimió, con sus renglones y su orden.
+#   Es la verdad de referencia y no se puede discutir; también es incomparable
+#   entre emisoras, porque cada una nombra y agrupa distinto.
+# * **Bloomberg** — el molde estandarizado, que sí se puede comparar entre
+#   emisoras, a cambio de aplicar ajustes que se alejan del filing.
+# * **Propia** — nuestro catálogo, que es el que alimenta el modelo.
+#
+# Tenerlas juntas es lo que permite contestar "¿por qué tu deuda no es la de mi
+# terminal?" señalando el renglón, en vez de discutiendo.
+
+
+def estados_reportados(
+    ticker: str,
+    estado: str,
+    *,
+    asof: dt.date,
+    formulario: str | None = None,
+    base=None,
+) -> pd.DataFrame:
+    """El estado tal como lo publicó la emisora, en formato ancho.
+
+    ``formulario`` elige la frecuencia por el documento y no por el periodo, que
+    es como la publica la SEC: el 10-K trae el ejercicio y el 10-Q el trimestre.
+    Pedir "anual" es pedir el último 10-K.
+
+    Se toma el filing MÁS RECIENTE publicado antes del corte. No se mezclan dos
+    filings en una tabla: cada uno es un documento con su propia versión de las
+    cifras, y pegar columnas de dos sería inventar un estado que nadie publicó.
+    """
+    from src.datos.almacen import leer_reportados
+
+    datos = leer_reportados(ticker, base=base)
+    if datos.empty:
+        return pd.DataFrame()
+    datos = datos[datos["estado"] == estado]
+    datos = datos[pd.to_datetime(datos["fecha_publicacion"]).dt.date <= asof]
+    if formulario:
+        datos = datos[datos["formulario"].str.startswith(formulario)]
+    if datos.empty:
+        return pd.DataFrame()
+
+    ultima = pd.to_datetime(datos["fecha_publicacion"]).max()
+    datos = datos[pd.to_datetime(datos["fecha_publicacion"]) == ultima]
+
+    columnas = (
+        datos.dropna(subset=["fecha_dato"])
+        .sort_values(["fecha_dato"])["fecha_dato"].unique()
+    )
+    filas = []
+    for orden, grupo in datos.groupby("orden", sort=True):
+        cabeza = grupo.iloc[0]
+        fila = {
+            "Renglón": ("    " * (int(cabeza["sangria"]) // 10)) + str(cabeza["etiqueta"]),
+            "sangria": int(cabeza["sangria"]),
+            "tag": cabeza["tag"] or "",
+            "verificado": bool(grupo["verificado"].any()),
+            "_orden": int(orden),
+        }
+        for fecha in columnas:
+            celda = grupo[grupo["fecha_dato"] == fecha]
+            valor = celda["valor"].iloc[0] if not celda.empty else None
+            etiqueta = _etiqueta_de_columna(celda)
+            fila[etiqueta] = None if pd.isna(valor) else float(valor)
+        filas.append(fila)
+    return pd.DataFrame(filas).sort_values("_orden").drop(columns="_orden").reset_index(drop=True)
+
+
+def _etiqueta_de_columna(celda: pd.DataFrame) -> str:
+    """«2026-06-30 (Q)»: la fecha sola no distingue el trimestre del acumulado.
+
+    Un 10-Q de junio imprime las dos columnas —tres meses y seis meses— y las dos
+    cierran el 30 de junio. Sin el tipo de periodo en el encabezado, la tabla
+    tendría dos columnas con el mismo nombre y una se perdería.
+    """
+    if celda.empty:
+        return ""
+    fecha = pd.Timestamp(celda["fecha_dato"].iloc[0]).date().isoformat()
+    tipo = str(celda["periodo_tipo"].iloc[0] or "")
+    return f"{fecha} ({tipo})" if tipo and tipo != "PUNTUAL" else fecha
+
+
+# Los ratios de la vista propia. No son los de la valuación —esos ya viven en la
+# cabecera de la pantalla— sino los que se leen JUNTO al estado: márgenes,
+# cobertura, estructura. Cada uno dice de qué renglones sale.
+RATIOS_PROPIOS: tuple[tuple[str, str, str, str], ...] = (
+    ("Margen operativo", "margen_operativo", "pct",
+     "Utilidad operativa ÷ ingresos totales."),
+    ("Margen NOI", "margen_noi", "pct",
+     "NOI ÷ ingresos totales. El NOI quita la depreciación y el corporativo."),
+    ("Margen EBITDAre", "margen_ebitdare", "pct",
+     "EBITDAre ÷ ingresos totales. EBITDAre es el de Nareit: resta la ganancia por venta."),
+    ("Margen neto", "margen_neto", "pct",
+     "Utilidad neta ÷ ingresos totales."),
+    ("Cobertura de intereses", "cobertura_intereses", "x",
+     "EBITDAre ÷ gasto por intereses. Cuántas veces el flujo paga el interés."),
+    ("Costo implícito de la deuda", "costo_deuda", "pct",
+     "Gasto por intereses TTM ÷ deuda total. No es la tasa cupón: es la efectiva."),
+    ("Deuda neta / EBITDAre", "apalancamiento", "x",
+     "El apalancamiento de la Puerta 1. Umbral de deterioro en 6.5x."),
+    ("Deuda / activos", "deuda_activos", "pct",
+     "Deuda total ÷ activos totales, a valor en libros."),
+    ("Depreciación / ingresos", "depreciacion_ingresos", "pct",
+     "Qué tan intensivo en activo es el negocio, y qué tanto separa el FFO de la utilidad."),
+    ("AFFO / FFO", "affo_sobre_ffo", "pct",
+     "Cuánto del FFO sobrevive al CapEx recurrente y la renta en línea recta."),
+    ("Payout sobre AFFO", "payout_affo", "pct",
+     "Dividendo declarado ÷ AFFO por acción."),
+)
+
+
+def ratios_propios(panel: pd.DataFrame, *, saldos: dict | None = None) -> pd.DataFrame:
+    """Los ratios de la vista propia, periodo por periodo.
+
+    Se calculan sobre el MISMO panel que dibuja el estado, no sobre el TTM del
+    modelo: quien está leyendo el estado de un trimestre quiere el margen de ese
+    trimestre. Los que necesitan un saldo —apalancamiento, deuda sobre activos—
+    usan el balance del propio periodo, que es la columna de al lado.
+    """
+    if panel is None or panel.empty:
+        return pd.DataFrame()
+
+    def col(clave):
+        if clave not in panel.columns:
+            return pd.Series(index=panel.index, dtype="float64")
+        return pd.to_numeric(panel[clave], errors="coerce")
+
+    ingresos = col("ingresos_totales")
+    intereses = col("gasto_intereses")
+    depreciacion = col("depreciacion_amortizacion")
+    utilidad = col("utilidad_neta")
+    impuestos = col("impuestos")
+    ganancia = col("ganancia_venta_inmuebles")
+    deterioro = col("deterioro")
+
+    # El EBITDAre del periodo, con la MISMA regla que el modelo: sin depreciación
+    # no hay EBITDAre, porque un cero ahí no es un dato faltante, es otro número.
+    ebitdare = (utilidad + intereses + impuestos.fillna(0) + depreciacion
+                + deterioro.fillna(0) - ganancia.fillna(0))
+    ebitdare = ebitdare.where(utilidad.notna() & (intereses > 0) & depreciacion.notna())
+
+    deuda = col("deuda_total")
+    if deuda.isna().all() and saldos:
+        deuda = pd.Series(saldos.get("deuda_total"), index=panel.index, dtype="float64")
+    efectivo = col("efectivo")
+    activos = col("activos_totales")
+    deuda_neta = deuda - efectivo.fillna(0)
+
+    def division(a, b):
+        return (a / b).where(b.notna() & (b != 0))
+
+    valores = {
+        "margen_operativo": division(col("utilidad_operativa"), ingresos),
+        "margen_noi": division(col("noi"), ingresos),
+        "margen_ebitdare": division(ebitdare, ingresos),
+        "margen_neto": division(utilidad, ingresos),
+        "cobertura_intereses": division(ebitdare, intereses),
+        "costo_deuda": division(intereses * 4, deuda),
+        "apalancamiento": division(deuda_neta, ebitdare * 4),
+        "deuda_activos": division(deuda, activos),
+        "depreciacion_ingresos": division(depreciacion, ingresos),
+        "affo_sobre_ffo": division(col("affo"), col("ffo")),
+        "payout_affo": division(col("dividendo_declarado_por_accion"), col("affo_por_accion")),
+    }
+    filas = []
+    for etiqueta, clave, formato, explicacion in RATIOS_PROPIOS:
+        serie = valores.get(clave)
+        fila = {"Ratio": etiqueta, "formato": formato, "explicacion": explicacion}
+        for periodo in panel.index:
+            nombre = periodo.date().isoformat() if hasattr(periodo, "date") else str(periodo)
+            crudo = None if serie is None else serie.get(periodo)
+            fila[nombre] = None if crudo is None or pd.isna(crudo) else float(crudo)
+        filas.append(fila)
+    return pd.DataFrame(filas)

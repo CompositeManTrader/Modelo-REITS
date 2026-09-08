@@ -49,6 +49,7 @@ from src.datos.almacen import (  # noqa: E402
     escribir_conciliacion,
     escribir_crudos,
     escribir_hechos_externos,
+    escribir_reportados,
 )
 from src.datos.repositorio import Repositorio  # noqa: E402
 from src.ingesta.edgar import ClienteEdgar  # noqa: E402
@@ -63,6 +64,7 @@ from src.ingesta.instancia import (  # noqa: E402
     rellenar_filing_rezagado,
 )
 from src.ingesta.instantanea import reconstruir  # noqa: E402
+from src.ingesta.reportados import descargar_reportados  # noqa: E402
 
 COLUMNAS_CONCILIACION = [
     "ticker", "periodo_tipo", "fecha_dato", "fecha_publicacion", "orden",
@@ -135,6 +137,16 @@ def exportar(repo: Repositorio, tickers: list[str] | None) -> int:
     for e in emisores:
         crudos = armar_crudos(cliente, e.ticker, e.cik)
         huella = escribir_crudos(e.ticker, crudos)
+
+        # Los estados TAL COMO los publicó la emisora, del renderizado que la
+        # propia SEC hace de su XBRL. Se versionan aquí por la misma razón que la
+        # conciliación: son cuatro peticiones por filing —el resumen y los tres
+        # estados— y sin guardarlos, cada arranque del contenedor las volvería a
+        # pagar. La escala de cada renglón se verifica contra el crudo que se
+        # acaba de armar, así que este orden importa.
+        reportados = descargar_reportados(cliente, e.ticker, e.cik, crudos=crudos)
+        if not reportados.empty:
+            escribir_reportados(e.ticker, reportados)
 
         # Lo derivable del crudo NO se guarda aparte: se recalcula. Lo que se
         # guarda es exactamente su complemento — y el complemento se calcula por
