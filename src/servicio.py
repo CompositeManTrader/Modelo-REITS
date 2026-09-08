@@ -32,6 +32,14 @@ CONCEPTOS_PANEL = (
     "affo",
     "affo_por_accion",
     "ffo",
+    # El FFO POR ACCIÓN, que no es un lujo: es la única forma de tener payout
+    # sobre FFO en el emisor que dejó de publicar el subtotal en monto. Realty
+    # Income lo hizo en septiembre de 2024 —su conciliación va de la utilidad
+    # neta al FFO Normalizado sin pasar por el FFO de Nareit— pero sigue
+    # imprimiendo "FFO per share" cada trimestre. El dato estaba en la base y el
+    # panel no lo pedía, así que el renglón salía vacío por un hueco de código y
+    # no de información.
+    "ffo_por_accion",
     "ffo_normalizado",
     "noi",
     "utilidad_neta",
@@ -172,6 +180,7 @@ def construir_panel(
         # AFFO —cuatro trimestres consecutivos y verificados contra el
         # calendario—, porque los tres se comparan entre sí en la pantalla.
         trimestral["ffo_ttm"] = _ttm(trimestral, "ffo")
+        trimestral["ffo_por_accion_ttm"] = _ttm(trimestral, "ffo_por_accion")
         trimestral["utilidad_neta_ttm"] = _ttm(trimestral, "utilidad_neta")
         # Si al AFFO por acción le falta un trimestre pero el monto sí está
         # completo, el TTM por acción se deduce del monto y del conteo de acciones.
@@ -706,6 +715,7 @@ def _metricas(
         # neta cruzaba el 100% —el umbral que pinta la barra de rojo— por el puro
         # efecto de la anualización.
         ffo_ttm=_f(fila.get("ffo_ttm")),
+        ffo_por_accion_ttm=_f(fila.get("ffo_por_accion_ttm")),
         utilidad_neta_ttm=_f(fila.get("utilidad_neta_ttm")),
         # El NOI anualizado sale del TTM real cuando existe, y solo se cae al
         # trimestre por cuatro si no hay cuatro trimestres seguidos. El NAV y el
