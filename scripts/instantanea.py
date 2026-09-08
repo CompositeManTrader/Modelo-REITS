@@ -53,14 +53,14 @@ from src.datos.almacen import (  # noqa: E402
 from src.datos.repositorio import Repositorio  # noqa: E402
 from src.ingesta.edgar import ClienteEdgar  # noqa: E402
 from src.ingesta.estados import (  # noqa: E402
-    etiquetas_de_balance,
     etiquetas_de_instancia,
+    etiquetas_del_catalogo,
     hechos_crudos,
     hechos_de_crudos,
 )
 from src.ingesta.instancia import (  # noqa: E402
     descargar_instancias,
-    rellenar_balance_rezagado,
+    rellenar_filing_rezagado,
 )
 from src.ingesta.instantanea import reconstruir  # noqa: E402
 
@@ -75,42 +75,65 @@ COLUMNAS_HECHOS = [
 ]
 
 
+def armar_crudos(cliente, ticker: str, cik: str) -> pd.DataFrame:
+    """Junta los tres caminos que producen hechos crudos de XBRL.
+
+    Está aparte de `exportar` porque el orden entre los tres importa y no se ve:
+    el segundo camino puede tapar al tercero, y taparlo no rompe nada visible
+    —los números salen, nada más que viejos—. Aislarlo permite probarlo.
+    """
+    # El crudo se baja COMPLETO, sin ventana. Guardarlo desde 2019 recortaba la
+    # historia de setenta trimestres a treinta, y la Puerta 2 exige doce
+    # observaciones de la prima para dar un percentil confiable: la instantánea
+    # corta habría cambiado velocidad por veredictos.
+    del_api = hechos_crudos(cliente.companyfacts(cik), ticker, desde=None)
+
+    # Las etiquetas de EXTENSIÓN no están en `companyfacts` y hay que leerlas del
+    # documento XBRL de cada filing. Se pagan una vez, aquí, y quedan versionadas
+    # junto al resto: reconstruir sigue sin tocar la red.
+    extension = descargar_instancias(cliente, ticker, cik, etiquetas_de_instancia(ticker))
+
+    # Y el filing que `companyfacts` todavía no publica. La API se atrasa POR
+    # EMISOR y sin avisar: al 8 de septiembre de 2026 daba marzo como el último
+    # corte de Prologis y Welltower, más de un mes después de sus 10-Q de junio.
+    # El atraso es parcial ENTRE FUENTES —el AFFO del trimestre sí entra, porque
+    # viene del 8-K— así que el apalancamiento mezclaba una deuda vieja con un
+    # flujo nuevo y el ratio salía plausible.
+    #
+    # Se le pasa `del_api`, no el crudo ya concatenado: la guarda pregunta si la
+    # API tiene el filing, y `descargar_instancias` acaba de leer ESE MISMO
+    # documento para las extensiones de O y de EXR. Con el crudo concatenado la
+    # guarda se contestaría a sí misma, y el rezago quedaría tapado justo en las
+    # dos emisoras que más caminos usan.
+    #
+    # No cuesta una petición cuando la API está al día: la decisión se toma con el
+    # índice de filings, que es barato, y solo se baja el documento XBRL de los
+    # reportes que la API todavía no tiene.
+    rezagado = rellenar_filing_rezagado(
+        cliente, ticker, cik, del_api, etiquetas_del_catalogo(ticker)
+    )
+
+    # Los dos caminos leen el MISMO documento cuando la API va atrasada en una
+    # emisora con etiquetas propias, así que el hecho de extensión llega dos
+    # veces. Se deduplican entre ellos y no contra la API: contra la API no hace
+    # falta —la guarda por accession garantiza que no se solapan— y hacerlo podría
+    # tirar un hecho legítimo de dos filings presentados el mismo día.
+    de_instancia = [p for p in (extension, rezagado) if not p.empty]
+    if not de_instancia:
+        return del_api
+    instancia = pd.concat(de_instancia, ignore_index=True).drop_duplicates(
+        ["tag", "periodo_tipo", "fecha_dato", "fecha_publicacion"]
+    )
+    return pd.concat([del_api, instancia], ignore_index=True)
+
+
 def exportar(repo: Repositorio, tickers: list[str] | None) -> int:
     """Escribe la instantánea al repositorio desde una base ya ingestada."""
     cliente = ClienteEdgar()
     emisores = [e for e in UNIVERSO_INICIAL if tickers is None or e.ticker in set(tickers)]
 
     for e in emisores:
-        # El crudo se baja COMPLETO, sin ventana. Guardarlo desde 2019 recortaba
-        # la historia de setenta trimestres a treinta, y la Puerta 2 exige doce
-        # observaciones de la prima para dar un percentil confiable: la
-        # instantánea corta habría cambiado velocidad por veredictos.
-        crudos = hechos_crudos(cliente.companyfacts(e.cik), e.ticker, desde=None)
-
-        # Las etiquetas de EXTENSIÓN no están en `companyfacts` y hay que leerlas
-        # del documento XBRL de cada filing. Se pagan una vez, aquí, y quedan
-        # versionadas junto al resto: reconstruir sigue sin tocar la red.
-        extension = descargar_instancias(
-            cliente, e.ticker, e.cik, etiquetas_de_instancia(e.ticker)
-        )
-        if not extension.empty:
-            crudos = pd.concat([crudos, extension], ignore_index=True)
-
-        # Y el balance que `companyfacts` todavía no publica. La API se atrasa
-        # POR EMISOR y sin avisar: al 8 de septiembre de 2026 daba marzo como el
-        # último balance de Prologis y Welltower, más de un mes después de sus
-        # 10-Q de junio. El atraso es parcial —el AFFO del trimestre sí entra,
-        # porque viene del 8-K— así que el apalancamiento mezclaba una deuda
-        # vieja con un flujo nuevo y el ratio salía plausible.
-        #
-        # No cuesta una petición cuando la API está al día: la decisión se toma
-        # con el índice de filings, que es barato, y solo se baja el documento
-        # XBRL de los reportes que el crudo todavía no tiene.
-        rezagado = rellenar_balance_rezagado(
-            cliente, e.ticker, e.cik, crudos, etiquetas_de_balance(e.ticker)
-        )
-        if not rezagado.empty:
-            crudos = pd.concat([crudos, rezagado], ignore_index=True)
+        crudos = armar_crudos(cliente, e.ticker, e.cik)
         huella = escribir_crudos(e.ticker, crudos)
 
         # Lo derivable del crudo NO se guarda aparte: se recalcula. Lo que se
