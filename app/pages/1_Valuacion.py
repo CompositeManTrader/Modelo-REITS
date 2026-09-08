@@ -87,8 +87,9 @@ from marca import (  # noqa: E402
 from src.config import DIR_EXPORTES, UMBRALES  # noqa: E402
 from src.export.excel import (  # noqa: E402
     DatosExportacion,
+    estados_para_libro,
     exportar,
-    libro_de_estados,  # noqa: E402
+    libro_de_estados,
 )
 from src.ingesta import reportados  # noqa: E402
 from src.modelo import bloomberg  # noqa: E402
@@ -126,6 +127,7 @@ from src.servicio import (  # noqa: E402
     evaluar,
     panel_de_conceptos,
     ratios_propios,
+    saldos_de_balance,
 )
 from src.validacion.cuadre import cuadrar_conciliacion  # noqa: E402
 
@@ -1305,6 +1307,7 @@ with tab_auditoria:
                 st.error("No hay un trimestre completo para exportar.")
             else:
                 fila = ultima.iloc[0]
+                _saldos = saldos_de_balance(repo, ticker, asof=asof)
                 # El FFO y la utilidad neta van en TTM real, con la misma regla de
                 # cuatro trimestres consecutivos que el AFFO. Antes se anualizaba un
                 # trimestre por cuatro, y el libro exportado llevaba ese error a la
@@ -1319,6 +1322,21 @@ with tab_auditoria:
                     ffo_ttm=positivo(fila.get("ffo_ttm")),
                     utilidad_neta_ttm=positivo(fila.get("utilidad_neta_ttm")),
                     dividendo_ttm_por_accion=panel.dividendo_ttm,
+                    # El balance y los dos TTM que la hoja de Inputs pide por
+                    # renglón. Sin esto el libro los escribía en CERO —los cinco
+                    # saldos, el EBITDAre y los intereses— y su hoja de Valuación
+                    # calculaba apalancamiento, LTV y NAV sobre nada. En la
+                    # pantalla los números salían bien, así que el error solo
+                    # existía en el archivo que el usuario se lleva.
+                    deuda_total=positivo(_saldos.get("deuda_total"), 0.0),
+                    efectivo=positivo(_saldos.get("efectivo"), 0.0),
+                    prestamos_por_cobrar=positivo(_saldos.get("prestamos_por_cobrar"), 0.0),
+                    inversiones_no_consolidadas=positivo(
+                        _saldos.get("inversiones_no_consolidadas"), 0.0
+                    ),
+                    goodwill=positivo(_saldos.get("goodwill"), 0.0),
+                    ebitdare_ttm=positivo(fila.get("ebitdare_ttm")),
+                    intereses_ttm=positivo(fila.get("gasto_intereses_ttm")),
                     sector=panel.sector,
                 )
                 componentes = (
@@ -1340,6 +1358,12 @@ with tab_auditoria:
                     # fuera 269 registros de Realty Income sin decirlo, ni en la
                     # pantalla ni en el archivo.
                     fuentes=panel.fuentes.to_dict("records") if not panel.fuentes.empty else [],
+                    # Las tres vistas entran al MISMO libro, y los insumos que
+                    # salen de un estado se vuelven fórmula que apunta a su
+                    # renglón. Es lo que separa un libro con dos secciones de un
+                    # modelo cableado: cambiar la deuda en el balance mueve el
+                    # apalancamiento, el LTV y el NAV.
+                    estados=estados_para_libro(repo, ticker, asof=asof, n_periodos=8),
                 )
                 ruta = exportar(datos, DIR_EXPORTES / f"{ticker}_{asof}.xlsx")
                 st.success(f"Libro generado: `{ruta}`")
