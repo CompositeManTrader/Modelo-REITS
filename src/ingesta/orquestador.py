@@ -23,6 +23,7 @@ from src.datos.repositorio import RegistroRechazado, Repositorio
 from src.ingesta import estados as mod_estados
 from src.ingesta import precios, xbrl
 from src.ingesta.edgar import ClienteEdgar, ErrorEdgar
+from src.ingesta.instancia import descargar_instancias
 from src.ingesta.parser_affo import (
     fin_de_trimestre,
     parsear_conciliacion,
@@ -247,7 +248,24 @@ def ingestar_estados(
     except ErrorEdgar as exc:
         resumen.errores.append(f"estados financieros: {exc}")
         return resumen
-    df = mod_estados.hechos_de_estados(datos, ticker, cik, desde=desde)
+
+    crudos = mod_estados.hechos_crudos(datos, ticker, desde=desde)
+
+    # Las etiquetas de EXTENSIÓN de la emisora no están en `companyfacts` —esa
+    # API solo publica taxonomías estándar— y hay que leerlas del documento XBRL
+    # del filing. Solo se pide para quien las declara en su ficha: si nadie las
+    # declara, esto no hace una sola petición.
+    etiquetas = mod_estados.etiquetas_de_instancia(ticker)
+    if etiquetas:
+        try:
+            extra = descargar_instancias(cliente, ticker, cik, etiquetas)
+        except ErrorEdgar as exc:
+            extra = pd.DataFrame()
+            resumen.errores.append(f"instancia XBRL: {exc}")
+        if not extra.empty:
+            crudos = pd.concat([crudos, extra], ignore_index=True)
+
+    df = mod_estados.hechos_de_crudos(crudos, ticker, cik)
     if df.empty:
         return resumen
     filas = df.to_dict("records")

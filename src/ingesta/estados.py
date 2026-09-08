@@ -171,6 +171,14 @@ _RESULTADOS: tuple[LineaEstado, ...] = (
         "InterestAndDebtExpense",
         "InterestExpenseNonoperating",
         "InterestExpenseOperating",
+        # Welltower se cambió a esta en el cuarto trimestre de 2024 y nadie la
+        # seguía: `InterestExpenseDebt` se detiene el 30 de septiembre de 2024 y
+        # `InterestExpenseBorrowings` continúa hasta hoy, en la MISMA taxonomía
+        # estándar y dentro de `companyfacts`. Su ausencia dejaba a la emisora
+        # más grande del universo sin EBITDAre, sin costo de deuda y sin spread
+        # —dos criterios medibles de cinco— por una etiqueta no mapeada.
+        "InterestExpenseBorrowings",
+        "InterestExpenseDebtExcludingAmortization",
     )),
     _l("ingreso_intereses", "Ingreso por intereses", ESTADO_RESULTADOS, 220, (
         "InvestmentIncomeInterest",
@@ -323,6 +331,24 @@ _BALANCE: tuple[LineaEstado, ...] = (
     _l("linea_de_credito", "Línea de crédito revolvente", BALANCE, 230, (
         "LineOfCredit",
         "LongTermLineOfCredit",
+    )),
+    # Dos tramos más, para el emisor que no publica ningún total de deuda.
+    #
+    # Extra Space no tiene UN renglón de deuda total: ni estándar ni de extensión.
+    # Lo que publica son cuatro instrumentos por separado —notas senior 9,461 MM,
+    # revolvente 1,617, no garantizada 1,495 y otras notas 1,073— y sumar solo los
+    # dos primeros dejaba fuera 2,568 MM, un 19% de su deuda. En un ratio de
+    # apalancamiento ese error va en la dirección peligrosa: la emisora se ve más
+    # sana de lo que está.
+    #
+    # `deuda_no_garantizada` nace SIN etiquetas por omisión a propósito. Su
+    # candidata natural, `UnsecuredDebt`, ya alimenta a `notas_senior`, y en las
+    # emisoras que la usan para eso —Welltower— tener las dos líneas leyendo la
+    # misma etiqueta contaría la deuda dos veces. Solo la declara quien la reporta
+    # aparte de sus notas senior.
+    _l("deuda_no_garantizada", "Deuda no garantizada", BALANCE, 235, ()),
+    _l("otras_notas_por_pagar", "Otras notas por pagar", BALANCE, 236, (
+        "OtherNotesPayable",
     )),
     _l("deuda_total", "Deuda total", BALANCE, 240, (
         # `DebtLongtermAndShorttermCombinedAmount` es la etiqueta canónica y casi
@@ -543,11 +569,26 @@ def lineas_de(estado: str) -> tuple[LineaEstado, ...]:
 
 @dataclass(frozen=True)
 class FichaEstados:
-    """Etiquetas propias de una emisora, por línea del estado."""
+    """Etiquetas propias de una emisora, por línea del estado.
+
+    ``tags_de_instancia`` nombra las etiquetas que hay que ir a buscar al
+    documento XBRL del filing porque `companyfacts` no las expone: esa API solo
+    publica taxonomías estándar y deja fuera las EXTENSIONES que cada emisora
+    define para sí misma. Es un camino más caro —uno a tres megabytes por
+    filing— así que se declara por emisora y solo donde el dato no existe de
+    otra forma. Ver ``src/ingesta/instancia.py``.
+    """
 
     ticker: str
     tags: dict[str, tuple[str, ...]] = field(default_factory=dict)
     nota: str = ""
+    tags_de_instancia: tuple[str, ...] = ()
+
+
+def etiquetas_de_instancia(ticker: str) -> set[str]:
+    """Las etiquetas de extensión declaradas para esta emisora, o vacío."""
+    ficha = FICHAS_ESTADOS.get(ticker)
+    return set(ficha.tags_de_instancia) if ficha else set()
 
 
 FICHAS_ESTADOS: dict[str, FichaEstados] = {}
@@ -589,6 +630,29 @@ registrar_estados(FichaEstados(
         "utilidad_minoritarios": ("NetIncomeLossAttributableToNoncontrollingInterest",),
     },
     nota="Consolida Shurgard: el minoritario pesa y no se puede ignorar.",
+))
+
+registrar_estados(FichaEstados(
+    "EXR",
+    {
+        # Extra Space etiqueta su gasto por intereses con una extensión PROPIA, y
+        # `companyfacts` solo publica taxonomías estándar: el dato no está ahí.
+        # `InterestExpense` de la taxonomía estándar se detiene en el primer
+        # trimestre de 2024 y a partir de ahí la emisora se quedaba sin EBITDAre,
+        # sin costo de deuda y sin spread — dos criterios medibles de cinco.
+        #
+        # El número está impreso en su estado de resultados y sale del documento
+        # XBRL del propio filing: 146.7 millones en el segundo trimestre de 2026.
+        "gasto_intereses": (
+            "InterestExpenseExcludingAmortizationOfDebtDiscountPremium",
+            "InterestExpense",
+        ),
+        # Reporta la no garantizada aparte de sus notas senior, así que aquí las
+        # dos líneas son dos instrumentos distintos y no un doble conteo.
+        "deuda_no_garantizada": ("UnsecuredDebt",),
+    },
+    tags_de_instancia=("InterestExpenseExcludingAmortizationOfDebtDiscountPremium",),
+    nota="Su gasto por intereses vive en una etiqueta de extensión, fuera de companyfacts.",
 ))
 
 registrar_estados(FichaEstados(
@@ -1479,6 +1543,7 @@ __all__ = [
     "conceptos_no_mapeados",
     "derivar_trimestres_faltantes",
     "elegir_cadenas",
+    "etiquetas_de_instancia",
     "elegir_tags",
     "hechos_crudos",
     "hechos_de_crudos",
