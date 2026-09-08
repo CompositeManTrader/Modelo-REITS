@@ -842,3 +842,101 @@ def dataframe_a_hoja(wb: Workbook, nombre: str, df: pd.DataFrame) -> Worksheet:
             ws.cell(row=i, column=j, value=None if pd.isna(valor) else valor)
     ws.freeze_panes = "A2"
     return ws
+
+
+# --------------------------------------------------------------------------------------
+# Las tres vistas de los estados financieros, en un libro
+# --------------------------------------------------------------------------------------
+
+# Nombres cortos a propósito: Excel corta el nombre de una hoja en 31 caracteres,
+# y "Bloomberg - Estado de resultados" se convierte en "Bloomberg - Estado de result" —
+# que no se distingue de otra hoja truncada igual y rompe cualquier fórmula que
+# la referencie por nombre.
+_HOJAS = {
+    "resultados": "Resultados",
+    "balance": "Balance",
+    "flujo": "Flujo",
+    "estado_resultados": "Resultados",
+    "flujo_efectivo": "Flujo",
+}
+
+
+def libro_de_estados(
+    repo,
+    ticker: str,
+    *,
+    asof: dt.date,
+    periodo_tipo: str = "Q",
+    n_periodos: int = 8,
+) -> bytes:
+    """Las tres vistas y los ratios, una hoja por vista y estado.
+
+    Devuelve BYTES y no una ruta: quien lo llama es el botón de descarga de
+    Streamlit, y en Streamlit Cloud el disco es efímero — escribir un archivo
+    para leerlo enseguida es un rodeo que además se puede quedar a medias.
+
+    Las columnas son las MISMAS que la pantalla, con los mismos encabezados. Es
+    lo que permite que una fórmula del modelo apunte a una celda de estas hojas y
+    siga apuntando a lo mismo la próxima vez que se descargue.
+    """
+    import io
+
+    from src.ingesta import reportados as mod_reportados
+    from src.modelo import bloomberg as mod_bloomberg
+    from src.servicio import (
+        estado_financiero,
+        estados_reportados,
+        panel_de_conceptos,
+        ratios_propios,
+    )
+
+    wb = Workbook()
+    wb.remove(wb.active)
+
+    panel = panel_de_conceptos(
+        repo, ticker, asof=asof, periodo_tipo=periodo_tipo, n_periodos=n_periodos
+    )
+
+    # 1 · Bloomberg
+    for estado in mod_bloomberg.ESTADOS:
+        tabla = mod_bloomberg.armar(panel, estado, n_periodos=n_periodos)
+        if tabla.empty:
+            continue
+        tabla = tabla.drop(columns=["nivel", "seccion", "total"])
+        dataframe_a_hoja(wb, f"BBG {_HOJAS[estado]}", tabla)
+
+    # 2 · As reported
+    formulario = "10-K" if periodo_tipo == "FY" else "10-Q"
+    for estado in mod_reportados.ESTADOS:
+        tabla = estados_reportados(ticker, estado, asof=asof, formulario=formulario)
+        if tabla.empty:
+            continue
+        dataframe_a_hoja(wb, f"Reportado {_HOJAS[estado]}", tabla)
+
+    # 3 · Propia
+    from src.ingesta.estados import ESTADOS as ESTADOS_DEL_CATALOGO
+
+    for estado in ESTADOS_DEL_CATALOGO:
+        tabla = estado_financiero(
+            repo, ticker, estado, asof=asof, periodo_tipo=periodo_tipo,
+            n_periodos=n_periodos,
+        )
+        if tabla.empty:
+            continue
+        dataframe_a_hoja(wb, f"Propia {_HOJAS.get(estado, estado)[:20]}", tabla)
+
+    ratios = ratios_propios(panel)
+    if not ratios.empty:
+        dataframe_a_hoja(wb, "Ratios", ratios.drop(columns=["formato"]))
+
+    # Sin una sola hoja el libro no se puede guardar, y un libro vacío es un
+    # error más claro que una excepción de openpyxl.
+    if not wb.sheetnames:
+        dataframe_a_hoja(
+            wb, "Sin datos",
+            pd.DataFrame([{"Aviso": f"No hay estados de {ticker} al corte del {asof}."}]),
+        )
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()

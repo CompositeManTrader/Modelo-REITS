@@ -44,6 +44,7 @@ ARCHIVO_CRUDOS = "hechos.csv.gz"
 ARCHIVO_COBERTURA = "cobertura.csv"
 ARCHIVO_CONCILIACION = "conciliacion.csv.gz"
 ARCHIVO_HECHOS_EXTERNOS = "hechos_externos.csv.gz"
+ARCHIVO_REPORTADOS = "reportados.csv.gz"
 
 # Formulario que marca un reporte periódico. Un 8-K de resultados adelanta las
 # cifras, pero el que trae los estados completos etiquetados es el 10-Q o el 10-K.
@@ -319,6 +320,38 @@ def escribir_conciliacion(
     """
     ruta = dir_emisora(ticker, base=base) / ARCHIVO_CONCILIACION
     return _escribir(ruta, _gzip_bytes(_csv_bytes(conciliacion)))
+
+
+def escribir_reportados(
+    ticker: str, reportados: pd.DataFrame, *, base: Path | None = None
+) -> str:
+    """Guarda los estados tal como los publicó la emisora, ya parseados.
+
+    A diferencia del resto del almacén, esto **no** entra a la base de datos y se
+    lee del archivo. Es deliberado: no son hechos, es un renderizado. Cada
+    renglón pertenece a un filing y a su orden dentro de un estado, no se cruza
+    con nada en consulta y no se empalma con ninguna otra fuente. Meterlo a una
+    tabla de hechos habría obligado a inventarle una llave point-in-time que
+    ningún consumidor necesita, y a mantenerla.
+
+    El corte por fecha sigue existiendo, nada más que en pandas: cada renglón
+    trae la fecha de publicación de su filing, así que "lo que se sabía al 30 de
+    junio" es un filtro, no un esquema.
+    """
+    ruta = dir_emisora(ticker, base=base) / ARCHIVO_REPORTADOS
+    return _escribir(ruta, _gzip_bytes(_csv_bytes(reportados)))
+
+
+def leer_reportados(ticker: str, *, base: Path | None = None) -> pd.DataFrame:
+    """Lee los estados as reported del almacén. No toca la red."""
+    ruta = dir_emisora(ticker, base=base) / ARCHIVO_REPORTADOS
+    if not ruta.exists():
+        return pd.DataFrame()
+    df = pd.read_csv(ruta, compression="gzip", dtype={"accession": str, "tag": str})
+    df = _fechas_como_el_original(df, ("periodo_inicio", "fecha_dato", "fecha_publicacion"))
+    if "tag" in df:
+        df["tag"] = df["tag"].fillna("")
+    return df
 
 
 def escribir_hechos_externos(

@@ -85,7 +85,13 @@ from marca import (  # noqa: E402
     plantilla_plotly,
 )
 from src.config import DIR_EXPORTES, UMBRALES  # noqa: E402
-from src.export.excel import DatosExportacion, exportar  # noqa: E402
+from src.export.excel import (  # noqa: E402
+    DatosExportacion,
+    exportar,
+    libro_de_estados,  # noqa: E402
+)
+from src.ingesta import reportados  # noqa: E402
+from src.modelo import bloomberg  # noqa: E402
 from src.modelo.cascada import (  # noqa: E402
     CLAVES_TRAMPA,
     REPORTE,
@@ -111,13 +117,87 @@ from src.modelo.valuacion import (  # noqa: E402
 from src.servicio import (  # noqa: E402
     MEDIDA_AFFO,
     ORIGEN_DE_INSUMOS,
+    RATIOS_PROPIOS,
     construir_panel,
     contexto_macro,
     diagnostico_de_insumos,
     estado_financiero,
+    estados_reportados,
     evaluar,
+    panel_de_conceptos,
+    ratios_propios,
 )
 from src.validacion.cuadre import cuadrar_conciliacion  # noqa: E402
+
+# ── Presentación de las tres vistas ──────────────────────────────────────────
+#
+# Las tres tablas se dibujan igual y por eso comparten estos tres ayudantes. Lo
+# único que cambia entre vistas es de dónde salen los renglones.
+
+_NO_NUMERICAS = frozenset(
+    {"Renglón", "Ratio", "nivel", "seccion", "total", "ajuste", "nota", "tag",
+     "verificado", "sangria", "formato", "explicacion"}
+)
+
+
+def _a_millones(tabla: pd.DataFrame) -> pd.DataFrame:
+    """Los montos en millones, y las cifras por acción intactas.
+
+    Un balance en unidades obliga a contar ceros y estas tablas existen para
+    leerse de un vistazo. La excepción son los renglones por acción: dividir
+    `$1.09` entre un millón lo desaparece de la pantalla. Se detectan por la
+    magnitud de la propia serie, que es lo único que funciona para las tres
+    vistas: la de Bloomberg no tiene nuestras claves y la as reported no tiene
+    ninguna.
+    """
+    if tabla.empty:
+        return tabla
+    vista = tabla.copy()
+    columnas = [c for c in vista.columns if c not in _NO_NUMERICAS]
+    if not columnas:
+        return vista
+    numericas = vista[columnas].apply(pd.to_numeric, errors="coerce")
+    # Un renglón cuyo máximo absoluto no llega a mil no es un monto: es una
+    # cifra por acción, un múltiplo o un porcentaje.
+    escala = numericas.abs().max(axis=1)
+    factor = pd.Series(1.0, index=vista.index).where(escala < 1_000, 1e6)
+    for columna in columnas:
+        vista[columna] = numericas[columna] / factor
+    return vista
+
+
+def _marcar_ajustes(tabla: pd.DataFrame) -> pd.DataFrame:
+    """Le pone ⚙ al renglón que Bloomberg construye con una convención propia."""
+    if tabla.empty:
+        return tabla
+    vista = tabla.copy()
+    vista["Renglón"] = [
+        f"{renglon}  ⚙" if ajuste else renglon
+        for renglon, ajuste in zip(vista["Renglón"], vista["ajuste"], strict=True)
+    ]
+    return vista.drop(columns=["nivel", "seccion", "total", "ajuste", "nota"])
+
+
+def _formatear_ratios(tabla: pd.DataFrame) -> pd.DataFrame:
+    """Cada ratio con su unidad. Un margen y un múltiplo no se leen igual."""
+    if tabla.empty:
+        return tabla
+    # Con `iterrows` y no con `itertuples`: los encabezados son fechas y
+    # `itertuples` renombra a `_1`, `_2` cualquier columna que no sea un
+    # identificador válido, así que la columna se pierde en silencio.
+    columnas = [c for c in tabla.columns if c not in _NO_NUMERICAS]
+    filas = []
+    for _, fila in tabla.iterrows():
+        salida = {"Ratio": fila["Ratio"]}
+        for columna in columnas:
+            crudo = fila.get(columna)
+            # Con los ayudantes de `comun` y no a mano: `f"{x * 100:.1f}%"`
+            # duplica una escala que ya vive en un solo lugar, y es la misma
+            # familia del formato de bps que ya costó una vez. Hay una prueba
+            # que lo prohíbe en las páginas.
+            salida[columna] = pct(crudo, 1) if fila["formato"] == "pct" else veces(crudo)
+        filas.append(salida)
+    return pd.DataFrame(filas)
 
 configurar("Valuación", "📊")
 inyectar_estilos()
@@ -531,28 +611,135 @@ with tab_estados:
     # 03 · LOS ESTADOS FINANCIEROS
     # ══════════════════════════════════════════════════════════════════════════════
 
-    zona("03", "Los estados financieros", "El punto de partida, tal como los publicó la SEC.")
+    zona("03", "Los estados financieros", "El mismo trimestre, en las tres formas de verlo.")
 
     st.markdown(
         f"<div style='font-size:13px;line-height:1.55;color:{GRIS};margin-bottom:10px'>"
-        "Aquí empieza todo lo demás. Cada renglón sale de <strong>companyfacts</strong> de la SEC "
-        "con su etiqueta GAAP, y está filtrado por <strong>fecha de publicación</strong>: lo que "
-        "ves es lo que se sabía al corte, no la reexpresión posterior. Del estado de resultados "
-        "salen el NOI y el EBITDAre; del balance, la deuda neta. La conciliación del AFFO de la "
-        "zona siguiente <em>no</em> sale de aquí — es no-GAAP y vive en el comunicado de resultados."
+        "Un estado financiero admite <strong>tres lecturas</strong>, y las tres son legítimas. "
+        "<strong>As reported</strong> es lo que la emisora imprimió, con sus renglones y su orden: "
+        "es la referencia, y es incomparable entre emisoras porque cada una agrupa distinto. "
+        "<strong>Bloomberg</strong> es el molde estandarizado que sí compara, a cambio de aplicar "
+        "ajustes que se alejan del filing — y aquí cada ajuste queda marcado. "
+        "<strong>Propia</strong> es nuestro catálogo, el que alimenta el modelo. "
+        "Todas están filtradas por <strong>fecha de publicación</strong>: lo que ves es lo que se "
+        "sabía al corte, no la reexpresión posterior."
         "</div>",
         unsafe_allow_html=True,
     )
 
-    _ESTADOS = (
-        ("estado_resultados", "Estado de resultados", "Trimestral. Cuatro trimestres seguidos son el TTM."),
-        ("balance", "Balance general", "Saldos a la fecha de corte del trimestre. No se anualizan."),
-        ("flujo_efectivo", "Flujo de efectivo", "Trimestral, derivado de los acumulados que publica la SEC."),
+    col_freq, col_desc = st.columns([1, 2])
+    with col_freq:
+        frecuencia = st.radio(
+            "Frecuencia", ("Trimestral", "Anual"), horizontal=True, key="freq_estados",
+        )
+    _ANUAL = frecuencia == "Anual"
+    _TIPO = "FY" if _ANUAL else "Q"
+
+    panel_estados = panel_de_conceptos(
+        repo, ticker, asof=asof, periodo_tipo=_TIPO, n_periodos=6
     )
-    pestanas = st.tabs([n for _, n, _ in _ESTADOS])
-    for pestana, (clave_estado, nombre_estado, nota_estado) in zip(pestanas, _ESTADOS, strict=True):
-        with pestana:
-            tabla = estado_financiero(repo, ticker, clave_estado, asof=asof, n_periodos=6)
+
+    with col_desc:
+        libro = libro_de_estados(repo, ticker, asof=asof, periodo_tipo=_TIPO)
+        st.download_button(
+            "Descargar los tres en Excel",
+            data=libro,
+            file_name=f"{ticker}_estados_{'anual' if _ANUAL else 'trimestral'}_{asof}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            help=(
+                "Una hoja por vista y por estado, más los ratios. Las columnas son las "
+                "mismas que la pantalla, así que las fórmulas del modelo de valuación "
+                "apuntan a celdas que existen."
+            ),
+        )
+
+    v_bbg, v_reportado, v_propia = st.tabs(
+        ["Visualización Bloomberg", "Visualización as reported", "Visualización propia"]
+    )
+
+    # ── Bloomberg ─────────────────────────────────────────────────────────────
+    with v_bbg:
+        st.caption(
+            "Nuestros datos de EDGAR en el molde de Bloomberg. **No son los datos de "
+            "Bloomberg**: son los del filing, ordenados y ajustados como Bloomberg los "
+            "presenta. Los renglones que Bloomberg construye a partir de una convención "
+            "propia llevan el aviso ⚙ y se explican abajo."
+        )
+        if panel_estados.empty:
+            st.info(f"No hay estados para {ticker} al corte del {asof}.")
+        else:
+            for estado_bbg in bloomberg.ESTADOS:
+                con, piden = bloomberg.cobertura(panel_estados, estado_bbg)
+                tabla_bbg = bloomberg.armar(panel_estados, estado_bbg, n_periodos=6)
+                st.markdown(f"**{bloomberg.NOMBRE_ESTADO[estado_bbg]}**")
+                st.caption(
+                    f"{con} de {piden} renglones del molde se pueden llenar con lo que "
+                    "publica la SEC. Los demás quedan en blanco a propósito: un cero ahí "
+                    "sería una cifra inventada con formato de dato."
+                )
+                mostrar_tabla(_a_millones(_marcar_ajustes(tabla_bbg)))
+            with st.expander("Los ajustes de Bloomberg, uno por uno"):
+                for nombre, texto in bloomberg.AJUSTES.items():
+                    st.markdown(f"**{nombre.capitalize()}** — {texto}")
+                st.caption(
+                    "El molde se leyó del export real de Realty Income. Es la plantilla REIT "
+                    "estándar de Bloomberg, así que aplica a las diez, pero solo está "
+                    "verificada contra O — que es la única emisora de la que hay un export."
+                )
+
+    # ── As reported ───────────────────────────────────────────────────────────
+    with v_reportado:
+        st.caption(
+            "El estado **tal como lo publicó la emisora**, tomado del renderizado que la "
+            "propia SEC hace de su XBRL. Mismos renglones, mismo orden, misma sangría y "
+            "mismo texto que el 10-Q o el 10-K. Aquí no normalizamos nada."
+        )
+        formulario = "10-K" if _ANUAL else "10-Q"
+        vacias = 0
+        for clave_rep in reportados.ESTADOS:
+            tabla_rep = estados_reportados(
+                ticker, clave_rep, asof=asof, formulario=formulario
+            )
+            st.markdown(f"**{reportados.NOMBRE_ESTADO[clave_rep]}**")
+            if tabla_rep.empty:
+                vacias += 1
+                st.info(
+                    f"No hay {reportados.NOMBRE_ESTADO[clave_rep].lower()} de {ticker} en un "
+                    f"{formulario} publicado antes del {asof}."
+                )
+                continue
+            sin_verificar = int((~tabla_rep["verificado"]).sum())
+            st.caption(
+                f"Del {formulario} publicado más reciente. {len(tabla_rep)} renglones; "
+                f"{sin_verificar} sin poder cuadrarse contra nuestra base — casi siempre "
+                "etiquetas de extensión que `companyfacts` no publica."
+            )
+            mostrar_tabla(_a_millones(tabla_rep.drop(columns=["sangria"])))
+        if vacias == len(reportados.ESTADOS):
+            st.info(
+                "Los estados as reported se bajan del renderizado de la SEC. "
+                "Corre `python scripts/instantanea.py exportar` para traerlos."
+            )
+
+    # ── Propia ────────────────────────────────────────────────────────────────
+    with v_propia:
+        st.caption(
+            "Nuestro catálogo: setenta y cinco renglones comunes a las diez emisoras, que "
+            "es lo que hace posible compararlas y lo que alimenta el modelo. Debajo, los "
+            "ratios que se leen junto al estado y no en la cabecera."
+        )
+        _ESTADOS = (
+            ("estado_resultados", "Estado de resultados",
+             "Cuatro trimestres seguidos son el TTM." if not _ANUAL else "Ejercicio completo."),
+            ("balance", "Balance general", "Saldos a la fecha de corte. No se anualizan."),
+            ("flujo_efectivo", "Flujo de efectivo",
+             "Derivado de los acumulados que publica la SEC."),
+        )
+        for clave_estado, nombre_estado, nota_estado in _ESTADOS:
+            tabla = estado_financiero(
+                repo, ticker, clave_estado, asof=asof, periodo_tipo=_TIPO, n_periodos=6
+            )
+            st.markdown(f"**{nombre_estado}**")
             if tabla.empty:
                 st.info(
                     f"No hay {nombre_estado.lower()} para {ticker} al corte del {asof}. "
@@ -560,19 +747,26 @@ with tab_estados:
                 )
                 continue
             st.caption(nota_estado)
-            # Los montos van en millones: un balance en unidades obliga a contar ceros,
-            # y esta tabla existe para leerse de un vistazo.
-            vista_estado = tabla.copy()
-            for columna in vista_estado.columns[1:]:
-                vista_estado[columna] = pd.to_numeric(vista_estado[columna], errors="coerce") / 1e6
-            mostrar_tabla(
-                vista_estado,
-                column_config={
-                    c: st.column_config.NumberColumn(c, format="%,.0f")
-                    for c in vista_estado.columns[1:]
-                },
+            mostrar_tabla(_a_millones(tabla))
+
+        st.markdown("**Ratios**")
+        tabla_ratios = ratios_propios(panel_estados)
+        if tabla_ratios.empty:
+            st.info("No hay suficientes renglones para calcular ratios al corte.")
+        else:
+            st.caption(
+                "Calculados sobre el periodo que se está viendo, no sobre el TTM del modelo: "
+                "quien lee el estado de un trimestre quiere el margen de ese trimestre."
             )
-            st.caption("Cifras en millones de USD, salvo las de por acción y el conteo de acciones.")
+            mostrar_tabla(_formatear_ratios(tabla_ratios))
+            with st.expander("De qué renglones sale cada ratio"):
+                mostrar_tabla(
+                    pd.DataFrame(
+                        [{"Ratio": e, "Se calcula así": x}
+                         for e, _, _, x in RATIOS_PROPIOS]
+                    )
+                )
+    st.caption("Cifras en millones de USD, salvo las de por acción y el conteo de acciones.")
 
     with st.expander("De qué renglón sale cada insumo del modelo"):
         st.caption(
