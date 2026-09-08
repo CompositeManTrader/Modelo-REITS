@@ -644,6 +644,32 @@ registrar_estados(FichaEstados(
 ))
 
 registrar_estados(FichaEstados(
+    "NNN",
+    {
+        # El mismo caso de Realty Income, encontrado al auditar el balance del
+        # 10-Q de las otras nueve. `NotesPayable` son sus notas senior, no su
+        # deuda: al 30 de junio de 2026 valía 4,476 MM contra 5,001 de deuda real.
+        #
+        # El pasivo del emisor lo confirma sin margen de duda:
+        #     NotesPayable          4,475.9
+        #     LoansPayable            496.8   (préstamo a plazo)
+        #     LinesOfCreditCurrent     28.5   (revolvente)
+        #     OtherLiabilities        106.5
+        #     InterestPayable          38.0
+        #                          ─────────
+        #     Liabilities           5,145.7   contra 5,145.8 reportados
+        #
+        # `LinesOfCreditCurrent` se declara aquí y no en el catálogo compartido
+        # por la misma razón que las demás: es una etiqueta genérica, y la emisora
+        # que ya reporta su revolvente en `LineOfCredit` no debe leer las dos.
+        "notas_senior": ("NotesPayable",),
+        "prestamos_a_plazo": ("LoansPayable",),
+        "linea_de_credito": ("LinesOfCreditCurrent",),
+    },
+    nota="Su deuda son tres tramos y `NotesPayable` es solo el mayor.",
+))
+
+registrar_estados(FichaEstados(
     "WPC",
     {
         # W. P. Carey conserva un negocio de administración de inversiones además
