@@ -34,11 +34,22 @@ from __future__ import annotations
 import datetime as dt
 from dataclasses import dataclass, field
 
-from src.config import UNIVERSO_INICIAL, Estado
+from src.config import UNIVERSO_INICIAL, Estado, Fuente
 from src.datos.almacen import leer_conciliacion, leer_crudos, leer_hechos_externos
 from src.datos.repositorio import Repositorio
 from src.ingesta.estados import hechos_de_crudos
 from src.ingesta.orquestador import CONCEPTOS_RECONSTRUIBLES, reconstruir_desde_acumulados
+
+# Las fuentes que esta pasada REESCRIBE por completo, y por eso puede borrar. No
+# incluye MANUAL ni MERCADO: lo que el usuario capturó y lo que vino del proveedor
+# de precios no se reconstruyen desde la instantánea, así que borrarlos sería
+# perderlos.
+FUENTES_DE_LA_INSTANTANEA = (
+    Fuente.SEC_XBRL,
+    Fuente.SEC_8K,
+    Fuente.DERIVADO,
+    Fuente.RECONSTRUIDO,
+)
 
 
 @dataclass
@@ -52,7 +63,15 @@ class ResumenInstantanea:
 
     @property
     def vacia(self) -> bool:
-        return self.hechos == 0
+        """No había instantánea que cargar. NO es «no se insertó nada nuevo».
+
+        Los hechos son append-only con deduplicación, así que reconstruir sobre
+        una base ya cargada inserta cero y termina bien. Medir el vacío por los
+        hechos insertados convertía ese caso —el normal al reconstruir dos veces—
+        en un error con el mensaje «corre la ingesta primero», que manda a pagar
+        810 peticiones contra la SEC para arreglar algo que no está roto.
+        """
+        return not self.emisoras
 
     def como_texto(self) -> str:
         detalle = f"{self.hechos:,} hechos y {self.conciliacion:,} renglones de conciliación"
@@ -82,6 +101,12 @@ def reconstruir(
         if crudos.empty:
             resumen.sin_datos.append(e.ticker)
             continue
+
+        # La proyección se rehace, no se acumula. Las cuatro fuentes que se borran
+        # son exactamente las cuatro que esta misma pasada vuelve a escribir —el
+        # crudo derivado, el 8-K, los trimestres derivados y los reconstruidos—,
+        # y el crudo versionado, que es el registro que P1 protege, no se toca.
+        repo.purgar_hechos_derivados(e.ticker, FUENTES_DE_LA_INSTANTANEA)
 
         hechos = hechos_de_crudos(crudos, e.ticker, e.cik)
         if not hechos.empty:

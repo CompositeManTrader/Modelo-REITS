@@ -102,6 +102,21 @@ def exportar(repo: Repositorio, tickers: list[str] | None) -> int:
         # periodos. Descartar todas sus filas porque el nombre "es derivable"
         # tiraba 1,767 hechos que el crudo no vuelve a producir, entre ellos
         # trimestres enteros que solo aparecen en el 8-K.
+        # Rehacer la proyección ANTES de leer la base, o el complemento sale mal.
+        #
+        # Lo que se guarda como "externo" es lo que la base tiene y el crudo no
+        # reproduce. Si la base trae filas de un catálogo VIEJO —las que dejó de
+        # producir el catálogo nuevo— parecen externas y se congelan en el archivo
+        # versionado como si vinieran de un 8-K. Pasó al mapear la revolvente de
+        # Realty Income: 87 saldos de `LineOfCredit` de 2009 a 2020 entraron al
+        # archivo de externos y ahí se habrían quedado para siempre, ganándole al
+        # catálogo por la llave point-in-time.
+        #
+        # Reconstruir primero deja la base en el estado que el catálogo vigente
+        # produce, y con eso la exportación se vuelve idempotente: correrla dos
+        # veces da el mismo archivo.
+        reconstruir(repo, tickers=[e.ticker])
+
         rearmados = hechos_de_crudos(crudos, e.ticker, e.cik)
         derivables = set(
             zip(

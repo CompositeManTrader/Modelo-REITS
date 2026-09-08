@@ -277,8 +277,20 @@ _BALANCE: tuple[LineaEstado, ...] = (
         "RealEstateInvestmentsNet",
     ), subtotal=True),
     _l("efectivo", "Efectivo y equivalentes", BALANCE, 40, (
+        # UNA sola etiqueta, a propósito.
+        #
+        # `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents` estaba
+        # aquí como respaldo y no es un nombre alterno del efectivo: es el efectivo
+        # MÁS el restringido, que por definición no se puede usar. Como la cadena
+        # se elige por cobertura y no por orden, la combinada le ganaba a la pura
+        # en once cierres de año —Realty Income 2024: 495.5 MM contra 445.0— y el
+        # renglón cambiaba de significado según el trimestre sin que nada lo
+        # dijera. El efectivo resta en la deuda neta, así que el sesgo iba en la
+        # dirección peligrosa: menos apalancamiento del real.
+        #
+        # Quitarla cuesta seis observaciones de tres emisoras, todas anteriores a
+        # 2021, donde el concepto ahora falta. Faltar se ve; estar mal, no.
         "CashAndCashEquivalentsAtCarryingValue",
-        "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
     )),
     _l("efectivo_restringido", "Efectivo restringido", BALANCE, 50, (
         "RestrictedCashAndCashEquivalents",
@@ -347,6 +359,11 @@ _BALANCE: tuple[LineaEstado, ...] = (
     # misma etiqueta contaría la deuda dos veces. Solo la declara quien la reporta
     # aparte de sus notas senior.
     _l("deuda_no_garantizada", "Deuda no garantizada", BALANCE, 235, ()),
+    # Los préstamos a plazo son el cuarto instrumento típico de un REIT grande, y
+    # nacen sin etiquetas por la misma razón que la línea de arriba: `LoansPayable`
+    # es genérica, y en la emisora que la usa para nombrar TODA su deuda contarla
+    # aparte la duplicaría. Solo la declara quien la reporta como un tramo más.
+    _l("prestamos_a_plazo", "Préstamos a plazo", BALANCE, 237, ()),
     _l("otras_notas_por_pagar", "Otras notas por pagar", BALANCE, 236, (
         "OtherNotesPayable",
     )),
@@ -606,8 +623,24 @@ registrar_estados(FichaEstados(
         # el pago variable; la corta no existe en su taxonomía.
         "ingreso_rentas": ("OperatingLeaseLeaseIncome",),
         "deuda_total": ("DebtLongtermAndShorttermCombinedAmount", "LongTermDebt"),
+        # LOS CUATRO TRAMOS. `NotesPayable` parecía la deuda total de Realty Income
+        # y es UNO de sus cuatro instrumentos: sus notas senior. Al 30 de junio de
+        # 2026 valía 25,092 MM contra 30,652 de deuda real — 5,560 MM, un 22%,
+        # fuera del balance del modelo, y en la dirección que dibuja al emisor más
+        # sano de lo que está.
+        "notas_senior": ("NotesPayable",),
+        "prestamos_a_plazo": ("LoansPayable",),
+        # Y el que no estaba en ninguna parte: la revolvente y el papel comercial
+        # viven en `o:RevolvingCreditFacilityAndCommercialPaper`, una EXTENSIÓN.
+        # `companyfacts` solo publica taxonomías estándar, así que ahí no aparece.
+        # La etiqueta estándar `CommercialPaper` existe pero es un SUBCONJUNTO
+        # —1,400 MM de los 2,763— y tomarla habría cerrado la mitad de la brecha
+        # dejando la otra mitad invisible, que es peor que no cerrarla.
+        "linea_de_credito": ("RevolvingCreditFacilityAndCommercialPaper",),
     },
-    nota="Concilia a nivel de la sociedad, no de la Operating Partnership.",
+    tags_de_instancia=("RevolvingCreditFacilityAndCommercialPaper",),
+    nota="Concilia a nivel de la sociedad, no de la Operating Partnership. "
+         "Su deuda son cuatro tramos y uno de ellos es de extensión.",
 ))
 
 registrar_estados(FichaEstados(
