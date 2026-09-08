@@ -222,6 +222,89 @@ def descargar_instancias(
     )
 
 
+# Cuántos reportes se leen para rellenar un balance rezagado. Dos cubren el caso
+# normal —la API va un trimestre atrás— y el de la emisora que lleva dos sin
+# aparecer, sin pagar los ocho que cuesta reconstruir una serie de flujo.
+FILINGS_DE_BALANCE = 2
+
+
+def _ultima_publicacion(crudos: pd.DataFrame) -> dt.date | None:
+    """La fecha del filing más reciente que `companyfacts` alcanzó a publicar."""
+    if crudos is None or crudos.empty or "fecha_publicacion" not in crudos:
+        return None
+    fechas = pd.to_datetime(crudos["fecha_publicacion"], errors="coerce").dropna()
+    return fechas.max().date() if not fechas.empty else None
+
+
+def rellenar_balance_rezagado(
+    cliente,
+    ticker: str,
+    cik: str,
+    crudos: pd.DataFrame,
+    etiquetas: set[str],
+    *,
+    limite: int = FILINGS_DE_BALANCE,
+) -> pd.DataFrame:
+    """El balance del documento XBRL, cuando `companyfacts` todavía no lo publica.
+
+    Por qué hace falta
+    ------------------
+    `companyfacts` se atrasa por emisor, y el atraso no se anuncia. Al 8 de
+    septiembre de 2026 publicaba marzo como el último balance de Prologis y de
+    Welltower, más de un mes después de que las dos presentaran su 10-Q de junio:
+    el balance está impreso en el filing y la API no lo tenía.
+
+    Lo que vuelve peligroso ese atraso es que es PARCIAL. El AFFO y la utilidad
+    del trimestre entran igual porque vienen del 8-K, así que el apalancamiento y
+    el LTV combinaban una deuda de un trimestre con un flujo de otro y el ratio
+    salía perfectamente plausible. Un saldo viejo no se ve; es la misma
+    invisibilidad de la prueba 30, ahora entre dos fuentes.
+
+    Cómo decide si vale la pena bajar algo
+    --------------------------------------
+    Compara la última fecha de publicación que el crudo ya tiene contra la del
+    reporte periódico más reciente del emisor. Si `companyfacts` ya alcanzó ese
+    filing, no baja nada: el índice de filings es barato y el documento XBRL no.
+    Así el camino caro se paga solo donde la API se quedó corta, y deja de pagarse
+    en cuanto se pone al día.
+    """
+    vacio = pd.DataFrame(columns=list(COLUMNAS_CRUDOS))
+    if not etiquetas:
+        return vacio
+
+    filings = cliente.listar_filings(cik, ticker, formularios=FORMULARIOS, limite=limite)
+    if not filings:
+        return vacio
+
+    ultima = _ultima_publicacion(crudos)
+    pendientes = [f for f in filings if ultima is None or f.fecha_presentacion > ultima]
+    if not pendientes:
+        return vacio
+
+    partes: list[pd.DataFrame] = []
+    for filing in pendientes:
+        ruta = _ruta_instancia(cliente, filing)
+        if ruta is None:
+            continue
+        try:
+            xml = cliente.obtener(ruta)
+        except Exception:  # noqa: BLE001 - un filing ilegible no tumba la ingesta
+            continue
+        parte = hechos_de_instancia(
+            xml, ticker, etiquetas,
+            fecha_publicacion=filing.fecha_presentacion,
+            accession=filing.accession,
+            formulario=filing.formulario,
+        )
+        if not parte.empty:
+            partes.append(parte)
+    if not partes:
+        return vacio
+    return pd.concat(partes, ignore_index=True).drop_duplicates(
+        ["tag", "periodo_tipo", "fecha_dato", "fecha_publicacion"]
+    )
+
+
 def _ruta_instancia(cliente, filing) -> str | None:
     """La URL del instance del filing, buscándola en su índice.
 
@@ -242,4 +325,4 @@ def _ruta_instancia(cliente, filing) -> str | None:
     return None
 
 
-__all__ = ["descargar_instancias", "hechos_de_instancia"]
+__all__ = ["descargar_instancias", "hechos_de_instancia", "rellenar_balance_rezagado"]
