@@ -84,7 +84,22 @@ def _pedir_json(url: str, *, timeout: int, params: dict | None = None) -> dict:
     return cuerpo
 
 
-def descargar_historico(ticker: str, *, rango: str = "5Y", timeout: int = 30) -> pd.DataFrame:
+# Cuánta historia de precio se pide. NO es un parámetro cosmético: la prima sobre
+# la tasa libre de riesgo se percentila contra la historia del propio emisor, y
+# esa historia no puede empezar antes que el precio. Con "5Y" Realty Income se
+# quedaba en 20 observaciones teniendo AFFO desde 2020 — el precio, no el flujo,
+# era el techo.
+#
+# Y una trampa del proveedor que conviene dejar escrita: **"MAX" devuelve MENOS
+# que "10Y"**. Al 8 de septiembre de 2026 daba 253 observaciones (un año) contra
+# 2,513 de "10Y". Quien "mejore" esto poniendo MAX recorta la historia a la
+# quinta parte sin que nada avise.
+RANGO_HISTORICO = "10Y"
+
+
+def descargar_historico(
+    ticker: str, *, rango: str = RANGO_HISTORICO, timeout: int = 30
+) -> pd.DataFrame:
     """Descarga el histórico diario con cierre crudo y ajustado.
 
     El campo ``c`` es el cierre **sin ajustar por dividendos** —el precio al que

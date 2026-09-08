@@ -31,6 +31,24 @@ from src.ingesta.parser_affo import (
 )
 from src.validacion.cuadre import cuadrar_conciliacion, elegir_mejor_conciliacion
 
+# Cuántos COMUNICADOS DE RESULTADOS se parsean, y cuántos 8-K se está dispuesto a
+# examinar para encontrarlos. Son dos límites distintos y hacen falta los dos.
+#
+# El primero fija la historia: la prima se percentila contra la del propio emisor
+# y pide doce observaciones, que exigen quince trimestres contiguos de flujo. Con
+# ocho comunicados —el valor anterior— cuatro emisoras se quedaban en catorce
+# trimestres, a UNO del mínimo, y su Puerta 2 salía SIN DATOS teniendo casi todo.
+#
+# El segundo acota el costo, porque averiguar si un 8-K trae resultados cuesta una
+# petición: hay que pedir su índice. Y la densidad varía muchísimo. En sus cuarenta
+# 8-K más recientes, Extra Space tiene trece comunicados y Realty Income solo seis
+# —presenta 226 formularios 8-K, casi todos declaraciones de dividendo mensual—.
+# Sin este tope, buscar veinte comunicados en Realty Income costaría más de cien
+# peticiones para una emisora que ya tiene veintiséis trimestres y a la que el
+# techo se lo pone el precio, no el flujo.
+MAX_COMUNICADOS = 20
+MAX_EXAMINADOS = 60
+
 
 @dataclass
 class ResumenIngesta:
@@ -70,7 +88,7 @@ def ingestar_precios(
     repo: Repositorio,
     ticker: str,
     *,
-    rango: str = "5Y",
+    rango: str = precios.RANGO_HISTORICO,
 ) -> ResumenIngesta:
     """Trae precios SIN ajustar y dividendos, y no guarda nada que no haya verificado.
 
@@ -130,7 +148,8 @@ def ingestar_fundamentales(
     cik: str,
     *,
     desde: dt.date | None = None,
-    max_filings: int = 8,
+    max_filings: int = MAX_COMUNICADOS,
+    max_examinados: int = MAX_EXAMINADOS,
     sector: str | None = None,
 ) -> ResumenIngesta:
     """Descarga y valida las conciliaciones de AFFO de los 8-K de resultados."""
@@ -143,10 +162,11 @@ def ingestar_fundamentales(
         resumen.errores.append(f"No se pudo listar filings: {exc}")
         return resumen
 
-    revisados = 0
+    revisados = examinados = 0
     for filing in filings:
-        if revisados >= max_filings:
+        if revisados >= max_filings or examinados >= max_examinados:
             break
+        examinados += 1
         try:
             documentos = cliente.documentos_resultados(filing)
         except ErrorEdgar as exc:
@@ -427,7 +447,7 @@ def correr_ingesta(
     *,
     tickers: Sequence[str] | None = None,
     desde: dt.date | None = None,
-    max_filings: int = 8,
+    max_filings: int = MAX_COMUNICADOS,
     con_xbrl: bool = True,
     con_precios: bool = True,
     cliente: ClienteEdgar | None = None,

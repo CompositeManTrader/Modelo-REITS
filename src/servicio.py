@@ -95,6 +95,19 @@ TRAMOS_DE_DEUDA = (
     "deuda_no_garantizada", "otras_notas_por_pagar", "prestamos_a_plazo",
 )
 
+# Cuántos días HÁBILES puede rezagarse el precio antes de dejar de ser "el último
+# cierre". Tres cubren un puente largo —el mercado cierra hasta dos sesiones
+# seguidas— sin dejar pasar una serie que de verdad se quedó atrás.
+MAX_LATENCIA_PRECIO = 3
+
+
+def _dias_habiles(desde: dt.date, hasta: dt.date) -> int:
+    """Días de lunes a viernes entre dos fechas, sin contar el inicial."""
+    if hasta <= desde:
+        return 0
+    return int(pd.bdate_range(desde + dt.timedelta(days=1), hasta).size)
+
+
 # Cuánto pueden exceder los tramos al total declarado antes de creerles a ellos.
 # No es una tolerancia de redondeo: es el margen que separa "los tramos y el total
 # describen lo mismo" de "el total no es un total". Un 1% sobre una deuda de
@@ -209,10 +222,15 @@ def construir_panel(
     precios = repo.serie_precio(ticker, asof=asof)
     precio = float(precios.iloc[-1]) if not precios.empty else None
     precio_fecha = precios.index[-1].date() if not precios.empty else None
-    if precio_fecha is not None and (asof - precio_fecha).days > 5:
+    # En días HÁBILES. Medido en días naturales, el umbral de cinco dejaba pasar
+    # un rezago real de tres sesiones si caía sobre un fin de semana, y marcaba
+    # como rezagado un precio que era el último cierre existente después de un
+    # puente largo. La bolsa no opera en calendario.
+    if precio_fecha is not None and _dias_habiles(precio_fecha, asof) > MAX_LATENCIA_PRECIO:
         avisos.append(
             f"El precio más reciente disponible es del {precio_fecha}, "
-            f"{(asof - precio_fecha).days} días antes del corte. Latencia del dato, no dato en vivo."
+            f"{_dias_habiles(precio_fecha, asof)} días hábiles antes del corte. "
+            "Latencia del dato, no dato en vivo."
         )
 
     dividendos = repo.dividendos(ticker, asof=asof)

@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.config import RUTA_BD, SERIE_UST10, asegurar_directorios  # noqa: E402
 from src.datos.repositorio import Repositorio  # noqa: E402
 from src.ingesta import tasas as mod_tasas  # noqa: E402
-from src.ingesta.orquestador import correr_ingesta  # noqa: E402
+from src.ingesta.orquestador import MAX_COMUNICADOS, correr_ingesta  # noqa: E402
 
 
 def verificar_identificadores(repo: Repositorio) -> None:
@@ -74,7 +74,11 @@ def main() -> int:
     p.add_argument("--tickers", help="Lista separada por comas. Por omisión, todo el universo.")
     p.add_argument("--desde", help="Fecha mínima de presentación (AAAA-MM-DD).")
     p.add_argument("--bd", default=str(RUTA_BD))
-    p.add_argument("--max-filings", type=int, default=8, help="Máximo de 8-K por emisor.")
+    p.add_argument(
+        "--max-filings", type=int, default=MAX_COMUNICADOS,
+        help="Máximo de COMUNICADOS DE RESULTADOS por emisor (no de 8-K: la mayoría "
+             "de los 8-K son declaraciones de dividendo y no traen conciliación).",
+    )
     p.add_argument("--sin-xbrl", action="store_true", help="Omite companyfacts (es lo más pesado).")
     p.add_argument("--sin-precios", action="store_true", help="Omite precios y dividendos.")
     p.add_argument("--solo-tasas", action="store_true")
