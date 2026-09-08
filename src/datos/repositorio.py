@@ -189,6 +189,23 @@ class Repositorio:
     def guardar_inmuebles(self, filas: Sequence[dict]) -> int:
         return self._insertar(esquema.inmuebles, filas, fechas=("fecha_compra",))
 
+    def reemplazar_inmuebles(self, filas: Sequence[dict]) -> int:
+        """Deja la tabla de inmuebles EXACTAMENTE con estas filas.
+
+        Los inmuebles no son hechos observados: son un inventario que el usuario
+        mantiene. Un hecho de la SEC nunca se corrige —se publica una reexpresión y
+        las dos versiones conviven, que es lo que exige P1—, pero una renta que
+        subió o una propiedad que se vendió sí se editan y se borran. Confundir las
+        dos cosas obligaría a acumular basura para siempre en la única tabla que el
+        usuario captura a mano.
+
+        Por eso esta escritura reemplaza en vez de agregar, y por eso vive aparte
+        de `guardar_inmuebles`, que sigue siendo append para el alta simple.
+        """
+        with self.motor.begin() as cx:
+            cx.execute(delete(esquema.inmuebles))
+        return self.guardar_inmuebles(filas)
+
     def guardar_decisiones(self, filas: Sequence[dict]) -> int:
         return self._insertar(esquema.decisiones, filas, fechas=("fecha",))
 

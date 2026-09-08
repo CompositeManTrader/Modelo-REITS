@@ -38,7 +38,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 from scipy import optimize
 
-from src.fiscal.mexico import isr_arrendamiento
+from src.fiscal.mexico import impuesto_dividendo, isr_arrendamiento
 from src.portafolio.metricas import tir
 
 # --------------------------------------------------------------------------------------
@@ -793,3 +793,187 @@ def comparar_portafolio_propio(
             }
         )
     return pd.DataFrame(filas)
+
+
+# --------------------------------------------------------------------------------------
+# Mi portafolio contra UNA emisora concreta
+# --------------------------------------------------------------------------------------
+#
+# Es la pregunta que el usuario hace de verdad, y la que la pantalla no contestaba:
+# no "¿conviene un departamento?" en abstracto contra un yield inventado en un
+# deslizador, sino "¿mis departamentos rinden más que Realty Income?".
+#
+# La comparación solo vale si los dos lados llegan al mismo punto: pesos en el
+# bolsillo, después de impuestos, sobre el valor de mercado de hoy. Los dos lados
+# pagan, y pagan distinto:
+#
+#   El inmueble  renta bruta − gastos − ISR de arrendamiento. Y el ISR depende de
+#                si tienes sueldo: como único ingreso la tasa efectiva ronda 5%,
+#                apilado sobre un sueldo entra en marginal de 30–35%.
+#   El REIT      dividendo bruto − retención de EE. UU. − ISR mexicano. Con W-8BEN
+#                la combinada ronda 20%; sin él, 40%.
+#
+# Comparar el yield BRUTO del inmueble contra el NETO del REIT —o al revés— es el
+# error que hace ganar al ladrillo en casi todos los análisis que circulan.
+
+
+@dataclass
+class LadoInmuebles:
+    """El lado del ladrillo, del bruto al bolsillo."""
+
+    n_propiedades: int
+    valor_mercado: float
+    renta_bruta_anual: float
+    gastos_anuales: float
+    isr_anual: float
+    flujo_neto_anual: float
+    yield_bruto: float
+    yield_neto: float
+    tasa_efectiva_isr: float
+
+    def como_tabla(self) -> pd.DataFrame:
+        return pd.DataFrame([
+            {"concepto": "Renta bruta", "monto": self.renta_bruta_anual},
+            {"concepto": "Gastos de operación", "monto": -self.gastos_anuales},
+            {"concepto": "ISR de arrendamiento", "monto": -self.isr_anual},
+            {"concepto": "Al bolsillo", "monto": self.flujo_neto_anual},
+        ])
+
+
+@dataclass
+class LadoEmisora:
+    """El lado del REIT, del bruto al bolsillo."""
+
+    ticker: str
+    yield_bruto: float
+    retencion_eeuu: float
+    isr_mexico: float
+    yield_neto: float
+    crecimiento: float | None
+
+    def como_tabla(self) -> pd.DataFrame:
+        return pd.DataFrame([
+            {"concepto": "Dividendo bruto", "monto": self.yield_bruto},
+            {"concepto": "Retención EE. UU.", "monto": -self.retencion_eeuu},
+            {"concepto": "ISR adicional México", "monto": -self.isr_mexico},
+            {"concepto": "Al bolsillo", "monto": self.yield_neto},
+        ])
+
+
+@dataclass
+class Duelo:
+    """El resultado del duelo, con lo necesario para explicarlo sin abrir el código."""
+
+    inmuebles: LadoInmuebles
+    emisora: LadoEmisora
+    brecha_bps: float
+    ganador: str
+    mensaje: str
+    plusvalia_necesaria: float | None
+
+    @property
+    def hay_inmuebles(self) -> bool:
+        return self.inmuebles.n_propiedades > 0
+
+
+def _agregado_de_inmuebles(inmuebles: pd.DataFrame) -> tuple[float, float, float]:
+    """Valor de mercado, renta bruta anual y gastos anuales del portafolio."""
+    valor = renta = gastos = 0.0
+    for _, r in inmuebles.iterrows():
+        valor += float(r.get("valor_actual") or r.get("precio_compra") or 0.0)
+        renta += float(r.get("renta_mensual") or 0.0) * 12.0
+        gastos += (
+            float(r.get("mantenimiento_mensual") or 0.0) * 12.0
+            + float(r.get("predial_anual") or 0.0)
+            + float(r.get("seguro_anual") or 0.0)
+        )
+    return valor, renta, gastos
+
+
+def duelo_portafolio_contra_emisora(
+    inmuebles: pd.DataFrame,
+    *,
+    ticker: str,
+    yield_bruto_emisora: float,
+    crecimiento_emisora: float | None = None,
+    plusvalia_esperada: float = 0.04,
+    ingreso_por_sueldo: float = 0.0,
+    tiene_w8ben: bool = True,
+) -> Duelo:
+    """Mi portafolio de inmuebles contra una emisora, neto de impuestos de los dos lados.
+
+    El único número comparable es el yield NETO sobre el valor de mercado de hoy:
+    lo que cada peso invertido pone en el bolsillo este año. Sobre el valor de HOY
+    y no sobre el precio de compra, porque la pregunta es hacia adelante —"¿dejo el
+    dinero aquí o lo muevo?"— y el precio que pagaste hace ocho años ya no es una
+    opción disponible.
+
+    La ``plusvalia_necesaria`` cierra la pregunta que sigue: si el REIT gana en
+    flujo, cuánto tiene que apreciarse el ladrillo cada año para empatar. Cuando
+    ese número sale muy por encima de la inflación, la tesis del inmueble no es la
+    renta sino una apuesta direccional a la apreciación — que es legítima, pero es
+    otra tesis y tiene otro riesgo.
+    """
+    valor, renta_bruta, gastos = _agregado_de_inmuebles(inmuebles)
+    predial = float(pd.to_numeric(inmuebles.get("predial_anual"), errors="coerce").fillna(0).sum()) \
+        if "predial_anual" in inmuebles else 0.0
+
+    fiscal = isr_arrendamiento(
+        renta_bruta, predial_anual=predial, ingreso_por_sueldo=ingreso_por_sueldo
+    )
+    flujo_neto = renta_bruta - gastos - fiscal.isr
+    lado_inmuebles = LadoInmuebles(
+        n_propiedades=int(len(inmuebles)),
+        valor_mercado=valor,
+        renta_bruta_anual=renta_bruta,
+        gastos_anuales=gastos,
+        isr_anual=fiscal.isr,
+        flujo_neto_anual=flujo_neto,
+        yield_bruto=renta_bruta / valor if valor else 0.0,
+        yield_neto=flujo_neto / valor if valor else 0.0,
+        tasa_efectiva_isr=fiscal.isr / renta_bruta if renta_bruta else 0.0,
+    )
+
+    dividendo = impuesto_dividendo(float(yield_bruto_emisora), tiene_w8ben=tiene_w8ben)
+    lado_emisora = LadoEmisora(
+        ticker=ticker,
+        yield_bruto=float(yield_bruto_emisora),
+        retencion_eeuu=dividendo.retencion_eeuu,
+        isr_mexico=dividendo.isr_mexico,
+        yield_neto=dividendo.neto,
+        crecimiento=crecimiento_emisora,
+    )
+
+    brecha = lado_inmuebles.yield_neto - lado_emisora.yield_neto
+    if lado_inmuebles.n_propiedades == 0:
+        ganador, mensaje = "—", "Captura al menos una propiedad para poder comparar."
+    elif brecha > 0:
+        ganador = "Tus inmuebles"
+        mensaje = (
+            f"Tus propiedades ponen {brecha * 10_000:,.0f} puntos base más en el bolsillo cada "
+            f"año que {ticker}, ya con el ISR de arrendamiento descontado y con la retención "
+            "de EE. UU. descontada del otro lado. Eso es sobre el FLUJO; falta el riesgo de "
+            "concentración, la iliquidez y las horas que te cuesta administrarlos."
+        )
+    else:
+        ganador = ticker
+        mensaje = (
+            f"{ticker} pone {abs(brecha) * 10_000:,.0f} puntos base más en el bolsillo cada año "
+            "que tus propiedades, ya neto de impuestos de los dos lados. Para que el ladrillo "
+            "empate hace falta plusvalía, y abajo está cuánta."
+        )
+
+    # Cuánta apreciación anual necesita el ladrillo para cerrar la brecha de flujo.
+    plusvalia_necesaria = (
+        lado_emisora.yield_neto - lado_inmuebles.yield_neto + plusvalia_esperada
+        if lado_inmuebles.n_propiedades
+        else None
+    )
+    return Duelo(
+        inmuebles=lado_inmuebles,
+        emisora=lado_emisora,
+        brecha_bps=brecha * 10_000,
+        ganador=ganador,
+        mensaje=mensaje,
+        plusvalia_necesaria=plusvalia_necesaria,
+    )
