@@ -333,17 +333,47 @@ def avisar_procedencia(fuentes: pd.DataFrame) -> None:
         st.success(f"Los {total} registros de esta pantalla son de fuente primaria (SEC).")
 
 
+# Cuántos días HÁBILES puede tener un precio y seguir siendo "el último cierre".
+# Uno cubre la operación normal —hoy contra el cierre de ayer— y dos absorben un
+# feriado de mercado, que es la causa más común de un rezago que no es rezago.
+TOLERANCIA_LATENCIA = 2
+
+
+def dias_habiles(desde: dt.date, hasta: dt.date) -> int:
+    """Días de lunes a viernes entre dos fechas, sin contar el inicial.
+
+    La latencia se medía en días NATURALES y por eso gritaba todos los lunes: el
+    viernes es el último cierre y el lunes son tres días de calendario. El 8 de
+    septiembre de 2026 —martes, con el lunes 7 feriado— la pantalla decía
+    "latencia 4 días" sobre un precio que era el más reciente que existía.
+
+    Un aviso que se dispara solo entrena a ignorarlo, y ese es justo el aviso que
+    tiene que funcionar el día que el dato sí esté viejo.
+
+    No conoce el calendario de feriados de la bolsa —no lo tenemos— así que un
+    feriado sigue contando como un día hábil. Por eso la tolerancia es de dos y no
+    de uno: absorbe ese caso sin dejar de marcar un rezago de verdad.
+    """
+    if hasta <= desde:
+        return 0
+    return int(pd.bdate_range(desde + dt.timedelta(days=1), hasta).size)
+
+
 def avisar_latencia(fecha_dato: dt.date | None, asof: dt.date, que: str = "precio") -> None:
     if fecha_dato is None:
         st.warning(f"No hay {que} disponible al corte del {asof}.")
         return
-    dias = (asof - fecha_dato).days
-    if dias <= 1:
-        st.caption(f"{que.capitalize()} del {fecha_dato} (cierre). Latencia: {dias} día.")
+    habiles = dias_habiles(fecha_dato, asof)
+    if habiles <= TOLERANCIA_LATENCIA:
+        st.caption(
+            f"{que.capitalize()} del {fecha_dato} (cierre). "
+            f"Latencia: {habiles} día{'s' if habiles != 1 else ''} hábil"
+            f"{'es' if habiles != 1 else ''}."
+        )
     else:
         st.warning(
-            f"{que.capitalize()} del {fecha_dato}, con **{dias} días de latencia** respecto al "
-            f"corte del {asof}. No es un dato en vivo."
+            f"{que.capitalize()} del {fecha_dato}, con **{habiles} días hábiles de latencia** "
+            f"respecto al corte del {asof}. No es un dato en vivo."
         )
 
 
@@ -809,10 +839,14 @@ def banda_emisor(
         f"padding:3px 8px;border-radius:{RADIO_PILDORA};margin-right:6px'>{e}</span>"
         for e in etiquetas if e
     )
+    # En días HÁBILES, y solo cuando de verdad hay rezago. Un viernes contra un
+    # lunes son tres días de calendario y cero de negociación: la etiqueta decía
+    # "latencia 3 días" cada lunes sobre el precio más reciente que existía.
     latencia = ""
     if fecha_precio is not None and corte is not None:
-        dias = (corte - fecha_precio).days
-        latencia = f" · latencia {dias} día{'s' if dias != 1 else ''}"
+        habiles = dias_habiles(fecha_precio, corte)
+        if habiles > TOLERANCIA_LATENCIA:
+            latencia = f" · latencia {habiles} días hábiles"
     _html(f"""
       <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:32px;
                   background:{SUPERFICIE};color:{BLANCO};border:1px solid {LINEA};

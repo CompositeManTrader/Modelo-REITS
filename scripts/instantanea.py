@@ -132,10 +132,27 @@ def exportar(repo: Repositorio, tickers: list[str] | None) -> int:
         # archivo de externos y ahí se habrían quedado para siempre, ganándole al
         # catálogo por la llave point-in-time.
         #
-        # Reconstruir primero deja la base en el estado que el catálogo vigente
-        # produce, y con eso la exportación se vuelve idempotente: correrla dos
-        # veces da el mismo archivo.
-        reconstruir(repo, tickers=[e.ticker])
+        # AQUÍ SE RECONSTRUÍA ANTES DE LEER LA BASE, y se quitó. Vale la pena
+        # dejar escrito por qué, porque la idea era razonable.
+        #
+        # Reconstruir dejaba la base en el estado que produce el catálogo vigente,
+        # y con eso la exportación quedaba idempotente. El problema es que
+        # reconstruir PURGA, y purgar borra todo lo que la instantánea todavía no
+        # tiene. La secuencia natural —correr `scripts/ingesta.py` y exportar
+        # enseguida— revertía la ingesta recién bajada: al ampliar la ventana de
+        # comunicados de ocho a veinte, la historia de AFFO de NNN pasó de once
+        # observaciones de prima a veinte, y la exportación siguiente la devolvió a
+        # once y guardó esa versión corta como si fuera la buena.
+        #
+        # En silencio y perdiendo datos, que es la peor combinación. La
+        # contaminación que evitaba —filas de un catálogo viejo congeladas como si
+        # fueran externas— es real, pero es recuperable y ahora se DETECTA en vez
+        # de prevenirse destruyendo: ver el aviso de abajo.
+        #
+        # Un intento intermedio también falló y conviene no repetirlo: comparar la
+        # última fecha de publicación de los dos lados NO detecta este caso.
+        # Profundizar la historia agrega hechos VIEJOS, así que el máximo no se
+        # mueve y la guarda no dispara.
 
         rearmados = hechos_de_crudos(crudos, e.ticker, e.cik)
         derivables = set(
@@ -165,6 +182,28 @@ def exportar(repo: Repositorio, tickers: list[str] | None) -> int:
                 )
             )
             externos = hechos[[k not in derivables for k in llave]]
+
+        # El aviso que reemplaza a la purga. Una fila SALDO —`PUNTUAL`— que sale
+        # del crudo de XBRL nunca viene de un 8-K: si aparece como externa es que
+        # el catálogo dejó de producirla y se va a congelar en el archivo
+        # versionado, donde le ganará al catálogo por la llave point-in-time.
+        #
+        # No se borra, se DICE. Borrar es lo que costó una ingesta entera.
+        sospechosas = (
+            externos[
+                (externos["periodo_tipo"] == "PUNTUAL")
+                & (~externos["concepto"].isin(set(rearmados["concepto"])))
+            ]
+            if not externos.empty and not rearmados.empty
+            else externos.iloc[:0]
+        )
+        if not sospechosas.empty:
+            print(
+                f"  {e.ticker:6} AVISO: {len(sospechosas)} saldo(s) de "
+                f"{sorted(set(sospechosas['concepto']))} se guardarán como externos "
+                "y el catálogo ya no los produce. Revisa si sobran."
+            )
+
         if not externos.empty:
             externos = externos[COLUMNAS_HECHOS].sort_values(
                 ["concepto", "periodo_tipo", "fecha_dato", "fecha_publicacion"]
