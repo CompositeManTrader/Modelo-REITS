@@ -1007,17 +1007,15 @@ def derivar_trimestres_faltantes(
         # pueden traer `start` vacío y el mismo cierre —el Q4 y el año— sin ser el
         # mismo dato. Deduplicar por el inicio se comía el trimestre publicado y
         # luego lo "derivaba", que es exactamente lo que no debe pasar.
-        conocidas = (
-            filas.sort_values("fecha_publicacion")
-            .drop_duplicates(["periodo_tipo", "fecha_dato"], keep="last")
-        )
+        conocidas = filas.sort_values("fecha_publicacion")
         # `tramos` clasifica cada periodo por su duración real, no por su etiqueta:
-        # es lo que permite tratar al FY y al H1 con la misma aritmética.
-        tramos = {}
+        # es lo que permite tratar al FY y al H1 con la misma aritmética. Cada
+        # periodo guarda TODAS sus versiones, no la última: ver `_mejor_pareja`.
+        tramos: dict[tuple, list] = {}
         for fila in conocidas.to_dict("records"):
             span = _span(fila)
             if span:
-                tramos[span[:2]] = (span[2], fila)
+                tramos.setdefault(span[:2], []).append((span[2], fila))
         promedio = clave_de[grupo] in LINEAS_PROMEDIO
 
         # Punto fijo: derivar el Q1 de un semestre puede habilitar el Q3 de los
@@ -1027,7 +1025,7 @@ def derivar_trimestres_faltantes(
             if derivada is None:
                 break
             span, n_fila = derivada
-            tramos[span] = n_fila
+            tramos[span] = [n_fila]
             nuevas.append(n_fila[1])
 
     if not nuevas:
@@ -1035,12 +1033,63 @@ def derivar_trimestres_faltantes(
     return _ordenar(pd.concat([crudos, pd.DataFrame(nuevas)], ignore_index=True))
 
 
+def _publicacion(fila) -> dt.date:
+    return pd.Timestamp(fila["fecha_publicacion"]).date()
+
+
+def _mejor_pareja(versiones_c: list, versiones_s: list) -> tuple[dict, dict]:
+    """De todas las versiones de los dos periodos, la pareja CO-VINTAGE.
+
+    Restar un acumulado y un tramo exige que los dos estén en la misma base
+    contable, y eso no se cumple solo por ser el número más reciente de cada uno.
+    Tomar la última versión de cada lado —que es lo que se hacía— mezcla una
+    reexpresión con un tramo que nadie reexpresó, y la resta ya no despeja un
+    trimestre: despeja un trimestre MÁS la reexpresión.
+
+    Pasó en Agree Realty. Su ejercicio 2010 se reexpresó tres veces al sacar
+    operaciones discontinuadas —33.68, 30.38 y 27.42 millones— y sus nueve meses
+    de 2010 se quedaron en los 26.55 que publicó el 10-Q de 2011. La última de
+    cada lado daba un cuarto trimestre de **876 mil dólares** contra los 8.8
+    millones de sus hermanos, y de ahí salía un margen operativo de −809.7%.
+    Aritmética impecable, bases distintas.
+
+    La pareja de la misma base es la que se publicó junta: se elige la que
+    MINIMIZA la distancia entre fechas de publicación. Con el ejercicio de marzo
+    de 2012 y los nueve meses de noviembre de 2011 —129 días— el cuarto trimestre
+    sale en 7.13 millones, que es el que se pudo calcular cuando los dos números
+    estaban vigentes a la vez. Las reexpresiones posteriores del año no producen
+    un trimestre nuevo porque nadie reexpresó los nueve meses: y no tenerlo es
+    mejor que tener uno que no lo es.
+
+    Cuando dos parejas empatan en distancia —el emisor reexpresó los DOS lados en
+    el mismo ciclo, que es lo que debe pasar— gana la más RECIENTE: las dos son
+    co-vintage y entre dos bases válidas manda la información más nueva. Sin ese
+    desempate, la emisión de acciones de Realty Income del segundo trimestre de
+    2021 se quedaba en la versión de 2021 aunque la de 2022 fuera igual de
+    consistente y más actual.
+
+    Cuando cada periodo trae una sola versión —el caso normal— esto devuelve la
+    misma pareja de siempre.
+    """
+    def orden(par):
+        distancia = abs((_publicacion(par[0]) - _publicacion(par[1])).days)
+        reciente = max(_publicacion(par[0]), _publicacion(par[1]))
+        return (distancia, -reciente.toordinal())
+
+    return min(((c, s) for _, c in versiones_c for _, s in versiones_s), key=orden)
+
+
 def _un_trimestre_faltante(tramos: dict, promedio: bool):
     """El primer trimestre despejable de un acumulado, o ``None`` si no hay."""
-    for (ini_c, fin_c), (n, fila_c) in sorted(tramos.items(), key=lambda kv: kv[1][0]):
+    def duracion(item):
+        return item[1][0][0]
+
+    for (ini_c, fin_c), versiones_c in sorted(tramos.items(), key=duracion):
+        n = versiones_c[0][0]
         if n < 2:
             continue
-        for (ini_s, fin_s), (k, fila_s) in tramos.items():
+        for (ini_s, fin_s), versiones_s in tramos.items():
+            k = versiones_s[0][0]
             if k >= n:
                 continue
             if ini_s == ini_c and fin_s < fin_c:      # tramo inicial: falta la cola
@@ -1051,6 +1100,7 @@ def _un_trimestre_faltante(tramos: dict, promedio: bool):
                 continue
             if _trimestres(*hueco) != 1 or hueco in tramos:
                 continue
+            fila_c, fila_s = _mejor_pareja(versiones_c, versiones_s)
             if promedio:
                 # El acumulado de un promedio ponderado no suma: es el promedio del
                 # periodo. La identidad correcta pesa cada tramo por su duración.

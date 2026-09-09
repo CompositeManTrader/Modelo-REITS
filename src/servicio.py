@@ -1623,3 +1623,160 @@ def ratios_propios(panel: pd.DataFrame) -> pd.DataFrame:
             fila[nombre] = None if crudo is None or pd.isna(crudo) else float(crudo)
         filas.append(fila)
     return pd.DataFrame(filas)
+
+
+# --------------------------------------------------------------------------------------
+# Las métricas que se grafican, y en qué unidad se dice su cambio
+# --------------------------------------------------------------------------------------
+#
+# Una tabla de setenta trimestres contesta «cuánto» y no contesta «hacia dónde».
+# Estas son las métricas que un tenedor de REIT mira para lo segundo, y cada una
+# declara la unidad en la que su CAMBIO tiene sentido, que no es una sola:
+#
+# * Un PORCENTAJE se compara por DIFERENCIA y se dice en puntos base. Entre un
+#   margen de 62% y uno de 57% hay 500 bps. Decir «−8%» ahí es correcto de
+#   aritmética y equivocado de oficio: nadie cotiza un margen así, y el número
+#   se confunde con la caída del ingreso, que es otra cosa.
+# * Un MONTO se compara por RAZÓN y se dice en por ciento: el ingreso creció 9%.
+#   Su diferencia en bps no significa nada.
+# * Un MÚLTIPLO se compara por diferencia y se dice en veces, que es la unidad en
+#   la que está escrito el listón: el apalancamiento se mide contra 6.5x, no
+#   contra un porcentaje de sí mismo.
+
+
+@dataclass(frozen=True)
+class MetricaDeGrafica:
+    """Una métrica graficable, con de dónde sale y cómo se lee su cambio."""
+
+    clave: str
+    etiqueta: str
+    origen: str        # "ratio" | "concepto" | "insumo"
+    unidad: str        # "pct" | "veces" | "monto"
+    bloque: str
+    explicacion: str
+
+
+BLOQUES_DE_GRAFICAS = ("Rentabilidad", "Apalancamiento", "Escala y flujo")
+
+METRICAS_DE_GRAFICA: tuple[MetricaDeGrafica, ...] = (
+    MetricaDeGrafica("margen_noi", "Margen NOI", "ratio", "pct", "Rentabilidad",
+                     "Cuánto del ingreso sobrevive al gasto del inmueble."),
+    MetricaDeGrafica("margen_ebitdare", "Margen EBITDAre", "ratio", "pct", "Rentabilidad",
+                     "El de Nareit: quita la ganancia por venta de inmuebles."),
+    MetricaDeGrafica("margen_operativo", "Margen operativo", "ratio", "pct", "Rentabilidad",
+                     "Utilidad de operación ÷ ingresos totales."),
+    MetricaDeGrafica("margen_neto", "Margen neto", "ratio", "pct", "Rentabilidad",
+                     "Utilidad neta ÷ ingresos totales. Incluye la depreciación."),
+    MetricaDeGrafica("depreciacion_ingresos", "Depreciación / ingresos", "ratio", "pct",
+                     "Rentabilidad",
+                     "Qué tan intensivo en activo es el negocio."),
+    MetricaDeGrafica("affo_sobre_ffo", "AFFO / FFO", "ratio", "pct", "Rentabilidad",
+                     "Cuánto del FFO sobrevive al CapEx recurrente."),
+
+    MetricaDeGrafica("apalancamiento", "Deuda neta / EBITDAre", "ratio", "veces",
+                     "Apalancamiento",
+                     "El de la Puerta 1. Umbral de deterioro en 6.5x."),
+    MetricaDeGrafica("cobertura_intereses", "Cobertura de intereses", "ratio", "veces",
+                     "Apalancamiento",
+                     "Cuántas veces el flujo del periodo paga su interés."),
+    MetricaDeGrafica("deuda_activos", "Deuda / activos", "ratio", "pct", "Apalancamiento",
+                     "A valor en libros, no de mercado."),
+    MetricaDeGrafica("costo_deuda", "Costo implícito de la deuda", "ratio", "pct",
+                     "Apalancamiento",
+                     "Intereses anualizados ÷ deuda total. No es la tasa cupón."),
+    MetricaDeGrafica("payout_affo", "Payout sobre AFFO", "ratio", "pct", "Apalancamiento",
+                     "Dividendo declarado ÷ AFFO por acción."),
+    MetricaDeGrafica("deuda_total", "Deuda total", "concepto", "monto", "Apalancamiento",
+                     "El saldo del balance al corte."),
+
+    MetricaDeGrafica("ingresos_totales", "Ingresos totales", "concepto", "monto",
+                     "Escala y flujo", "El renglón de arriba del estado de resultados."),
+    MetricaDeGrafica("@noi", "NOI del periodo", "insumo", "monto", "Escala y flujo",
+                     "Ingreso por renta menos el gasto del inmueble."),
+    MetricaDeGrafica("@ebitdare", "EBITDAre del periodo", "insumo", "monto",
+                     "Escala y flujo", "Sin depreciación no se calcula (prueba 36)."),
+    MetricaDeGrafica("utilidad_neta", "Utilidad neta", "concepto", "monto",
+                     "Escala y flujo", "La atribuible a la controladora."),
+    MetricaDeGrafica("affo", "AFFO", "concepto", "monto", "Escala y flujo",
+                     "Del comunicado de resultados, no del 10-Q."),
+    MetricaDeGrafica("flujo_operacion", "Flujo de operación", "concepto", "monto",
+                     "Escala y flujo", "El efectivo que dejó el periodo."),
+)
+
+METRICA_POR_CLAVE: dict[str, MetricaDeGrafica] = {
+    m.clave: m for m in METRICAS_DE_GRAFICA
+}
+
+# Cómo se dice el cambio de cada unidad, y por cuánto se multiplica la diferencia.
+CAMBIO_DE_UNIDAD: dict[str, tuple[str, float]] = {
+    "pct": ("bps", 10_000.0),
+    "veces": ("x", 1.0),
+    "monto": ("%", 100.0),
+}
+
+
+def series_de_graficas(panel: pd.DataFrame) -> pd.DataFrame:
+    """Las métricas graficables, una columna por métrica, indexadas por periodo.
+
+    Sale del MISMO panel y de los MISMOS `FormulaRatio` que dibujan la tabla y
+    que escriben el libro. Una gráfica que no cuadre con la tabla de al lado es
+    peor que no tener gráfica.
+    """
+    if panel is None or panel.empty:
+        return pd.DataFrame()
+
+    valores: dict[str, pd.Series] = {}
+    tabla = ratios_propios(panel)
+    por_etiqueta = {}
+    if not tabla.empty:
+        columnas = [c for c in tabla.columns if c not in ("Ratio", "formato", "explicacion")]
+        for _, fila in tabla.iterrows():
+            por_etiqueta[str(fila["Ratio"])] = pd.Series(
+                [fila[c] for c in columnas],
+                index=pd.to_datetime(columnas), dtype="float64",
+            )
+    etiqueta_de_ratio = {clave: etiqueta for etiqueta, clave, _, _ in RATIOS_PROPIOS}
+    derivados = {
+        insumo.clave: serie_de_insumo(panel, insumo) for insumo in INSUMOS_DE_RATIOS
+    }
+
+    for metrica in METRICAS_DE_GRAFICA:
+        if metrica.origen == "ratio":
+            serie = por_etiqueta.get(etiqueta_de_ratio.get(metrica.clave, ""))
+        elif metrica.origen == "insumo":
+            serie = derivados.get(metrica.clave)
+        elif metrica.clave in panel.columns:
+            serie = pd.to_numeric(panel[metrica.clave], errors="coerce")
+        else:
+            serie = None
+        if serie is None or not serie.notna().any():
+            continue
+        valores[metrica.clave] = serie.reindex(panel.index)
+    return pd.DataFrame(valores, index=panel.index)
+
+
+def cambio_de_metrica(
+    serie: pd.Series, unidad: str, *, pasos: int = 1
+) -> tuple[float | None, float | None, str]:
+    """El último valor, su cambio contra ``pasos`` periodos atrás, y la unidad.
+
+    Devuelve ``(valor, cambio, unidad_del_cambio)``. El cambio va en la unidad
+    que declara la métrica: puntos base para un porcentaje, veces para un
+    múltiplo, por ciento para un monto. Ver el comentario de `METRICAS_DE_GRAFICA`.
+
+    Un monto que parte de cero o de un número negativo no tiene cambio
+    porcentual: se devuelve ``None`` en vez de un número que parece una caída.
+    """
+    limpia = serie.dropna() if serie is not None else pd.Series(dtype="float64")
+    if limpia.empty:
+        return None, None, CAMBIO_DE_UNIDAD.get(unidad, ("", 1.0))[0]
+    etiqueta, factor = CAMBIO_DE_UNIDAD.get(unidad, ("", 1.0))
+    actual = float(limpia.iloc[-1])
+    if len(limpia) <= pasos:
+        return actual, None, etiqueta
+    previo = float(limpia.iloc[-1 - pasos])
+    if unidad == "monto":
+        cambio = None if previo <= 0 else (actual / previo - 1) * factor
+    else:
+        cambio = (actual - previo) * factor
+    return actual, cambio, etiqueta

@@ -60,6 +60,7 @@ from comun import (  # noqa: E402
     filas_metodo,
     mostrar_tabla,
     numero,
+    panel_de_metrica,
     panel_veredicto,
     pct,
     positivo,
@@ -116,7 +117,9 @@ from src.modelo.valuacion import (  # noqa: E402
     valuar_por_crecimiento,
 )
 from src.servicio import (  # noqa: E402
+    BLOQUES_DE_GRAFICAS,
     MEDIDA_AFFO,
+    METRICAS_DE_GRAFICA,
     ORIGEN_DE_INSUMOS,
     RATIOS_PROPIOS,
     construir_panel,
@@ -129,6 +132,7 @@ from src.servicio import (  # noqa: E402
     panel_de_conceptos,
     ratios_propios,
     saldos_de_balance,
+    series_de_graficas,
 )
 from src.validacion.cuadre import cuadrar_conciliacion  # noqa: E402
 
@@ -669,8 +673,9 @@ with tab_estados:
             ),
         )
 
-    v_bbg, v_reportado, v_propia = st.tabs(
-        ["Visualización Bloomberg", "Visualización as reported", "Visualización propia"]
+    v_bbg, v_reportado, v_propia, v_graficas = st.tabs(
+        ["Visualización Bloomberg", "Visualización as reported", "Visualización propia",
+         "Gráficas"]
     )
 
     # ── Bloomberg ─────────────────────────────────────────────────────────────
@@ -693,7 +698,7 @@ with tab_estados:
                     "publica la SEC. Los demás quedan en blanco a propósito: un cero ahí "
                     "sería una cifra inventada con formato de dato."
                 )
-                mostrar_tabla(_a_millones(_marcar_ajustes(tabla_bbg)))
+                mostrar_tabla(_a_millones(_marcar_ajustes(tabla_bbg)), fijar_primera=True)
             with st.expander("Los ajustes de Bloomberg, uno por uno"):
                 for nombre, texto in bloomberg.AJUSTES.items():
                     st.markdown(f"**{nombre.capitalize()}** — {texto}")
@@ -730,7 +735,9 @@ with tab_estados:
                 f"{sin_verificar} sin poder cuadrarse contra nuestra base — casi siempre "
                 "etiquetas de extensión que `companyfacts` no publica."
             )
-            mostrar_tabla(_a_millones(tabla_rep.drop(columns=["sangria"])))
+            mostrar_tabla(
+                _a_millones(tabla_rep.drop(columns=["sangria"])), fijar_primera=True
+            )
         if vacias == len(reportados.ESTADOS):
             st.info(
                 "Los estados as reported se bajan del renderizado de la SEC. "
@@ -764,7 +771,7 @@ with tab_estados:
                 )
                 continue
             st.caption(nota_estado)
-            mostrar_tabla(_a_millones(tabla))
+            mostrar_tabla(_a_millones(tabla), fijar_primera=True)
 
         st.markdown("**Ratios**")
         tabla_ratios = ratios_propios(panel_estados)
@@ -775,7 +782,7 @@ with tab_estados:
                 "Calculados sobre el periodo que se está viendo, no sobre el TTM del modelo: "
                 "quien lee el estado de un trimestre quiere el margen de ese trimestre."
             )
-            mostrar_tabla(_formatear_ratios(tabla_ratios))
+            mostrar_tabla(_formatear_ratios(tabla_ratios), fijar_primera=True)
             with st.expander("De qué renglones sale cada ratio"):
                 mostrar_tabla(
                     pd.DataFrame(
@@ -783,6 +790,58 @@ with tab_estados:
                          for e, _, _, x in RATIOS_PROPIOS]
                     )
                 )
+    # ── Gráficas ──────────────────────────────────────────────────────────────
+    with v_graficas:
+        st.caption(
+            "La tabla contesta **cuánto**; esto contesta **hacia dónde**. Cada panel trae "
+            "el último valor, su cambio contra el periodo anterior y contra el mismo "
+            "periodo del año pasado, y la serie completa detrás. Salen del MISMO panel y "
+            "de las mismas declaraciones que la tabla de al lado: una gráfica que no cuadre "
+            "con la tabla es peor que no tener gráfica."
+        )
+        st.caption(
+            "**El cambio va en la unidad en la que esa métrica se compara**, que no es una "
+            "sola: un margen se compara por diferencia y se dice en **puntos base** —entre "
+            "62% y 57% hay 500 bps, no «−8%»—; un monto se compara por razón y se dice en "
+            "**por ciento**; un múltiplo se dice en **veces**, que es la unidad en la que "
+            "está escrito el listón de 6.5x."
+        )
+        _series = series_de_graficas(panel_estados)
+        if _series.empty:
+            st.info(f"No hay suficientes periodos de {ticker} para graficar al corte.")
+        else:
+            _PASOS_AL_ANO = 1 if _ANUAL else 4
+            # El mismo eje de tiempo en los dieciocho paneles: ver `panel_de_metrica`.
+            _DOMINIO = [_series.index.min(), _series.index.max()]
+            for bloque in BLOQUES_DE_GRAFICAS:
+                _del_bloque = [
+                    m for m in METRICAS_DE_GRAFICA
+                    if m.bloque == bloque and m.clave in _series.columns
+                ]
+                if not _del_bloque:
+                    continue
+                st.markdown(f"**{bloque}**")
+                for inicio in range(0, len(_del_bloque), 3):
+                    for columna, metrica in zip(
+                        st.columns(3), _del_bloque[inicio:inicio + 3], strict=False
+                    ):
+                        with columna:
+                            panel_de_metrica(
+                                _series[metrica.clave], metrica,
+                                pasos_al_ano=_PASOS_AL_ANO, dominio=_DOMINIO,
+                            )
+            with st.expander("Ver los números de las gráficas"):
+                st.caption(
+                    "La misma serie en tabla. Una gráfica sin su tabla obliga a creerle al "
+                    "pixel; con ella se puede verificar cualquier punto."
+                )
+                _tabla_g = _series.copy()
+                _tabla_g.index = [i.date().isoformat() for i in _tabla_g.index]
+                _tabla_g = _tabla_g.rename(
+                    columns={m.clave: m.etiqueta for m in METRICAS_DE_GRAFICA}
+                ).T.reset_index(names="Métrica")
+                mostrar_tabla(_tabla_g, fijar_primera=True)
+
     st.caption("Cifras en millones de USD, salvo las de por acción y el conteo de acciones.")
 
     with st.expander("De qué renglón sale cada insumo del modelo"):
