@@ -109,6 +109,32 @@ NOTA_NO_APLICA = "Renglón del molde de Bloomberg que no aplica a un REIT de EE.
 
 
 @dataclass(frozen=True)
+class Formula:
+    """Un cálculo expresado sobre OTROS RENGLONES del mismo estado.
+
+    Existe para que el cálculo viva en UN solo lugar y sirva a los dos destinos.
+    La pantalla lo evalúa en Python; el libro de Excel lo traduce a una fórmula
+    que apunta a las celdas de esos renglones, así que el usuario puede cambiar
+    un renglón del estado y ver moverse el payout, el margen y el apalancamiento.
+
+    Escribir el número dos veces —una en Python para la pantalla y otra a mano en
+    el generador de Excel— es la forma segura de que se separen sin que nadie se
+    entere. Por eso se declara sobre ETIQUETAS y no sobre celdas: la etiqueta es
+    la misma en los dos mundos.
+
+    ``suma`` son los sumandos con su signo; ``entre`` es el denominador, con la
+    misma forma. ``ttm`` suma los cuatro periodos hasta el actual —es lo que hace
+    Bloomberg con sus márgenes de doce meses—. ``yoy`` divide entre el valor de
+    la MISMA etiqueta un año antes y resta uno.
+    """
+
+    suma: tuple[tuple[int, str], ...] = ()
+    entre: tuple[tuple[int, str], ...] = ()
+    ttm: bool = False
+    yoy: str = ""
+
+
+@dataclass(frozen=True)
 class LineaBBG:
     """Un renglón del molde, ya resuelto: la estructura del JSON más el mapeo."""
 
@@ -120,6 +146,7 @@ class LineaBBG:
     componentes: tuple[str, ...] = ()
     signo: int = 1
     derivada: str = ""
+    formula: Formula | None = None
     formato: str = "monto"
     ajuste: str = ""
     nota: str = ""
@@ -142,7 +169,7 @@ class LineaBBG:
 
     @property
     def rinde_cifra(self) -> bool:
-        return bool(self.clave or self.componentes or self.derivada)
+        return bool(self.clave or self.componentes or self.derivada or self.formula)
 
 
 # --------------------------------------------------------------------------------------
@@ -171,7 +198,10 @@ _MAPEO_RESULTADOS: dict[str, dict] = {
     "Depreciation & Amortization": {"clave": "depreciacion_amortizacion"},
     "Provision for Loan Losses": {"clave": "deterioro"},
     "Other Operating Expenses": {"clave": "gasto_otros"},
-    "Operating Income (Loss)": {"derivada": "utilidad_operativa", "ajuste": AJUSTE_INTERESES},
+    "Operating Income (Loss)": {
+        "formula": Formula(suma=((1, "Revenue"), (-1, "Operating Expenses"))),
+        "ajuste": AJUSTE_INTERESES,
+    },
     "Non-Operating (Income) Loss": {"derivada": "no_operativo"},
     "Interest Expense": {"clave": "gasto_intereses", "ajuste": AJUSTE_INTERESES},
     "(Income) Loss from Affiliates": {"clave": "resultado_no_consolidadas", "signo": -1},
@@ -202,23 +232,44 @@ _MAPEO_RESULTADOS: dict[str, dict] = {
         "clave": "affo_por_accion", "formato": "por_accion", "ajuste": AJUSTE_FAD,
     },
     "Dividend Per Share": {"clave": "dividendo_declarado_por_accion", "formato": "por_accion"},
-    "AFFO Payout Ratio": {"derivada": "payout_affo_bbg", "formato": "pct"},
-    "FAD Payout Ratio": {"derivada": "payout_fad", "formato": "pct", "ajuste": AJUSTE_FAD},
-    "FFO Payout Ratio": {"derivada": "payout_ffo", "formato": "pct"},
+    "AFFO Payout Ratio": {
+        "formula": Formula(suma=((1, "Dividend Per Share"),),
+                           entre=((1, "AFFO Per Diluted Share"),)),
+        "formato": "pct",
+    },
+    "FAD Payout Ratio": {
+        "formula": Formula(suma=((1, "Dividend Per Share"),),
+                           entre=((1, "FAD Per Diluted Share"),)),
+        "formato": "pct", "ajuste": AJUSTE_FAD,
+    },
+    "FFO Payout Ratio": {
+        "formula": Formula(suma=((1, "Dividend Per Share"),),
+                           entre=((1, "FFO Per Share - Fully Diluted"),)),
+        "formato": "pct",
+    },
     "EBITDA": {
         "clave": "ebitdare",
         "nota": "EBITDAre de Nareit, que resta la ganancia por venta.",
     },
-    "EBITDA Margin (T12M)": {"derivada": "margen_ebitda", "formato": "pct"},
-    "Operating Margin": {"derivada": "margen_operativo", "formato": "pct"},
+    "EBITDA Margin (T12M)": {
+        "formula": Formula(suma=((1, "EBITDA"),), entre=((1, "Revenue"),), ttm=True),
+        "formato": "pct",
+    },
+    "Operating Margin": {
+        "formula": Formula(suma=((1, "Operating Income (Loss)"),),
+                           entre=((1, "Revenue"),)),
+        "formato": "pct",
+    },
     "Dividends/Distributions per Share/Unit": {
         "clave": "dividendo_declarado_por_accion", "formato": "por_accion",
     },
     "Total Cash Common Dividends": {"clave": "dividendos_pagados"},
     "FFO Per Share - Fully Diluted": {"clave": "ffo_por_accion", "formato": "por_accion"},
-    "FFO per Share Growth": {"derivada": "crecimiento_ffo_por_accion", "formato": "pct"},
+    "FFO per Share Growth": {
+        "formula": Formula(yoy="FFO Per Share - Fully Diluted"), "formato": "pct",
+    },
     "FFO to Diluted Shares - 1 Yr Growth": {
-        "derivada": "crecimiento_ffo_por_accion", "formato": "pct",
+        "formula": Formula(yoy="FFO Per Share - Fully Diluted"), "formato": "pct",
     },
     "FAD per Share Diluted": {
         "clave": "affo_por_accion", "formato": "por_accion", "ajuste": AJUSTE_FAD,
@@ -270,7 +321,10 @@ _MAPEO_BALANCE: dict[str, dict] = {
     "Gross Real Estate Property": {"clave": "inmuebles_bruto"},
     "Accumulated Depreciation": {"clave": "depreciacion_acumulada"},
     "Net Mortgages & Notes": {"clave": "prestamos_por_cobrar"},
-    "Total Real Estate Investments": {"derivada": "inversion_total"},
+    "Total Real Estate Investments": {"formula": Formula(suma=(
+        (1, "Real Estate Held for Sale"), (1, "Real Estate Equity Interests"),
+        (1, "Net Real Estate Property"), (1, "Net Mortgages & Notes"),
+    ))},
     "Cash & Near Cash Items": {"clave": "efectivo"},
     "Accounts Receivable": {
         "componentes": ("cuentas_por_cobrar", "renta_linea_recta_por_cobrar"),
@@ -279,7 +333,11 @@ _MAPEO_BALANCE: dict[str, dict] = {
     "Restricted Assets": {"clave": "efectivo_restringido"},
     "Total Assets": {"clave": "activos_totales"},
     "Accounts Payable": {"clave": "cuentas_por_pagar", "ajuste": AJUSTE_DIVIDENDOS},
-    "Secured & Unsecured Debt": {"derivada": "deuda", "ajuste": AJUSTE_ARRENDAMIENTOS},
+    "Secured & Unsecured Debt": {
+        "formula": Formula(suma=((1, "Unsecured Debt"), (1, "Secured Debt"),
+                                 (1, "Operating Leases"))),
+        "ajuste": AJUSTE_ARRENDAMIENTOS,
+    },
     "Unsecured Debt": {
         "componentes": ("notas_senior", "linea_de_credito", "prestamos_a_plazo",
                         "deuda_no_garantizada", "otras_notas_por_pagar"),
@@ -297,14 +355,36 @@ _MAPEO_BALANCE: dict[str, dict] = {
     "Total Liabilities & Equity": {"clave": "pasivo_mas_capital"},
     "Shares Outstanding": {"clave": "acciones_en_circulacion", "formato": "conteo"},
     "Operating Leases": {"clave": "pasivo_arrendamiento"},
-    "Net Debt": {"derivada": "deuda_neta", "ajuste": AJUSTE_ARRENDAMIENTOS},
-    "Book Value per Share": {"derivada": "valor_libros_por_accion", "formato": "por_accion"},
+    "Net Debt": {
+        "formula": Formula(suma=((1, "Secured & Unsecured Debt"),
+                                 (-1, "Cash & Near Cash Items"))),
+        "ajuste": AJUSTE_ARRENDAMIENTOS,
+    },
+    "Book Value per Share": {
+        "formula": Formula(
+            suma=((1, "Total Equity"), (-1, "Total Preferred Equity"),
+                  (-1, "Minority Interest")),
+            entre=((1, "Shares Outstanding"),)),
+        "formato": "por_accion",
+    },
     "Projects Under Development": {"clave": "desarrollo_en_proceso"},
     "Non-Depreciable Real Estate": {"clave": "terreno"},
-    "Debt to Real-Estate Investment": {"derivada": "deuda_sobre_inmuebles", "formato": "pct"},
-    "Total Debt to Total Capital": {"derivada": "deuda_sobre_capital", "formato": "pct"},
+    "Debt to Real-Estate Investment": {
+        "formula": Formula(suma=((1, "Secured & Unsecured Debt"),),
+                           entre=((1, "Total Real Estate Investments"),)),
+        "formato": "pct",
+    },
+    "Total Debt to Total Capital": {
+        "formula": Formula(suma=((1, "Secured & Unsecured Debt"),),
+                           entre=((1, "Secured & Unsecured Debt"), (1, "Total Equity"))),
+        "formato": "pct",
+    },
     "Total Liabilities to Total Common Equity": {
-        "derivada": "pasivos_sobre_capital_comun", "formato": "veces",
+        "formula": Formula(
+            suma=((1, "Total Liabilities"),),
+            entre=((1, "Total Equity"), (-1, "Total Preferred Equity"),
+                   (-1, "Minority Interest"))),
+        "formato": "veces",
     },
     "Tangible Common Equity Ratio": {"derivada": "capital_tangible", "formato": "pct"},
     # Sin fuente en un filing de la SEC, o sin renglón en el catálogo.
@@ -343,16 +423,24 @@ _MAPEO_FLUJO: dict[str, dict] = {
     "Cash from Financing Activities": {"clave": "flujo_financiamiento"},
     "Net Changes in Cash": {"clave": "cambio_neto_efectivo"},
     "EBITDA": {"clave": "ebitdare"},
-    "Trailing 12M EBITDA Margin": {"derivada": "margen_ebitda", "formato": "pct"},
-    "Funds From Operations": {"clave": "ffo"},
+    "Trailing 12M EBITDA Margin": {"derivada": "margen_ebitda", "formato": "pct",
+        "nota": "El ingreso vive en el estado de resultados, no en este estado."},
+    "Funds From Operations": {"derivada": "ffo_monto"},
     "FFO Per Share": {"clave": "ffo_por_accion", "formato": "por_accion"},
     "Cash Paid for Interest": {"clave": "gasto_intereses"},
     "Cash Paid for Taxes": {"clave": "impuestos"},
-    "Free Cash Flow to Equity": {"derivada": "flujo_libre_al_capital"},
+    "Free Cash Flow to Equity": {"formula": Formula(suma=(
+        (1, "Cash From Operating Activities"), (1, "Property Additions"),
+        (1, "Property Improvements"),
+    ))},
     "Capital Expenditures to Real-Estate Investment": {
         "derivada": "capex_sobre_inmuebles", "formato": "pct",
     },
-    "Capital Expenditures to FFO": {"derivada": "capex_sobre_ffo", "formato": "pct"},
+    "Capital Expenditures to FFO": {
+        "formula": Formula(suma=((-1, "Property Additions"), (-1, "Property Improvements")),
+                           entre=((1, "Funds From Operations"),)),
+        "formato": "pct",
+    },
     "Provision for Doubtful Accounts": {"nota": "El catálogo no separa esta partida."},
     "Changes in Non-Cash Capital": {"nota": "El catálogo no separa el capital de trabajo."},
     "Change in Investments": {"nota": "El catálogo no separa esta partida de inversión."},
@@ -399,6 +487,7 @@ def _cargar_molde() -> dict[str, tuple[LineaBBG, ...]]:
                 componentes=tuple(extra.pop("componentes", ())),
                 signo=int(extra.pop("signo", 1)),
                 derivada=extra.pop("derivada", ""),
+                formula=extra.pop("formula", None),
                 formato=extra.pop("formato", "monto"),
                 ajuste=extra.pop("ajuste", ""),
                 nota=extra.pop("nota", ""),
@@ -585,7 +674,114 @@ def _derivar(nombre: str, fila: pd.Series, panel: pd.DataFrame, periodo) -> floa
     return None
 
 
-def armar(panel: pd.DataFrame, estado: str, *, n_periodos: int = 8) -> pd.DataFrame:
+def _linea_por_etiqueta(estado: str) -> dict[str, LineaBBG]:
+    """La primera línea que RINDE CIFRA para cada etiqueta.
+
+    El molde repite etiquetas: «Cash From Operating Activities» es el título de
+    la sección y también su total, y «EBITDA» aparece en resultados y en flujo.
+    Una fórmula que apunte a la etiqueta tiene que dar con la que trae el número,
+    no con el encabezado que la precede.
+    """
+    salida: dict[str, LineaBBG] = {}
+    for linea in PLANTILLA.get(estado, ()):
+        if linea.rinde_cifra and linea.etiqueta not in salida:
+            salida[linea.etiqueta] = linea
+    return salida
+
+
+def _valor(
+    linea: LineaBBG, estado: str, panel: pd.DataFrame, periodo, memo: dict
+) -> float | None:
+    """El valor de un renglón en un periodo, resolviendo fórmulas hacia adentro.
+
+    La memoria se indexa por la IDENTIDAD del renglón, no por su etiqueta. El
+    molde repite nombres —«Cash From Operating Activities» es el título de la
+    sección y también su total— y con la etiqueta por llave el encabezado, que va
+    primero y no vale nada, dejaba memorizado un `None` que el total heredaba: el
+    renglón salía vacío teniendo 1,145 millones.
+
+    Y no es solo por velocidad: es la que corta un ciclo si algún día una fórmula
+    se declara en términos de sí misma. Sin ella, «Net Debt = Deuda − Efectivo»
+    con «Deuda» mal declarada colgaría el proceso en vez de fallar.
+    """
+    llave = (estado, id(linea), periodo)
+    if llave in memo:
+        return memo[llave]
+    memo[llave] = None  # corta el ciclo mientras se resuelve
+
+    fila = panel.loc[periodo]
+    valor: float | None
+    if linea.formula is not None:
+        valor = _evaluar(linea.formula, estado, panel, periodo, memo)
+    elif linea.derivada:
+        valor = _derivar(linea.derivada, fila, panel, periodo)
+    elif linea.componentes:
+        valor = _suma(fila, linea.componentes)
+    elif linea.clave:
+        bruto = fila.get(linea.clave)
+        valor = float(bruto) if bruto is not None and pd.notna(bruto) else None
+    else:
+        valor = None
+    if valor is not None:
+        valor *= linea.signo
+    memo[llave] = valor
+    return valor
+
+
+def _termino(estado: str, etiqueta: str, panel: pd.DataFrame, periodo, memo) -> float | None:
+    linea = _linea_por_etiqueta(estado).get(etiqueta)
+    return None if linea is None else _valor(linea, estado, panel, periodo, memo)
+
+
+def _evaluar(
+    formula: Formula, estado: str, panel: pd.DataFrame, periodo, memo: dict
+) -> float | None:
+    """Evalúa una `Formula` sobre el panel. Es la mitad Python del cálculo único."""
+    if formula.yoy:
+        serie_actual = _termino(estado, formula.yoy, panel, periodo, memo)
+        anteriores = [p for p in panel.index if p <= periodo - pd.DateOffset(years=1)]
+        if serie_actual is None or not anteriores:
+            return None
+        previo = _termino(estado, formula.yoy, panel, anteriores[-1], memo)
+        if previo is None or previo <= 0:
+            return None
+        return serie_actual / previo - 1.0
+
+    def suma_de(terminos) -> float | None:
+        if not terminos:
+            return None
+        if formula.ttm:
+            # Doce meses: los cuatro periodos hasta el actual, y los cuatro o nada.
+            hasta = [p for p in panel.index if p <= periodo][-TRIMESTRES_TTM:]
+            if len(hasta) < TRIMESTRES_TTM:
+                return None
+            total = 0.0
+            for cada in hasta:
+                parcial = suma_simple(terminos, cada)
+                if parcial is None:
+                    return None
+                total += parcial
+            return total
+        return suma_simple(terminos, periodo)
+
+    def suma_simple(terminos, cuando) -> float | None:
+        vivos = []
+        for signo, etiqueta in terminos:
+            valor = _termino(estado, etiqueta, panel, cuando, memo)
+            if valor is not None:
+                vivos.append(signo * valor)
+        return sum(vivos) if vivos else None
+
+    numerador = suma_de(formula.suma)
+    if not formula.entre:
+        return numerador
+    denominador = suma_de(formula.entre)
+    if numerador is None or denominador in (None, 0):
+        return None
+    return numerador / denominador
+
+
+def armar(panel: pd.DataFrame, estado: str, *, n_periodos: int | None = None) -> pd.DataFrame:
     """El estado en el molde de Bloomberg, ancho: renglones × periodos.
 
     ``panel`` es el cuadro trimestral o anual del servicio —una fila por periodo,
@@ -600,7 +796,12 @@ def armar(panel: pd.DataFrame, estado: str, *, n_periodos: int = 8) -> pd.DataFr
     if plantilla is None or panel is None or panel.empty:
         return pd.DataFrame()
 
-    periodos = list(panel.index)[-n_periodos:]
+    # `n_periodos=None` es TODA la historia, y es lo que se quiere por omisión.
+    # Recortar por omisión era una decisión de pantalla metida en la capa de
+    # datos: el libro de Excel se llevaba ocho trimestres de setenta y el
+    # usuario no tenía cómo pedir el resto.
+    periodos = list(panel.index) if n_periodos is None else list(panel.index)[-n_periodos:]
+    memo: dict = {}
     filas = []
     for linea in plantilla:
         prefijo = f"{linea.signo_texto} " if linea.signo_texto else ""
@@ -614,18 +815,8 @@ def armar(panel: pd.DataFrame, estado: str, *, n_periodos: int = 8) -> pd.DataFr
             "nota": linea.nota,
         }
         for periodo in periodos:
-            datos = panel.loc[periodo]
-            if linea.derivada:
-                valor = _derivar(linea.derivada, datos, panel, periodo)
-            elif linea.componentes:
-                valor = _suma(datos, linea.componentes)
-            elif linea.clave:
-                bruto = datos.get(linea.clave)
-                valor = float(bruto) if bruto is not None and pd.notna(bruto) else None
-            else:
-                valor = None
             etiqueta = periodo.date().isoformat() if hasattr(periodo, "date") else str(periodo)
-            fila[etiqueta] = None if valor is None else valor * linea.signo
+            fila[etiqueta] = _valor(linea, estado, panel, periodo, memo)
         filas.append(fila)
     return pd.DataFrame(filas)
 

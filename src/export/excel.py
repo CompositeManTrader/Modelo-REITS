@@ -22,7 +22,7 @@ existe una prueba automatizada dedicada.
 from __future__ import annotations
 
 import datetime as dt
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import pandas as pd
@@ -907,6 +907,11 @@ class EstadosParaLibro:
     bloomberg: dict[str, pd.DataFrame]
     reportados: dict[str, pd.DataFrame]
     ratios: pd.DataFrame
+    # El AFFO, el FFO y el AFFO por acción no son renglón de ningún estado: viven
+    # en el Exhibit 99.1 del 8-K. Van aparte porque tres ratios los necesitan y
+    # sin ellos esos tres quedaban vacíos en el libro y con número en la
+    # pantalla, que es la peor de las dos formas de estar mal.
+    no_gaap: pd.DataFrame = field(default_factory=pd.DataFrame)
     periodo_tipo: str = "Q"
 
     @property
@@ -1150,18 +1155,17 @@ def _volcar_estados(wb: Workbook, estados: EstadosParaLibro) -> None:
             dataframe_a_hoja(wb, HOJA_PROPIA[clave], tabla)
     for clave, tabla in estados.bloomberg.items():
         if not tabla.empty:
-            # Se conservan `campo_bbg`, `ajuste` y `nota`: en el libro son la
-            # documentación del renglón, y quien lo abra fuera de la pantalla
+            # Con `_hoja_bloomberg` y no con el volcado genérico: los ratios y los
+            # subtotales entran como FÓRMULA que apunta a los renglones de arriba,
+            # no como número pegado. El campo de Bloomberg, el ajuste y la nota
+            # viajan en columnas al final: quien abra el libro fuera de la pantalla
             # no tiene otra forma de saber qué ajuste se aplicó.
-            columnas = [c for c in ("nivel", "seccion", "formato")
-                        if c in tabla.columns]
-            dataframe_a_hoja(wb, f"BBG {_HOJAS[clave]}", tabla.drop(columns=columnas))
+            _hoja_bloomberg(wb, f"BBG {_HOJAS[clave]}", clave, tabla)
     for clave, tabla in estados.reportados.items():
         if not tabla.empty:
             dataframe_a_hoja(wb, f"Reportado {_HOJAS[clave]}", tabla)
     if not estados.ratios.empty:
-        columnas = [c for c in ("formato",) if c in estados.ratios.columns]
-        dataframe_a_hoja(wb, "Ratios", estados.ratios.drop(columns=columnas))
+        _hoja_ratios(wb, estados)
 
 
 def estados_para_libro(
@@ -1170,7 +1174,7 @@ def estados_para_libro(
     *,
     asof: dt.date,
     periodo_tipo: str = "Q",
-    n_periodos: int = 8,
+    n_periodos: int | None = None,
 ) -> EstadosParaLibro:
     """Arma las tres vistas una sola vez, para el libro y para el cableado."""
     from src.ingesta import reportados as mod_reportados
@@ -1179,6 +1183,7 @@ def estados_para_libro(
     from src.servicio import (
         estado_financiero,
         estados_reportados,
+        insumos_no_gaap,
         panel_de_conceptos,
         ratios_propios,
     )
@@ -1204,6 +1209,7 @@ def estados_para_libro(
             for estado in mod_reportados.ESTADOS
         },
         ratios=ratios_propios(panel),
+        no_gaap=insumos_no_gaap(panel),
         periodo_tipo=periodo_tipo,
     )
 
@@ -1214,7 +1220,7 @@ def libro_de_estados(
     *,
     asof: dt.date,
     periodo_tipo: str = "Q",
-    n_periodos: int = 8,
+    n_periodos: int | None = None,
 ) -> bytes:
     """Solo los estados, en BYTES, para el botón de descarga de la pantalla.
 
@@ -1239,3 +1245,435 @@ def libro_de_estados(
     buffer = io.BytesIO()
     wb.save(buffer)
     return buffer.getvalue()
+
+
+# --------------------------------------------------------------------------------------
+# Las hojas de Bloomberg, con fórmulas vivas
+# --------------------------------------------------------------------------------------
+#
+# El molde declara cada ratio y cada subtotal como una `Formula` sobre OTROS
+# renglones —«FAD Payout Ratio = Dividend Per Share ÷ FAD Per Diluted Share»—.
+# La pantalla la evalúa en Python; aquí se traduce a celdas. Es el mismo cálculo
+# leído dos veces, no escrito dos veces: cambiar el dividendo en el estado mueve
+# el payout, y cambiar la deuda mueve el apalancamiento.
+#
+# Los renglones que NO son fórmula —los que salen directo de un renglón nuestro—
+# van como valor. Son el dato; no hay nada vivo que poner ahí.
+
+FMT_POR_FORMATO = {
+    "monto": FMT_MILES,
+    "por_accion": FMT_MONEDA,
+    "pct": FMT_PCT,
+    "veces": FMT_VECES,
+    "conteo": FMT_MILES,
+}
+
+
+def _fila_por_etiqueta(plantilla) -> dict[str, int]:
+    """Etiqueta → número de fila en la hoja, para la PRIMERA que rinde cifra.
+
+    El molde repite nombres: «Cash From Operating Activities» es el título de la
+    sección y también su total. Una fórmula tiene que apuntar al renglón que
+    trae el número, no al encabezado que lo precede.
+    """
+    salida: dict[str, int] = {}
+    for i, linea in enumerate(plantilla, start=2):
+        if linea.rinde_cifra and linea.etiqueta not in salida:
+            salida[linea.etiqueta] = i
+    return salida
+
+
+def _terminos_excel(
+    terminos, filas: dict[str, int], columna: str
+) -> tuple[str, str] | None:
+    """Los sumandos de una `Formula`: (expresión, celdas para contar).
+
+    Devuelve las dos cosas porque hacen falta las dos. `N()` de una celda vacía
+    **es cero**, así que una suma de puros vacíos da 0 y no se distingue de un
+    cero real: «Total Real Estate Investments = 0» se lee como "no tienen
+    inmuebles", no como "no lo sabemos". La segunda pieza es la lista de celdas
+    que el `COUNT` de arriba usa para decidir si hay algo que sumar.
+    """
+    partes, celdas = [], []
+    for signo, etiqueta in terminos:
+        fila = filas.get(etiqueta)
+        if fila is None:
+            return None
+        partes.append(f"{'-' if signo < 0 else '+'}N({columna}{fila})")
+        celdas.append(f"{columna}{fila}")
+    if not partes:
+        return None
+    expresion = "".join(partes)
+    return (expresion[1:] if expresion.startswith("+") else expresion, ",".join(celdas))
+
+
+def _formula_excel(
+    formula, filas: dict[str, int], columnas: list[str], indice: int,
+    columna_previa: str | None = None,
+) -> str | None:
+    """Traduce una `Formula` del molde a una fórmula de Excel para una columna.
+
+    Devuelve ``None`` cuando algún renglón que la fórmula necesita no existe en
+    el molde: es preferible dejar la celda vacía a escribir una referencia rota.
+    """
+    columna = columnas[indice]
+    if formula.yoy:
+        fila = filas.get(formula.yoy)
+        # El periodo de hace un año se ubica por su POSICIÓN real, que la pasa
+        # quien llama: asumir "cuatro columnas atrás" da un número equivocado en
+        # cuanto falta un trimestre, y da uno creíble.
+        previo = columna_previa
+        if fila is None or previo is None:
+            return None
+        # La base tiene que ser POSITIVA. Un crecimiento medido contra un FFO
+        # negativo o cero da −183% y no significa nada: parece un desplome y es
+        # una división sin sentido. Python ya lo exigía; esta es la otra mitad.
+        return (f'=IF(OR(NOT(ISNUMBER({columna}{fila})),N({previo}{fila})<=0),"",'
+                f'{columna}{fila}/{previo}{fila}-1)')
+
+    def bloque(terminos) -> tuple[str, str] | None:
+        if not terminos:
+            return None
+        if formula.ttm:
+            if indice < TRIMESTRES_TTM - 1:
+                return None
+            ventana = columnas[indice - TRIMESTRES_TTM + 1: indice + 1]
+            partes, rangos = [], []
+            for signo, etiqueta in terminos:
+                fila = filas.get(etiqueta)
+                if fila is None:
+                    return None
+                rango = f"{ventana[0]}{fila}:{ventana[-1]}{fila}"
+                partes.append(f"{'-' if signo < 0 else '+'}SUM({rango})")
+                rangos.append(rango)
+            expresion = "".join(partes)
+            return (expresion[1:] if expresion.startswith("+") else expresion,
+                    ",".join(rangos))
+        return _terminos_excel(terminos, filas, columna)
+
+    arriba = bloque(formula.suma)
+    if arriba is None:
+        return None
+    numerador, celdas_arriba = arriba
+
+    def guarda(celdas: str) -> str:
+        """Cuándo la celda NO tiene derecho a dar número.
+
+        Con ``ttm`` la ventana tiene que estar COMPLETA en los dos lados: doce
+        meses son doce meses. Excel sumaba lo que hubiera y con dos trimestres de
+        EBITDA contra cuatro de ingresos daba márgenes de 376% —un número que
+        nadie revisa dos veces si el resto del estado cuadra—. Python ya exigía
+        los cuatro; esta es la mitad que faltaba.
+        """
+        if formula.ttm:
+            rangos = celdas.split(",")
+            return "OR(" + ",".join(f"COUNT({r})<{TRIMESTRES_TTM}" for r in rangos) + ")"
+        return f"COUNT({celdas})=0"
+
+    if not formula.entre:
+        return f'=IF({guarda(celdas_arriba)},"",({numerador}))'
+    abajo = bloque(formula.entre)
+    if abajo is None:
+        return None
+    denominador, celdas_abajo = abajo
+    return (f'=IF(OR({guarda(celdas_arriba)},{guarda(celdas_abajo)}),"",'
+            f'IFERROR(({numerador})/({denominador}),""))')
+
+
+def _hoja_bloomberg(wb: Workbook, nombre: str, estado: str, tabla: pd.DataFrame) -> Worksheet:
+    """Una vista de Bloomberg como hoja, con sus cálculos vivos."""
+    from src.modelo import bloomberg as mod_bloomberg
+
+    plantilla = mod_bloomberg.PLANTILLA[estado]
+    periodos = [c for c in tabla.columns
+                if c != "Renglón" and c not in mod_bloomberg.COLUMNAS_DE_APOYO]
+    filas = _fila_por_etiqueta(plantilla)
+    columnas = [get_column_letter(2 + i) for i in range(len(periodos))]
+
+    ws = wb.create_sheet(nombre[:31])
+    ws.cell(row=1, column=1, value="Renglón").font = FUENTE_SECCION
+    for j, periodo in enumerate(periodos, start=2):
+        celda = ws.cell(row=1, column=j, value=str(periodo))
+        celda.font = FUENTE_SECCION
+        celda.fill = RELLENO_SECCION
+    col_extra = len(periodos) + 2
+    for k, titulo in enumerate(("Campo Bloomberg", "Ajuste de Bloomberg", "Nota")):
+        ws.cell(row=1, column=col_extra + k, value=titulo).font = FUENTE_SECCION
+
+    for i, linea in enumerate(plantilla, start=2):
+        prefijo = f"{linea.signo_texto} " if linea.signo_texto else ""
+        escribir_etiqueta(
+            ws, f"A{i}", ("    " * linea.nivel) + prefijo + linea.etiqueta,
+            seccion=linea.seccion,
+        )
+        formato = FMT_POR_FORMATO.get(linea.formato, FMT_MILES)
+        for j, periodo in enumerate(periodos):
+            celda = ws.cell(row=i, column=2 + j)
+            celda.number_format = formato
+            formula = None
+            if linea.formula is not None:
+                # El periodo de hace un año, por su fecha real y no por posición.
+                previo = None
+                if linea.formula.yoy:
+                    objetivo = pd.Timestamp(periodo) - pd.DateOffset(years=1)
+                    candidatas = [k for k, p in enumerate(periodos)
+                                  if pd.Timestamp(p) <= objetivo]
+                    previo = columnas[candidatas[-1]] if candidatas else None
+                formula = _formula_excel(
+                    linea.formula, filas, columnas, j, columna_previa=previo,
+                )
+            if formula:
+                celda.value = formula
+                celda.font = FUENTE_FORMULA
+            else:
+                valor = tabla.iloc[i - 2].get(periodo)
+                celda.value = None if valor is None or pd.isna(valor) else float(valor)
+                celda.font = FUENTE_ENLACE if linea.rinde_cifra else FUENTE_FORMULA
+        ws.cell(row=i, column=col_extra, value=linea.campo_bbg or None)
+        ws.cell(row=i, column=col_extra + 1, value=linea.ajuste or None)
+        ws.cell(row=i, column=col_extra + 2, value=linea.nota or None)
+
+    ws.column_dimensions["A"].width = 46
+    ws.freeze_panes = "B2"
+    return ws
+
+
+
+# --------------------------------------------------------------------------------------
+# La hoja de Ratios, también viva
+# --------------------------------------------------------------------------------------
+
+
+def _hoja_ratios(wb: Workbook, estados: EstadosParaLibro) -> Worksheet:
+    """Los ratios de la vista propia, como fórmulas sobre las hojas del estado.
+
+    Cada ratio se declara una sola vez —`FormulaRatio`, sobre CLAVES del
+    catálogo— y de ahí salen los dos: el valor que dibuja la pantalla y la
+    fórmula que apunta a los renglones del estado en el libro. Cambiar la
+    depreciación en «Propia Resultados» mueve el margen de EBITDAre, la cobertura
+    de intereses y el apalancamiento, aquí abajo.
+
+    Arriba van los insumos derivados —el NOI y el EBITDAre del periodo— con su
+    propia fórmula y sus propias guardas. No es adorno: el EBITDAre alimenta tres
+    ratios y lleva la guarda de la prueba 36, y tenerlo como renglón permite
+    verlo en vez de deducirlo de tres divisiones.
+
+    Traducir la declaración en vez de reescribirla es lo que hace que el libro no
+    pueda dar otro número que la pantalla. La primera versión de esta hoja sí la
+    reescribió —el NOI salía del ingreso TOTAL en vez del de renta, el EBITDAre
+    exigía impuestos, el apalancamiento no anualizaba— y 356 de 923 celdas de
+    Realty Income no cuadraban con Python. Ninguna daba error.
+    """
+    from src.ingesta.estados import ESTADOS as ESTADOS_DEL_CATALOGO
+    from src.ingesta.estados import ESTADOS_DE_SALDO, LINEA_POR_CLAVE, lineas_de
+    from src.servicio import (
+        ETIQUETA_NO_GAAP,
+        FORMULA_RATIO,
+        INSUMOS_DE_RATIOS,
+        RATIOS_PROPIOS,
+    )
+
+    # En qué hoja vive cada clave del catálogo, y en qué COLUMNA de esa hoja cae
+    # cada periodo. Lo segundo no se puede suponer igual entre las tres hojas: el
+    # balance se pide PUNTUAL y trae cortes que el estado de resultados no tiene.
+    # Con una sola letra para las tres, la deuda de un ratio salía del trimestre
+    # de al lado —sin error, con número—.
+    hoja_de_clave: dict[str, str] = {}
+    columna_de: dict[tuple[str, str], str] = {}
+    periodos: list[str] = []
+    for estado in ESTADOS_DEL_CATALOGO:
+        tabla = estados.propia.get(estado, pd.DataFrame())
+        if tabla.empty:
+            continue
+        hoja = HOJA_PROPIA[estado]
+        presentes = set(tabla["Renglón"])
+        for linea in lineas_de(estado):
+            etiqueta = LINEA_POR_CLAVE[linea.clave].etiqueta
+            # La PRIMERA hoja que traiga la clave, que es la que gana también en
+            # el panel de Python: `pd.concat` conserva la primera duplicada.
+            if etiqueta in presentes:
+                hoja_de_clave.setdefault(linea.clave, hoja)
+        for i, columna in enumerate(c for c in tabla.columns if c != "Renglón"):
+            columna_de[(hoja, str(columna))] = get_column_letter(2 + i)
+            # Las columnas de la hoja son las del FLUJO. El balance aporta cortes
+            # que ningún estado de resultados acompaña, y una columna de ratios
+            # sobre un periodo que no tiene resultados es una columna con la
+            # deuda sola: se lee como si al trimestre le faltara todo lo demás.
+            if estado not in ESTADOS_DE_SALDO and str(columna) not in periodos:
+                periodos.append(str(columna))
+    periodos.sort()
+
+    ws = wb.create_sheet("Ratios")
+    ws.cell(row=1, column=1, value="Ratio").font = FUENTE_SECCION
+    for j, periodo in enumerate(periodos, start=2):
+        celda = ws.cell(row=1, column=j, value=periodo)
+        celda.font = FUENTE_SECCION
+        celda.fill = RELLENO_SECCION
+    ws.cell(row=1, column=len(periodos) + 2, value="Se calcula así").font = FUENTE_SECCION
+
+    def celda_de(nombres, periodo: str) -> str | None:
+        """La celda del primer renglón de la cadena que exista, en ese periodo.
+
+        La cadena es la misma que recorre `serie_de_insumo` en Python: unas
+        emisoras etiquetan el gasto del inmueble de una forma y otras de otra.
+        """
+        if isinstance(nombres, str):
+            nombres = (nombres,)
+        for clave in nombres:
+            hoja = hoja_de_clave.get(clave)
+            if hoja is None or clave not in LINEA_POR_CLAVE:
+                continue
+            columna = columna_de.get((hoja, periodo))
+            if columna is None:
+                continue
+            return _referencia(hoja, LINEA_POR_CLAVE[clave].etiqueta, columna)
+        return None
+
+    def monto(ref: str) -> str:
+        """El valor de la celda, con el hueco como cero."""
+        return f"N(IFERROR({ref},0))"
+
+    def es_numero(ref: str) -> str:
+        return f'ISNUMBER(IFERROR({ref},""))'
+
+    def suma(terminos) -> str:
+        partes = "".join(
+            f"{'-' if signo < 0 else '+'}{monto(ref)}" for signo, ref in terminos
+        )
+        return partes[1:] if partes.startswith("+") else partes
+
+    # ------------------------------------------------------- el no-GAAP del 8-K
+    # Van como VALOR y no como fórmula porque son dato, no cálculo: el AFFO lo
+    # publica la emisora en su comunicado, no sale de sumar renglones del 10-Q.
+    # Escribirlos aquí es lo que permite que los ratios que los usan sí sean
+    # fórmula, y que quien quiera probar otro AFFO lo escriba encima y vea moverse
+    # el payout.
+    fila_directa: dict[str, int] = {}
+    renglon = 2
+    no_gaap = estados.no_gaap if estados.no_gaap is not None else pd.DataFrame()
+    if not no_gaap.empty:
+        escribir_etiqueta(ws, f"A{renglon}", "Del comunicado (no-GAAP)", seccion=True)
+        renglon += 1
+        etiqueta_a_clave = {v: k for k, v in ETIQUETA_NO_GAAP.items()}
+        for _, fila in no_gaap.iterrows():
+            etiqueta = str(fila["Renglón"])
+            escribir_etiqueta(ws, f"A{renglon}", etiqueta)
+            clave = etiqueta_a_clave.get(etiqueta)
+            if clave:
+                fila_directa[clave] = renglon
+            for j, periodo in enumerate(periodos):
+                valor = fila.get(periodo)
+                celda = ws.cell(row=renglon, column=2 + j)
+                celda.number_format = FMT_MILES
+                if valor is not None and not pd.isna(valor):
+                    celda.value = float(valor)
+            renglon += 1
+        renglon += 1
+
+    # ---------------------------------------------------------------- insumos
+    fila_insumo: dict[str, int] = {}
+    escribir_etiqueta(ws, f"A{renglon}", "Insumos derivados", seccion=True)
+    renglon += 1
+    for insumo in INSUMOS_DE_RATIOS:
+        escribir_etiqueta(ws, f"A{renglon}", insumo.etiqueta)
+        fila_insumo[insumo.clave] = renglon
+        fila_directa[insumo.clave] = renglon
+        for j, periodo in enumerate(periodos):
+            celda = ws.cell(row=renglon, column=2 + j)
+            celda.number_format = FMT_MILES
+            terminos, exigidas, falta = [], [], False
+            for signo, nombres in insumo.exigidos:
+                ref = celda_de(nombres, periodo)
+                if ref is None:
+                    falta = True
+                    break
+                terminos.append((signo, ref))
+                exigidas.append(ref)
+            if falta:
+                continue
+            for signo, nombres in insumo.opcionales:
+                ref = celda_de(nombres, periodo)
+                if ref is not None:
+                    terminos.append((signo, ref))
+            expresion = suma(terminos)
+
+            condiciones = []
+            if insumo.por_celda:
+                # La guarda de la prueba 36, en Excel: sin depreciación no hay
+                # EBITDAre. `N()` de una celda vacía es cero y no avisa.
+                condiciones += [f"NOT({es_numero(ref)})" for ref in exigidas]
+            for nombres in insumo.positivos:
+                ref = celda_de(nombres, periodo)
+                if ref is None:
+                    falta = True
+                    break
+                condiciones.append(f"{monto(ref)}<=0")
+            if falta:
+                continue
+            if insumo.resultado_positivo:
+                condiciones.append(f"({expresion})<=0")
+            if insumo.piso is not None:
+                minimo, nombres = insumo.piso
+                ref = celda_de(nombres, periodo)
+                if ref is not None:
+                    condiciones.append(
+                        f"AND({monto(ref)}>0,({expresion})/{monto(ref)}<{minimo})"
+                    )
+            celda.value = (
+                f'=IF(OR({",".join(condiciones)}),"",{expresion})'
+                if condiciones else f"={expresion}"
+            )
+            celda.font = FUENTE_FORMULA
+        renglon += 1
+
+    # ----------------------------------------------------------------- ratios
+    renglon += 1
+    escribir_etiqueta(ws, f"A{renglon}", "Ratios", seccion=True)
+    renglon += 1
+    for etiqueta, clave, formato, explicacion in RATIOS_PROPIOS:
+        escribir_etiqueta(ws, f"A{renglon}", etiqueta)
+        ws.cell(row=renglon, column=len(periodos) + 2, value=explicacion)
+        formula = FORMULA_RATIO.get(clave)
+        for j, periodo in enumerate(periodos):
+            celda = ws.cell(row=renglon, column=2 + j)
+            celda.number_format = FMT_PCT if formato == "pct" else FMT_VECES
+            if formula is None:
+                continue
+            columna = get_column_letter(2 + j)
+
+            def lado(terminos, periodo=periodo, columna=columna, formula=formula):
+                """Los términos de un lado, con su signo; `None` si falta uno."""
+                partes, exigidas = [], []
+                for signo, clave_termino in terminos:
+                    if clave_termino in fila_directa:
+                        ref = f"{columna}{fila_directa[clave_termino]}"
+                    else:
+                        ref = celda_de(clave_termino, periodo)
+                    if ref is None:
+                        return None
+                    partes.append((signo, ref))
+                    if clave_termino not in formula.opcionales:
+                        exigidas.append(ref)
+                return partes, exigidas
+
+            arriba, abajo = lado(formula.numerador), lado(formula.denominador)
+            if arriba is None or abajo is None:
+                continue
+            num = f"({suma(arriba[0])})"
+            den = f"({suma(abajo[0])})"
+            if formula.anualiza_numerador != 1:
+                num = f"({num}*{formula.anualiza_numerador})"
+            # Con el paréntesis. Sin él, `(a)/(b)*4` es `a/b*4` y no `a/(b*4)`:
+            # el apalancamiento salía dieciséis veces el que es, y en Excel un
+            # 74.7x no se distingue a simple vista de un 4.67x mal puesto.
+            if formula.anualiza_denominador != 1:
+                den = f"({den}*{formula.anualiza_denominador})"
+            condiciones = [f"NOT({es_numero(ref)})" for ref in arriba[1] + abajo[1]]
+            condiciones.append(f"{den}=0")
+            celda.value = f'=IF(OR({",".join(condiciones)}),"",{num}/{den})'
+            celda.font = FUENTE_FORMULA
+        renglon += 1
+
+    ws.column_dimensions["A"].width = 34
+    ws.freeze_panes = "B2"
+    return ws

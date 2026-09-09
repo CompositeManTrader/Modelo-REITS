@@ -631,7 +631,7 @@ with tab_estados:
         unsafe_allow_html=True,
     )
 
-    col_freq, col_desc = st.columns([1, 2])
+    col_freq, col_hist, col_desc = st.columns([1, 1, 2])
     with col_freq:
         frecuencia = st.radio(
             "Frecuencia", ("Trimestral", "Anual"), horizontal=True, key="freq_estados",
@@ -639,8 +639,19 @@ with tab_estados:
     _ANUAL = frecuencia == "Anual"
     _TIPO = "FY" if _ANUAL else "Q"
 
+    # La historia COMPLETA por omisión. Realty Income tiene setenta trimestres y
+    # dieciocho ejercicios; mostrar seis era recortar el 90% sin decirlo. Las
+    # tablas se desplazan de lado, así que el costo de traerlo todo es un scroll.
+    with col_hist:
+        _HISTORIAS = {"Todo": None, "Últimos 20": 20, "Últimos 8": 8}
+        historia = st.selectbox(
+            "Historia", list(_HISTORIAS), key="hist_estados",
+            help="Por omisión, todos los periodos que hay. La descarga siempre los lleva todos.",
+        )
+    _N = _HISTORIAS[historia]
+
     panel_estados = panel_de_conceptos(
-        repo, ticker, asof=asof, periodo_tipo=_TIPO, n_periodos=6
+        repo, ticker, asof=asof, periodo_tipo=_TIPO, n_periodos=_N
     )
 
     with col_desc:
@@ -674,7 +685,7 @@ with tab_estados:
         else:
             for estado_bbg in bloomberg.ESTADOS:
                 con, piden = bloomberg.cobertura(panel_estados, estado_bbg)
-                tabla_bbg = bloomberg.armar(panel_estados, estado_bbg, n_periodos=6)
+                tabla_bbg = bloomberg.armar(panel_estados, estado_bbg)
                 st.markdown(f"**{bloomberg.NOMBRE_ESTADO[estado_bbg]}**")
                 st.caption(
                     f"{con} de {piden} renglones del molde se pueden llenar con lo que "
@@ -741,7 +752,8 @@ with tab_estados:
         )
         for clave_estado, nombre_estado, nota_estado in _ESTADOS:
             tabla = estado_financiero(
-                repo, ticker, clave_estado, asof=asof, periodo_tipo=_TIPO, n_periodos=6
+                repo, ticker, clave_estado, asof=asof, periodo_tipo=_TIPO,
+                n_periodos=_N,
             )
             st.markdown(f"**{nombre_estado}**")
             if tabla.empty:
@@ -1365,7 +1377,9 @@ with tab_auditoria:
                     # renglón. Es lo que separa un libro con dos secciones de un
                     # modelo cableado: cambiar la deuda en el balance mueve el
                     # apalancamiento, el LTV y el NAV.
-                    estados=estados_para_libro(repo, ticker, asof=asof, n_periodos=8),
+                    # Sin tope de periodos: el libro se lleva TODA la historia, aunque
+                    # la pantalla esté mostrando un recorte.
+                    estados=estados_para_libro(repo, ticker, asof=asof),
                 )
                 ruta = exportar(datos, DIR_EXPORTES / f"{ticker}_{asof}.xlsx")
                 st.success(f"Libro generado: `{ruta}`")
