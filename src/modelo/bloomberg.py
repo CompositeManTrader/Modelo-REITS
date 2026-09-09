@@ -196,7 +196,7 @@ _MAPEO_RESULTADOS: dict[str, dict] = {
     "Property Operating Expenses": {"clave": "gasto_operacion_inmueble"},
     "General & Administrative": {"clave": "gasto_administracion"},
     "Depreciation & Amortization": {"clave": "depreciacion_amortizacion"},
-    "Provision for Loan Losses": {"clave": "deterioro"},
+    "Provision for Loan Losses": {"clave": "provision_perdidas_crediticias"},
     "Other Operating Expenses": {"clave": "gasto_otros"},
     "Operating Income (Loss)": {
         "formula": Formula(suma=((1, "Revenue"), (-1, "Operating Expenses"))),
@@ -209,6 +209,7 @@ _MAPEO_RESULTADOS: dict[str, dict] = {
     "Pretax Income": {"clave": "utilidad_antes_impuestos"},
     "Income Tax Expense (Benefit)": {"clave": "impuestos"},
     "Income (Loss) from Cont Ops": {"derivada": "utilidad_continuas"},
+    "Discontinued Operations": {"clave": "operaciones_discontinuadas"},
     "Income (Loss) Incl. MI": {"derivada": "utilidad_con_minoritarios"},
     "Minority Interest": {"clave": "utilidad_minoritarios"},
     "Net Income, GAAP": {"clave": "utilidad_neta"},
@@ -217,7 +218,13 @@ _MAPEO_RESULTADOS: dict[str, dict] = {
     "Basic Weighted Avg Shares": {"clave": "acciones_basicas", "formato": "conteo"},
     "Basic EPS, GAAP": {"clave": "utilidad_por_accion_basica", "formato": "por_accion"},
     "Diluted Weighted Avg Shares": {"clave": "acciones_diluidas", "formato": "conteo"},
+    "Basic EPS from Cont Ops, GAAP": {
+        "clave": "utilidad_por_accion_basica_continuas", "formato": "por_accion",
+    },
     "Diluted EPS, GAAP": {"clave": "utilidad_por_accion_diluida", "formato": "por_accion"},
+    "Diluted EPS from Cont Ops, GAAP": {
+        "clave": "utilidad_por_accion_diluida_continuas", "formato": "por_accion",
+    },
     # La cascada del FFO vive en el 8-K, no en el estado. Los subtotales sí los
     # tenemos porque son los que el modelo consume.
     "Funds from Operations": {"derivada": "ffo_monto"},
@@ -282,14 +289,11 @@ _MAPEO_RESULTADOS: dict[str, dict] = {
     "Real Estate Sales": {"nota": "Nuestro catálogo lo lleva como ganancia, no como ingreso."},
     "Cost of Real Estate Sold": {"nota": "Nuestro catálogo lo lleva neto, en la ganancia."},
     "Net Extraordinary Losses (Gains)": {"nota": NOTA_NO_APLICA},
-    "Discontinued Operations": {"nota": NOTA_NO_APLICA},
     "XO & Accounting Changes": {"nota": NOTA_NO_APLICA},
     "Other Adjustments": {"nota": NOTA_CASCADA},
     "Net Income Avail to Common, Adj": {"nota": "Ajuste propio de Bloomberg."},
     "Net Abnormal Losses (Gains)": {"nota": "Ajuste propio de Bloomberg."},
-    "Basic EPS from Cont Ops, GAAP": {"nota": NOTA_NO_APLICA},
     "Basic EPS from Cont Ops, Adjusted": {"nota": "Ajuste propio de Bloomberg."},
-    "Diluted EPS from Cont Ops, GAAP": {"nota": NOTA_NO_APLICA},
     "Diluted EPS from Cont Ops, Adjusted": {"nota": "Ajuste propio de Bloomberg."},
     "D&A of Con Real Estate": {"nota": NOTA_CASCADA},
     "D&A of Uncon Real Estate": {"nota": NOTA_CASCADA},
@@ -562,6 +566,12 @@ def _derivar(nombre: str, fila: pd.Series, panel: pd.DataFrame, periodo) -> floa
         vivos = [p for p in partes if p is not None]
         return sum(vivos) if vivos else None
     if nombre == "utilidad_continuas":
+        # El reportado manda. Siete de las diez emisoras publican este renglón, y
+        # es el que cuadra con el EPS de operaciones continuas del mismo filing;
+        # derivarlo teniendo el dato es reemplazar una cifra por una cuenta.
+        reportado = v("utilidad_operaciones_continuas")
+        if reportado is not None:
+            return reportado
         antes, impuestos = v("utilidad_antes_impuestos"), v("impuestos")
         return None if antes is None else antes - (impuestos or 0.0)
     if nombre == "utilidad_con_minoritarios":

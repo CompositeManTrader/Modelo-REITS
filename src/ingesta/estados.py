@@ -111,6 +111,10 @@ _RESULTADOS: tuple[LineaEstado, ...] = (
     )),
     _l("ingreso_renta_variable", "Renta variable sobre ventas", ESTADO_RESULTADOS, 15, (
         "OperatingLeaseVariableLeaseIncome",
+        # NNN y Essential Properties usan la etiqueta corta —treinta y un cortes
+        # cada una, hasta el trimestre vigente— y con solo la larga su renglón de
+        # «Percentage Rent» salía vacío teniendo el dato.
+        "VariableLeaseIncome",
     )),
     _l("ingreso_reembolsos", "Reembolsos de inquilinos", ESTADO_RESULTADOS, 20, (
         "TenantReimbursementsRevenue",
@@ -153,6 +157,20 @@ _RESULTADOS: tuple[LineaEstado, ...] = (
         "ImpairmentOfRealEstate",
         "TangibleAssetImpairmentCharges",
     )),
+    # El deterioro de un inmueble y la provisión por pérdidas crediticias son dos
+    # renglones distintos y Bloomberg los pide por separado: «Real Estate
+    # Write-Downs» y «Provision for Loan Losses». Alimentar los dos con el mismo
+    # `deterioro` imprimía 129.3 millones de deterioro inmobiliario bajo una
+    # etiqueta de pérdidas crediticias, que es un renglón que la emisora sí
+    # publica y con otro número.
+    _l("provision_perdidas_crediticias", "Provisión por pérdidas crediticias",
+       ESTADO_RESULTADOS, 155, (
+        "ProvisionForLoanLossesExpensed",
+        "ProvisionForLoanAndLeaseLosses",
+        "FinancingReceivableExcludingAccruedInterestCreditLossExpenseReversal",
+        "AccountsReceivableCreditLossExpenseReversal",
+        "ProvisionForDoubtfulAccounts",
+    ), alternativas_excluyentes=True),
     _l("gasto_otros", "Otros gastos de operación", ESTADO_RESULTADOS, 160, (
         "OtherCostAndExpenseOperating",
     )),
@@ -193,9 +211,12 @@ _RESULTADOS: tuple[LineaEstado, ...] = (
     _l("resultado_no_consolidadas", "Participación en no consolidadas", ESTADO_RESULTADOS, 240, (
         "IncomeLossFromEquityMethodInvestments",
     )),
+    # `NonoperatingIncomeExpense` es el TOTAL no operativo, no el renglón de
+    # «otros»: son dos líneas distintas del molde de Bloomberg —«Non-Operating
+    # (Income) Loss» y «Other Non-Op (Income) Loss»— y tenerlo en esta cadena
+    # metía el total en el renglón del residuo. Prologis publica las dos.
     _l("otros_no_operativos", "Otros resultados no operativos", ESTADO_RESULTADOS, 250, (
         "OtherNonoperatingIncomeExpense",
-        "NonoperatingIncomeExpense",
     )),
     _l("utilidad_antes_impuestos", "Utilidad antes de impuestos", ESTADO_RESULTADOS, 260, (
         "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
@@ -205,6 +226,20 @@ _RESULTADOS: tuple[LineaEstado, ...] = (
         "IncomeTaxExpenseBenefit",
         "CurrentIncomeTaxExpenseBenefit",
     )),
+    # Bloomberg pide la utilidad de operaciones CONTINUAS y la de discontinuadas
+    # como renglones propios, y siete de las diez emisoras las publican. Se
+    # derivaban —utilidad antes de impuestos menos impuestos— teniendo el dato
+    # reportado, que es el que cuadra con el EPS de continuas del mismo filing.
+    _l("utilidad_operaciones_continuas", "Utilidad de operaciones continuas",
+       ESTADO_RESULTADOS, 275, (
+        "IncomeLossFromContinuingOperationsIncludingPortionAttributableToNoncontrollingInterest",
+        "IncomeLossFromContinuingOperations",
+    ), subtotal=True, alternativas_excluyentes=True),
+    _l("operaciones_discontinuadas", "Operaciones discontinuadas",
+       ESTADO_RESULTADOS, 276, (
+        "IncomeLossFromDiscontinuedOperationsNetOfTax",
+        "IncomeLossFromDiscontinuedOperationsNetOfTaxAttributableToReportingEntity",
+    ), alternativas_excluyentes=True),
     _l("utilidad_neta", "Utilidad neta", ESTADO_RESULTADOS, 280, (
         "ProfitLoss",
         "NetIncomeLoss",
@@ -243,6 +278,18 @@ _RESULTADOS: tuple[LineaEstado, ...] = (
     _l("dividendo_declarado_por_accion", "Dividendo declarado por acción", ESTADO_RESULTADOS, 440, (
         "CommonStockDividendsPerShareDeclared",
         "CommonStockDividendsPerShareCashPaid",
+    )),
+    # W. P. Carey las publica en los setenta cortes y Welltower en sesenta y
+    # siete, hasta el trimestre vigente. El molde las marcaba como «no aplica a
+    # un REIT de EE. UU.», que es un juicio equivocado: aplica a cualquiera que
+    # haya tenido operaciones discontinuadas, y estas emisoras las tuvieron.
+    _l("utilidad_por_accion_basica_continuas",
+       "Utilidad por acción básica, operaciones continuas", ESTADO_RESULTADOS, 450, (
+        "IncomeLossFromContinuingOperationsPerBasicShare",
+    )),
+    _l("utilidad_por_accion_diluida_continuas",
+       "Utilidad por acción diluida, operaciones continuas", ESTADO_RESULTADOS, 455, (
+        "IncomeLossFromContinuingOperationsPerDilutedShare",
     )),
 )
 
