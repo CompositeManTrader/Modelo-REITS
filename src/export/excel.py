@@ -1150,7 +1150,11 @@ def _volcar_estados(wb: Workbook, estados: EstadosParaLibro) -> None:
             dataframe_a_hoja(wb, HOJA_PROPIA[clave], tabla)
     for clave, tabla in estados.bloomberg.items():
         if not tabla.empty:
-            columnas = [c for c in ("nivel", "seccion", "total") if c in tabla.columns]
+            # Se conservan `campo_bbg`, `ajuste` y `nota`: en el libro son la
+            # documentación del renglón, y quien lo abra fuera de la pantalla
+            # no tiene otra forma de saber qué ajuste se aplicó.
+            columnas = [c for c in ("nivel", "seccion", "formato")
+                        if c in tabla.columns]
             dataframe_a_hoja(wb, f"BBG {_HOJAS[clave]}", tabla.drop(columns=columnas))
     for clave, tabla in estados.reportados.items():
         if not tabla.empty:

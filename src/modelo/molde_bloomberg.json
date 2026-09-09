@@ -1,0 +1,1124 @@
+{
+ "resultados": [
+  {
+   "etiqueta": "Revenue",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "SALES_REV_TURN"
+  },
+  {
+   "etiqueta": "Rental Income",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "IS_RENT_INC"
+  },
+  {
+   "etiqueta": "Base Rent",
+   "nivel": 2,
+   "signo": "+",
+   "campo_bbg": "IS_MINIMUM_BASE_RENTAL_INCOME"
+  },
+  {
+   "etiqueta": "Recoveries from Tenants",
+   "nivel": 2,
+   "signo": "+",
+   "campo_bbg": "IS_TENANT_EXPENSE_REIMBURSEMENTS"
+  },
+  {
+   "etiqueta": "Percentage Rent",
+   "nivel": 2,
+   "signo": "+",
+   "campo_bbg": "IS_PERCENTAGE_RENTAL_INCOME"
+  },
+  {
+   "etiqueta": "Other Rental Income",
+   "nivel": 2,
+   "signo": "+",
+   "campo_bbg": "IS_OTHER_RENTAL_INCOME"
+  },
+  {
+   "etiqueta": "Real Estate Sales",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "REAL_ESTATE_SALES_REIT"
+  },
+  {
+   "etiqueta": "Com & Fee Earn/Inc from REO",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "IS_COMM_AND_FEE_EARN_INC_REO"
+  },
+  {
+   "etiqueta": "Mortgage Income",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "IS_INT_INC"
+  },
+  {
+   "etiqueta": "Other Operating Income",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "OTHER_OPERATING_INC_RATIO_REIT"
+  },
+  {
+   "etiqueta": "Operating Expenses",
+   "nivel": 1,
+   "signo": "-",
+   "campo_bbg": "TOTAL_OPERATING_EXPENSES_RATIO"
+  },
+  {
+   "etiqueta": "Property Operating Expenses",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "PRPTY_OPER_EXP"
+  },
+  {
+   "etiqueta": "General & Administrative",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "ENERGY_GENERAL_ADMIN_COST"
+  },
+  {
+   "etiqueta": "Depreciation & Amortization",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "DEPRECIATION_AMORTIZING_REIT"
+  },
+  {
+   "etiqueta": "Provision for Loan Losses",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "IS_PROV_FOR_LOAN_LOSS"
+  },
+  {
+   "etiqueta": "Cost of Real Estate Sold",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "IS_COST_OF_REAL_ESTATE_SOLD"
+  },
+  {
+   "etiqueta": "Other Operating Expenses",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "OTHER_OPERATING_EXPENSES_RATIO"
+  },
+  {
+   "etiqueta": "Operating Income (Loss)",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "EBIT"
+  },
+  {
+   "etiqueta": "Non-Operating (Income) Loss",
+   "nivel": 1,
+   "signo": "-",
+   "campo_bbg": "NONOP_INCOME_LOSS"
+  },
+  {
+   "etiqueta": "Interest Expense",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "IS_INT_EXPENSE"
+  },
+  {
+   "etiqueta": "(Income) Loss from Affiliates",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "IS_INC_UNCONS_EQTY_INT"
+  },
+  {
+   "etiqueta": "Other Non-Op (Income) Loss",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "OTHER_NONOP_INCOME_LOSS"
+  },
+  {
+   "etiqueta": "Pretax Income",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "PRETAX_INC"
+  },
+  {
+   "etiqueta": "Income Tax Expense (Benefit)",
+   "nivel": 1,
+   "signo": "-",
+   "campo_bbg": "IS_INC_TAX_EXP"
+  },
+  {
+   "etiqueta": "Income (Loss) from Cont Ops",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "IS_INC_BEF_XO_ITEM"
+  },
+  {
+   "etiqueta": "Net Extraordinary Losses (Gains)",
+   "nivel": 1,
+   "signo": "-",
+   "campo_bbg": "XO_GL_NET_OF_TAX"
+  },
+  {
+   "etiqueta": "Discontinued Operations",
+   "nivel": 2,
+   "signo": "+",
+   "campo_bbg": "IS_DISCONTINUED_OPERATIONS"
+  },
+  {
+   "etiqueta": "XO & Accounting Changes",
+   "nivel": 2,
+   "signo": "+",
+   "campo_bbg": "EXTRAORD_ITEMS_ACCOUNTING_CHANGS"
+  },
+  {
+   "etiqueta": "Income (Loss) Incl. MI",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "NI_INCLUDING_MINORITY_INT_RATIO"
+  },
+  {
+   "etiqueta": "Minority Interest",
+   "nivel": 1,
+   "signo": "-",
+   "campo_bbg": "MIN_NONCONTROL_INTEREST_CREDITS"
+  },
+  {
+   "etiqueta": "Net Income, GAAP",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "NET_INCOME"
+  },
+  {
+   "etiqueta": "Preferred Dividends",
+   "nivel": 1,
+   "signo": "-",
+   "campo_bbg": "IS_TOT_CASH_PFD_DVD"
+  },
+  {
+   "etiqueta": "Other Adjustments",
+   "nivel": 1,
+   "signo": "-",
+   "campo_bbg": "OTHER_ADJUSTMENTS"
+  },
+  {
+   "etiqueta": "Net Income Avail to Common, GAAP",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "EARN_FOR_COMMON"
+  },
+  {
+   "etiqueta": "Net Income Avail to Common, Adj",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "EARN_FOR_COMMON"
+  },
+  {
+   "etiqueta": "Net Abnormal Losses (Gains)",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "IS_NET_ABNORMAL_ITEMS"
+  },
+  {
+   "etiqueta": "Net Extraordinary Losses (Gains)",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "XO_GL_NET_OF_TAX"
+  },
+  {
+   "etiqueta": "Basic Weighted Avg Shares",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "IS_AVG_NUM_SH_FOR_EPS"
+  },
+  {
+   "etiqueta": "Basic EPS, GAAP",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "IS_EPS"
+  },
+  {
+   "etiqueta": "Basic EPS from Cont Ops, GAAP",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "IS_EARN_BEF_XO_ITEMS_PER_SH"
+  },
+  {
+   "etiqueta": "Basic EPS from Cont Ops, Adjusted",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "IS_BASIC_EPS_CONT_OPS"
+  },
+  {
+   "etiqueta": "Diluted Weighted Avg Shares",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "IS_SH_FOR_DILUTED_EPS"
+  },
+  {
+   "etiqueta": "Diluted EPS, GAAP",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "IS_DILUTED_EPS"
+  },
+  {
+   "etiqueta": "Diluted EPS from Cont Ops, GAAP",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "IS_DIL_EPS_BEF_XO"
+  },
+  {
+   "etiqueta": "Diluted EPS from Cont Ops, Adjusted",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "IS_DIL_EPS_CONT_OPS"
+  },
+  {
+   "etiqueta": "FFO Reconciliation",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": ""
+  },
+  {
+   "etiqueta": "Income (Loss) from Cont Ops",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "CF_FFO_NET_INCOME"
+  },
+  {
+   "etiqueta": "D&A of Con Real Estate",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "CF_FFO_DEPR_AMORT_CONSOL_PROP"
+  },
+  {
+   "etiqueta": "D&A of Uncon Real Estate",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "CF_FFO_DEPR_AMORT_UNCONSOL_PROP"
+  },
+  {
+   "etiqueta": "D&A from Disc Ops",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "CF_FFO_DISC_OPS_DEPR_AMORT"
+  },
+  {
+   "etiqueta": "Impairment of Assets",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "CF_FFO_IOA"
+  },
+  {
+   "etiqueta": "Disposal of Con Assets",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "CF_FFO_GAIN_SALE_OF_ASSET_CONS"
+  },
+  {
+   "etiqueta": "Disposal of Assets from Disc Ops",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "CF_FFO_DISC_OPS_GAIN_SALE_ASSETS"
+  },
+  {
+   "etiqueta": "Abnormal Losses/(Gains)",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "CF_FFO_ABNORMAL_UNUSUAL_ITEMS"
+  },
+  {
+   "etiqueta": "Minority Interest",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "CF_FFO_NON_CONTROL_MIN_INT"
+  },
+  {
+   "etiqueta": "Other FFO Adjustments",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "CF_FFO_OTHER_ADJUSTMENTS_FOR_FFO"
+  },
+  {
+   "etiqueta": "Funds from Operations",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "CF_FFO"
+  },
+  {
+   "etiqueta": "Other Abnormal Gains/(Losses)",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "AFFO_ONE_TIME_ITEMS"
+  },
+  {
+   "etiqueta": "Adjusted Funds from Operations",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "ADJUSTED_FUNDS_FROM_OPERATIONS"
+  },
+  {
+   "etiqueta": "Straight-Line Rent",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "FAD_STRAIGHT_LINE_RENT"
+  },
+  {
+   "etiqueta": "Stock-Based Compensation",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "IS_FAD_SBC"
+  },
+  {
+   "etiqueta": "Amortization of Financing Costs",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "IS_FAD_AMORT_FINANCING_COSTS"
+  },
+  {
+   "etiqueta": "Recurring Capital Expenditure",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "FAD_RECURRING_CPTL_EXPND_MAINT"
+  },
+  {
+   "etiqueta": "Accounting Adjustments",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "FAD_ACCOUNTING_ADJUSTMENTS"
+  },
+  {
+   "etiqueta": "Tenant Improv & Leasing Com",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "FFO_LEASE_TERMINATION_FEES"
+  },
+  {
+   "etiqueta": "Other Adjustments",
+   "nivel": 1,
+   "signo": "",
+   "campo_bbg": "FAD_OTHER_ADJUSTMENTS"
+  },
+  {
+   "etiqueta": "Funds Available For Distribution",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "FUNDS_AVAILABLE_FOR_DISTRIBUTION"
+  },
+  {
+   "etiqueta": "AFFO Per Diluted Share",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "ADJUSTED_FFOPS"
+  },
+  {
+   "etiqueta": "FAD Per Diluted Share",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "FUNDS_AVAILABLE_FOR_DIST_PER_SH"
+  },
+  {
+   "etiqueta": "Dividend Per Share",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "IS_DIV_PER_SHR"
+  },
+  {
+   "etiqueta": "AFFO Payout Ratio",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "ADJUSTED_FFO_PAYOUT_RATIO"
+  },
+  {
+   "etiqueta": "FAD Payout Ratio",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "FUNDS_AVAIL_DIST_PAYOUT_RATIO"
+  },
+  {
+   "etiqueta": "FFO Payout Ratio",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "FFO_PAYOUT_RATIO"
+  },
+  {
+   "etiqueta": "Reference Items",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": ""
+  },
+  {
+   "etiqueta": "Accounting Standard",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "ACCOUNTING_STANDARD"
+  },
+  {
+   "etiqueta": "EBITDA",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "EBITDA"
+  },
+  {
+   "etiqueta": "EBITDA Margin (T12M)",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "EBITDA_MARGIN"
+  },
+  {
+   "etiqueta": "Current Profit",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "CUR_PROFIT_JAPAN"
+  },
+  {
+   "etiqueta": "Operating Margin",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "OPER_MARGIN"
+  },
+  {
+   "etiqueta": "Dividends/Distributions per Share/Unit",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "EQY_DPS"
+  },
+  {
+   "etiqueta": "Total Cash Common Dividends",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "IS_TOT_CASH_COM_DVD"
+  },
+  {
+   "etiqueta": "Sales per Employee",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "ACTUAL_SALES_PER_EMPL"
+  },
+  {
+   "etiqueta": "FFO Return",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "FFO_RETURN"
+  },
+  {
+   "etiqueta": "FFO Per Share - Fully Diluted",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "CF_FFO_PER_SH_DILUTED"
+  },
+  {
+   "etiqueta": "FFO to Diluted Shares - 1 Yr Growth",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "FFO_TO_SHARE_GROWTH_DILUTED"
+  },
+  {
+   "etiqueta": "FFO per Share Growth",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "FFO_PER_SH_GROWTH"
+  },
+  {
+   "etiqueta": "FAD per Share Diluted",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "CF_FAD_PER_SH_DILUTED"
+  },
+  {
+   "etiqueta": "Real Estate Tax Expense",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "IS_RE_TAX_EXP"
+  },
+  {
+   "etiqueta": "Maintenance Expense (REITS)",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "IS_MAINT_EXP_REITS"
+  },
+  {
+   "etiqueta": "Real Estate Write-Downs",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "IS_UNTAXED_RSRV"
+  },
+  {
+   "etiqueta": "Number of Properties Owned",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "IS_NUMBER_OF_PROPERTIES"
+  },
+  {
+   "etiqueta": "Gross Leaseable Area (Sq Ft)",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "IS_SQUARE_GLA"
+  }
+ ],
+ "balance": [
+  {
+   "etiqueta": "Assets",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": ""
+  },
+  {
+   "etiqueta": "Real Estate Held for Sale",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "REAL_ESTATE_PPTYS_HLD_SALE_REIT"
+  },
+  {
+   "etiqueta": "Real Estate Equity Interests",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "BS_INVEST_IN_ASSOC_CO"
+  },
+  {
+   "etiqueta": "Net Real Estate Property",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "NET_REAL_ESTATE_PROPERTY_REIT"
+  },
+  {
+   "etiqueta": "Gross Real Estate Property",
+   "nivel": 2,
+   "signo": "+",
+   "campo_bbg": "BS_GROSS_FIX_ASSET"
+  },
+  {
+   "etiqueta": "Accumulated Depreciation",
+   "nivel": 2,
+   "signo": "-",
+   "campo_bbg": "BS_ACCUM_DEPR"
+  },
+  {
+   "etiqueta": "Net Mortgages & Notes",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "NET_MORTGAGES_NOTES"
+  },
+  {
+   "etiqueta": "Mortgage Loan (REIT)",
+   "nivel": 2,
+   "signo": "+",
+   "campo_bbg": "MORTGAGE_LOAN_REIT"
+  },
+  {
+   "etiqueta": "Notes Receivable",
+   "nivel": 2,
+   "signo": "+",
+   "campo_bbg": "NOTES_RECEIVABLE"
+  },
+  {
+   "etiqueta": "Allowance for Loan Losses",
+   "nivel": 2,
+   "signo": "-",
+   "campo_bbg": "BS_LESS_ALLOW"
+  },
+  {
+   "etiqueta": "Mortgage Backed Invt",
+   "nivel": 2,
+   "signo": "+",
+   "campo_bbg": "BS_TOT_MTG_BACK_INVEST_CMO"
+  },
+  {
+   "etiqueta": "Total Real Estate Investments",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "BS_RE_INVEST"
+  },
+  {
+   "etiqueta": "Cash & Near Cash Items",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "BS_CASH_NEAR_CASH_ITEM"
+  },
+  {
+   "etiqueta": "Accounts Receivable",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "ACCOUNTS_RECEIVABLE_REIT"
+  },
+  {
+   "etiqueta": "Other Investments",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "OTHER_INVESTMENTS_REIT"
+  },
+  {
+   "etiqueta": "Other Assets",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "BS_OTHER_ASSETS_DEF_CHRG_OTHER"
+  },
+  {
+   "etiqueta": "Restricted Assets",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "RESTRICTED_ASSETS"
+  },
+  {
+   "etiqueta": "Total Assets",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "BS_TOT_ASSET"
+  },
+  {
+   "etiqueta": "Liabilities & Shareholders' Equity",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": ""
+  },
+  {
+   "etiqueta": "Accounts Payable",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "ACCOUNTS_PAYABLE_AND_ACCRUALS"
+  },
+  {
+   "etiqueta": "ST Liabilities & Deposits",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "ST_LIAB_AND_DPST"
+  },
+  {
+   "etiqueta": "Security Deposits",
+   "nivel": 2,
+   "signo": "+",
+   "campo_bbg": "BS_CUSTOMER_DEPOSITS"
+  },
+  {
+   "etiqueta": "Other ST Liabilities",
+   "nivel": 2,
+   "signo": "+",
+   "campo_bbg": "BS_OTHER_ST_LIAB"
+  },
+  {
+   "etiqueta": "Secured & Unsecured Debt",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "SHORT_AND_LONG_TERM_DEBT"
+  },
+  {
+   "etiqueta": "Unsecured Debt",
+   "nivel": 2,
+   "signo": "+",
+   "campo_bbg": "BS_NOTES_AND_UNSECURED_DEBT"
+  },
+  {
+   "etiqueta": "Secured Debt",
+   "nivel": 2,
+   "signo": "+",
+   "campo_bbg": "BS_MTG_OTHER_SECURED_DEBT"
+  },
+  {
+   "etiqueta": "Other Long-Term Liabilities",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "BS_OTHER_LT_LIABILITIES"
+  },
+  {
+   "etiqueta": "Total Liabilities",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "BS_TOT_LIAB2"
+  },
+  {
+   "etiqueta": "Total Preferred Equity",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "PFD_EQTY_HYBRID_CAPITAL"
+  },
+  {
+   "etiqueta": "Minority Interest",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "MINORITY_NONCONTROLLING_INTEREST"
+  },
+  {
+   "etiqueta": "Share Capital & APIC",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "BS_SH_CAP_AND_APIC"
+  },
+  {
+   "etiqueta": "Retained Earnings & Other Equity",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "BS_RETAIN_EARN"
+  },
+  {
+   "etiqueta": "Total Equity",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "TOTAL_EQUITY"
+  },
+  {
+   "etiqueta": "Total Liabilities & Equity",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "BS_TOT_LIAB_EQY"
+  },
+  {
+   "etiqueta": "Reference Items",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": ""
+  },
+  {
+   "etiqueta": "Accounting Standard",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "ACCOUNTING_STANDARD"
+  },
+  {
+   "etiqueta": "Shares Outstanding",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "BS_SH_OUT"
+  },
+  {
+   "etiqueta": "Number of Treasury Shares",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "BS_NUM_OF_TSY_SH"
+  },
+  {
+   "etiqueta": "Amount of Treasury Shares",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "BS_AMT_OF_TSY_STOCK"
+  },
+  {
+   "etiqueta": "Pension Obligations",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "BS_PENSION_RSRV"
+  },
+  {
+   "etiqueta": "Operating Leases",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "BS_FUTURE_MIN_OPER_LEASE_OBLIG"
+  },
+  {
+   "etiqueta": "Capital Leases - Short Term",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "ST_CAPITAL_LEASE_OBLIGATIONS"
+  },
+  {
+   "etiqueta": "Capital Leases - Long Term",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "LT_CAPITAL_LEASE_OBLIGATIONS"
+  },
+  {
+   "etiqueta": "Capital Leases - Total",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "BS_TOTAL_CAPITAL_LEASES"
+  },
+  {
+   "etiqueta": "Variable Rate Debt",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "BS_VAR_RT_DEBT"
+  },
+  {
+   "etiqueta": "Fixed Rate Debt",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "BS_FIX_RT_DEBT"
+  },
+  {
+   "etiqueta": "Book Value per Share",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "BOOK_VAL_PER_SH"
+  },
+  {
+   "etiqueta": "Non-Depreciable Real Estate",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "BS_NON_DEPR_DECOMM_FUND"
+  },
+  {
+   "etiqueta": "Projects Under Development",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "BS_PROJ_UNDER_DVLP_CONST"
+  },
+  {
+   "etiqueta": "Net Debt",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "NET_DEBT"
+  },
+  {
+   "etiqueta": "Tangible Common Equity Ratio",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "TCE_RATIO"
+  },
+  {
+   "etiqueta": "Debt to Real-Estate Investment",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "DEBT_TO_RE_ASSET"
+  },
+  {
+   "etiqueta": "Total Debt to Total Capital",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "TOT_DEBT_TO_TOT_CAP"
+  },
+  {
+   "etiqueta": "Total Liabilities to Total Common Equity",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "TOT_LIAB_PER_COM_EQY"
+  },
+  {
+   "etiqueta": "Number of Employees",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "NUM_OF_EMPLOYEES"
+  }
+ ],
+ "flujo": [
+  {
+   "etiqueta": "Cash From Operating Activities",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": ""
+  },
+  {
+   "etiqueta": "Net Income",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "CF_NET_INC"
+  },
+  {
+   "etiqueta": "Depreciation & Amortization",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "CF_DEPR_AMORT"
+  },
+  {
+   "etiqueta": "Provision for Doubtful Accounts",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "CF_PROV_DOUBT_ACCT"
+  },
+  {
+   "etiqueta": "Other Non-Cash Adjustments",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "CF_OTHER_NON_CASH_ADJUST"
+  },
+  {
+   "etiqueta": "Changes in Non-Cash Capital",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "CF_CHNG_NON_CASH_WORK_CAP"
+  },
+  {
+   "etiqueta": "Cash From Operating Activities",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "CF_CASH_FROM_OPER"
+  },
+  {
+   "etiqueta": "Cash From Investing Activities",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": ""
+  },
+  {
+   "etiqueta": "Disposal of Fixed Assets",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "CF_DISP_FIX_ASSET"
+  },
+  {
+   "etiqueta": "Property Additions",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "CF_CAP_EXPEND_PRPTY_ADD"
+  },
+  {
+   "etiqueta": "Property Improvements",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "CF_PRPTY_IMPRV"
+  },
+  {
+   "etiqueta": "Change in Investments",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "CHANGE_IN_INVESTMENTS_REIT"
+  },
+  {
+   "etiqueta": "Change in Notes",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "CHANGE_IN_NOTES_REIT"
+  },
+  {
+   "etiqueta": "Change in Mortgages",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "CF_CHANGE_IN_LOANS"
+  },
+  {
+   "etiqueta": "Change in Real Estate Interest",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "DEC_INC_RE_INT"
+  },
+  {
+   "etiqueta": "Other Investing Activities",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "CF_OTHER_INV_ACT"
+  },
+  {
+   "etiqueta": "Cash from Investing Activities",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "CF_CASH_FROM_INV_ACT"
+  },
+  {
+   "etiqueta": "Cash from Financing Activities",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": ""
+  },
+  {
+   "etiqueta": "Dividends Paid",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "CF_DVD_PAID"
+  },
+  {
+   "etiqueta": "Preferred Dividends Other Distributions",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "PREF_DVDS_OTH_DIST"
+  },
+  {
+   "etiqueta": "Proceeds from Repayments of Borrowings",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "PROC_FR_REPAYMNTS_BOR_DETAILED"
+  },
+  {
+   "etiqueta": "Change in Unsecured Debt",
+   "nivel": 2,
+   "signo": "+",
+   "campo_bbg": "CF_INCR_DECR_NOTES_UNSEC_DEBT"
+  },
+  {
+   "etiqueta": "Change in Secured Debt",
+   "nivel": 2,
+   "signo": "+",
+   "campo_bbg": "CF_INCR_DECR_MTG_OTH_SECD_DBT"
+  },
+  {
+   "etiqueta": "Increase in Capital Stocks",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "CF_INCR_CAP_STOCK"
+  },
+  {
+   "etiqueta": "Decrease in Capital Stocks",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "CF_DECR_CAP_STOCK"
+  },
+  {
+   "etiqueta": "Other Financing Activities",
+   "nivel": 1,
+   "signo": "+",
+   "campo_bbg": "CF_OTHER_FNC_ACT"
+  },
+  {
+   "etiqueta": "Cash from Financing Activities",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "CF_CASH_FROM_FNC_ACT"
+  },
+  {
+   "etiqueta": "Net Changes in Cash",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "CF_NET_CHNG_CASH"
+  },
+  {
+   "etiqueta": "Reference Items",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": ""
+  },
+  {
+   "etiqueta": "EBITDA",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "EBITDA"
+  },
+  {
+   "etiqueta": "Trailing 12M EBITDA Margin",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "EBITDA_MARGIN"
+  },
+  {
+   "etiqueta": "Funds From Operations",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "CF_FFO"
+  },
+  {
+   "etiqueta": "Free Cash Flow to Equity",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "FREE_CASH_FLOW_EQUITY"
+  },
+  {
+   "etiqueta": "FFO Per Share",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "CF_FFO_PER_SH"
+  },
+  {
+   "etiqueta": "Cash Paid for Taxes",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "CF_CASH_PAID_FOR_TAX"
+  },
+  {
+   "etiqueta": "Cash Paid for Interest",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "CF_ACT_CASH_PAID_FOR_INT_DEBT"
+  },
+  {
+   "etiqueta": "Net Cash Paid for Acquisitions",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "CF_NET_CASH_PAID_FOR_AQUIS"
+  },
+  {
+   "etiqueta": "Capital Expenditures to Real-Estate Investment",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "CAP_EXPEND_PER_RE"
+  },
+  {
+   "etiqueta": "Capital Expenditures to FFO",
+   "nivel": 0,
+   "signo": "",
+   "campo_bbg": "CAP_EXPEND_TO_FFO"
+  }
+ ]
+}

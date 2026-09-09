@@ -137,8 +137,8 @@ from src.validacion.cuadre import cuadrar_conciliacion  # noqa: E402
 # único que cambia entre vistas es de dónde salen los renglones.
 
 _NO_NUMERICAS = frozenset(
-    {"Renglón", "Ratio", "nivel", "seccion", "total", "ajuste", "nota", "tag",
-     "verificado", "sangria", "formato", "explicacion"}
+    {"Renglón", "Ratio", "tag", "verificado", "sangria", "explicacion",
+     *bloomberg.COLUMNAS_DE_APOYO}
 )
 
 
@@ -177,7 +177,9 @@ def _marcar_ajustes(tabla: pd.DataFrame) -> pd.DataFrame:
         f"{renglon}  ⚙" if ajuste else renglon
         for renglon, ajuste in zip(vista["Renglón"], vista["ajuste"], strict=True)
     ]
-    return vista.drop(columns=["nivel", "seccion", "total", "ajuste", "nota"])
+    # Se quedan fuera de la tabla las columnas de apoyo; el ajuste ya viajó al
+    # renglón como ⚙ y su texto completo va en el desplegable de abajo.
+    return vista.drop(columns=list(bloomberg.COLUMNAS_DE_APOYO))
 
 
 def _formatear_ratios(tabla: pd.DataFrame) -> pd.DataFrame:
