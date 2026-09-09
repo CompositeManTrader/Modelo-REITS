@@ -366,7 +366,7 @@ def test_los_renglones_que_no_salen_de_un_filing_quedan_vacios():
         pytest.skip("No hay base cargada.")
     tabla = B.armar(panel, B.RESULTADOS, n_periodos=1)
     columnas = [c for c in tabla.columns
-                if c not in ("Renglón", "nivel", "seccion", "total", "ajuste", "nota")]
+                if c not in ("Renglón", *B.COLUMNAS_DE_APOYO)]
     for etiqueta in ("Number of Properties Owned", "Gross Leaseable Area (Sq Ft)"):
         fila = tabla[tabla["Renglón"].str.strip() == etiqueta]
         assert not fila.empty
@@ -375,10 +375,13 @@ def test_los_renglones_que_no_salen_de_un_filing_quedan_vacios():
 
 def test_los_ajustes_de_bloomberg_estan_nombrados_en_los_renglones_que_toca():
     """El ajuste no se aplica en silencio: el renglón lo declara."""
+    # La etiqueta del molde NO lleva el signo: el «+» es presentación y vive
+    # aparte, en `signo_texto`. Buscarlo dentro del nombre era acoplarse a cómo
+    # se dibuja el renglón, no a cuál es.
     por_etiqueta = {ln.etiqueta: ln for ln in B.PLANTILLA[B.BALANCE]}
-    assert por_etiqueta["+ Secured & Unsecured Debt"].ajuste
-    assert "arrendamientos" in por_etiqueta["+ Secured & Unsecured Debt"].ajuste.lower()
-    assert por_etiqueta["+ Accounts Payable"].ajuste
+    assert por_etiqueta["Secured & Unsecured Debt"].ajuste
+    assert "arrendamientos" in por_etiqueta["Secured & Unsecured Debt"].ajuste.lower()
+    assert por_etiqueta["Accounts Payable"].ajuste
 
 
 def test_la_deuda_de_bloomberg_mete_el_arrendamiento_adentro():
@@ -393,7 +396,7 @@ def test_la_deuda_de_bloomberg_mete_el_arrendamiento_adentro():
         pytest.skip("No hay base cargada.")
     tabla = B.armar(panel, B.BALANCE, n_periodos=1)
     columnas = [c for c in tabla.columns
-                if c not in ("Renglón", "nivel", "seccion", "total", "ajuste", "nota")]
+                if c not in ("Renglón", *B.COLUMNAS_DE_APOYO)]
     fila = tabla[tabla["Renglón"].str.strip() == "+ Secured & Unsecured Debt"]
     deuda = float(fila[columnas].iloc[0, -1]) / 1e6
     assert deuda == pytest.approx(31_065.9, rel=0.002)
@@ -509,3 +512,162 @@ def test_el_libro_de_excel_trae_las_tres_vistas():
     # Y ninguna hoja truncada a 31 caracteres, que se confundiría con otra.
     assert len(set(nombres)) == len(nombres)
     assert all(len(n) <= 31 for n in nombres)
+
+
+# --------------------------------------------------------------------------------------
+# 37.8 · El molde de Bloomberg está COMPLETO
+# --------------------------------------------------------------------------------------
+#
+# La primera versión de la vista escribía los renglones a mano y se quedó en 89 de
+# 186: faltaba más de la mitad del estado de resultados, casi la mitad del balance
+# y TODOS los ratios —los tres payout, los márgenes, el book value por acción, la
+# deuda a capital—. Un molde "de Bloomberg" al que le faltan noventa y seis
+# renglones no es el molde de Bloomberg; es una selección con su nombre.
+#
+# Lo peor es cómo se veía: la tabla salía ordenada, con encabezados correctos y
+# cifras correctas. Nada gritaba "aquí falta la mitad". Por eso el molde dejó de
+# escribirse y pasó a leerse de `molde_bloomberg.json`, y por eso estas pruebas
+# cuentan renglones en vez de mirar unos cuantos.
+
+RENGLONES_DEL_MOLDE = {"resultados": 92, "balance": 55, "flujo": 39}
+
+
+def test_el_molde_tiene_los_186_renglones_del_export():
+    """El conteo exacto, por estado. Si alguien recorta el molde, esto lo dice."""
+    for estado, esperados in RENGLONES_DEL_MOLDE.items():
+        assert len(B.PLANTILLA[estado]) == esperados, estado
+    assert sum(len(v) for v in B.PLANTILLA.values()) == 186
+
+
+def test_el_molde_conserva_el_orden_y_la_jerarquia_del_export():
+    """Tres anclas por estado: el primero, el último y un renglón anidado.
+
+    Reordenar el molde cambia el estado financiero, aunque los renglones sigan
+    todos ahí: en un estado el orden ES parte del significado.
+    """
+    resultados = B.PLANTILLA[B.RESULTADOS]
+    assert resultados[0].etiqueta == "Revenue" and resultados[0].nivel == 0
+    assert resultados[-1].etiqueta == "Gross Leaseable Area (Sq Ft)"
+    # «Base Rent» cuelga de «Rental Income», que cuelga de «Revenue».
+    base = next(ln for ln in resultados if ln.etiqueta == "Base Rent")
+    assert base.nivel == 2
+
+    balance = B.PLANTILLA[B.BALANCE]
+    assert balance[0].etiqueta == "Assets"
+    assert balance[-1].etiqueta == "Number of Employees"
+    unsecured = next(ln for ln in balance if ln.etiqueta == "Unsecured Debt")
+    assert unsecured.nivel == 2
+
+    flujo = B.PLANTILLA[B.FLUJO]
+    assert flujo[0].etiqueta == "Cash From Operating Activities"
+    assert flujo[-1].etiqueta == "Capital Expenditures to FFO"
+
+
+def test_los_ratios_del_molde_estan_todos_mapeados():
+    """La otra mitad de lo que faltaba: Bloomberg publica ratios, no solo montos.
+
+    Se enumeran a propósito en vez de contarlos: un conteo pasa aunque se cambie
+    un ratio por otro, y estos son los que un tenedor de REIT mira.
+    """
+    esperados = {
+        B.RESULTADOS: ("AFFO Payout Ratio", "FAD Payout Ratio", "FFO Payout Ratio",
+                       "EBITDA Margin (T12M)", "Operating Margin", "FFO per Share Growth"),
+        B.BALANCE: ("Book Value per Share", "Net Debt", "Total Debt to Total Capital",
+                    "Debt to Real-Estate Investment", "Tangible Common Equity Ratio",
+                    "Total Liabilities to Total Common Equity"),
+        B.FLUJO: ("Trailing 12M EBITDA Margin", "Capital Expenditures to FFO",
+                  "Capital Expenditures to Real-Estate Investment"),
+    }
+    for estado, etiquetas in esperados.items():
+        por_etiqueta = {ln.etiqueta: ln for ln in B.PLANTILLA[estado]}
+        for etiqueta in etiquetas:
+            linea = por_etiqueta.get(etiqueta)
+            assert linea is not None, f"{estado}: falta {etiqueta} en el molde"
+            assert linea.rinde_cifra, f"{estado}: {etiqueta} está en el molde y no se calcula"
+
+
+def test_el_mapeo_no_nombra_renglones_que_no_existen():
+    """Un mapeo huérfano es una etiqueta mal escrita que nunca se va a llenar.
+
+    Sin esto, cambiar «Net Debt» por «Net debt» en el mapeo no rompe nada: el
+    renglón simplemente sale vacío para siempre, como si no tuviéramos el dato.
+    """
+    for estado, mapeo in B.MAPEO.items():
+        del_molde = {ln.etiqueta for ln in B.PLANTILLA[estado]}
+        huerfanas = sorted(set(mapeo) - del_molde)
+        assert huerfanas == [], f"{estado}: {huerfanas}"
+
+
+def test_cada_renglon_sin_dato_dice_por_que():
+    """Un hueco tiene nombre. Es el principio de la pantalla, aplicado al molde.
+
+    Un renglón que ni se calcula ni explica por qué es un olvido disfrazado de
+    dato faltante, y desde afuera los dos se ven igual.
+    """
+    mudos = []
+    for estado, plantilla in B.PLANTILLA.items():
+        for linea in plantilla:
+            if linea.seccion or linea.rinde_cifra or linea.nota:
+                continue
+            mudos.append(f"{estado}: {linea.etiqueta}")
+    assert mudos == [], "renglones sin dato y sin explicación:\n" + "\n".join(mudos)
+
+
+def test_la_utilidad_antes_y_despues_del_minoritario_no_son_la_misma():
+    """Salían idénticas, y el minoritario aparecía restándose de la nada.
+
+    Bloomberg parte de la utilidad CON minoritario y lo baja en el renglón
+    siguiente; nuestro `utilidad_neta` sale de `NetIncomeLoss`, que en us-gaap ya
+    es la atribuible a la controladora. Mapear los dos renglones a la misma clave
+    daba una cascada que no cerraba: 344.0, menos 26.6, igual a 344.0.
+    """
+    panel = _panel()
+    if panel.empty:
+        pytest.skip("No hay base cargada.")
+    tabla = B.armar(panel, B.RESULTADOS, n_periodos=1)
+    columna = [c for c in tabla.columns
+               if c not in ("Renglón", *B.COLUMNAS_DE_APOYO)][0]
+
+    def valor(etiqueta):
+        fila = tabla[tabla["Renglón"].str.strip().str.lstrip("+- ") == etiqueta]
+        return None if fila.empty else fila[columna].iloc[0]
+
+    con_mi = valor("Income (Loss) Incl. MI")
+    sin_mi = valor("Net Income, GAAP")
+    minoritario = valor("Minority Interest")
+    if con_mi is None or sin_mi is None or pd.isna(con_mi) or pd.isna(sin_mi):
+        pytest.skip("La emisora no reporta las dos cifras al corte.")
+    assert con_mi != sin_mi, "los dos renglones volvieron a la misma clave"
+    assert con_mi - minoritario == pytest.approx(sin_mi, rel=0.001), "la cascada no cierra"
+
+
+def test_el_encabezado_de_seccion_no_lleva_cifra():
+    """El flujo repite «Cash From Operating Activities»: título y total.
+
+    Mapeando por etiqueta, el título se llevaba también la cifra del total y el
+    bloque salía con el mismo número arriba y abajo, como si el estado sumara
+    dos veces. Un encabezado es un encabezado aunque se llame igual que su total.
+    """
+    flujo = B.PLANTILLA[B.FLUJO]
+    titulo = flujo[0]
+    assert titulo.etiqueta == "Cash From Operating Activities"
+    assert titulo.seccion and not titulo.rinde_cifra, "el título se llevó la cifra"
+    total = next(ln for ln in flujo[1:] if ln.etiqueta == "Cash From Operating Activities")
+    assert total.rinde_cifra, "el total se quedó sin cifra"
+
+
+def test_un_renglon_que_no_llenamos_sigue_contando_en_la_cobertura():
+    """La cobertura no puede mejorar por ignorar lo que no sabemos llenar.
+
+    La primera regla decía que un renglón de nivel cero sin dato era un
+    encabezado, así que «Number of Employees» y «Sales per Employee» salían del
+    denominador: la vista se veía más completa cuanto MENOS supiera llenar. Los
+    encabezados de verdad son los que el propio export deja sin mnemónico.
+    """
+    for estado in B.ESTADOS:
+        secciones = [ln for ln in B.PLANTILLA[estado] if ln.seccion]
+        assert len(secciones) <= 4, f"{estado}: {len(secciones)} encabezados es demasiado"
+        for linea in secciones:
+            assert not linea.campo_bbg, f"{estado}: {linea.etiqueta} sí es un dato"
+    por_etiqueta = {ln.etiqueta: ln for ln in B.PLANTILLA[B.BALANCE]}
+    assert not por_etiqueta["Number of Employees"].seccion

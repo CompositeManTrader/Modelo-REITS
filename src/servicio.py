@@ -609,6 +609,41 @@ def _derivar_ebitdare(trimestral: pd.DataFrame) -> pd.Series:
     return suma.where(utilidad.notna() & (intereses > 0) & depreciacion.notna())
 
 
+def hechos_descartados_por_escala(
+    repo: Repositorio, ticker: str, *, asof: dt.date
+) -> pd.DataFrame:
+    """Lo que se retiró del modelo por venir en la escala equivocada, con su razón.
+
+    Un hueco sin nombre es un olvido disfrazado de dato faltante, y desde afuera
+    se ven igual. Estas filas no se borraron: siguen en la base y se pueden leer
+    con ``incluir_sospechosos=True``; lo que dejaron de hacer es alimentar el
+    modelo. Que la pantalla las nombre es la diferencia entre un dato retirado y
+    un dato que se perdió.
+    """
+    from src.ingesta.estados import LINEA_POR_CLAVE
+
+    hechos = repo.hechos(
+        asof=asof, tickers=ticker, vigentes=False, incluir_sospechosos=True
+    )
+    if hechos.empty or "nota_validacion" not in hechos:
+        return pd.DataFrame()
+    escala = hechos[hechos["nota_validacion"].astype(str).str.startswith("Escala")]
+    if escala.empty:
+        return pd.DataFrame()
+    filas = []
+    for _, fila in escala.sort_values(["fecha_dato", "concepto"]).iterrows():
+        linea = LINEA_POR_CLAVE.get(fila["concepto"])
+        filas.append({
+            "Renglón": linea.etiqueta if linea else fila["concepto"],
+            "Periodo": pd.Timestamp(fila["fecha_dato"]).date().isoformat(),
+            "Tipo": fila["periodo_tipo"],
+            "Publicado": pd.Timestamp(fila["fecha_publicacion"]).date().isoformat(),
+            "Valor que traía": float(fila["valor"]),
+            "Por qué se descartó": str(fila["nota_validacion"]),
+        })
+    return pd.DataFrame(filas)
+
+
 def saldos_de_balance(repo: Repositorio, ticker: str, *, asof: dt.date) -> dict[str, float]:
     """Los saldos del balance al corte, para quien los necesite fuera del panel.
 
@@ -860,9 +895,14 @@ def panel_de_conceptos(
     *,
     asof: dt.date,
     periodo_tipo: str = "Q",
-    n_periodos: int = 8,
+    n_periodos: int | None = None,
 ) -> pd.DataFrame:
     """TODO el catálogo al corte, ancho: periodos × conceptos.
+
+    ``n_periodos=None`` es TODA la historia, y es lo que se quiere por omisión.
+    Realty Income tiene setenta trimestres y dieciocho ejercicios; recortar a
+    ocho por omisión era una decisión de pantalla metida en la capa de datos, y
+    se llevaba al libro de Excel sin que nadie pudiera pedir el resto.
 
     Existe porque el panel del modelo no sirve para dibujar un estado. Ese panel
     carga los conceptos que la valuación consume —`CONCEPTOS_PANEL`— y ninguno de
@@ -954,9 +994,11 @@ def estado_financiero(
     *,
     asof: dt.date,
     periodo_tipo: str = "Q",
-    n_periodos: int = 8,
+    n_periodos: int | None = None,
 ) -> pd.DataFrame:
     """Un estado financiero al corte, en formato ancho: renglones × periodos.
+
+    ``n_periodos=None`` trae toda la historia disponible. Ver `panel_de_conceptos`.
 
     Se arma desde la base y no desde EDGAR: los tres estados ya están persistidos
     como conceptos, así que dibujarlos no cuesta una descarga. El orden de los
@@ -993,7 +1035,8 @@ def estado_financiero(
         ancho = ancho.loc[:, llenado >= 0.25]
     if ancho.empty or not len(ancho.columns):
         return pd.DataFrame()
-    ancho = ancho[sorted(ancho.columns)[-n_periodos:]]
+    ordenadas = sorted(ancho.columns)
+    ancho = ancho[ordenadas if n_periodos is None else ordenadas[-n_periodos:]]
     ancho = ancho.reindex([c for c in claves if c in ancho.index])
     ancho.insert(0, "Renglón", [LINEA_POR_CLAVE[c].etiqueta for c in ancho.index])
     ancho.columns = [
@@ -1325,59 +1368,251 @@ RATIOS_PROPIOS: tuple[tuple[str, str, str, str], ...] = (
 )
 
 
-def ratios_propios(panel: pd.DataFrame, *, saldos: dict | None = None) -> pd.DataFrame:
+# --------------------------------------------------------------------------------------
+# Los ratios, declarados una sola vez
+# --------------------------------------------------------------------------------------
+#
+# Es la misma idea que la `Formula` del molde de Bloomberg y por la misma razón:
+# el cálculo se declara una vez y lo leen los dos destinos —la pantalla en Python
+# y el libro de Excel, como fórmula viva que apunta a los renglones del estado—.
+# Dos implementaciones del mismo ratio se separan; una declaración y dos
+# traductores, no.
+
+
+@dataclass(frozen=True)
+class InsumoDerivado:
+    """Un derivado que no es renglón de ningún estado y que varios ratios reusan.
+
+    `exigidos` son las partidas sin las cuales NO HAY número. `opcionales` valen
+    cero cuando faltan —un trimestre sin deterioro es un trimestre normal, no un
+    hueco—. La diferencia entre las dos listas es la que separa un dato ausente
+    de un cero legítimo, y equivocarla no produce un número incompleto: produce
+    otro número.
+
+    `por_celda` distingue las dos formas de exigir, que no son la misma:
+
+    * ``True`` —el EBITDAre— pide el dato EN ESE PERIODO. Es la guarda de la
+      prueba 36: la depreciación en cero da un EBITDAre más chico que entra al
+      apalancamiento como si fuera el bueno.
+    * ``False`` —el NOI— pide que la partida exista en la serie; un trimestre sin
+      ella cuenta como cero y lo que filtra es la positividad y el piso. Es lo
+      que hace `_col_estricta`.
+
+    `positivos` exige que la cadena sea mayor que cero —sin intereses no es
+    EBITDAre, es utilidad operativa con otro nombre—; `piso` descarta el
+    resultado que no llega a esa fracción de su base, que es la guarda que evita
+    el NOI de Welltower derivado de una pierna que no ve el negocio.
+    """
+
+    clave: str
+    etiqueta: str
+    exigidos: tuple[tuple[int, tuple[str, ...]], ...]
+    opcionales: tuple[tuple[int, tuple[str, ...]], ...] = ()
+    por_celda: bool = False
+    positivos: tuple[tuple[str, ...], ...] = ()
+    resultado_positivo: bool = False
+    piso: tuple[float, tuple[str, ...]] | None = None
+
+
+@dataclass(frozen=True)
+class FormulaRatio:
+    """Un ratio como numerador ÷ denominador sobre CLAVES del catálogo.
+
+    Las claves con arroba no son renglones: son los `InsumoDerivado` que la hoja
+    escribe arriba con su propia fórmula, para poder verlos en vez de deducirlos
+    de tres divisiones.
+
+    `anualiza_numerador` y `anualiza_denominador` multiplican por cuatro el lado
+    que trae un flujo TRIMESTRAL cuando el otro trae un saldo. Van los dos porque
+    los dos ocurren: el costo de la deuda anualiza arriba —intereses del
+    trimestre contra la deuda al corte— y el apalancamiento abajo —deuda neta al
+    corte contra EBITDAre del trimestre—. Con un solo campo, uno de los dos sale
+    con un factor de cuatro de error y ninguno avisa.
+    """
+
+    numerador: tuple[tuple[int, str], ...]
+    denominador: tuple[tuple[int, str], ...]
+    anualiza_numerador: int = 1
+    anualiza_denominador: int = 1
+    opcionales: tuple[str, ...] = ()
+
+
+# Los insumos derivados, con la MISMA regla que usa el modelo. Reproducen
+# `_derivar_noi` y `_derivar_ebitdare`; la prueba 37.6 lo verifica renglón por
+# renglón para que no se separen.
+INSUMOS_DE_RATIOS: tuple[InsumoDerivado, ...] = (
+    InsumoDerivado(
+        clave="@noi",
+        etiqueta="NOI del periodo",
+        exigidos=(
+            (1, ("ingreso_rentas",)),
+            (-1, ("gasto_operacion_inmueble", "gastos_operativos_inmueble")),
+        ),
+        opcionales=((-1, ("gasto_predial_seguro",)),),
+        positivos=(("ingreso_rentas",),),
+        resultado_positivo=True,
+        piso=(PISO_NOI_SOBRE_INGRESO, ("ingresos", "ingreso_rentas")),
+    ),
+    InsumoDerivado(
+        clave="@ebitdare",
+        etiqueta="EBITDAre del periodo",
+        exigidos=(
+            (1, ("utilidad_neta",)),
+            (1, ("gasto_intereses",)),
+            (1, ("depreciacion_amortizacion",)),
+        ),
+        opcionales=(
+            (1, ("impuestos",)),
+            (1, ("deterioro",)),
+            (-1, ("ganancia_venta_inmuebles",)),
+        ),
+        por_celda=True,
+        positivos=(("gasto_intereses",),),
+    ),
+)
+
+INSUMO_POR_CLAVE: dict[str, InsumoDerivado] = {i.clave: i for i in INSUMOS_DE_RATIOS}
+
+
+FORMULA_RATIO: dict[str, FormulaRatio] = {
+    "margen_operativo": FormulaRatio(
+        ((1, "utilidad_operativa"),), ((1, "ingresos_totales"),)),
+    "margen_noi": FormulaRatio(((1, "@noi"),), ((1, "ingresos_totales"),)),
+    "margen_ebitdare": FormulaRatio(((1, "@ebitdare"),), ((1, "ingresos_totales"),)),
+    "margen_neto": FormulaRatio(((1, "utilidad_neta"),), ((1, "ingresos_totales"),)),
+    "cobertura_intereses": FormulaRatio(((1, "@ebitdare"),), ((1, "gasto_intereses"),)),
+    "costo_deuda": FormulaRatio(
+        ((1, "gasto_intereses"),), ((1, "deuda_total"),), anualiza_numerador=4),
+    "apalancamiento": FormulaRatio(
+        ((1, "deuda_total"), (-1, "efectivo")), ((1, "@ebitdare"),),
+        anualiza_denominador=4, opcionales=("efectivo",)),
+    "deuda_activos": FormulaRatio(((1, "deuda_total"),), ((1, "activos_totales"),)),
+    "depreciacion_ingresos": FormulaRatio(
+        ((1, "depreciacion_amortizacion"),), ((1, "ingresos_totales"),)),
+    "affo_sobre_ffo": FormulaRatio(((1, "affo"),), ((1, "ffo"),)),
+    "payout_affo": FormulaRatio(
+        ((1, "dividendo_declarado_por_accion"),), ((1, "affo_por_accion"),)),
+}
+
+
+# Los no-GAAP que algún ratio necesita y que NO son renglón de ningún estado: no
+# están en el 10-Q sino en el Exhibit 99.1 del 8-K. El libro los escribe en su
+# propio bloque para poder apuntarles con una fórmula; sin ellos, tres ratios
+# —AFFO sobre FFO, payout— salían vacíos en Excel y con número en la pantalla.
+ETIQUETA_NO_GAAP: dict[str, str] = {
+    "ffo": "FFO",
+    "affo": "AFFO",
+    "affo_por_accion": "AFFO por acción",
+}
+
+
+def insumos_no_gaap(panel: pd.DataFrame) -> pd.DataFrame:
+    """Los no-GAAP del comunicado, en el mismo formato ancho que un estado."""
+    if panel is None or panel.empty:
+        return pd.DataFrame()
+    columnas = [p.date().isoformat() if hasattr(p, "date") else str(p) for p in panel.index]
+    filas = []
+    for clave, etiqueta in ETIQUETA_NO_GAAP.items():
+        if clave not in panel.columns:
+            continue
+        serie = pd.to_numeric(panel[clave], errors="coerce")
+        if not serie.notna().any():
+            continue
+        fila = {"Renglón": etiqueta}
+        for nombre, valor in zip(columnas, serie, strict=True):
+            fila[nombre] = None if pd.isna(valor) else float(valor)
+        filas.append(fila)
+    return pd.DataFrame(filas)
+
+
+def serie_de_insumo(panel: pd.DataFrame, insumo: InsumoDerivado) -> pd.Series:
+    """Evalúa un `InsumoDerivado` sobre el panel, periodo por periodo."""
+    vacia = pd.Series(index=panel.index, dtype="float64")
+
+    def cadena(nombres: tuple[str, ...]) -> pd.Series | None:
+        """La primera columna de la cadena que traiga datos; ``None`` si ninguna."""
+        for nombre in nombres:
+            if nombre in panel:
+                serie = pd.to_numeric(panel[nombre], errors="coerce")
+                if serie.notna().any():
+                    return serie
+        return None
+
+    suma = pd.Series(0.0, index=panel.index)
+    hay = pd.Series(True, index=panel.index)
+    for signo, nombres in insumo.exigidos:
+        serie = cadena(nombres)
+        if serie is None:
+            return vacia
+        suma = suma + signo * serie.fillna(0.0)
+        if insumo.por_celda:
+            hay &= serie.notna()
+    for signo, nombres in insumo.opcionales:
+        serie = cadena(nombres)
+        if serie is not None:
+            suma = suma + signo * serie.fillna(0.0)
+
+    for nombres in insumo.positivos:
+        serie = cadena(nombres)
+        if serie is None:
+            return vacia
+        hay &= serie.fillna(0.0) > 0
+    if insumo.resultado_positivo:
+        hay &= suma > 0
+    if insumo.piso is not None:
+        minimo, nombres = insumo.piso
+        base = cadena(nombres)
+        if base is not None:
+            base = base.fillna(0.0)
+            hay &= (base <= 0) | (suma / base >= minimo)
+    return suma.where(hay)
+
+
+def ratios_propios(panel: pd.DataFrame) -> pd.DataFrame:
     """Los ratios de la vista propia, periodo por periodo.
 
     Se calculan sobre el MISMO panel que dibuja el estado, no sobre el TTM del
     modelo: quien está leyendo el estado de un trimestre quiere el margen de ese
     trimestre. Los que necesitan un saldo —apalancamiento, deuda sobre activos—
     usan el balance del propio periodo, que es la columna de al lado.
+
+    Cada ratio sale de su `FormulaRatio`, que es la MISMA declaración que traduce
+    el libro de Excel a fórmulas vivas. La pantalla y el libro no pueden dar
+    números distintos porque no hay dos cálculos.
     """
     if panel is None or panel.empty:
         return pd.DataFrame()
 
+    derivados = {
+        insumo.clave: serie_de_insumo(panel, insumo) for insumo in INSUMOS_DE_RATIOS
+    }
+
     def col(clave):
+        if clave in derivados:
+            return derivados[clave]
         if clave not in panel.columns:
             return pd.Series(index=panel.index, dtype="float64")
         return pd.to_numeric(panel[clave], errors="coerce")
 
-    ingresos = col("ingresos_totales")
-    intereses = col("gasto_intereses")
-    depreciacion = col("depreciacion_amortizacion")
-    utilidad = col("utilidad_neta")
-    impuestos = col("impuestos")
-    ganancia = col("ganancia_venta_inmuebles")
-    deterioro = col("deterioro")
+    def lado(terminos, opcionales, factor):
+        """Un lado de la división: los términos con su signo, ya anualizados."""
+        total = pd.Series(0.0, index=panel.index)
+        hay = pd.Series(True, index=panel.index)
+        for signo, clave in terminos:
+            serie = col(clave)
+            if clave in opcionales:
+                total = total + signo * serie.fillna(0.0)
+            else:
+                total = total + signo * serie
+                hay &= serie.notna()
+        return (total * factor).where(hay)
 
-    # El EBITDAre del periodo, con la MISMA regla que el modelo: sin depreciación
-    # no hay EBITDAre, porque un cero ahí no es un dato faltante, es otro número.
-    ebitdare = (utilidad + intereses + impuestos.fillna(0) + depreciacion
-                + deterioro.fillna(0) - ganancia.fillna(0))
-    ebitdare = ebitdare.where(utilidad.notna() & (intereses > 0) & depreciacion.notna())
+    valores = {}
+    for clave, formula in FORMULA_RATIO.items():
+        arriba = lado(formula.numerador, formula.opcionales, formula.anualiza_numerador)
+        abajo = lado(formula.denominador, formula.opcionales, formula.anualiza_denominador)
+        valores[clave] = (arriba / abajo).where(abajo.notna() & (abajo != 0))
 
-    deuda = col("deuda_total")
-    if deuda.isna().all() and saldos:
-        deuda = pd.Series(saldos.get("deuda_total"), index=panel.index, dtype="float64")
-    efectivo = col("efectivo")
-    activos = col("activos_totales")
-    deuda_neta = deuda - efectivo.fillna(0)
-
-    def division(a, b):
-        return (a / b).where(b.notna() & (b != 0))
-
-    valores = {
-        "margen_operativo": division(col("utilidad_operativa"), ingresos),
-        "margen_noi": division(col("noi"), ingresos),
-        "margen_ebitdare": division(ebitdare, ingresos),
-        "margen_neto": division(utilidad, ingresos),
-        "cobertura_intereses": division(ebitdare, intereses),
-        "costo_deuda": division(intereses * 4, deuda),
-        "apalancamiento": division(deuda_neta, ebitdare * 4),
-        "deuda_activos": division(deuda, activos),
-        "depreciacion_ingresos": division(depreciacion, ingresos),
-        "affo_sobre_ffo": division(col("affo"), col("ffo")),
-        "payout_affo": division(col("dividendo_declarado_por_accion"), col("affo_por_accion")),
-    }
     filas = []
     for etiqueta, clave, formato, explicacion in RATIOS_PROPIOS:
         serie = valores.get(clave)

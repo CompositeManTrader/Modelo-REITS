@@ -16,7 +16,7 @@ para una consulta con corte anterior.
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 
 import pandas as pd
@@ -152,6 +152,35 @@ class Repositorio:
         idempotente para que la ingesta pueda re-correrse sin ensuciar la base.
         """
         return self._insertar(esquema.hechos, filas, fechas=("fecha_dato", "fecha_publicacion", "periodo_inicio"))
+
+    def marcar_hechos(
+        self, notas: Mapping[int, str], *, estado: str
+    ) -> int:
+        """Cambia el ESTADO de unos hechos, sin tocar su valor ni su fecha.
+
+        No contradice el append-only. Lo que P1 protege es el VALOR publicado: ese
+        no se toca aquí, sigue en la fila con su fecha de publicación intacta y se
+        puede seguir auditando con ``incluir_sospechosos=True``. Lo que cambia es
+        el juicio sobre su calidad, que no es un dato del emisor sino nuestro, y
+        que se emite con todo lo que hoy se sabe —igual que hace ``cuadrar_affo``
+        al ingerir—.
+
+        La consulta filtra por estado ANTES de elegir la versión vigente, así que
+        marcar una versión no deja un hueco cuando existe otra: la celda cae sola
+        a la anterior, que es una observación de verdad.
+        """
+        if not notas:
+            return 0
+        cambiados = 0
+        with self.motor.begin() as cx:
+            for id_hecho, nota in notas.items():
+                resultado = cx.execute(
+                    esquema.hechos.update()
+                    .where(esquema.hechos.c.id == int(id_hecho))
+                    .values(estado=estado, nota_validacion=nota or None)
+                )
+                cambiados += int(resultado.rowcount or 0)
+        return cambiados
 
     def purgar_hechos_derivados(self, ticker: str, fuentes: Sequence[str]) -> int:
         """Borra los hechos de un emisor que la reconstrucción vuelve a producir.

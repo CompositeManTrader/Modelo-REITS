@@ -125,6 +125,7 @@ from src.servicio import (  # noqa: E402
     estado_financiero,
     estados_reportados,
     evaluar,
+    hechos_descartados_por_escala,
     panel_de_conceptos,
     ratios_propios,
     saldos_de_balance,
@@ -137,8 +138,8 @@ from src.validacion.cuadre import cuadrar_conciliacion  # noqa: E402
 # único que cambia entre vistas es de dónde salen los renglones.
 
 _NO_NUMERICAS = frozenset(
-    {"Renglón", "Ratio", "nivel", "seccion", "total", "ajuste", "nota", "tag",
-     "verificado", "sangria", "formato", "explicacion"}
+    {"Renglón", "Ratio", "tag", "verificado", "sangria", "explicacion",
+     *bloomberg.COLUMNAS_DE_APOYO}
 )
 
 
@@ -177,7 +178,9 @@ def _marcar_ajustes(tabla: pd.DataFrame) -> pd.DataFrame:
         f"{renglon}  ⚙" if ajuste else renglon
         for renglon, ajuste in zip(vista["Renglón"], vista["ajuste"], strict=True)
     ]
-    return vista.drop(columns=["nivel", "seccion", "total", "ajuste", "nota"])
+    # Se quedan fuera de la tabla las columnas de apoyo; el ajuste ya viajó al
+    # renglón como ⚙ y su texto completo va en el desplegable de abajo.
+    return vista.drop(columns=list(bloomberg.COLUMNAS_DE_APOYO))
 
 
 def _formatear_ratios(tabla: pd.DataFrame) -> pd.DataFrame:
@@ -629,7 +632,7 @@ with tab_estados:
         unsafe_allow_html=True,
     )
 
-    col_freq, col_desc = st.columns([1, 2])
+    col_freq, col_hist, col_desc = st.columns([1, 1, 2])
     with col_freq:
         frecuencia = st.radio(
             "Frecuencia", ("Trimestral", "Anual"), horizontal=True, key="freq_estados",
@@ -637,8 +640,19 @@ with tab_estados:
     _ANUAL = frecuencia == "Anual"
     _TIPO = "FY" if _ANUAL else "Q"
 
+    # La historia COMPLETA por omisión. Realty Income tiene setenta trimestres y
+    # dieciocho ejercicios; mostrar seis era recortar el 90% sin decirlo. Las
+    # tablas se desplazan de lado, así que el costo de traerlo todo es un scroll.
+    with col_hist:
+        _HISTORIAS = {"Todo": None, "Últimos 20": 20, "Últimos 8": 8}
+        historia = st.selectbox(
+            "Historia", list(_HISTORIAS), key="hist_estados",
+            help="Por omisión, todos los periodos que hay. La descarga siempre los lleva todos.",
+        )
+    _N = _HISTORIAS[historia]
+
     panel_estados = panel_de_conceptos(
-        repo, ticker, asof=asof, periodo_tipo=_TIPO, n_periodos=6
+        repo, ticker, asof=asof, periodo_tipo=_TIPO, n_periodos=_N
     )
 
     with col_desc:
@@ -672,7 +686,7 @@ with tab_estados:
         else:
             for estado_bbg in bloomberg.ESTADOS:
                 con, piden = bloomberg.cobertura(panel_estados, estado_bbg)
-                tabla_bbg = bloomberg.armar(panel_estados, estado_bbg, n_periodos=6)
+                tabla_bbg = bloomberg.armar(panel_estados, estado_bbg)
                 st.markdown(f"**{bloomberg.NOMBRE_ESTADO[estado_bbg]}**")
                 st.caption(
                     f"{con} de {piden} renglones del molde se pueden llenar con lo que "
@@ -739,7 +753,8 @@ with tab_estados:
         )
         for clave_estado, nombre_estado, nota_estado in _ESTADOS:
             tabla = estado_financiero(
-                repo, ticker, clave_estado, asof=asof, periodo_tipo=_TIPO, n_periodos=6
+                repo, ticker, clave_estado, asof=asof, periodo_tipo=_TIPO,
+                n_periodos=_N,
             )
             st.markdown(f"**{nombre_estado}**")
             if tabla.empty:
@@ -1296,6 +1311,23 @@ with tab_auditoria:
                     "trazar: el libro de Excel lleva la lista íntegra."
                 )
 
+    # Lo que el modelo DEJÓ DE USAR, con nombre y razón. Un hueco sin nombre es un
+    # olvido disfrazado de dato faltante: desde afuera se ven igual, y el que mira
+    # la pantalla no tiene forma de saber si la emisora no reportó o si nosotros
+    # descartamos. Estas filas siguen en la base; solo dejaron de alimentar nada.
+    _descartes = hechos_descartados_por_escala(repo, ticker, asof=asof)
+    if not _descartes.empty:
+        with st.expander(f"Descartado por escala ({len(_descartes)} registros)"):
+            st.caption(
+                "`companyfacts` entrega el número tal como la emisora lo etiquetó, y a veces la "
+                "emisora etiqueta la cifra que IMPRIMIÓ en un estado que venía «in thousands», sin "
+                "volverla a dólares. La unidad sigue diciendo USD, así que nada truena: entra un "
+                "ingreso trimestral de 8,151 dólares donde son 8,151,000. Estos registros se "
+                "retiraron del modelo —no se corrigieron: multiplicar por mil daría una cifra que "
+                "no aparece en ningún filing— y la celda cae a la versión anterior si la hay."
+            )
+            mostrar_tabla(_descartes)
+
     with st.expander("Exportar a Excel con fórmulas vivas"):
         st.caption(
             "El libro sale con **fórmulas vivas**, no valores pegados: cambia el cap rate o el precio "
@@ -1363,7 +1395,9 @@ with tab_auditoria:
                     # renglón. Es lo que separa un libro con dos secciones de un
                     # modelo cableado: cambiar la deuda en el balance mueve el
                     # apalancamiento, el LTV y el NAV.
-                    estados=estados_para_libro(repo, ticker, asof=asof, n_periodos=8),
+                    # Sin tope de periodos: el libro se lleva TODA la historia, aunque
+                    # la pantalla esté mostrando un recorte.
+                    estados=estados_para_libro(repo, ticker, asof=asof),
                 )
                 ruta = exportar(datos, DIR_EXPORTES / f"{ticker}_{asof}.xlsx")
                 st.success(f"Libro generado: `{ruta}`")
