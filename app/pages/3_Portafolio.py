@@ -72,9 +72,14 @@ asof = selector_de_corte()
 macro = contexto_macro(repo, asof=asof)
 universo = tabla_universo(repo, asof=asof)
 
+# Con `key`, la pestaña abierta vive en el estado de sesión y aguanta la
+# recarga. Aquí importa más que en ningún lado: capturar una transacción ES una
+# recarga, así que sin esto cada alta devolvía al usuario a «Meta de ingreso».
 pestanas = st.tabs(
     ["Meta de ingreso", "Transacciones", "Posiciones y métricas", "Señales y rotación",
-     "Fiscal", "Benchmarks"]
+     "Fiscal", "Benchmarks"],
+    key="pestana_portafolio",
+    on_change="rerun",
 )
 
 # --------------------------------------------------------------------------------------

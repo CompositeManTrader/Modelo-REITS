@@ -154,8 +154,59 @@ def _exponente(valores: pd.Series) -> pd.Series:
 TOLERANCIA_ENTRE_VERSIONES = 0.30
 
 
-def _desvio(fila: pd.Series, del_corte: pd.DataFrame, moda: int) -> int | None:
-    """Por cuántas décadas se aparta este hecho de la escala de su serie.
+@dataclass(frozen=True)
+class _Corte:
+    """Las versiones que una serie publicó de un mismo corte, en arreglos.
+
+    Un corte trae normalmente una fila y a veces tres —el dato original y sus
+    reexpresiones—, así que estos arreglos son diminutos. Existen para que la
+    ventana deje de rebanar un DataFrame: cada máscara de pandas sobre catorce
+    mil filas cuesta más que todo el trabajo que se hace con el resultado.
+    """
+
+    id: np.ndarray
+    valor: np.ndarray
+    exponente: np.ndarray
+    fecha_publicacion: np.ndarray
+    accession: np.ndarray
+    unidad: np.ndarray
+
+
+def _partir_por_corte(serie: pd.DataFrame) -> tuple[list, list[_Corte]]:
+    """Los cortes de la serie en orden, y las filas de cada uno.
+
+    El orden dentro del corte se conserva —``kind="stable"``— porque `_desvio`
+    recorre las versiones y devuelve la primera que explica el desvío: reordenar
+    ahí cambiaría cuál gana.
+    """
+    fechas = serie["fecha_dato"].to_numpy()
+    orden = np.argsort(fechas, kind="stable")
+    fechas = fechas[orden]
+    if "unidad" in serie.columns:
+        unidades = serie["unidad"].to_numpy()[orden]
+    else:
+        unidades = np.array([""] * len(serie), dtype=object)
+    columnas = {
+        "id": serie["id"].to_numpy()[orden],
+        "valor": serie["valor"].to_numpy()[orden],
+        "exponente": serie["exponente"].to_numpy()[orden],
+        "fecha_publicacion": serie["fecha_publicacion"].to_numpy()[orden],
+        "accession": serie["accession"].to_numpy()[orden],
+        "unidad": unidades,
+    }
+    # Dónde empieza cada corte: el arreglo ya viene ordenado, así que un corte es
+    # un tramo contiguo y basta con las fronteras.
+    cortes, inicios = np.unique(fechas, return_index=True)
+    fines = [*inicios[1:], len(fechas)]
+    bloques = [
+        _Corte(**{nombre: col[a:b] for nombre, col in columnas.items()})
+        for a, b in zip(inicios, fines, strict=True)
+    ]
+    return list(cortes), bloques
+
+
+def _desvio(bloque: _Corte, k: int, moda: int) -> int | None:
+    """Por cuántas décadas se aparta el hecho ``k`` de la escala de su serie.
 
     Dos caminos, y el segundo no sobra. El primero compara la década del hecho
     contra la de la serie, y falla justo donde el trimestre es atípico: la
@@ -167,60 +218,92 @@ def _desvio(fila: pd.Series, del_corte: pd.DataFrame, moda: int) -> int | None:
     −1,855,345 son el mismo número en dos escalas, y eso no lo puede producir una
     reexpresión. Cuando existe esa versión, manda ella.
     """
-    valor = abs(float(fila["valor"]))
-    for otra in del_corte.itertuples():
+    valor = abs(float(bloque.valor[k]))
+    for j in range(len(bloque.id)):
         # La otra versión no tiene que estar EN la moda, solo cerca: un trimestre
         # atípico —una pérdida donde la serie gana— vive una década abajo sin que
         # eso lo vuelva sospechoso. Lo que se le pide es no ser la anomalía.
-        if otra.id == fila["id"] or abs(int(otra.exponente) - moda) >= min(POTENCIAS):
+        if j == k or abs(int(bloque.exponente[j]) - moda) >= min(POTENCIAS):
             continue
-        razon = abs(float(otra.valor)) / valor if valor else 0.0
+        razon = abs(float(bloque.valor[j])) / valor if valor else 0.0
         for potencia in POTENCIAS:
             for signo in (1, -1):
                 esperado = 10.0 ** (signo * potencia)
                 if abs(razon / esperado - 1) <= TOLERANCIA_ENTRE_VERSIONES:
                     return -signo * potencia
-    desvio = int(fila["exponente"]) - moda
+    desvio = int(bloque.exponente[k]) - moda
     return desvio if abs(desvio) in POTENCIAS else None
 
 
+def _moda(exponentes: np.ndarray) -> int:
+    """El exponente más frecuente de la ventana; en empate, el más chico.
+
+    El empate se resuelve a la baja y no al azar, y no es un detalle de
+    implementación: la moda es la escala que se le atribuye a la serie, y de ella
+    sale a quién se acusa. Preferir el exponente CHICO acusa a los valores
+    grandes —el filing que multiplicó por mil— y deja pasar a los chicos, que es
+    el lado por el que este detector prefiere equivocarse.
+    """
+    valores, cuentas = np.unique(exponentes, return_counts=True)
+    # `np.unique` devuelve los valores ordenados de menor a mayor, y `argmax` se
+    # queda con el primer máximo: eso ES el desempate a la baja.
+    return int(valores[int(np.argmax(cuentas))])
+
+
 def _candidatos(hechos: pd.DataFrame) -> pd.DataFrame:
-    """Filas cuyo exponente se aparta del de su serie por una potencia de mil."""
+    """Filas cuyo exponente se aparta del de su serie por una potencia de mil.
+
+    La ventana se recorre sobre ARREGLOS y no sobre máscaras de pandas. Es la
+    misma regla —la de las tres condiciones del encabezado, sin cambio— pero
+    cada serie se parte por corte UNA vez, y de ahí en adelante la ventana es
+    aritmética de índices sobre listas de a lo más trece cortes.
+
+    Importa porque este detector corre en cada arranque de la aplicación: la
+    instantánea rearma la proyección desde el crudo, así que la revisión de
+    escala tiene que volver a correr o el margen de Agree Realty regresa a
+    62,787%. Con máscaras costaba 33 segundos por emisora —330 del arranque,
+    cinco minutos y medio en los que Streamlit Cloud da por muerta a la
+    aplicación y la reinicia—. Sobre arreglos son décimas.
+    """
     filas = []
-    for (tk, con, tipo), serie in hechos.groupby(["ticker", "concepto", "periodo_tipo"]):
-        cortes = sorted(serie["fecha_dato"].unique())
+    for (tk, con, tipo), serie in hechos.groupby(["ticker", "concepto", "periodo_tipo"], sort=False):
+        cortes, bloques = _partir_por_corte(serie)
         if len(cortes) < MINIMO_CORTES + 1:
             continue
-        posicion = {f: i for i, f in enumerate(cortes)}
-        for corte in cortes:
-            i = posicion[corte]
-            vecinos = cortes[max(0, i - VENTANA): i] + cortes[i + 1: i + 1 + VENTANA]
+        # El conjunto de exponentes de cada corte, una sola vez: es lo único que
+        # las tres condiciones le preguntan a los vecinos.
+        exponentes_de = [frozenset(b.exponente.tolist()) for b in bloques]
+        for i, corte in enumerate(cortes):
+            izquierda = range(max(0, i - VENTANA), i)
+            derecha = range(i + 1, min(len(cortes), i + 1 + VENTANA))
+            vecinos = [*izquierda, *derecha]
             if len(vecinos) < MINIMO_CORTES:
                 continue
-            ventana = serie[serie["fecha_dato"].isin(vecinos)]
-            cuenta = ventana["exponente"].value_counts()
-            if cuenta.empty:
-                continue
-            moda = int(cuenta.index[0])
-            por_corte = ventana.groupby("fecha_dato")["exponente"].apply(set)
-            apoyo = sum(1 for exps in por_corte if moda in exps) / len(por_corte)
+            moda = _moda(np.concatenate([bloques[j].exponente for j in vecinos]))
+            # Condición 1: la serie sabe su escala. Se cuenta por CORTE, no por
+            # fila: un corte con dos versiones, una buena y una en miles, sigue
+            # sabiendo cuál es la suya.
+            apoyo = sum(1 for j in vecinos if moda in exponentes_de[j]) / len(vecinos)
             if apoyo < FRACCION_MODA:
                 continue
-            antes = ventana[(ventana["fecha_dato"] < corte) & (ventana["exponente"] == moda)]
-            despues = ventana[(ventana["fecha_dato"] > corte) & (ventana["exponente"] == moda)]
-            if antes.empty or despues.empty:
+            # Condición 2: atestiguada de los dos lados. Los cortes están
+            # ordenados, así que «antes» y «después» son las dos mitades de la
+            # ventana y no hacen falta comparaciones de fecha.
+            if not any(moda in exponentes_de[j] for j in izquierda):
                 continue
-            del_corte = serie[serie["fecha_dato"] == corte]
-            for _, fila in del_corte.iterrows():
-                desvio = _desvio(fila, del_corte, moda)
+            if not any(moda in exponentes_de[j] for j in derecha):
+                continue
+            bloque = bloques[i]
+            for k in range(len(bloque.id)):
+                desvio = _desvio(bloque, k, moda)
                 if desvio is None:
                     continue
                 filas.append({
-                    "id": int(fila["id"]), "ticker": tk, "concepto": con,
+                    "id": int(bloque.id[k]), "ticker": tk, "concepto": con,
                     "periodo_tipo": tipo, "fecha_dato": corte,
-                    "fecha_publicacion": fila["fecha_publicacion"],
-                    "accession": fila["accession"], "valor": float(fila["valor"]),
-                    "unidad": fila.get("unidad", ""), "desvio": desvio,
+                    "fecha_publicacion": bloque.fecha_publicacion[k],
+                    "accession": bloque.accession[k], "valor": float(bloque.valor[k]),
+                    "unidad": bloque.unidad[k], "desvio": desvio,
                 })
     return pd.DataFrame(filas)
 

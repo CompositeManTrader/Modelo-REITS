@@ -67,6 +67,167 @@ def base_existe() -> bool:
     return Path(RUTA_BD).exists()
 
 
+# --------------------------------------------------------------------------------------
+# Caché de lo que cuesta calcular
+# --------------------------------------------------------------------------------------
+#
+# Streamlit vuelve a correr el script ENTERO cada vez que se toca un widget. Sin
+# caché eso significa rehacer, por cada clic, el panel de conceptos, el molde de
+# Bloomberg de los tres estados y los estados as reported: siete segundos aquí y
+# el triple en el contenedor de Streamlit Cloud, que es más lento. La aplicación
+# no estaba «pensando»: estaba recalculando lo mismo.
+#
+# `st.cache_data` guarda el resultado y lo devuelve copiado, así que una página
+# no puede ensuciarle el dato a otra. Lo que falta es la llave.
+
+
+def firma_de_la_base() -> tuple[int, int]:
+    """El tamaño y la fecha de la base: la llave que invalida el caché.
+
+    Va como argumento de cada función cacheada, y por eso el caché se tira solo
+    cuando la base cambia —una ingesta, una reconstrucción— sin que nadie tenga
+    que acordarse de limpiarlo. Es lo contrario de cachear por tiempo: un TTL
+    sirve datos viejos durante su ventana y recalcula datos frescos al salir de
+    ella; esto no hace ninguna de las dos.
+    """
+    try:
+        estado = Path(RUTA_BD).stat()
+    except OSError:
+        return (0, 0)
+    return (estado.st_size, estado.st_mtime_ns)
+
+
+# El repositorio va como `_repo` a propósito: el guion bajo le dice a Streamlit
+# que no intente hacerle hash. Es una conexión, no un dato, y quien identifica al
+# dato es `firma`.
+
+
+@st.cache_data(show_spinner=False, max_entries=32)
+def panel_en_cache(
+    _repo: Repositorio,
+    ticker: str,
+    *,
+    asof: dt.date,
+    periodo_tipo: str,
+    n_periodos: int | None,
+    firma: tuple[int, int],
+) -> pd.DataFrame:
+    """`panel_de_conceptos`, una vez por combinación y no una vez por clic."""
+    from src.servicio import panel_de_conceptos
+
+    return panel_de_conceptos(
+        _repo, ticker, asof=asof, periodo_tipo=periodo_tipo, n_periodos=n_periodos
+    )
+
+
+@st.cache_data(show_spinner=False, max_entries=32)
+def bloomberg_en_cache(
+    _repo: Repositorio,
+    ticker: str,
+    estado: str,
+    *,
+    asof: dt.date,
+    periodo_tipo: str,
+    n_periodos: int | None,
+    firma: tuple[int, int],
+) -> tuple[int, int, pd.DataFrame]:
+    """La cobertura y la tabla del molde de Bloomberg, en una sola pasada.
+
+    Van juntas porque la pantalla siempre pide las dos y `cobertura` arma la
+    tabla otra vez por dentro para contarla. Cachearlas por separado dejaría esa
+    segunda pasada afuera.
+    """
+    from src.modelo import bloomberg
+
+    panel = panel_en_cache(
+        _repo, ticker, asof=asof, periodo_tipo=periodo_tipo,
+        n_periodos=n_periodos, firma=firma,
+    )
+    con, piden = bloomberg.cobertura(panel, estado)
+    return con, piden, bloomberg.armar(panel, estado)
+
+
+@st.cache_data(show_spinner=False, max_entries=64)
+def estado_en_cache(
+    _repo: Repositorio,
+    ticker: str,
+    clave: str,
+    *,
+    asof: dt.date,
+    periodo_tipo: str,
+    n_periodos: int | None,
+    firma: tuple[int, int],
+) -> pd.DataFrame:
+    """Un estado financiero de la vista propia."""
+    from src.servicio import estado_financiero
+
+    return estado_financiero(
+        _repo, ticker, clave, asof=asof, periodo_tipo=periodo_tipo, n_periodos=n_periodos
+    )
+
+
+@st.cache_data(show_spinner=False, max_entries=64)
+def reportados_en_cache(
+    ticker: str,
+    clave: str,
+    *,
+    asof: dt.date,
+    formulario: str,
+    firma: tuple[int, int],
+) -> pd.DataFrame:
+    """Un estado as reported. No toca la base: sale de `data/emisoras/`."""
+    from src.servicio import estados_reportados
+
+    return estados_reportados(ticker, clave, asof=asof, formulario=formulario)
+
+
+# Lo de arriba es lo que cuesta la sección de estados. Lo de abajo corre ANTES
+# de cualquier pestaña, así que se paga en cada recarga aunque nadie lo esté
+# viendo: Streamlit ejecuta el script entero, incluidas las pestañas cerradas.
+
+
+@st.cache_data(show_spinner=False, max_entries=8)
+def cobertura_en_cache(_repo: Repositorio, *, asof: dt.date, firma: tuple[int, int]) -> pd.DataFrame:
+    """`cobertura_de_emisores`, que consulta a las diez emisoras una por una.
+
+    No depende de la emisora elegida ni de los supuestos: solo del corte. Era
+    tres cuartos de segundo por clic para contestar siempre lo mismo.
+    """
+    return cobertura_de_emisores(_repo, asof=asof)
+
+
+@st.cache_data(show_spinner=False, max_entries=32)
+def macro_en_cache(_repo: Repositorio, *, asof: dt.date, firma: tuple[int, int]):
+    """El contexto macro: tasas y tipo de cambio al corte. Igual para las diez."""
+    from src.servicio import contexto_macro
+
+    return contexto_macro(_repo, asof=asof)
+
+
+@st.cache_data(show_spinner=False, max_entries=32)
+def panel_del_modelo_en_cache(
+    _repo: Repositorio,
+    ticker: str,
+    *,
+    asof: dt.date,
+    cap_rate_mercado: float,
+    yield_adquisiciones: float,
+    firma: tuple[int, int],
+):
+    """`construir_panel`, el insumo de toda la página.
+
+    Los dos supuestos van en la llave porque el panel SÍ depende de ellos: mover
+    el cap rate tiene que recalcular. Lo que ya no recalcula es abrir una
+    pestaña, que era el caso común.
+    """
+    from src.servicio import construir_panel
+
+    return construir_panel(
+        _repo, ticker, asof=asof,
+        cap_rate_mercado=cap_rate_mercado, yield_adquisiciones=yield_adquisiciones,
+    )
+
+
 def _publicar_secretos() -> None:
     """Copia los secretos de Streamlit al entorno, que es donde los leen los ingestores.
 

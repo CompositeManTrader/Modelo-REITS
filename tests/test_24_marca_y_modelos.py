@@ -538,8 +538,19 @@ def test_los_escenarios_no_convierten_un_hueco_en_cero():
 
 
 def test_la_emisora_sin_fundamentales_recibe_diagnostico_y_no_pantalla_en_blanco():
-    """Era el único camino que producía el síntoma de «no puedo ver otra emisora»."""
-    assert "cobertura_de_emisores (" in CODIGO_VALUACION
+    """Era el único camino que producía el síntoma de «no puedo ver otra emisora».
+
+    La cobertura ya no se calcula en la página: se pide a `cobertura_en_cache`,
+    porque consultar a las diez emisoras una por una costaba tres cuartos de
+    segundo en CADA recarga para contestar siempre lo mismo. Lo que se prueba es
+    la cadena completa —la página pide la cobertura y el envoltorio la calcula—,
+    no el nombre de quien la calcula.
+    """
+    comun = (RAIZ / "app" / "comun.py").read_text(encoding="utf-8")
+    assert "cobertura_en_cache (" in CODIGO_VALUACION
+    assert "return cobertura_de_emisores(_repo, asof=asof)" in comun, (
+        "el envoltorio en caché dejó de calcular la cobertura de verdad"
+    )
     assert "no tiene fundamentales trimestrales al corte" in PAGINA_VALUACION
     assert "scripts/ingesta.py" in PAGINA_VALUACION
 

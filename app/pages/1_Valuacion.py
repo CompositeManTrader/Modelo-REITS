@@ -49,23 +49,30 @@ from comun import (  # noqa: E402
     avisos,
     banda_emisor,
     barra_comparativa,
+    bloomberg_en_cache,
     bps,
     cascada_html,
-    cobertura_de_emisores,
+    cobertura_en_cache,
     configurar,
     descargo,
     dinero,
+    estado_en_cache,
     exigir_base,
     explicar,
     filas_metodo,
+    firma_de_la_base,
+    macro_en_cache,
     mostrar_tabla,
     numero,
     panel_de_metrica,
+    panel_del_modelo_en_cache,
+    panel_en_cache,
     panel_veredicto,
     pct,
     positivo,
     puertas_html,
     rejilla_cifras,
+    reportados_en_cache,
     selector_de_corte,
     selector_de_emisor,
     tarjeta_abre,
@@ -122,14 +129,9 @@ from src.servicio import (  # noqa: E402
     METRICAS_DE_GRAFICA,
     ORIGEN_DE_INSUMOS,
     RATIOS_PROPIOS,
-    construir_panel,
-    contexto_macro,
     diagnostico_de_insumos,
-    estado_financiero,
-    estados_reportados,
     evaluar,
     hechos_descartados_por_escala,
-    panel_de_conceptos,
     ratios_propios,
     saldos_de_balance,
     series_de_graficas,
@@ -228,7 +230,8 @@ ticker = selector_de_emisor(repo)
 if ticker is None:
     st.stop()
 
-cobertura = cobertura_de_emisores(repo, asof=asof)
+_FIRMA = firma_de_la_base()
+cobertura = cobertura_en_cache(repo, asof=asof, firma=_FIRMA)
 sin_datos = cobertura[cobertura["trimestres"] == 0]
 if not sin_datos.empty:
     st.info(
@@ -267,10 +270,11 @@ yield_adq = st.sidebar.slider(
     ),
 )
 
-panel = construir_panel(
-    repo, ticker, asof=asof, cap_rate_mercado=cap_rate, yield_adquisiciones=yield_adq
+panel = panel_del_modelo_en_cache(
+    repo, ticker, asof=asof, cap_rate_mercado=cap_rate,
+    yield_adquisiciones=yield_adq, firma=_FIRMA,
 )
-macro = contexto_macro(repo, asof=asof)
+macro = macro_en_cache(repo, asof=asof, firma=_FIRMA)
 semaforo = evaluar(panel)
 m = panel.metricas
 
@@ -474,8 +478,15 @@ rejilla_cifras([
 # que la zona 05 vuelve a «Evidencia» sin mover código: las asignaciones siguen
 # ocurriendo en el mismo orden y ningún bloque posterior se queda sin su variable.
 
+# Las pestañas llevan `key` para que la que está abierta se guarde en el estado
+# de sesión y sobreviva a la recarga. Sin él, Streamlit las devuelve a la primera
+# cada vez que cambia algo de arriba: quien estaba leyendo el estado de
+# resultados y cambiaba de emisora aparecía de vuelta en «Evidencia», con los
+# estados fuera de la pantalla. No era lentitud, era que la vista se perdía.
 tab_evidencia, tab_estados, tab_modelos, tab_auditoria = st.tabs(
-    ["Evidencia", "Estados financieros", "Modelos", "Auditoría"]
+    ["Evidencia", "Estados financieros", "Modelos", "Auditoría"],
+    key="pestana_valuacion",
+    on_change="rerun",
 )
 
 with tab_evidencia:
@@ -655,15 +666,19 @@ with tab_estados:
         )
     _N = _HISTORIAS[historia]
 
-    panel_estados = panel_de_conceptos(
-        repo, ticker, asof=asof, periodo_tipo=_TIPO, n_periodos=_N
+    panel_estados = panel_en_cache(
+        repo, ticker, asof=asof, periodo_tipo=_TIPO, n_periodos=_N, firma=_FIRMA
     )
 
     with col_desc:
-        libro = libro_de_estados(repo, ticker, asof=asof, periodo_tipo=_TIPO)
+        # `data` va como FUNCIÓN y no como bytes: así el libro se arma cuando
+        # alguien lo descarga y no en cada recarga. Armarlo cuesta cinco
+        # segundos —los tres estados en las tres vistas, más los ratios con sus
+        # fórmulas vivas— y se pagaban en cada clic de la página, incluidos los
+        # de quien nunca descarga nada.
         st.download_button(
             "Descargar los tres en Excel",
-            data=libro,
+            data=lambda: libro_de_estados(repo, ticker, asof=asof, periodo_tipo=_TIPO),
             file_name=f"{ticker}_estados_{'anual' if _ANUAL else 'trimestral'}_{asof}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             help=(
@@ -675,7 +690,9 @@ with tab_estados:
 
     v_bbg, v_reportado, v_propia, v_graficas = st.tabs(
         ["Visualización Bloomberg", "Visualización as reported", "Visualización propia",
-         "Gráficas"]
+         "Gráficas"],
+        key="vista_estados",
+        on_change="rerun",
     )
 
     # ── Bloomberg ─────────────────────────────────────────────────────────────
@@ -690,8 +707,10 @@ with tab_estados:
             st.info(f"No hay estados para {ticker} al corte del {asof}.")
         else:
             for estado_bbg in bloomberg.ESTADOS:
-                con, piden = bloomberg.cobertura(panel_estados, estado_bbg)
-                tabla_bbg = bloomberg.armar(panel_estados, estado_bbg)
+                con, piden, tabla_bbg = bloomberg_en_cache(
+                    repo, ticker, estado_bbg, asof=asof, periodo_tipo=_TIPO,
+                    n_periodos=_N, firma=_FIRMA,
+                )
                 st.markdown(f"**{bloomberg.NOMBRE_ESTADO[estado_bbg]}**")
                 st.caption(
                     f"{con} de {piden} renglones del molde se pueden llenar con lo que "
@@ -718,8 +737,8 @@ with tab_estados:
         formulario = "10-K" if _ANUAL else "10-Q"
         vacias = 0
         for clave_rep in reportados.ESTADOS:
-            tabla_rep = estados_reportados(
-                ticker, clave_rep, asof=asof, formulario=formulario
+            tabla_rep = reportados_en_cache(
+                ticker, clave_rep, asof=asof, formulario=formulario, firma=_FIRMA
             )
             st.markdown(f"**{reportados.NOMBRE_ESTADO[clave_rep]}**")
             if tabla_rep.empty:
@@ -759,9 +778,9 @@ with tab_estados:
              "Derivado de los acumulados que publica la SEC."),
         )
         for clave_estado, nombre_estado, nota_estado in _ESTADOS:
-            tabla = estado_financiero(
+            tabla = estado_en_cache(
                 repo, ticker, clave_estado, asof=asof, periodo_tipo=_TIPO,
-                n_periodos=_N,
+                n_periodos=_N, firma=_FIRMA,
             )
             st.markdown(f"**{nombre_estado}**")
             if tabla.empty:

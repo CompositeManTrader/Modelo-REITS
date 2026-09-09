@@ -59,9 +59,13 @@ asof = selector_de_corte()
 macro = contexto_macro(repo, asof=asof)
 universo = tabla_universo(repo, asof=asof)
 
+# `key` para que la pestaña abierta sobreviva la recarga: mover un supuesto de
+# la simulación no debería sacar al usuario de la simulación que está viendo.
 pestanas = st.tabs(
     ["Monte Carlo", "Replay histórico", "Solver inverso", "Sensibilidad a tasas",
-     "Backtest honesto", "Detector de sesgos"]
+     "Backtest honesto", "Detector de sesgos"],
+    key="pestana_simulacion",
+    on_change="rerun",
 )
 
 # --------------------------------------------------------------------------------------
