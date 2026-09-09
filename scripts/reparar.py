@@ -28,6 +28,7 @@ entre él: AFFO por acción, NAV por acción, P/AFFO. Ninguna suma lo delata.
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import sys
 from pathlib import Path
 
@@ -257,10 +258,60 @@ def olvidar_descuadres(repo: Repositorio, *, tickers: list[str] | None, aplicar:
     return 0
 
 
+def marcar_fuera_de_escala(
+    repo: Repositorio, *, tickers: list[str] | None, aplicar: bool
+) -> int:
+    """Marca los hechos que la emisora etiquetó en la escala equivocada.
+
+    A diferencia de las otras reparaciones, esta NO borra: cambia el estado a
+    ``sospechoso`` y deja el valor donde está. La fila sigue ahí para auditarla
+    con ``incluir_sospechosos=True``; lo que cambia es que deja de alimentar el
+    modelo, y la celda cae sola a la versión anterior cuando existe.
+
+    Corre sobre la base que ya está en disco. La ingesta hace lo mismo al final de
+    cada emisora, así que una base nueva nace limpia; esto es para la que ya
+    existe, donde volver a correr la ingesta no la tocaría —la llave única
+    descarta el duplicado y el estado se quedaría como estaba—.
+    """
+    from src.ingesta.orquestador import revisar_escala
+    from src.validacion.escala import detectar_fuera_de_escala, resumir
+
+    hoy = dt.date.today()
+    emisores = tickers or sorted(repo.emisores()["ticker"].tolist())
+    total = 0
+    for ticker in emisores:
+        hechos = repo.hechos(
+            asof=hoy, tickers=ticker, vigentes=False, incluir_sospechosos=True
+        )
+        hallazgos = detectar_fuera_de_escala(hechos)
+        if not hallazgos:
+            continue
+        total += len(hallazgos)
+        print(f"\n{ticker}: {resumir(hallazgos)}")
+        for h in sorted(hallazgos, key=lambda x: (x.concepto, x.fecha_dato)):
+            print(f"    {h.concepto:28} {h.fecha_dato} pub {h.fecha_publicacion} "
+                  f"= {h.valor:>18,.0f}  ×{h.factor:g}")
+        if aplicar:
+            revisar_escala(repo, ticker, asof=hoy)
+    if not total:
+        print("Ningún hecho fuera de escala.")
+        return 0
+    if not aplicar:
+        print(f"\n{total} hecho(s) se marcarían. Corre con --aplicar para hacerlo.")
+        return 0
+    print(f"\n{total} hecho(s) marcados como sospechosos. El valor se conserva.")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--bd", default=str(RUTA_BD))
     p.add_argument("--aplicar", action="store_true", help="Sin esto, solo reporta.")
+    p.add_argument(
+        "--escala",
+        action="store_true",
+        help="Marca los hechos que la emisora etiquetó en miles con la unidad en USD.",
+    )
     p.add_argument(
         "--olvidar-sospechosos",
         action="store_true",
@@ -276,6 +327,8 @@ def main() -> int:
 
     repo = Repositorio(ruta=Path(args.bd))
     tickers = [t.strip().upper() for t in args.tickers.split(",")] if args.tickers else None
+    if args.escala:
+        return marcar_fuera_de_escala(repo, tickers=tickers, aplicar=args.aplicar)
     if args.olvidar_sospechosos:
         return olvidar_sospechosos(repo, tickers=tickers, aplicar=args.aplicar)
     if args.olvidar_descuadres:

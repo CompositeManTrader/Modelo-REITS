@@ -464,6 +464,33 @@ def detectar_novedades(repo: Repositorio, ticker: str, *, asof: dt.date) -> list
 # --------------------------------------------------------------------------------------
 
 
+def revisar_escala(repo: Repositorio, ticker: str, *, asof: dt.date | None = None) -> int:
+    """Marca como SOSPECHOSOS los hechos que no están en la escala de su serie.
+
+    Va al final de la ingesta de cada emisora y no dentro de cada ruta porque la
+    evidencia es la SERIE completa: un hecho no se puede juzgar contra las cinco
+    filas que acaban de llegar. Ver `src/validacion/escala.py` para qué se exige
+    antes de marcar y qué se deja pasar a propósito.
+    """
+    from src.validacion.escala import detectar_fuera_de_escala
+
+    hoy = asof or dt.date.today()
+    hechos = repo.hechos(asof=hoy, tickers=ticker, vigentes=False, incluir_sospechosos=True)
+    hallazgos = detectar_fuera_de_escala(hechos)
+    if not hallazgos:
+        return 0
+    marcados = repo.marcar_hechos(
+        {h.id: h.nota() for h in hallazgos}, estado=Estado.SOSPECHOSO
+    )
+    conceptos = sorted({h.concepto for h in hallazgos})
+    repo.registrar_bitacora(
+        "escala",
+        f"{marcados} hecho(s) marcados fuera de escala: {', '.join(conceptos)}.",
+        ticker=ticker,
+    )
+    return marcados
+
+
 def correr_ingesta(
     repo: Repositorio,
     *,
@@ -535,6 +562,10 @@ def correr_ingesta(
         # monto del trimestre sí esté reconstruido. Le pasaba a ADC.
         for concepto in CONCEPTOS_RECONSTRUIBLES:
             reconstruir_desde_acumulados(repo, e.ticker, concepto, asof=hoy)
+
+        # Con la serie ya completa, incluidos los derivados: un hecho fuera de
+        # escala se juzga contra su propia serie, no contra el lote que llegó.
+        revisar_escala(repo, e.ticker, asof=hoy)
 
         resumen.novedades = detectar_novedades(repo, e.ticker, asof=hoy)
         for nota in resumen.novedades:

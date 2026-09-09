@@ -38,7 +38,11 @@ from src.config import UNIVERSO_INICIAL, Estado, Fuente
 from src.datos.almacen import leer_conciliacion, leer_crudos, leer_hechos_externos
 from src.datos.repositorio import Repositorio
 from src.ingesta.estados import hechos_de_crudos
-from src.ingesta.orquestador import CONCEPTOS_RECONSTRUIBLES, reconstruir_desde_acumulados
+from src.ingesta.orquestador import (
+    CONCEPTOS_RECONSTRUIBLES,
+    reconstruir_desde_acumulados,
+    revisar_escala,
+)
 
 # Las fuentes que esta pasada REESCRIBE por completo, y por eso puede borrar. No
 # incluye MANUAL ni MERCADO: lo que el usuario capturó y lo que vino del proveedor
@@ -133,6 +137,13 @@ def reconstruir(
         # que se despejan de un acumulado, justo los que sostienen el TTM.
         for concepto in CONCEPTOS_RECONSTRUIBLES:
             reconstruir_desde_acumulados(repo, e.ticker, concepto, asof=dt.date.today())
+
+        # Y la misma revisión de escala. Va aquí y no solo en la ingesta porque la
+        # instantánea REARMA la proyección desde el crudo —ese es su punto—, y el
+        # crudo trae los hechos tal como la emisora los etiquetó, en miles
+        # incluidos. Sin esto, reconstruir la base devolvía los 52 hechos fuera de
+        # escala como válidos y el margen de Agree Realty volvía a 62,787%.
+        revisar_escala(repo, e.ticker, asof=dt.date.today())
 
         resumen.emisoras.append(e.ticker)
 

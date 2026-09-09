@@ -609,6 +609,41 @@ def _derivar_ebitdare(trimestral: pd.DataFrame) -> pd.Series:
     return suma.where(utilidad.notna() & (intereses > 0) & depreciacion.notna())
 
 
+def hechos_descartados_por_escala(
+    repo: Repositorio, ticker: str, *, asof: dt.date
+) -> pd.DataFrame:
+    """Lo que se retiró del modelo por venir en la escala equivocada, con su razón.
+
+    Un hueco sin nombre es un olvido disfrazado de dato faltante, y desde afuera
+    se ven igual. Estas filas no se borraron: siguen en la base y se pueden leer
+    con ``incluir_sospechosos=True``; lo que dejaron de hacer es alimentar el
+    modelo. Que la pantalla las nombre es la diferencia entre un dato retirado y
+    un dato que se perdió.
+    """
+    from src.ingesta.estados import LINEA_POR_CLAVE
+
+    hechos = repo.hechos(
+        asof=asof, tickers=ticker, vigentes=False, incluir_sospechosos=True
+    )
+    if hechos.empty or "nota_validacion" not in hechos:
+        return pd.DataFrame()
+    escala = hechos[hechos["nota_validacion"].astype(str).str.startswith("Escala")]
+    if escala.empty:
+        return pd.DataFrame()
+    filas = []
+    for _, fila in escala.sort_values(["fecha_dato", "concepto"]).iterrows():
+        linea = LINEA_POR_CLAVE.get(fila["concepto"])
+        filas.append({
+            "Renglón": linea.etiqueta if linea else fila["concepto"],
+            "Periodo": pd.Timestamp(fila["fecha_dato"]).date().isoformat(),
+            "Tipo": fila["periodo_tipo"],
+            "Publicado": pd.Timestamp(fila["fecha_publicacion"]).date().isoformat(),
+            "Valor que traía": float(fila["valor"]),
+            "Por qué se descartó": str(fila["nota_validacion"]),
+        })
+    return pd.DataFrame(filas)
+
+
 def saldos_de_balance(repo: Repositorio, ticker: str, *, asof: dt.date) -> dict[str, float]:
     """Los saldos del balance al corte, para quien los necesite fuera del panel.
 

@@ -125,6 +125,7 @@ from src.servicio import (  # noqa: E402
     estado_financiero,
     estados_reportados,
     evaluar,
+    hechos_descartados_por_escala,
     panel_de_conceptos,
     ratios_propios,
     saldos_de_balance,
@@ -1309,6 +1310,23 @@ with tab_auditoria:
                     "Una sección de trazabilidad que recorta en silencio deja de servir para "
                     "trazar: el libro de Excel lleva la lista íntegra."
                 )
+
+    # Lo que el modelo DEJÓ DE USAR, con nombre y razón. Un hueco sin nombre es un
+    # olvido disfrazado de dato faltante: desde afuera se ven igual, y el que mira
+    # la pantalla no tiene forma de saber si la emisora no reportó o si nosotros
+    # descartamos. Estas filas siguen en la base; solo dejaron de alimentar nada.
+    _descartes = hechos_descartados_por_escala(repo, ticker, asof=asof)
+    if not _descartes.empty:
+        with st.expander(f"Descartado por escala ({len(_descartes)} registros)"):
+            st.caption(
+                "`companyfacts` entrega el número tal como la emisora lo etiquetó, y a veces la "
+                "emisora etiqueta la cifra que IMPRIMIÓ en un estado que venía «in thousands», sin "
+                "volverla a dólares. La unidad sigue diciendo USD, así que nada truena: entra un "
+                "ingreso trimestral de 8,151 dólares donde son 8,151,000. Estos registros se "
+                "retiraron del modelo —no se corrigieron: multiplicar por mil daría una cifra que "
+                "no aparece en ningún filing— y la celda cae a la versión anterior si la hay."
+            )
+            mostrar_tabla(_descartes)
 
     with st.expander("Exportar a Excel con fórmulas vivas"):
         st.caption(
