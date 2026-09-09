@@ -609,6 +609,17 @@ def _derivar_ebitdare(trimestral: pd.DataFrame) -> pd.Series:
     return suma.where(utilidad.notna() & (intereses > 0) & depreciacion.notna())
 
 
+def saldos_de_balance(repo: Repositorio, ticker: str, *, asof: dt.date) -> dict[str, float]:
+    """Los saldos del balance al corte, para quien los necesite fuera del panel.
+
+    El panel los consume y los convierte en métricas, así que no los publica. La
+    exportación a Excel sí los necesita crudos: su hoja de Inputs tiene un
+    renglón por saldo, y sin esto los escribía todos en CERO —deuda, efectivo,
+    goodwill— y el libro calculaba apalancamiento, LTV y NAV sobre nada.
+    """
+    return _saldos_de_balance(repo, ticker, asof=asof)
+
+
 def _saldos_de_balance(repo: Repositorio, ticker: str, *, asof: dt.date) -> dict[str, float]:
     """El último saldo de cada rubro de balance conocido al corte.
 

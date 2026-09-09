@@ -160,15 +160,31 @@ class DatosExportacion:
     fuentes: list[dict] | None = None
     escala: float = 1_000_000.0
     etiqueta_escala: str = "millones de USD"
+    # Las tres vistas de los estados. Opcional a propósito: un libro sin ellas
+    # sigue siendo válido —es el que existía antes— y las pruebas que solo miran
+    # el modelo no tienen que armar nueve tablas para correr.
+    estados: EstadosParaLibro | None = None
 
 
 def exportar(datos: DatosExportacion, ruta: Path | str) -> Path:
-    """Genera el libro completo con fórmulas vivas y lo guarda."""
+    """Genera el libro completo con fórmulas vivas y lo guarda.
+
+    Cuando ``datos.estados`` viene, el libro deja de ser dos cosas pegadas: los
+    estados entran como hojas y los insumos que salen de ellos dejan de ser un
+    número escrito para volverse una fórmula que apunta a su renglón. Cambiar la
+    deuda en el balance mueve el apalancamiento, el LTV y el NAV.
+    """
     wb = Workbook()
     wb.remove(wb.active)
 
     _hoja_leeme(wb, datos)
-    _hoja_inputs(wb, datos)
+    ws_inputs = _hoja_inputs(wb, datos)
+    if datos.estados is not None and datos.estados.hay_propia:
+        # El volcado va ANTES del cableado: las fórmulas se escriben apuntando a
+        # hojas que ya existen, y si alguna vista viene vacía el cableado la ve
+        # vacía y deja el input como estaba, en vez de dejar una referencia rota.
+        _volcar_estados(wb, datos.estados)
+        _cablear_inputs(ws_inputs, datos.estados, datos.escala)
     _hoja_cascada(wb, datos)
     _hoja_valuacion(wb, datos)
     _hoja_sensibilidad(wb, datos)
@@ -844,14 +860,26 @@ def dataframe_a_hoja(wb: Workbook, nombre: str, df: pd.DataFrame) -> Worksheet:
     return ws
 
 
+
+
 # --------------------------------------------------------------------------------------
-# Las tres vistas de los estados financieros, en un libro
+# Las tres vistas de los estados, y su cableado al modelo
 # --------------------------------------------------------------------------------------
+#
+# Antes eran dos libros: uno con los estados y otro con el modelo de valuación. Se
+# podían leer los dos, pero cambiar un renglón del balance no movía nada del
+# modelo, así que el estado era una lámina y no un insumo. Aquí son uno solo, y
+# los insumos que SALEN de un estado dejan de ser un número escrito para volverse
+# una fórmula que apunta a su renglón.
+#
+# Lo que NO se cableó, a propósito: el precio, el cap rate, las tasas, el yield de
+# adquisiciones y el peso de la deuda marginal siguen en azul sobre amarillo. No
+# salen de un estado financiero: son supuestos, y volverlos fórmula habría
+# escondido la única parte del modelo que de verdad es del usuario.
 
 # Nombres cortos a propósito: Excel corta el nombre de una hoja en 31 caracteres,
-# y "Bloomberg - Estado de resultados" se convierte en "Bloomberg - Estado de result" —
-# que no se distingue de otra hoja truncada igual y rompe cualquier fórmula que
-# la referencie por nombre.
+# y dos hojas truncadas al mismo prefijo se vuelven indistinguibles y rompen
+# cualquier fórmula que las referencie por nombre.
 _HOJAS = {
     "resultados": "Resultados",
     "balance": "Balance",
@@ -859,6 +887,321 @@ _HOJAS = {
     "estado_resultados": "Resultados",
     "flujo_efectivo": "Flujo",
 }
+
+HOJA_PROPIA = {
+    "estado_resultados": "Propia Resultados",
+    "balance": "Propia Balance",
+    "flujo_efectivo": "Propia Flujo",
+}
+
+# Cuántos trimestres son un TTM. Cuatro, y el libro lo dice en la fórmula en vez
+# de traer el resultado ya sumado: un TTM pegado como número no se puede auditar.
+TRIMESTRES_TTM = 4
+
+
+@dataclass
+class EstadosParaLibro:
+    """Las tres vistas ya armadas, listas para volcarse y para ser referenciadas."""
+
+    propia: dict[str, pd.DataFrame]
+    bloomberg: dict[str, pd.DataFrame]
+    reportados: dict[str, pd.DataFrame]
+    ratios: pd.DataFrame
+    periodo_tipo: str = "Q"
+
+    @property
+    def hay_propia(self) -> bool:
+        return any(not t.empty for t in self.propia.values())
+
+
+def _hoja_ref(nombre: str) -> str:
+    """El nombre de una hoja como se cita en una fórmula."""
+    return f"'{nombre}'" if " " in nombre or "-" in nombre else nombre
+
+
+def _columnas_de_periodo(tabla: pd.DataFrame) -> list[str]:
+    """Las letras de columna de los periodos, en el orden en que se escriben.
+
+    La columna A es «Renglón»; los periodos empiezan en B. El orden es el del
+    DataFrame, que viene del más viejo al más reciente, así que la ÚLTIMA es el
+    periodo vigente.
+    """
+    return [get_column_letter(i) for i in range(2, len(tabla.columns) + 1)]
+
+
+def _referencia(hoja: str, etiqueta: str, columna: str) -> str:
+    """Una celda de un estado, buscada POR SU ETIQUETA y no por su número de fila.
+
+    Es la decisión que hace que el cableado sobreviva a la próxima exportación.
+    Un estado financiero no tiene una forma fija: si la emisora empieza a reportar
+    un renglón que antes no tenía, todo lo que va debajo se recorre una fila. Con
+    una referencia dura —``'Propia Balance'!G14``— la fórmula sigue apuntando a la
+    fila 14, que ahora es otra partida, y el modelo cambia de insumo sin que nada
+    lo diga: ni un error, ni una celda vacía, solo un número distinto.
+
+    ``INDEX``/``MATCH`` sobre la etiqueta apunta al RENGLÓN, no al lugar. Si el
+    renglón desaparece la fórmula da ``#N/A``, que es exactamente lo que se
+    quiere: un error visible es infinitamente mejor que un insumo equivocado.
+    """
+    ref = _hoja_ref(hoja)
+    etiqueta_segura = etiqueta.replace('"', '""')
+    return f'INDEX({ref}!{columna}:{columna},MATCH("{etiqueta_segura}",{ref}!A:A,0))'
+
+
+def _suma_ttm(hoja: str, etiqueta: str, columnas: list[str]) -> str:
+    """La suma de los últimos cuatro trimestres de un renglón, por su etiqueta."""
+    ultimas = columnas[-TRIMESTRES_TTM:]
+    partes = [_referencia(hoja, etiqueta, c) for c in ultimas]
+    return "+".join(partes)
+
+
+def _formula_ebitdare(hoja_res: str, columnas: list[str], escala: float) -> str:
+    """El EBITDAre TTM armado renglón por renglón, con su guarda.
+
+    La guarda existe por la prueba 36. En Python, sumar con la depreciación
+    ausente daba un EBITDAre que no lo era —en Welltower, 608.7 en vez de
+    1,320.7— y de ahí un apalancamiento de 3.84x cuando el real es 3.27x. En
+    Excel el riesgo es peor, porque ``SUM`` de una celda vacía **es cero** y no
+    avisa: el mismo error, una capa más afuera y sin traza en el código.
+
+    Por eso la fórmula cuenta primero cuántos de los cuatro trimestres traen
+    depreciación. Si falta alguno devuelve vacío, que es lo que la pantalla
+    muestra como SIN DATOS, en vez de un número más chico y creíble.
+    """
+    from src.ingesta.estados import LINEA_POR_CLAVE
+
+    def eti(clave: str) -> str:
+        return LINEA_POR_CLAVE[clave].etiqueta
+
+    ultimas = columnas[-TRIMESTRES_TTM:]
+    sumandos = []
+    for columna in ultimas:
+        piezas = [
+            _referencia(hoja_res, eti("utilidad_neta"), columna),
+            _referencia(hoja_res, eti("gasto_intereses"), columna),
+            f'N({_referencia(hoja_res, eti("impuestos"), columna)})',
+            _referencia(hoja_res, eti("depreciacion_amortizacion"), columna),
+            f'N({_referencia(hoja_res, eti("deterioro"), columna)})',
+            f'-N({_referencia(hoja_res, eti("ganancia_venta_inmuebles"), columna)})',
+        ]
+        sumandos.append("(" + "+".join(piezas).replace("+-", "-") + ")")
+    cuenta = "+".join(
+        f'N(ISNUMBER({_referencia(hoja_res, eti("depreciacion_amortizacion"), c)}))'
+        for c in ultimas
+    )
+    suma = "+".join(sumandos)
+    return f"=IF(({cuenta})<{len(ultimas)},\"\",({suma})/{escala:.0f})"
+
+
+def _formula_deuda(hoja_bal: str, tabla: pd.DataFrame, columna: str, escala: float) -> str:
+    """La deuda como la calcula el modelo: los TRAMOS, no el total declarado.
+
+    Este renglón es el que costó el error. Cablearlo al renglón «Deuda total» del
+    balance parecía lo obvio y revertía en silencio la corrección del PR #22: en
+    Realty Income el total declarado son 25,091.6 millones —viene de una sola
+    etiqueta, que son sus notas senior— mientras que sus cuatro tramos suman
+    30,651.7. Con el cableado ingenuo el libro devolvía la cifra vieja y el
+    apalancamiento bajaba de 5.68x a 4.63x, sin que nada lo dijera.
+
+    Lo cazó recalcular el libro con LibreOffice y compararlo contra el modelo. Un
+    cableado que no se recalcula no está verificado: está escrito.
+
+    Así que la fórmula reproduce la regla del servicio —``TRAMOS_DE_DEUDA`` con
+    ``MARGEN_DE_TRAMOS``—: gana la suma de los tramos cuando le saca al total
+    declarado más que el margen, y el resultado se topa con los pasivos totales,
+    porque la deuda no puede exceder lo que el balance declara deber.
+    """
+    from src.ingesta.estados import LINEA_POR_CLAVE
+    from src.servicio import MARGEN_DE_TRAMOS, TRAMOS_DE_DEUDA
+
+    presentes = set(tabla["Renglón"])
+
+    def ref(clave: str) -> str | None:
+        etiqueta = LINEA_POR_CLAVE[clave].etiqueta if clave in LINEA_POR_CLAVE else None
+        if etiqueta is None or etiqueta not in presentes:
+            return None
+        return f"N({_referencia(hoja_bal, etiqueta, columna)})"
+
+    tramos = [r for r in (ref(c) for c in TRAMOS_DE_DEUDA) if r]
+    declarado = ref("deuda_total")
+    if not tramos:
+        return f'=IFERROR({declarado}/{escala:.0f},"")' if declarado else ""
+    suma = "+".join(tramos)
+    if declarado is None:
+        bruto = f"({suma})"
+    else:
+        # La suma gana solo si supera al declarado por MÁS que el margen. Igual
+        # que en el servicio: una diferencia de redondeo no cambia la fuente.
+        bruto = f"IF(({suma})>{declarado}*{1 + MARGEN_DE_TRAMOS},({suma}),{declarado})"
+    pasivos = ref("pasivos_totales")
+    if pasivos:
+        bruto = f"IF({pasivos}>0,MIN({bruto},{pasivos}),{bruto})"
+    return f'=IFERROR({bruto}/{escala:.0f},"")'
+
+
+# Los insumos que SÍ salen de un estado, con el renglón del catálogo del que
+# salen. Lo que no está aquí sigue siendo un input del usuario. `deuda_total` no
+# está: no es un renglón, es una regla — ver `_formula_deuda`.
+CABLEADOS_DE_BALANCE: tuple[tuple[str, str], ...] = (
+    ("efectivo", "efectivo"),
+    ("prestamos_por_cobrar", "prestamos_por_cobrar"),
+    ("inversiones_no_consolidadas", "inversiones_no_consolidadas"),
+    ("goodwill", "goodwill"),
+)
+CABLEADOS_TTM: tuple[tuple[str, str], ...] = (
+    ("intereses_ttm", "gasto_intereses"),
+)
+
+
+def _cablear_inputs(ws: Worksheet, estados: EstadosParaLibro, escala: float) -> list[str]:
+    """Sustituye por fórmulas los inputs que salen de un estado. Devuelve cuáles.
+
+    Sigue siendo una celda editable: quien quiera probar otro supuesto escribe
+    encima y Excel reemplaza la fórmula, igual que siempre. Lo que cambia es el
+    punto de partida —deja de ser una foto— y que el origen queda a la vista.
+    """
+    from src.ingesta.estados import LINEA_POR_CLAVE
+
+    cableados: list[str] = []
+    balance = estados.propia.get("balance", pd.DataFrame())
+    resultados = estados.propia.get("estado_resultados", pd.DataFrame())
+
+    if not balance.empty:
+        columnas = _columnas_de_periodo(balance)
+        if columnas:
+            ultima = columnas[-1]
+            formula_deuda = _formula_deuda(
+                HOJA_PROPIA["balance"], balance, ultima, escala
+            )
+            if formula_deuda and "deuda_total" in CELDAS_INPUT:
+                celda = ws[CELDAS_INPUT["deuda_total"]]
+                celda.value = formula_deuda
+                celda.font = FUENTE_ENLACE
+                celda.fill = PatternFill(fill_type=None)
+                celda.number_format = FMT_MILES
+                ws[_desplazar(CELDAS_INPUT["deuda_total"], columnas=1)] = (
+                    "Suma de los TRAMOS, no el renglón «Deuda total»: en varias "
+                    "emisoras ese renglón trae una sola etiqueta y subestima. Ver "
+                    "TRAMOS_DE_DEUDA en el servicio."
+                )
+                ws[_desplazar(CELDAS_INPUT["deuda_total"], columnas=1)].font = Font(
+                    italic=True, size=9, color=VERDE
+                )
+                cableados.append("deuda_total")
+            for clave_input, clave_linea in CABLEADOS_DE_BALANCE:
+                if clave_input not in CELDAS_INPUT or clave_linea not in LINEA_POR_CLAVE:
+                    continue
+                etiqueta = LINEA_POR_CLAVE[clave_linea].etiqueta
+                if etiqueta not in set(balance["Renglón"]):
+                    continue
+                celda = ws[CELDAS_INPUT[clave_input]]
+                celda.value = (
+                    f"=IFERROR({_referencia(HOJA_PROPIA['balance'], etiqueta, ultima)}"
+                    f"/{escala:.0f},\"\")"
+                )
+                celda.font = FUENTE_ENLACE
+                celda.fill = PatternFill(fill_type=None)
+                celda.number_format = FMT_MILES
+                cableados.append(clave_input)
+
+    if not resultados.empty:
+        columnas = _columnas_de_periodo(resultados)
+        etiquetas = set(resultados["Renglón"])
+        if len(columnas) >= TRIMESTRES_TTM:
+            for clave_input, clave_linea in CABLEADOS_TTM:
+                etiqueta = LINEA_POR_CLAVE[clave_linea].etiqueta
+                if clave_input not in CELDAS_INPUT or etiqueta not in etiquetas:
+                    continue
+                celda = ws[CELDAS_INPUT[clave_input]]
+                suma = _suma_ttm(HOJA_PROPIA["estado_resultados"], etiqueta, columnas)
+                celda.value = f'=IFERROR(({suma})/{escala:.0f},"")'
+                celda.font = FUENTE_ENLACE
+                celda.fill = PatternFill(fill_type=None)
+                celda.number_format = FMT_MILES
+                cableados.append(clave_input)
+
+            necesarias = {
+                LINEA_POR_CLAVE[c].etiqueta for c in
+                ("utilidad_neta", "gasto_intereses", "depreciacion_amortizacion")
+            }
+            if necesarias <= etiquetas and "ebitdare_ttm" in CELDAS_INPUT:
+                celda = ws[CELDAS_INPUT["ebitdare_ttm"]]
+                celda.value = _formula_ebitdare(
+                    HOJA_PROPIA["estado_resultados"], columnas, escala
+                )
+                celda.font = FUENTE_ENLACE
+                celda.fill = PatternFill(fill_type=None)
+                celda.number_format = FMT_MILES
+                cableados.append("ebitdare_ttm")
+
+    if cableados:
+        ws["C2"] = (
+            "Verde = sale de un estado financiero de este libro, por fórmula. "
+            "Escribe encima si quieres probar otro supuesto."
+        )
+        ws["C2"].font = Font(italic=True, size=9, color=VERDE)
+    return cableados
+
+
+def _volcar_estados(wb: Workbook, estados: EstadosParaLibro) -> None:
+    """Las nueve hojas de estados más los ratios, en el orden de las tres vistas."""
+    for clave, tabla in estados.propia.items():
+        if not tabla.empty:
+            dataframe_a_hoja(wb, HOJA_PROPIA[clave], tabla)
+    for clave, tabla in estados.bloomberg.items():
+        if not tabla.empty:
+            columnas = [c for c in ("nivel", "seccion", "total") if c in tabla.columns]
+            dataframe_a_hoja(wb, f"BBG {_HOJAS[clave]}", tabla.drop(columns=columnas))
+    for clave, tabla in estados.reportados.items():
+        if not tabla.empty:
+            dataframe_a_hoja(wb, f"Reportado {_HOJAS[clave]}", tabla)
+    if not estados.ratios.empty:
+        columnas = [c for c in ("formato",) if c in estados.ratios.columns]
+        dataframe_a_hoja(wb, "Ratios", estados.ratios.drop(columns=columnas))
+
+
+def estados_para_libro(
+    repo,
+    ticker: str,
+    *,
+    asof: dt.date,
+    periodo_tipo: str = "Q",
+    n_periodos: int = 8,
+) -> EstadosParaLibro:
+    """Arma las tres vistas una sola vez, para el libro y para el cableado."""
+    from src.ingesta import reportados as mod_reportados
+    from src.ingesta.estados import ESTADOS as ESTADOS_DEL_CATALOGO
+    from src.modelo import bloomberg as mod_bloomberg
+    from src.servicio import (
+        estado_financiero,
+        estados_reportados,
+        panel_de_conceptos,
+        ratios_propios,
+    )
+
+    panel = panel_de_conceptos(
+        repo, ticker, asof=asof, periodo_tipo=periodo_tipo, n_periodos=n_periodos
+    )
+    formulario = "10-K" if periodo_tipo == "FY" else "10-Q"
+    return EstadosParaLibro(
+        propia={
+            estado: estado_financiero(
+                repo, ticker, estado, asof=asof, periodo_tipo=periodo_tipo,
+                n_periodos=n_periodos,
+            )
+            for estado in ESTADOS_DEL_CATALOGO
+        },
+        bloomberg={
+            estado: mod_bloomberg.armar(panel, estado, n_periodos=n_periodos)
+            for estado in mod_bloomberg.ESTADOS
+        },
+        reportados={
+            estado: estados_reportados(ticker, estado, asof=asof, formulario=formulario)
+            for estado in mod_reportados.ESTADOS
+        },
+        ratios=ratios_propios(panel),
+        periodo_tipo=periodo_tipo,
+    )
 
 
 def libro_de_estados(
@@ -869,74 +1212,26 @@ def libro_de_estados(
     periodo_tipo: str = "Q",
     n_periodos: int = 8,
 ) -> bytes:
-    """Las tres vistas y los ratios, una hoja por vista y estado.
+    """Solo los estados, en BYTES, para el botón de descarga de la pantalla.
 
-    Devuelve BYTES y no una ruta: quien lo llama es el botón de descarga de
-    Streamlit, y en Streamlit Cloud el disco es efímero — escribir un archivo
-    para leerlo enseguida es un rodeo que además se puede quedar a medias.
-
-    Las columnas son las MISMAS que la pantalla, con los mismos encabezados. Es
-    lo que permite que una fórmula del modelo apunte a una celda de estas hojas y
-    siga apuntando a lo mismo la próxima vez que se descargue.
+    Devuelve bytes y no una ruta porque en Streamlit Cloud el disco es efímero:
+    escribir un archivo para leerlo enseguida es un rodeo que además se puede
+    quedar a medias. El libro COMPLETO —con el modelo cableado— lo arma
+    ``exportar``.
     """
     import io
 
-    from src.ingesta import reportados as mod_reportados
-    from src.modelo import bloomberg as mod_bloomberg
-    from src.servicio import (
-        estado_financiero,
-        estados_reportados,
-        panel_de_conceptos,
-        ratios_propios,
-    )
-
-    wb = Workbook()
-    wb.remove(wb.active)
-
-    panel = panel_de_conceptos(
+    estados = estados_para_libro(
         repo, ticker, asof=asof, periodo_tipo=periodo_tipo, n_periodos=n_periodos
     )
-
-    # 1 · Bloomberg
-    for estado in mod_bloomberg.ESTADOS:
-        tabla = mod_bloomberg.armar(panel, estado, n_periodos=n_periodos)
-        if tabla.empty:
-            continue
-        tabla = tabla.drop(columns=["nivel", "seccion", "total"])
-        dataframe_a_hoja(wb, f"BBG {_HOJAS[estado]}", tabla)
-
-    # 2 · As reported
-    formulario = "10-K" if periodo_tipo == "FY" else "10-Q"
-    for estado in mod_reportados.ESTADOS:
-        tabla = estados_reportados(ticker, estado, asof=asof, formulario=formulario)
-        if tabla.empty:
-            continue
-        dataframe_a_hoja(wb, f"Reportado {_HOJAS[estado]}", tabla)
-
-    # 3 · Propia
-    from src.ingesta.estados import ESTADOS as ESTADOS_DEL_CATALOGO
-
-    for estado in ESTADOS_DEL_CATALOGO:
-        tabla = estado_financiero(
-            repo, ticker, estado, asof=asof, periodo_tipo=periodo_tipo,
-            n_periodos=n_periodos,
-        )
-        if tabla.empty:
-            continue
-        dataframe_a_hoja(wb, f"Propia {_HOJAS.get(estado, estado)[:20]}", tabla)
-
-    ratios = ratios_propios(panel)
-    if not ratios.empty:
-        dataframe_a_hoja(wb, "Ratios", ratios.drop(columns=["formato"]))
-
-    # Sin una sola hoja el libro no se puede guardar, y un libro vacío es un
-    # error más claro que una excepción de openpyxl.
+    wb = Workbook()
+    wb.remove(wb.active)
+    _volcar_estados(wb, estados)
     if not wb.sheetnames:
         dataframe_a_hoja(
             wb, "Sin datos",
             pd.DataFrame([{"Aviso": f"No hay estados de {ticker} al corte del {asof}."}]),
         )
-
     buffer = io.BytesIO()
     wb.save(buffer)
     return buffer.getvalue()
