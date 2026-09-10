@@ -44,6 +44,7 @@ from marca import (  # noqa: E402
     RADIO_TARJETA,
     SUPERFICIE,
     SUPERFICIE_2,
+    TEXTO,
 )
 from src.config import DESCARGO, MIN_APUESTAS_EFECTIVAS, RUTA_BD, Fuente  # noqa: E402
 from src.datos.repositorio import Repositorio  # noqa: E402
@@ -64,6 +65,167 @@ def obtener_repo(ruta: str | None = None) -> Repositorio:
 
 def base_existe() -> bool:
     return Path(RUTA_BD).exists()
+
+
+# --------------------------------------------------------------------------------------
+# Caché de lo que cuesta calcular
+# --------------------------------------------------------------------------------------
+#
+# Streamlit vuelve a correr el script ENTERO cada vez que se toca un widget. Sin
+# caché eso significa rehacer, por cada clic, el panel de conceptos, el molde de
+# Bloomberg de los tres estados y los estados as reported: siete segundos aquí y
+# el triple en el contenedor de Streamlit Cloud, que es más lento. La aplicación
+# no estaba «pensando»: estaba recalculando lo mismo.
+#
+# `st.cache_data` guarda el resultado y lo devuelve copiado, así que una página
+# no puede ensuciarle el dato a otra. Lo que falta es la llave.
+
+
+def firma_de_la_base() -> tuple[int, int]:
+    """El tamaño y la fecha de la base: la llave que invalida el caché.
+
+    Va como argumento de cada función cacheada, y por eso el caché se tira solo
+    cuando la base cambia —una ingesta, una reconstrucción— sin que nadie tenga
+    que acordarse de limpiarlo. Es lo contrario de cachear por tiempo: un TTL
+    sirve datos viejos durante su ventana y recalcula datos frescos al salir de
+    ella; esto no hace ninguna de las dos.
+    """
+    try:
+        estado = Path(RUTA_BD).stat()
+    except OSError:
+        return (0, 0)
+    return (estado.st_size, estado.st_mtime_ns)
+
+
+# El repositorio va como `_repo` a propósito: el guion bajo le dice a Streamlit
+# que no intente hacerle hash. Es una conexión, no un dato, y quien identifica al
+# dato es `firma`.
+
+
+@st.cache_data(show_spinner=False, max_entries=32)
+def panel_en_cache(
+    _repo: Repositorio,
+    ticker: str,
+    *,
+    asof: dt.date,
+    periodo_tipo: str,
+    n_periodos: int | None,
+    firma: tuple[int, int],
+) -> pd.DataFrame:
+    """`panel_de_conceptos`, una vez por combinación y no una vez por clic."""
+    from src.servicio import panel_de_conceptos
+
+    return panel_de_conceptos(
+        _repo, ticker, asof=asof, periodo_tipo=periodo_tipo, n_periodos=n_periodos
+    )
+
+
+@st.cache_data(show_spinner=False, max_entries=32)
+def bloomberg_en_cache(
+    _repo: Repositorio,
+    ticker: str,
+    estado: str,
+    *,
+    asof: dt.date,
+    periodo_tipo: str,
+    n_periodos: int | None,
+    firma: tuple[int, int],
+) -> tuple[int, int, pd.DataFrame]:
+    """La cobertura y la tabla del molde de Bloomberg, en una sola pasada.
+
+    Van juntas porque la pantalla siempre pide las dos y `cobertura` arma la
+    tabla otra vez por dentro para contarla. Cachearlas por separado dejaría esa
+    segunda pasada afuera.
+    """
+    from src.modelo import bloomberg
+
+    panel = panel_en_cache(
+        _repo, ticker, asof=asof, periodo_tipo=periodo_tipo,
+        n_periodos=n_periodos, firma=firma,
+    )
+    con, piden = bloomberg.cobertura(panel, estado)
+    return con, piden, bloomberg.armar(panel, estado)
+
+
+@st.cache_data(show_spinner=False, max_entries=64)
+def estado_en_cache(
+    _repo: Repositorio,
+    ticker: str,
+    clave: str,
+    *,
+    asof: dt.date,
+    periodo_tipo: str,
+    n_periodos: int | None,
+    firma: tuple[int, int],
+) -> pd.DataFrame:
+    """Un estado financiero de la vista propia."""
+    from src.servicio import estado_financiero
+
+    return estado_financiero(
+        _repo, ticker, clave, asof=asof, periodo_tipo=periodo_tipo, n_periodos=n_periodos
+    )
+
+
+@st.cache_data(show_spinner=False, max_entries=64)
+def reportados_en_cache(
+    ticker: str,
+    clave: str,
+    *,
+    asof: dt.date,
+    formulario: str,
+    firma: tuple[int, int],
+) -> pd.DataFrame:
+    """Un estado as reported. No toca la base: sale de `data/emisoras/`."""
+    from src.servicio import estados_reportados
+
+    return estados_reportados(ticker, clave, asof=asof, formulario=formulario)
+
+
+# Lo de arriba es lo que cuesta la sección de estados. Lo de abajo corre ANTES
+# de cualquier pestaña, así que se paga en cada recarga aunque nadie lo esté
+# viendo: Streamlit ejecuta el script entero, incluidas las pestañas cerradas.
+
+
+@st.cache_data(show_spinner=False, max_entries=8)
+def cobertura_en_cache(_repo: Repositorio, *, asof: dt.date, firma: tuple[int, int]) -> pd.DataFrame:
+    """`cobertura_de_emisores`, que consulta a las diez emisoras una por una.
+
+    No depende de la emisora elegida ni de los supuestos: solo del corte. Era
+    tres cuartos de segundo por clic para contestar siempre lo mismo.
+    """
+    return cobertura_de_emisores(_repo, asof=asof)
+
+
+@st.cache_data(show_spinner=False, max_entries=32)
+def macro_en_cache(_repo: Repositorio, *, asof: dt.date, firma: tuple[int, int]):
+    """El contexto macro: tasas y tipo de cambio al corte. Igual para las diez."""
+    from src.servicio import contexto_macro
+
+    return contexto_macro(_repo, asof=asof)
+
+
+@st.cache_data(show_spinner=False, max_entries=32)
+def panel_del_modelo_en_cache(
+    _repo: Repositorio,
+    ticker: str,
+    *,
+    asof: dt.date,
+    cap_rate_mercado: float,
+    yield_adquisiciones: float,
+    firma: tuple[int, int],
+):
+    """`construir_panel`, el insumo de toda la página.
+
+    Los dos supuestos van en la llave porque el panel SÍ depende de ellos: mover
+    el cap rate tiene que recalcular. Lo que ya no recalcula es abrir una
+    pestaña, que era el caso común.
+    """
+    from src.servicio import construir_panel
+
+    return construir_panel(
+        _repo, ticker, asof=asof,
+        cap_rate_mercado=cap_rate_mercado, yield_adquisiciones=yield_adquisiciones,
+    )
 
 
 def _publicar_secretos() -> None:
@@ -706,27 +868,29 @@ def etiqueta_de_columna(columna) -> str:
     return " ".join(_SIGLAS.get(p.lower(), p) for p in palabras)
 
 
-def _config_de_familia(familia: str, columna, serie: pd.Series) -> object:
+def _config_de_familia(
+    familia: str, columna, serie: pd.Series, *, fija: bool = False
+) -> object:
     etiqueta = etiqueta_de_columna(columna)
-    if familia == "bps":
-        return st.column_config.NumberColumn(etiqueta, format="%,.0f bps")
-    if familia == "porcentaje":
-        return st.column_config.NumberColumn(etiqueta, format="%.2f%%")
-    if familia == "por_accion":
-        return st.column_config.NumberColumn(etiqueta, format="$%.2f")
-    if familia == "veces":
-        return st.column_config.NumberColumn(etiqueta, format="%.2fx")
-    if familia == "moneda":
-        return st.column_config.NumberColumn(etiqueta, format="$%,.2f")
-    if familia == "entero":
-        return st.column_config.NumberColumn(etiqueta, format="%,d")
-    # Los montos grandes se leen sin decimales; los chicos los necesitan.
-    magnitud = serie.abs().max()
-    formato = "%,.0f" if pd.notna(magnitud) and magnitud >= 1_000 else "%,.2f"
-    return st.column_config.NumberColumn(etiqueta, format=formato)
+    formatos = {
+        "bps": "%,.0f bps",
+        "porcentaje": "%.2f%%",
+        "por_accion": "$%.2f",
+        "veces": "%.2fx",
+        "moneda": "$%,.2f",
+        "entero": "%,d",
+    }
+    formato = formatos.get(familia)
+    if formato is None:
+        # Los montos grandes se leen sin decimales; los chicos los necesitan.
+        magnitud = serie.abs().max()
+        formato = "%,.0f" if pd.notna(magnitud) and magnitud >= 1_000 else "%,.2f"
+    return st.column_config.NumberColumn(etiqueta, format=formato, pinned=fija)
 
 
-def formato_columnas(df: pd.DataFrame, explicito: dict | None = None) -> tuple[pd.DataFrame, dict]:
+def formato_columnas(
+    df: pd.DataFrame, explicito: dict | None = None, *, fijar: Sequence[str] = ()
+) -> tuple[pd.DataFrame, dict]:
     """Escala cada columna numérica a su unidad y deduce cómo dibujarla.
 
     Devuelve ``(datos_para_dibujar, column_config)``.
@@ -734,8 +898,14 @@ def formato_columnas(df: pd.DataFrame, explicito: dict | None = None) -> tuple[p
     La **escala** la decide la familia de la columna y se aplica siempre. Lo
     explícito que pase quien llama gana sobre la etiqueta y el formato —que es
     presentación— pero nunca sobre las unidades, que son el dato.
+
+    ``fijar`` ancla esas columnas a la izquierda: se quedan quietas mientras el
+    resto de la tabla se desplaza. Un estado financiero de setenta trimestres se
+    desplaza de lado sí o sí, y sin el renglón a la vista lo que queda es una
+    parrilla de números sin sujeto.
     """
     explicito = dict(explicito or {})
+    fijar = set(fijar)
     vista = df.copy()
     config: dict = {}
 
@@ -746,14 +916,18 @@ def formato_columnas(df: pd.DataFrame, explicito: dict | None = None) -> tuple[p
             # sin esto se dibujaba con la clave cruda, y una misma tabla mezclaba
             # "Aporte" con "explicacion".
             if columna not in explicito:
-                config[columna] = st.column_config.Column(etiqueta_de_columna(columna))
+                config[columna] = st.column_config.Column(
+                    etiqueta_de_columna(columna), pinned=columna in fijar
+                )
             continue
         familia = familia_de_columna(columna, serie)
         if familia == "porcentaje":
             # La escala va en el dato. El formato solo pega el símbolo.
             vista[columna] = serie * 100.0
         if columna not in explicito:
-            config[columna] = _config_de_familia(familia, columna, vista[columna])
+            config[columna] = _config_de_familia(
+                familia, columna, vista[columna], fija=columna in fijar
+            )
 
     config.update(explicito)
     return vista, config
@@ -767,14 +941,135 @@ def formato_columnas(df: pd.DataFrame, explicito: dict | None = None) -> tuple[p
 _ACEPTA_PLACEHOLDER = "placeholder" in inspect.signature(st.dataframe).parameters
 
 
-def mostrar_tabla(df: pd.DataFrame, *, column_config: dict | None = None, **kwargs):
-    """``st.dataframe`` con separadores de miles, unidades y huecos por omisión."""
-    vista, config = formato_columnas(df, column_config)
+def mostrar_tabla(
+    df: pd.DataFrame,
+    *,
+    column_config: dict | None = None,
+    fijar_primera: bool = False,
+    **kwargs,
+):
+    """``st.dataframe`` con separadores de miles, unidades y huecos por omisión.
+
+    ``fijar_primera`` ancla la primera columna —la del concepto— para que no se
+    vaya con el desplazamiento horizontal. Es lo que hace legible un estado de
+    setenta trimestres: sin ella, en cuanto se avanza tres columnas los números
+    dejan de tener renglón y hay que volver al inicio para saber qué se está
+    leyendo.
+    """
+    fijar = [df.columns[0]] if fijar_primera and len(df.columns) else []
+    vista, config = formato_columnas(df, column_config, fijar=fijar)
     kwargs.setdefault("hide_index", True)
     kwargs.setdefault("width", "stretch")
     if _ACEPTA_PLACEHOLDER:
         kwargs.setdefault("placeholder", "—")
     return st.dataframe(vista, column_config=config, **kwargs)
+
+
+def _formato_de_valor(valor: float | None, unidad: str) -> str:
+    """El valor en la unidad de su métrica, o el guion largo si no hay."""
+    if valor is None or pd.isna(valor):
+        return "—"
+    if unidad == "pct":
+        return f"{valor * 100:,.1f}%"
+    if unidad == "veces":
+        return f"{valor:,.2f}x"
+    return f"{valor / 1e6:,.1f} M"
+
+
+def _formato_de_cambio(cambio: float | None, etiqueta: str) -> tuple[str, str]:
+    """El cambio con su glifo de dirección. Devuelve ``(glifo, texto)``.
+
+    El glifo va SIEMPRE y el color NUNCA: en la mitad de estas métricas subir es
+    malo —el apalancamiento, el costo de la deuda, el payout— así que pintar de
+    verde toda subida diría lo contrario de lo que pasa. La guía de marca reserva
+    el verde y el rojo para ganancia y pérdida, y una dirección no es ninguna de
+    las dos.
+    """
+    if cambio is None or pd.isna(cambio):
+        return "·", "sin comparable"
+    glifo = "▲" if cambio > 0 else ("▼" if cambio < 0 else "·")
+    if etiqueta == "bps":
+        return glifo, f"{cambio:+,.0f} bps"
+    if etiqueta == "x":
+        return glifo, f"{cambio:+,.2f}x"
+    return glifo, f"{cambio:+,.1f}%"
+
+
+def panel_de_metrica(
+    serie: pd.Series, metrica, *, pasos_al_ano: int = 4, dominio=None
+) -> None:
+    """Una métrica como valor, cambio y serie: la forma de «cuánto y hacia dónde».
+
+    Es un *stat tile*, no una gráfica suelta: el número manda y la línea es el
+    contexto. Una serie por panel y un solo eje —nunca dos escalas en la misma
+    caja— porque la comparación que importa es la de la métrica consigo misma a
+    lo largo del tiempo, no la de dos métricas entre sí.
+
+    El ámbar es el único acento de la marca, así que la línea va en ámbar y todo
+    lo demás en tinta: no hay una paleta categórica que repartir porque no hay
+    categorías que distinguir.
+
+    ``dominio`` fija el mismo eje de tiempo en todos los paneles. No es cosmético:
+    con cada panel en su propio rango, el NOI —que empieza en 2019— y el ingreso
+    —que empieza en 2010— dibujan la misma rampa con el mismo ancho, y se leen
+    como si hubieran crecido igual. Comparar paneles exige el mismo eje.
+    """
+    import plotly.graph_objects as go
+
+    from src.servicio import cambio_de_metrica as _cambio
+
+    limpia = serie.dropna()
+    valor, cambio_periodo, unidad_cambio = _cambio(serie, metrica.unidad, pasos=1)
+    _, cambio_ano, _ = _cambio(serie, metrica.unidad, pasos=pasos_al_ano)
+    glifo_p, texto_p = _formato_de_cambio(cambio_periodo, unidad_cambio)
+    glifo_a, texto_a = _formato_de_cambio(cambio_ano, unidad_cambio)
+
+    st.markdown(
+        f"<div style='font:600 11px {TEXTO};color:{GRIS};letter-spacing:.04em;"
+        f"text-transform:uppercase'>{metrica.etiqueta}</div>"
+        f"<div style='font:700 26px {MONO};color:{BLANCO};line-height:1.25'>"
+        f"{_formato_de_valor(valor, metrica.unidad)}</div>"
+        f"<div style='font:500 11px {MONO};color:{GRIS}'>"
+        f"{glifo_p} {texto_p} <span style='color:{GRIS_TENUE}'>· periodo</span>"
+        f" &nbsp; {glifo_a} {texto_a} <span style='color:{GRIS_TENUE}'>· año</span></div>",
+        unsafe_allow_html=True,
+    )
+    if limpia.empty:
+        st.caption("Sin serie para dibujar.")
+        return
+
+    escala = 100.0 if metrica.unidad == "pct" else (1 / 1e6 if metrica.unidad == "monto" else 1.0)
+    sufijo = {"pct": "%", "veces": "x", "monto": " M"}[metrica.unidad]
+    figura = go.Figure()
+    figura.add_trace(
+        go.Scatter(
+            x=list(limpia.index), y=[v * escala for v in limpia],
+            mode="lines", line={"color": AMBAR, "width": 2},
+            hovertemplate="%{x|%Y-%m-%d}<br>%{y:,.2f}" + sufijo + "<extra></extra>",
+            showlegend=False,
+        )
+    )
+    # El último punto marcado: es el que dice el número grande de arriba, y sin
+    # él la línea termina en el aire y no se sabe cuál de los picos es "hoy".
+    figura.add_trace(
+        go.Scatter(
+            x=[limpia.index[-1]], y=[float(limpia.iloc[-1]) * escala],
+            mode="markers", marker={"color": AMBAR, "size": 8},
+            hoverinfo="skip", showlegend=False,
+        )
+    )
+    if float(limpia.min()) < 0 < float(limpia.max()):
+        # El cero solo se dibuja cuando la serie lo cruza: en un margen que pasa
+        # a negativo, esa línea es el dato.
+        figura.add_hline(y=0, line={"color": GRIS_TENUE, "width": 1})
+    figura.update_layout(
+        height=130, margin={"t": 4, "b": 4, "l": 0, "r": 4},
+        hovermode="x unified", showlegend=False,
+    )
+    figura.update_xaxes(showgrid=False, tickfont={"size": 9}, range=dominio)
+    figura.update_yaxes(showgrid=True, nticks=3, tickfont={"size": 9})
+    st.plotly_chart(figura, config={"displayModeBar": False})
+    st.caption(metrica.explicacion)
 
 
 def semaforo_html(luz: str, texto: str) -> str:

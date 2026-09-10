@@ -379,8 +379,18 @@ def test_el_orquestador_ingesta_los_estados():
 
 
 def test_la_pantalla_muestra_la_cadena_de_estados_a_modelo():
+    """Los tres estados y el origen de cada insumo siguen en la pantalla.
+
+    El estado se pide por `estado_en_cache`: Streamlit vuelve a correr el script
+    entero en cada clic, y armarlo cada vez era parte de por qué la página «seguía
+    corriendo a cada rato». Se verifica la cadena entera, no el nombre.
+    """
     pagina = (RAIZ / "app" / "pages" / "1_Valuacion.py").read_text(encoding="utf-8")
-    assert "estado_financiero(" in pagina
+    comun = (RAIZ / "app" / "comun.py").read_text(encoding="utf-8")
+    assert "estado_en_cache(" in pagina
+    assert "return estado_financiero(" in comun, (
+        "el envoltorio en caché dejó de armar el estado de verdad"
+    )
     assert "ORIGEN_DE_INSUMOS" in pagina
     # Los tres estados, no solo uno.
     for estado in ("estado_resultados", "balance", "flujo_efectivo"):

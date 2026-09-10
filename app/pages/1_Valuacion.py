@@ -49,22 +49,30 @@ from comun import (  # noqa: E402
     avisos,
     banda_emisor,
     barra_comparativa,
+    bloomberg_en_cache,
     bps,
     cascada_html,
-    cobertura_de_emisores,
+    cobertura_en_cache,
     configurar,
     descargo,
     dinero,
+    estado_en_cache,
     exigir_base,
     explicar,
     filas_metodo,
+    firma_de_la_base,
+    macro_en_cache,
     mostrar_tabla,
     numero,
+    panel_de_metrica,
+    panel_del_modelo_en_cache,
+    panel_en_cache,
     panel_veredicto,
     pct,
     positivo,
     puertas_html,
     rejilla_cifras,
+    reportados_en_cache,
     selector_de_corte,
     selector_de_emisor,
     tarjeta_abre,
@@ -116,19 +124,17 @@ from src.modelo.valuacion import (  # noqa: E402
     valuar_por_crecimiento,
 )
 from src.servicio import (  # noqa: E402
+    BLOQUES_DE_GRAFICAS,
     MEDIDA_AFFO,
+    METRICAS_DE_GRAFICA,
     ORIGEN_DE_INSUMOS,
     RATIOS_PROPIOS,
-    construir_panel,
-    contexto_macro,
     diagnostico_de_insumos,
-    estado_financiero,
-    estados_reportados,
     evaluar,
     hechos_descartados_por_escala,
-    panel_de_conceptos,
     ratios_propios,
     saldos_de_balance,
+    series_de_graficas,
 )
 from src.validacion.cuadre import cuadrar_conciliacion  # noqa: E402
 
@@ -224,7 +230,8 @@ ticker = selector_de_emisor(repo)
 if ticker is None:
     st.stop()
 
-cobertura = cobertura_de_emisores(repo, asof=asof)
+_FIRMA = firma_de_la_base()
+cobertura = cobertura_en_cache(repo, asof=asof, firma=_FIRMA)
 sin_datos = cobertura[cobertura["trimestres"] == 0]
 if not sin_datos.empty:
     st.info(
@@ -263,10 +270,11 @@ yield_adq = st.sidebar.slider(
     ),
 )
 
-panel = construir_panel(
-    repo, ticker, asof=asof, cap_rate_mercado=cap_rate, yield_adquisiciones=yield_adq
+panel = panel_del_modelo_en_cache(
+    repo, ticker, asof=asof, cap_rate_mercado=cap_rate,
+    yield_adquisiciones=yield_adq, firma=_FIRMA,
 )
-macro = contexto_macro(repo, asof=asof)
+macro = macro_en_cache(repo, asof=asof, firma=_FIRMA)
 semaforo = evaluar(panel)
 m = panel.metricas
 
@@ -470,8 +478,15 @@ rejilla_cifras([
 # que la zona 05 vuelve a «Evidencia» sin mover código: las asignaciones siguen
 # ocurriendo en el mismo orden y ningún bloque posterior se queda sin su variable.
 
+# Las pestañas llevan `key` para que la que está abierta se guarde en el estado
+# de sesión y sobreviva a la recarga. Sin él, Streamlit las devuelve a la primera
+# cada vez que cambia algo de arriba: quien estaba leyendo el estado de
+# resultados y cambiaba de emisora aparecía de vuelta en «Evidencia», con los
+# estados fuera de la pantalla. No era lentitud, era que la vista se perdía.
 tab_evidencia, tab_estados, tab_modelos, tab_auditoria = st.tabs(
-    ["Evidencia", "Estados financieros", "Modelos", "Auditoría"]
+    ["Evidencia", "Estados financieros", "Modelos", "Auditoría"],
+    key="pestana_valuacion",
+    on_change="rerun",
 )
 
 with tab_evidencia:
@@ -651,15 +666,19 @@ with tab_estados:
         )
     _N = _HISTORIAS[historia]
 
-    panel_estados = panel_de_conceptos(
-        repo, ticker, asof=asof, periodo_tipo=_TIPO, n_periodos=_N
+    panel_estados = panel_en_cache(
+        repo, ticker, asof=asof, periodo_tipo=_TIPO, n_periodos=_N, firma=_FIRMA
     )
 
     with col_desc:
-        libro = libro_de_estados(repo, ticker, asof=asof, periodo_tipo=_TIPO)
+        # `data` va como FUNCIÓN y no como bytes: así el libro se arma cuando
+        # alguien lo descarga y no en cada recarga. Armarlo cuesta cinco
+        # segundos —los tres estados en las tres vistas, más los ratios con sus
+        # fórmulas vivas— y se pagaban en cada clic de la página, incluidos los
+        # de quien nunca descarga nada.
         st.download_button(
             "Descargar los tres en Excel",
-            data=libro,
+            data=lambda: libro_de_estados(repo, ticker, asof=asof, periodo_tipo=_TIPO),
             file_name=f"{ticker}_estados_{'anual' if _ANUAL else 'trimestral'}_{asof}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             help=(
@@ -669,8 +688,11 @@ with tab_estados:
             ),
         )
 
-    v_bbg, v_reportado, v_propia = st.tabs(
-        ["Visualización Bloomberg", "Visualización as reported", "Visualización propia"]
+    v_bbg, v_reportado, v_propia, v_graficas = st.tabs(
+        ["Visualización Bloomberg", "Visualización as reported", "Visualización propia",
+         "Gráficas"],
+        key="vista_estados",
+        on_change="rerun",
     )
 
     # ── Bloomberg ─────────────────────────────────────────────────────────────
@@ -685,15 +707,17 @@ with tab_estados:
             st.info(f"No hay estados para {ticker} al corte del {asof}.")
         else:
             for estado_bbg in bloomberg.ESTADOS:
-                con, piden = bloomberg.cobertura(panel_estados, estado_bbg)
-                tabla_bbg = bloomberg.armar(panel_estados, estado_bbg)
+                con, piden, tabla_bbg = bloomberg_en_cache(
+                    repo, ticker, estado_bbg, asof=asof, periodo_tipo=_TIPO,
+                    n_periodos=_N, firma=_FIRMA,
+                )
                 st.markdown(f"**{bloomberg.NOMBRE_ESTADO[estado_bbg]}**")
                 st.caption(
                     f"{con} de {piden} renglones del molde se pueden llenar con lo que "
                     "publica la SEC. Los demás quedan en blanco a propósito: un cero ahí "
                     "sería una cifra inventada con formato de dato."
                 )
-                mostrar_tabla(_a_millones(_marcar_ajustes(tabla_bbg)))
+                mostrar_tabla(_a_millones(_marcar_ajustes(tabla_bbg)), fijar_primera=True)
             with st.expander("Los ajustes de Bloomberg, uno por uno"):
                 for nombre, texto in bloomberg.AJUSTES.items():
                     st.markdown(f"**{nombre.capitalize()}** — {texto}")
@@ -713,8 +737,8 @@ with tab_estados:
         formulario = "10-K" if _ANUAL else "10-Q"
         vacias = 0
         for clave_rep in reportados.ESTADOS:
-            tabla_rep = estados_reportados(
-                ticker, clave_rep, asof=asof, formulario=formulario
+            tabla_rep = reportados_en_cache(
+                ticker, clave_rep, asof=asof, formulario=formulario, firma=_FIRMA
             )
             st.markdown(f"**{reportados.NOMBRE_ESTADO[clave_rep]}**")
             if tabla_rep.empty:
@@ -730,7 +754,9 @@ with tab_estados:
                 f"{sin_verificar} sin poder cuadrarse contra nuestra base — casi siempre "
                 "etiquetas de extensión que `companyfacts` no publica."
             )
-            mostrar_tabla(_a_millones(tabla_rep.drop(columns=["sangria"])))
+            mostrar_tabla(
+                _a_millones(tabla_rep.drop(columns=["sangria"])), fijar_primera=True
+            )
         if vacias == len(reportados.ESTADOS):
             st.info(
                 "Los estados as reported se bajan del renderizado de la SEC. "
@@ -752,9 +778,9 @@ with tab_estados:
              "Derivado de los acumulados que publica la SEC."),
         )
         for clave_estado, nombre_estado, nota_estado in _ESTADOS:
-            tabla = estado_financiero(
+            tabla = estado_en_cache(
                 repo, ticker, clave_estado, asof=asof, periodo_tipo=_TIPO,
-                n_periodos=_N,
+                n_periodos=_N, firma=_FIRMA,
             )
             st.markdown(f"**{nombre_estado}**")
             if tabla.empty:
@@ -764,7 +790,7 @@ with tab_estados:
                 )
                 continue
             st.caption(nota_estado)
-            mostrar_tabla(_a_millones(tabla))
+            mostrar_tabla(_a_millones(tabla), fijar_primera=True)
 
         st.markdown("**Ratios**")
         tabla_ratios = ratios_propios(panel_estados)
@@ -775,7 +801,7 @@ with tab_estados:
                 "Calculados sobre el periodo que se está viendo, no sobre el TTM del modelo: "
                 "quien lee el estado de un trimestre quiere el margen de ese trimestre."
             )
-            mostrar_tabla(_formatear_ratios(tabla_ratios))
+            mostrar_tabla(_formatear_ratios(tabla_ratios), fijar_primera=True)
             with st.expander("De qué renglones sale cada ratio"):
                 mostrar_tabla(
                     pd.DataFrame(
@@ -783,6 +809,58 @@ with tab_estados:
                          for e, _, _, x in RATIOS_PROPIOS]
                     )
                 )
+    # ── Gráficas ──────────────────────────────────────────────────────────────
+    with v_graficas:
+        st.caption(
+            "La tabla contesta **cuánto**; esto contesta **hacia dónde**. Cada panel trae "
+            "el último valor, su cambio contra el periodo anterior y contra el mismo "
+            "periodo del año pasado, y la serie completa detrás. Salen del MISMO panel y "
+            "de las mismas declaraciones que la tabla de al lado: una gráfica que no cuadre "
+            "con la tabla es peor que no tener gráfica."
+        )
+        st.caption(
+            "**El cambio va en la unidad en la que esa métrica se compara**, que no es una "
+            "sola: un margen se compara por diferencia y se dice en **puntos base** —entre "
+            "62% y 57% hay 500 bps, no «−8%»—; un monto se compara por razón y se dice en "
+            "**por ciento**; un múltiplo se dice en **veces**, que es la unidad en la que "
+            "está escrito el listón de 6.5x."
+        )
+        _series = series_de_graficas(panel_estados)
+        if _series.empty:
+            st.info(f"No hay suficientes periodos de {ticker} para graficar al corte.")
+        else:
+            _PASOS_AL_ANO = 1 if _ANUAL else 4
+            # El mismo eje de tiempo en los dieciocho paneles: ver `panel_de_metrica`.
+            _DOMINIO = [_series.index.min(), _series.index.max()]
+            for bloque in BLOQUES_DE_GRAFICAS:
+                _del_bloque = [
+                    m for m in METRICAS_DE_GRAFICA
+                    if m.bloque == bloque and m.clave in _series.columns
+                ]
+                if not _del_bloque:
+                    continue
+                st.markdown(f"**{bloque}**")
+                for inicio in range(0, len(_del_bloque), 3):
+                    for columna, metrica in zip(
+                        st.columns(3), _del_bloque[inicio:inicio + 3], strict=False
+                    ):
+                        with columna:
+                            panel_de_metrica(
+                                _series[metrica.clave], metrica,
+                                pasos_al_ano=_PASOS_AL_ANO, dominio=_DOMINIO,
+                            )
+            with st.expander("Ver los números de las gráficas"):
+                st.caption(
+                    "La misma serie en tabla. Una gráfica sin su tabla obliga a creerle al "
+                    "pixel; con ella se puede verificar cualquier punto."
+                )
+                _tabla_g = _series.copy()
+                _tabla_g.index = [i.date().isoformat() for i in _tabla_g.index]
+                _tabla_g = _tabla_g.rename(
+                    columns={m.clave: m.etiqueta for m in METRICAS_DE_GRAFICA}
+                ).T.reset_index(names="Métrica")
+                mostrar_tabla(_tabla_g, fijar_primera=True)
+
     st.caption("Cifras en millones de USD, salvo las de por acción y el conteo de acciones.")
 
     with st.expander("De qué renglón sale cada insumo del modelo"):
