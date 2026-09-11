@@ -22,6 +22,7 @@ import unicodedata
 from collections.abc import Sequence
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import streamlit as st
 
@@ -995,6 +996,67 @@ def _formato_de_cambio(cambio: float | None, etiqueta: str) -> tuple[str, str]:
     return glifo, f"{cambio:+,.1f}%"
 
 
+# Qué fracción del alto del panel tiene que ocupar el CUERPO de la serie —del
+# percentil 2 al 98— para que valga la pena dibujarla con su rango natural. Por
+# debajo de esto, dos puntos se comen la escala y quince años quedan en una raya.
+FRACCION_CUERPO_MINIMA = 0.45
+
+# Qué fracción de los puntos puede quedar fuera del eje. Va en fracción y no en
+# número fijo porque la banda del percentil 2 al 98 deja POR CONSTRUCCIÓN un 4%
+# afuera: con setenta cortes son cuatro puntos, y un tope fijo de tres no
+# recortaba nunca —era la condición que impedía que esto sirviera—. Diez por
+# ciento deja margen sobre ese 4% sin llegar a esconder un tramo de la serie.
+FRACCION_FUERA_MAXIMA = 0.10
+MINIMO_FUERA_DEL_EJE = 3
+
+
+def _eje_del_cuerpo(valores: np.ndarray) -> tuple[float, float] | None:
+    """El rango que hace legible la serie, o ``None`` si su rango natural ya lo es.
+
+    El problema que resuelve: el EBITDAre de Public Storage del tercer trimestre
+    de 2022 vale cinco veces el de cualquier otro trimestre, así que el panel
+    dibuja un pico y una raya plana donde deberían leerse quince años. Y el pico
+    es un dato de verdad —la venta de PS Business Parks—, así que borrarlo no es
+    una opción.
+
+    Lo que se hace es lo contrario de esconderlo: el eje cubre el cuerpo de la
+    serie, el punto que se sale se ancla al borde con su propio símbolo, y su
+    valor se dice en el texto de abajo. El lector ve los quince años Y sabe que
+    hay un punto fuera, cuánto vale y cuándo fue. Un eje recortado en silencio
+    sería exactamente el defecto que este modelo no comete.
+
+    No se recorta cuando no hace falta —el rango natural ya es legible— ni cuando
+    habría que sacar demasiados puntos, porque entonces la dispersión ES la
+    serie y comprimirla la falsearía.
+    """
+    if valores.size < 12:
+        return None
+    rango = float(np.nanmax(valores) - np.nanmin(valores))
+    if rango <= 0:
+        return None
+    bajo, alto = (float(x) for x in np.nanpercentile(valores, [2, 98]))
+
+    # El último valor SIEMPRE queda dentro: es el que dice el número grande del
+    # encabezado, y un panel que no lo muestra contradice a su propio título.
+    #
+    # Se hace ESTIRANDO el eje y no renunciando a recortar, que fue el primer
+    # intento y estaba mal: en una serie creciente —los ingresos, la deuda, el
+    # flujo— el último valor está por construcción arriba del percentil 98, así
+    # que la regla «no recortes si el último queda fuera» dejaba sin recortar
+    # justo a las series con tendencia, que son la mayoría.
+    bajo = min(bajo, float(valores[-1]))
+    alto = max(alto, float(valores[-1]))
+
+    if (alto - bajo) / rango >= FRACCION_CUERPO_MINIMA:
+        return None
+    fuera = int(((valores < bajo) | (valores > alto)).sum())
+    tope = max(MINIMO_FUERA_DEL_EJE, round(FRACCION_FUERA_MAXIMA * valores.size))
+    if not 0 < fuera <= tope:
+        return None
+    respiro = (alto - bajo) * 0.08 or abs(alto) * 0.01
+    return (bajo - respiro, alto + respiro)
+
+
 def panel_de_metrica(
     serie: pd.Series, metrica, *, pasos_al_ano: int = 4, dominio=None
 ) -> None:
@@ -1062,14 +1124,56 @@ def panel_de_metrica(
         # El cero solo se dibuja cuando la serie lo cruza: en un margen que pasa
         # a negativo, esa línea es el dato.
         figura.add_hline(y=0, line={"color": GRIS_TENUE, "width": 1})
+
+    # El eje que hace legible la serie, y los puntos que quedan fuera de él. Ver
+    # `_eje_del_cuerpo`: el punto no se borra, se ancla al borde y se dice.
+    dibujados = np.asarray([float(v) * escala for v in limpia])
+    rango_y = _eje_del_cuerpo(dibujados)
+    nota_fuera = ""
+    if rango_y is not None:
+        bajo, alto = rango_y
+        afuera = (dibujados < bajo) | (dibujados > alto)
+        figura.add_trace(
+            go.Scatter(
+                x=list(limpia.index[afuera]),
+                # Anclado al borde que le toca, para que se vea hacia dónde se fue.
+                y=[alto if v > alto else bajo for v in dibujados[afuera]],
+                mode="markers",
+                # Triángulo y no círculo: no es un punto de la línea, es un aviso
+                # de que la línea sigue más allá del eje.
+                marker={"color": AMBAR, "size": 9, "symbol":
+                        ["triangle-up" if v > alto else "triangle-down"
+                         for v in dibujados[afuera]]},
+                customdata=[f"{v:,.1f}" for v in dibujados[afuera]],
+                hovertemplate="%{x|%Y-%m-%d}<br>%{customdata}" + sufijo
+                              + " · fuera del eje<extra></extra>",
+                showlegend=False,
+            )
+        )
+        detalle = "; ".join(
+            f"{v:,.1f}{sufijo} el {f.date()}"
+            for f, v in zip(limpia.index[afuera], dibujados[afuera], strict=True)
+        )
+        nota_fuera = (
+            f" <strong style='color:{BLANCO}'>Fuera del eje:</strong> {detalle}."
+        )
+
     figura.update_layout(
         height=130, margin={"t": 4, "b": 4, "l": 0, "r": 4},
         hovermode="x unified", showlegend=False,
     )
     figura.update_xaxes(showgrid=False, tickfont={"size": 9}, range=dominio)
-    figura.update_yaxes(showgrid=True, nticks=3, tickfont={"size": 9})
+    figura.update_yaxes(showgrid=True, nticks=3, tickfont={"size": 9}, range=rango_y)
     st.plotly_chart(figura, config={"displayModeBar": False})
-    st.caption(metrica.explicacion)
+    # La leyenda va PEGADA a su gráfica y separada del panel de abajo. Con el
+    # espaciado de `st.caption`, «Utilidad de operación ÷ ingresos totales» caía a
+    # media distancia entre las dos y se leía como el subtítulo del panel
+    # SIGUIENTE, que es otra métrica: una leyenda que describe la gráfica
+    # equivocada es peor que no tener leyenda.
+    _html(
+        f"<div style='margin:-10px 0 26px;font:400 12px {TEXTO};color:{GRIS};"
+        f"line-height:1.45'>{metrica.explicacion}{nota_fuera}</div>"
+    )
 
 
 def semaforo_html(luz: str, texto: str) -> str:
