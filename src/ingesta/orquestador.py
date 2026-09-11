@@ -491,6 +491,35 @@ def revisar_escala(repo: Repositorio, ticker: str, *, asof: dt.date | None = Non
     return marcados
 
 
+def revisar_imposibles(repo: Repositorio, ticker: str, *, asof: dt.date | None = None) -> int:
+    """Marca como SOSPECHOSOS los hechos que no pueden ser lo que dicen ser.
+
+    Va DESPUÉS de `revisar_escala` y no antes, y el orden importa: un hecho fuera
+    de escala ya retirado no debe volver a aparecer aquí como el hundimiento de
+    su propia serie. Pedir los hechos vigentes —sin sospechosos— hace que esta
+    pasada vea la serie ya limpia de lo que la anterior descartó.
+
+    Ver `src/validacion/imposibles.py` para qué se exige antes de marcar.
+    """
+    from src.validacion.imposibles import detectar_imposibles
+
+    hoy = asof or dt.date.today()
+    hechos = repo.hechos(asof=hoy, tickers=ticker)
+    hallazgos = detectar_imposibles(hechos)
+    if not hallazgos:
+        return 0
+    marcados = repo.marcar_hechos(
+        {h.id: h.nota() for h in hallazgos}, estado=Estado.SOSPECHOSO
+    )
+    conceptos = sorted({h.concepto for h in hallazgos})
+    repo.registrar_bitacora(
+        "imposibles",
+        f"{marcados} hecho(s) marcados imposibles: {', '.join(conceptos)}.",
+        ticker=ticker,
+    )
+    return marcados
+
+
 def correr_ingesta(
     repo: Repositorio,
     *,
@@ -566,6 +595,9 @@ def correr_ingesta(
         # Con la serie ya completa, incluidos los derivados: un hecho fuera de
         # escala se juzga contra su propia serie, no contra el lote que llegó.
         revisar_escala(repo, e.ticker, asof=hoy)
+        # Y después la escala, nunca antes: esta pasada mira la serie VIGENTE, y
+        # quiere verla sin lo que la anterior ya retiró.
+        revisar_imposibles(repo, e.ticker, asof=hoy)
 
         resumen.novedades = detectar_novedades(repo, e.ticker, asof=hoy)
         for nota in resumen.novedades:

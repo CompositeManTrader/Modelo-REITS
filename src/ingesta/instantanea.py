@@ -42,6 +42,7 @@ from src.ingesta.orquestador import (
     CONCEPTOS_RECONSTRUIBLES,
     reconstruir_desde_acumulados,
     revisar_escala,
+    revisar_imposibles,
 )
 
 # Las fuentes que esta pasada REESCRIBE por completo, y por eso puede borrar. No
@@ -144,6 +145,11 @@ def reconstruir(
         # incluidos. Sin esto, reconstruir la base devolvía los 52 hechos fuera de
         # escala como válidos y el margen de Agree Realty volvía a 62,787%.
         revisar_escala(repo, e.ticker, asof=dt.date.today())
+        # Y por la misma razón, la revisión de lo imposible: sin ella la
+        # reconstrucción devuelve la deuda de Prologis del cierre de 2021 en 215
+        # millones —donde son 17,715— y el apalancamiento de ese trimestre sale
+        # en 0.05x. Va después de la escala, como en la ingesta.
+        revisar_imposibles(repo, e.ticker, asof=dt.date.today())
 
         resumen.emisoras.append(e.ticker)
 

@@ -9,6 +9,7 @@ alguna lo haría.
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -554,6 +555,11 @@ def _cuadro_con_depreciacion(trimestral: pd.DataFrame) -> bool:
     return not pd.isna(depreciacion)
 
 
+# Cuánto puede valer el EBITDAre de un trimestre respecto al ingreso del mismo
+# trimestre antes de dejar de ser creíble. Ver `_derivar_ebitdare`.
+TECHO_EBITDARE_SOBRE_INGRESO = 1.5
+
+
 def _derivar_ebitdare(trimestral: pd.DataFrame) -> pd.Series:
     """EBITDAre según Nareit, que no es el EBITDA de un industrial.
 
@@ -606,7 +612,32 @@ def _derivar_ebitdare(trimestral: pd.DataFrame) -> pd.Series:
         + _col(trimestral, "deterioro")
         - _col(trimestral, "ganancia_venta_inmuebles")
     )
-    return suma.where(utilidad.notna() & (intereses > 0) & depreciacion.notna())
+    vale = utilidad.notna() & (intereses > 0) & depreciacion.notna()
+
+    # Y dos imposibilidades del RESULTADO, no de los insumos. La fórmula puede
+    # estar bien y el número salir imposible cuando la ganancia por venta no
+    # empareja con la utilidad de la que se resta.
+    #
+    # Pasó en los dos sentidos. En Public Storage, tercer trimestre de 2022: la
+    # utilidad neta salta a 2,712 millones por la venta de PS Business Parks,
+    # pero `ganancia_venta_inmuebles` solo alcanza 1.5 de esos millones —la
+    # emisora la registró como venta de una participación, no de un inmueble— y
+    # el EBITDAre sale en 2,965 contra 1,088 de ingresos. Un EBITDAre de 2.7
+    # veces el ingreso no existe: la medida EXCLUYE la ganancia por definición,
+    # así que no puede superar al ingreso del que sale.
+    #
+    # La consecuencia no era cosmética: ese EBITDAre infla el TTM durante cuatro
+    # trimestres y con él el apalancamiento de PSA sale más sano de lo que está,
+    # contra el listón de 6.5x de la Puerta 1.
+    #
+    # El techo va en 1.5 y no en 1.0 porque el ingreso de un trimestre y el
+    # EBITDAre del mismo trimestre no siempre son del mismo perímetro, y un
+    # margen de 110% es raro pero no imposible. En las diez emisoras solo dos
+    # trimestres lo cruzan, y los dos son este defecto.
+    ingresos = _col(trimestral, "ingresos_totales")
+    techo = ingresos.where(ingresos > 0) * TECHO_EBITDARE_SOBRE_INGRESO
+    vale &= (suma > 0) & (techo.isna() | (suma <= techo))
+    return suma.where(vale)
 
 
 def hechos_descartados_por_escala(
@@ -714,13 +745,38 @@ def _saldos_de_balance(repo: Repositorio, ticker: str, *, asof: dt.date) -> dict
     # puede corregir hacia arriba y nunca inventa deuda: cada peso que suma salió
     # de una etiqueta del propio emisor, y `_deuda_compuesta` descarta la suma que
     # excede su pasivo total, que es la forma en que un doble conteo se delata.
-    compuesta = _deuda_compuesta(saldos)
-    declarada = saldos.get("deuda_total")
-    if compuesta is not None and (
-        declarada is None or compuesta > declarada * (1.0 + MARGEN_DE_TRAMOS)
-    ):
-        saldos["deuda_total"] = compuesta
+    corregida = deuda_corregida(saldos)
+    if corregida is not None:
+        saldos["deuda_total"] = corregida
     return saldos
+
+
+def deuda_corregida(saldos: Mapping[str, float]) -> float | None:
+    """La deuda total de un corte, corregida por sus tramos. ``None`` si no cambia.
+
+    Vive aparte —y no dentro de `saldos_de_balance`— porque la usan DOS lugares y
+    tienen que dar el mismo número: el modelo, que valúa, y el panel, del que
+    salen la tabla, los ratios, las gráficas y el libro de Excel.
+
+    Que no lo usaran los dos es el defecto que esta función cierra. La deuda que
+    el modelo le atribuía a Realty Income —30,652 millones, la buena— y la que la
+    pantalla imprimía en el renglón «Deuda total» —25,092, sus notas senior— eran
+    números distintos para la misma cosa, en la misma pantalla. Y no era solo
+    Realty Income: Extra Space imprimía 5,410 donde el modelo usa 13,647, y
+    Global Net Lease imprimía CERO donde el modelo usa 2,400, porque no publica
+    ningún renglón de deuda junta.
+    """
+    compuesta = _deuda_compuesta(saldos)
+    if compuesta is None:
+        return None
+    declarada = saldos.get("deuda_total")
+    hay_declarada = declarada is not None and pd.notna(declarada) and float(declarada) > 0
+    # Solo corrige HACIA ARRIBA: cada peso que suma salió de una etiqueta del
+    # propio emisor, así que la guarda no puede inventar deuda, solo dejar de
+    # perderla.
+    if hay_declarada and compuesta <= float(declarada) * (1.0 + MARGEN_DE_TRAMOS):
+        return None
+    return compuesta
 
 
 def _corte_de_balance(repo: Repositorio, ticker: str, *, asof: dt.date) -> dt.date | None:
@@ -977,7 +1033,54 @@ def panel_de_conceptos(
     # MISMA regla que usa la valuación: sin depreciación no hay EBITDAre.
     panel["noi"] = _derivar_noi(panel)
     panel["ebitdare"] = _derivar_ebitdare(panel)
+
+    # La deuda total, con la MISMA corrección por tramos que usa el modelo. Sin
+    # esto la pantalla y el modelo daban números distintos para el mismo
+    # renglón en cuatro de las diez emisoras —y Global Net Lease imprimía cero,
+    # porque no publica ningún renglón de deuda junta—. Ver `deuda_corregida`.
+    corregida = deuda_por_periodo(panel)
+    if corregida is not None:
+        if "deuda_total" not in panel.columns:
+            panel["deuda_total"] = corregida
+        else:
+            panel["deuda_total"] = corregida.where(corregida.notna(), panel["deuda_total"])
     return panel
+
+
+def deuda_por_periodo(por_periodo: pd.DataFrame) -> pd.Series | None:
+    """La deuda corregida de CADA periodo de un marco `periodos × conceptos`.
+
+    Es `deuda_corregida` aplicada a una serie entera, y existe para que los tres
+    consumidores den el mismo número: el modelo la pide corte por corte
+    (`saldos_de_balance`), el panel la pide para los ratios y las gráficas, y el
+    estado financiero la pide para la tabla y el libro de Excel. La prueba 39
+    —que recalcula el libro con LibreOffice y lo compara contra Python— es la que
+    caza que se separen, y fue la que cazó esta.
+
+    La RECETA es el conjunto de tramos que la emisora reporta en su corte más
+    reciente, y un periodo al que le falte uno NO recibe número.
+
+    Sin esa guarda la corrección hace daño hacia atrás. A Realty Income le faltan
+    sus notas senior en los trimestres de 2017 y 2018, así que la suma daba 698
+    millones donde debía unos 6,000: una cifra equivocada donde antes había un
+    hueco, y con formato de dato. Sumar tramos tiene un riesgo asimétrico —si
+    falta uno, la deuda sale MENOR y el emisor se dibuja más sano— y ese riesgo
+    solo es tolerable cuando están todos.
+    """
+    presentes = [t for t in TRAMOS_DE_DEUDA if t in por_periodo.columns]
+    if not presentes or por_periodo.empty:
+        return None
+    con_algo = por_periodo[presentes].dropna(how="all")
+    if con_algo.empty:
+        return None
+    ultimo = con_algo.iloc[-1]
+    receta = [t for t in presentes if pd.notna(ultimo[t])]
+    if not receta:
+        return None
+    completos = por_periodo[receta].notna().all(axis=1)
+    return por_periodo.apply(
+        lambda f: deuda_corregida(f.to_dict()), axis=1
+    ).where(completos)
 
 
 # Conceptos que la vista necesita y que no son renglón de ningún estado: el
@@ -1037,6 +1140,18 @@ def estado_financiero(
         return pd.DataFrame()
     ordenadas = sorted(ancho.columns)
     ancho = ancho[ordenadas if n_periodos is None else ordenadas[-n_periodos:]]
+
+    # La MISMA corrección de deuda que usan el modelo y el panel. Sin ella el
+    # renglón «Deuda total» de esta tabla —y del libro de Excel, que se escribe
+    # de aquí— decía 25,092 millones de Realty Income mientras el modelo valuaba
+    # con 30,652. Ver `deuda_por_periodo`.
+    if "deuda_total" in ancho.index:
+        corregida = deuda_por_periodo(ancho.transpose())
+        if corregida is not None:
+            ancho.loc["deuda_total"] = corregida.where(
+                corregida.notna(), ancho.loc["deuda_total"]
+            )
+
     ancho = ancho.reindex([c for c in claves if c in ancho.index])
     ancho.insert(0, "Renglón", [LINEA_POR_CLAVE[c].etiqueta for c in ancho.index])
     ancho.columns = [
@@ -1402,6 +1517,11 @@ class InsumoDerivado:
     EBITDAre, es utilidad operativa con otro nombre—; `piso` descarta el
     resultado que no llega a esa fracción de su base, que es la guarda que evita
     el NOI de Welltower derivado de una pierna que no ve el negocio.
+
+    `techo` es el espejo del piso y existe por el caso contrario: un resultado
+    demasiado GRANDE respecto a su base. El EBITDAre excluye la ganancia por
+    venta por definición, así que no puede superar al ingreso del que sale; si lo
+    supera es que la ganancia no se alcanzó a restar. Ver `_derivar_ebitdare`.
     """
 
     clave: str
@@ -1412,6 +1532,7 @@ class InsumoDerivado:
     positivos: tuple[tuple[str, ...], ...] = ()
     resultado_positivo: bool = False
     piso: tuple[float, tuple[str, ...]] | None = None
+    techo: tuple[float, tuple[str, ...]] | None = None
 
 
 @dataclass(frozen=True)
@@ -1468,6 +1589,13 @@ INSUMOS_DE_RATIOS: tuple[InsumoDerivado, ...] = (
         ),
         por_celda=True,
         positivos=(("gasto_intereses",),),
+        # Las dos guardas del RESULTADO, iguales a las de `_derivar_ebitdare`. Si
+        # una de las dos implementaciones se mueve sin la otra, la prueba 37.6 lo
+        # caza: la tabla, la gráfica y el libro de Excel salen de esta
+        # declaración, y el modelo de la función. Que den números distintos sería
+        # exactamente el defecto que las declaraciones existen para evitar.
+        resultado_positivo=True,
+        techo=(TECHO_EBITDARE_SOBRE_INGRESO, ("ingresos_totales",)),
     ),
 )
 
@@ -1565,6 +1693,12 @@ def serie_de_insumo(panel: pd.DataFrame, insumo: InsumoDerivado) -> pd.Series:
         if base is not None:
             base = base.fillna(0.0)
             hay &= (base <= 0) | (suma / base >= minimo)
+    if insumo.techo is not None:
+        maximo, nombres = insumo.techo
+        base = cadena(nombres)
+        if base is not None:
+            base = base.fillna(0.0)
+            hay &= (base <= 0) | (suma / base <= maximo)
     return suma.where(hay)
 
 
