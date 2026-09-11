@@ -723,6 +723,17 @@ registrar_estados(FichaEstados(
         # del portafolio: sus comisiones son ingreso de operación, no otro ingreso.
         "ingreso_gestion": ("ManagementFeesRevenue", "AssetManagementCosts"),
         "prestamos_por_cobrar": ("FinancingReceivableExcludingAccruedInterestAfterAllowanceForCreditLoss",),
+        # `LongTermDebt` significa DOS COSAS distintas en sus filings, y ese es el
+        # problema: hasta el tercer trimestre de 2013 es el total consolidado
+        # —2,176 millones— y desde el cuarto es un instrumento suelto: 475, luego
+        # 498, luego 250, y ahí se queda por años. La serie no se rompe, se
+        # reinterpreta, así que parece un desapalancamiento de 88% y no lo es.
+        #
+        # Aparece 110 veces contra 49 del total canónico —precisamente porque se
+        # usa para instrumentos sueltos— y por cobertura ganaba. Con el total
+        # canónico su deuda va de 3,826 millones en 2014 a 8,852 hoy, y su costo
+        # implícito deja de salir en 79%.
+        "deuda_total": ("DebtLongtermAndShorttermCombinedAmount",),
     },
     nota="Tiene brazo de administración de inversiones: la comisión es ingreso recurrente.",
 ))
@@ -1263,17 +1274,37 @@ def elegir_cadenas(crudos: pd.DataFrame, ticker: str) -> dict[str, tuple[str, ..
     cobertura = resumen["cobertura"].to_dict()
     series = _series_por_tag(crudos)
 
+    ficha = FICHAS_ESTADOS.get(ticker)
     cadenas: dict[str, tuple[str, ...]] = {}
     for linea in LINEAS:
         preferencia = tags_de(ticker, linea.clave)
         orden = {t: i for i, t in enumerate(preferencia)}
+        # Las que la FICHA de esta emisora nombra por su nombre. Ver el orden de
+        # la llave, abajo.
+        propias = frozenset(ficha.tags.get(linea.clave, ())) if ficha else frozenset()
         candidatas = [t for t in preferencia if cobertura.get(t, 0)]
         if not candidatas:
             continue
-        # Primero las vigentes; entre iguales, la de más cobertura; y a igualdad
-        # de cobertura manda el orden de preferencia declarado, para que el
-        # desempate sea por criterio y no por nombre.
-        candidatas.sort(key=lambda t: (vigente[t], cobertura[t], -orden[t]), reverse=True)
+        # Primero las vigentes; entre ellas, la que la ficha de la emisora nombra;
+        # luego la de más cobertura; y a igualdad manda el orden de preferencia
+        # declarado, para que el desempate sea por criterio y no por nombre.
+        #
+        # Que la ficha le gane a la cobertura NO es un detalle de orden: la ficha
+        # es un juicio sobre ESTA emisora y la cobertura es una heurística, y una
+        # heurística no puede pisar un juicio explícito. Pisándolo, la ficha que
+        # alguien escribió para Realty Income —«la deuda total es
+        # `DebtLongtermAndShorttermCombinedAmount`, no `NotesPayable`, que es UNO
+        # de sus cuatro instrumentos»— nunca surtió efecto: `NotesPayable`
+        # aparece más veces y ganaba. El emisor más grande del universo llevaba
+        # 25,092 millones de deuda donde tiene 30,652, un 22% menos y en la
+        # dirección que lo dibuja más sano de lo que está.
+        #
+        # La vigencia sigue mandando sobre la ficha, y a propósito: una etiqueta
+        # que la emisora dejó de reportar no puede ganar por estar escrita en una
+        # ficha, o el renglón se queda sin los trimestres recientes.
+        candidatas.sort(
+            key=lambda t: (vigente[t], t in propias, cobertura[t], -orden[t]), reverse=True
+        )
 
         cadena = [candidatas[0]]
         cubierto = series[candidatas[0]]
