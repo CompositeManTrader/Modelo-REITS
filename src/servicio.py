@@ -554,6 +554,11 @@ def _cuadro_con_depreciacion(trimestral: pd.DataFrame) -> bool:
     return not pd.isna(depreciacion)
 
 
+# Cuánto puede valer el EBITDAre de un trimestre respecto al ingreso del mismo
+# trimestre antes de dejar de ser creíble. Ver `_derivar_ebitdare`.
+TECHO_EBITDARE_SOBRE_INGRESO = 1.5
+
+
 def _derivar_ebitdare(trimestral: pd.DataFrame) -> pd.Series:
     """EBITDAre según Nareit, que no es el EBITDA de un industrial.
 
@@ -606,7 +611,32 @@ def _derivar_ebitdare(trimestral: pd.DataFrame) -> pd.Series:
         + _col(trimestral, "deterioro")
         - _col(trimestral, "ganancia_venta_inmuebles")
     )
-    return suma.where(utilidad.notna() & (intereses > 0) & depreciacion.notna())
+    vale = utilidad.notna() & (intereses > 0) & depreciacion.notna()
+
+    # Y dos imposibilidades del RESULTADO, no de los insumos. La fórmula puede
+    # estar bien y el número salir imposible cuando la ganancia por venta no
+    # empareja con la utilidad de la que se resta.
+    #
+    # Pasó en los dos sentidos. En Public Storage, tercer trimestre de 2022: la
+    # utilidad neta salta a 2,712 millones por la venta de PS Business Parks,
+    # pero `ganancia_venta_inmuebles` solo alcanza 1.5 de esos millones —la
+    # emisora la registró como venta de una participación, no de un inmueble— y
+    # el EBITDAre sale en 2,965 contra 1,088 de ingresos. Un EBITDAre de 2.7
+    # veces el ingreso no existe: la medida EXCLUYE la ganancia por definición,
+    # así que no puede superar al ingreso del que sale.
+    #
+    # La consecuencia no era cosmética: ese EBITDAre infla el TTM durante cuatro
+    # trimestres y con él el apalancamiento de PSA sale más sano de lo que está,
+    # contra el listón de 6.5x de la Puerta 1.
+    #
+    # El techo va en 1.5 y no en 1.0 porque el ingreso de un trimestre y el
+    # EBITDAre del mismo trimestre no siempre son del mismo perímetro, y un
+    # margen de 110% es raro pero no imposible. En las diez emisoras solo dos
+    # trimestres lo cruzan, y los dos son este defecto.
+    ingresos = _col(trimestral, "ingresos_totales")
+    techo = ingresos.where(ingresos > 0) * TECHO_EBITDARE_SOBRE_INGRESO
+    vale &= (suma > 0) & (techo.isna() | (suma <= techo))
+    return suma.where(vale)
 
 
 def hechos_descartados_por_escala(
@@ -1402,6 +1432,11 @@ class InsumoDerivado:
     EBITDAre, es utilidad operativa con otro nombre—; `piso` descarta el
     resultado que no llega a esa fracción de su base, que es la guarda que evita
     el NOI de Welltower derivado de una pierna que no ve el negocio.
+
+    `techo` es el espejo del piso y existe por el caso contrario: un resultado
+    demasiado GRANDE respecto a su base. El EBITDAre excluye la ganancia por
+    venta por definición, así que no puede superar al ingreso del que sale; si lo
+    supera es que la ganancia no se alcanzó a restar. Ver `_derivar_ebitdare`.
     """
 
     clave: str
@@ -1412,6 +1447,7 @@ class InsumoDerivado:
     positivos: tuple[tuple[str, ...], ...] = ()
     resultado_positivo: bool = False
     piso: tuple[float, tuple[str, ...]] | None = None
+    techo: tuple[float, tuple[str, ...]] | None = None
 
 
 @dataclass(frozen=True)
@@ -1468,6 +1504,13 @@ INSUMOS_DE_RATIOS: tuple[InsumoDerivado, ...] = (
         ),
         por_celda=True,
         positivos=(("gasto_intereses",),),
+        # Las dos guardas del RESULTADO, iguales a las de `_derivar_ebitdare`. Si
+        # una de las dos implementaciones se mueve sin la otra, la prueba 37.6 lo
+        # caza: la tabla, la gráfica y el libro de Excel salen de esta
+        # declaración, y el modelo de la función. Que den números distintos sería
+        # exactamente el defecto que las declaraciones existen para evitar.
+        resultado_positivo=True,
+        techo=(TECHO_EBITDARE_SOBRE_INGRESO, ("ingresos_totales",)),
     ),
 )
 
@@ -1565,6 +1608,12 @@ def serie_de_insumo(panel: pd.DataFrame, insumo: InsumoDerivado) -> pd.Series:
         if base is not None:
             base = base.fillna(0.0)
             hay &= (base <= 0) | (suma / base >= minimo)
+    if insumo.techo is not None:
+        maximo, nombres = insumo.techo
+        base = cadena(nombres)
+        if base is not None:
+            base = base.fillna(0.0)
+            hay &= (base <= 0) | (suma / base <= maximo)
     return suma.where(hay)
 
 
