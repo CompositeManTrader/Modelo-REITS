@@ -21,7 +21,21 @@ DIR_SEMILLA = DIR_DATOS / "semilla"
 DIR_CACHE = DIR_DATOS / "cache"
 DIR_EXPORTES = DIR_DATOS / "exportes"
 
-RUTA_BD = Path(os.environ.get("REIT_DB", DIR_DATOS / "reit.db"))
+
+def _ruta_de_la_base() -> Path | str:
+    """La base es un archivo local o una URL de Postgres. No se envuelve la URL.
+
+    ``Path`` colapsa la doble diagonal: ``Path("postgresql://a@b/c")`` se vuelve
+    ``postgresql:/a@b/c``, que ya no conecta con nada. Y lo hace sin avisar, así
+    que el error aparece después, disfrazado de "no encuentro el servidor".
+    """
+    valor = os.environ.get("REIT_DB")
+    if valor is None:
+        return DIR_DATOS / "reit.db"
+    return valor if valor.startswith(("postgres://", "postgresql")) else Path(valor)
+
+
+RUTA_BD = _ruta_de_la_base()
 
 
 def asegurar_directorios() -> None:

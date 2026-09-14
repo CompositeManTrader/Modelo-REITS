@@ -84,6 +84,25 @@ class ResumenIngesta:
         return base
 
 
+@dataclass
+class ResumenDiario:
+    """Lo que trajo un refresco de lo que se mueve a diario."""
+
+    precios: int = 0
+    dividendos: int = 0
+    tasas: int = 0
+    errores: list[str] = field(default_factory=list)
+
+    def como_texto(self) -> str:
+        base = (
+            f"{self.precios} precio(s), {self.dividendos} dividendo(s) y "
+            f"{self.tasas} dato(s) de tasas."
+        )
+        if self.errores:
+            base += f" {len(self.errores)} error(es)."
+        return base
+
+
 def ingestar_precios(
     repo: Repositorio,
     ticker: str,
@@ -518,6 +537,59 @@ def revisar_imposibles(repo: Repositorio, ticker: str, *, asof: dt.date | None =
         ticker=ticker,
     )
     return marcados
+
+
+def refrescar_diario(
+    repo: Repositorio,
+    *,
+    tickers: Sequence[str] | None = None,
+    al_avanzar: Callable[[str, int, int], None] | None = None,
+) -> ResumenDiario:
+    """Trae SOLO lo que se mueve todos los días: precios, dividendos y tasas.
+
+    Existe por la mudanza de la base a un servidor. Mientras el disco era efímero,
+    la base no sobrevivía al reinicio del contenedor y la aplicación ingestaba
+    TODO en cada arranque, así que los precios llegaban frescos de rebote. Con una
+    base que sí se acuerda, esa ingesta deja de correr —y sin esta puerta los
+    precios se quedarían congelados el día de la mudanza, calladamente—.
+
+    La diferencia es de dos órdenes: la ingesta completa vuelve a pedir y parsear
+    ochocientos documentos 8-K y diez ``companyfacts`` para reconstruir cifras
+    trimestrales que no cambiaron desde el último reporte. Eso pertenece a la
+    ventana de resultados —cuatro veces al año, que es cuando hay algo nuevo— y no
+    a la apertura de una página.
+
+    Lo que sí cambia todos los días son los precios, los dividendos y las tasas, y
+    eso es lo único que hay aquí.
+    """
+    from src.ingesta import tasas as mod_tasas
+
+    resumen = ResumenDiario()
+    for serie in list(mod_tasas.SERIES_FRED) + list(mod_tasas.SERIES_BANXICO):
+        try:
+            filas = (
+                mod_tasas.ingestar_fred(serie)
+                if serie in mod_tasas.SERIES_FRED
+                else mod_tasas.ingestar_banxico(serie)
+            )
+            resumen.tasas += repo.guardar_tasas(filas)
+        except Exception as exc:  # noqa: BLE001 - una serie caída no tumba el refresco
+            resumen.errores.append(f"{serie}: {exc}")
+
+    emisores = [e for e in UNIVERSO_INICIAL if tickers is None or e.ticker in set(tickers)]
+    for i, e in enumerate(emisores):
+        if al_avanzar is not None:
+            al_avanzar(e.ticker, i, len(emisores))
+        try:
+            r = ingestar_precios(repo, e.ticker)
+            resumen.precios += r.precios_guardados
+            resumen.dividendos += r.dividendos_guardados
+            resumen.errores.extend(r.errores)
+        except Exception as exc:  # noqa: BLE001
+            resumen.errores.append(f"{e.ticker}: {exc}")
+
+    repo.registrar_bitacora("refresco_diario", resumen.como_texto())
+    return resumen
 
 
 def correr_ingesta(

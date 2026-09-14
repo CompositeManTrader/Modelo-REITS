@@ -45,6 +45,12 @@ jobs:
 
       - name: Verificar que la interfaz corre
         # Un lint no ve que una página se rompe por una columna inexistente.
+        #
+        # REIT_SIN_REFRESCO apaga el refresco diario de precios y tasas. Aquí la
+        # pregunta es si las páginas dibujan, no si FRED está arriba: sin esto, un
+        # tropiezo de la red se leería como una falla de la interfaz.
+        env:
+          REIT_SIN_REFRESCO: "1"
         run: |
           python scripts/sembrar.py --tickers O,PLD,GNL
           python scripts/humo_app.py
