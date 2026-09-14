@@ -829,6 +829,73 @@ Si la ingesta falla, la pantalla dice qué falló. Si termina con advertencias, 
 muestra desglosadas: lo que no se pudo verificar queda marcado y no entra a ningún
 cálculo.
 
+### Sacar la base del contenedor: Postgres administrado
+
+El párrafo de arriba describe el problema: **el disco es efímero, así que la base
+se reconstruye en cada arranque en frío.** Son 176 segundos, y lo que de verdad
+cambia de un día para otro son los precios y las tasas, que son 19. El resto es
+trabajo repetido porque el disco no se acuerda de nada.
+
+Una base que vive fuera del contenedor sí se acuerda. `REIT_DB` acepta una URL de
+Postgres tal como la entrega el proveedor —Neon y Supabase tienen plan gratuito y
+la base pesa unos 50 MB—:
+
+```toml
+# Settings → Secrets, junto a los otros dos
+REIT_DB = "postgresql://usuario:clave@ep-algo.neon.tech/reits?sslmode=require"
+```
+
+La mudanza, una sola vez, desde la computadora donde ya está la base:
+
+```bash
+python scripts/migrar.py --destino "postgresql://..." --verificar
+```
+
+Copia las doce tablas y vuelve a contarlas de los dos lados al terminar. Es
+idempotente: si se corta a la mitad, se vuelve a correr y sigue donde iba.
+
+**La cadena de conexión es una credencial.** Va en los secretos de Streamlit o en
+el entorno, nunca en un archivo del repositorio.
+
+Lo que cambia en la aplicación: `base_existe()` pregunta si hay hechos en vez de
+si existe el archivo, y la llave del caché sale del último identificador de cada
+tabla en vez del tamaño del archivo. Las dos cosas se veían triviales y ninguna lo
+era —sobre un servidor la firma anterior devolvía `(0, 0)` para siempre, así que
+el caché no se habría invalidado nunca y la pantalla habría servido cifras viejas
+sin un solo error—. La prueba 47 corre la misma batería contra los dos motores;
+con `REIT_DB_PRUEBA` apuntando a un Postgres, también ahí.
+
+#### La otra mitad: lo que sí se mueve todos los días
+
+Una base que sobrevive al reinicio tiene una consecuencia que hay que atender, no
+celebrar. Mientras el disco era efímero la aplicación ingestaba **todo** en cada
+arranque, así que los precios llegaban frescos de rebote. Con la base persistente
+esa ingesta ya no corre, y sin nada más los precios se habrían congelado el día de
+la mudanza —calladamente, porque la pantalla sigue dibujando—.
+
+Por eso `refrescar_diario()` existe y es una puerta aparte: trae precios,
+dividendos y tasas, y nada más. No toca EDGAR. Los ochocientos 8-K y los diez
+`companyfacts` reconstruyen cifras trimestrales que no cambiaron desde el último
+reporte: eso pertenece a la ventana de resultados, cuatro veces al año, y es lo que
+corre la GitHub Action. No a la apertura de una página.
+
+| | Qué trae | Cuánto tarda | Cuándo |
+|---|---|---|---|
+| Refresco diario | precios, dividendos, tasas | ~19 s | una vez al día, por proceso |
+| Ingesta completa | + 8-K, XBRL, los tres estados | ~176 s | ventana de resultados |
+
+El refresco diario es **lo único de esta aplicación que caduca con el reloj**, y
+es deliberado: todo lo demás se invalida por contenido, pero lo que mueve a los
+precios —que abra la bolsa— también va con el reloj.
+
+Variables de entorno que aparecen con todo esto:
+
+| Variable | Para qué |
+|---|---|
+| `REIT_DB` | Archivo o URL de Postgres. Es una credencial cuando es lo segundo. |
+| `REIT_SIN_REFRESCO` | Apaga el refresco diario. CI lo usa: ahí la pregunta es si las páginas dibujan, no si FRED está arriba. |
+| `REIT_DB_PRUEBA` | Postgres contra el cual correr la prueba 47. Sin ella, esa mitad se salta. |
+
 ---
 
 ## Advertencias que la aplicación muestra siempre

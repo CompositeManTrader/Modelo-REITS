@@ -33,6 +33,11 @@ from src.datos import esquema
 
 Fecha = dt.date | str | pd.Timestamp
 
+# Filas por sentencia al escribir. No es una afinación: es el tamaño del tramo que
+# hay que repetir fila por fila cuando el esquema rechaza una, para poder decir
+# cuál fue. Más grande ahorra viajes a la base; más chico abarata ese rescate.
+TAMANO_DE_LOTE = 500
+
 
 class RegistroRechazado(ValueError):
     """El esquema rechazó una fila por violar una restricción de integridad.
@@ -86,13 +91,47 @@ def exigir_corte(asof: Fecha | None) -> dt.date:
     return a_fecha(asof)
 
 
+def url_del_motor(ruta: Path | str) -> str:
+    """Traduce lo que venga en ``REIT_DB`` a una URL que SQLAlchemy entienda.
+
+    Neon, Supabase y Heroku entregan la cadena como ``postgresql://...`` —algunos
+    todavía como ``postgres://``—, y SQLAlchemy interpreta ambas como psycopg2,
+    que no está instalado. El controlador del proyecto es psycopg 3. Normalizarlo
+    aquí permite pegar la cadena tal cual la da el proveedor, que es exactamente
+    lo que uno hace a las once de la noche, en vez de tener que acordarse de
+    injertarle un ``+psycopg`` a mano.
+
+    Aplicarla dos veces da lo mismo que aplicarla una. No es un adorno: la URL
+    pasa por aquí en la configuración y otra vez al crear el motor, y sin esa
+    propiedad la segunda vuelta produce ``sqlite:///sqlite:////ruta``, que falla
+    con un "unable to open database file" que no menciona la causa.
+    """
+    texto = str(ruta)
+    if texto.startswith("postgres://"):
+        return "postgresql+psycopg://" + texto[len("postgres://") :]
+    if texto.startswith("postgresql://"):
+        return "postgresql+psycopg://" + texto[len("postgresql://") :]
+    if texto.startswith(("postgresql+", "sqlite:")):
+        return texto
+    return f"sqlite:///{ruta}"
+
+
+def es_servidor(ruta: Path | str | None = None) -> bool:
+    """¿La base vive en un servidor, o en un archivo de esta máquina?
+
+    Separa los dos caminos donde la diferencia importa de verdad: sobre un
+    archivo, su tamaño y su fecha contestan gratis «¿existe?» y «¿cambió?»; sobre
+    un servidor hay que preguntárselo a él.
+    """
+    return url_del_motor(RUTA_BD if ruta is None else ruta).startswith("postgresql")
+
+
 def crear_motor(ruta: Path | str | None = None, *, crear: bool = True) -> Engine:
-    """Devuelve el motor SQLAlchemy sobre SQLite (migrable a Postgres sin cambios de API)."""
+    """Devuelve el motor SQLAlchemy sobre SQLite o sobre Postgres, sin cambios de API."""
     if ruta is None:
         asegurar_directorios()
         ruta = RUTA_BD
-    url = ruta if str(ruta).startswith("postgresql") else f"sqlite:///{ruta}"
-    motor = create_engine(url, future=True)
+    motor = create_engine(url_del_motor(ruta), future=True)
     if crear:
         esquema.metadata.create_all(motor)
         with motor.begin() as cx:
@@ -133,6 +172,55 @@ class Repositorio:
                 cx.execute(delete(esquema.emisores).where(esquema.emisores.c.ticker == f["ticker"]))
             cx.execute(insert(esquema.emisores), filas)
         return len(filas)
+
+    # ---------------------------------------------------------------- identidad
+
+    def hay_hechos(self) -> bool:
+        """¿La base ya tiene fundamentales, o hay que construirla?
+
+        La pregunta que la aplicación hacía era «¿existe el archivo?», y sobre un
+        servidor no hay archivo: la respuesta habría sido *no* siempre, y la app
+        habría reconstruido todo en cada apertura —exactamente lo que la mudanza
+        viene a evitar—. Preguntar por el CONTENIDO funciona en los dos motores y
+        además es la pregunta correcta: un archivo vacío existe y no sirve.
+        """
+        with self.motor.connect() as cx:
+            return cx.execute(select(esquema.hechos.c.id).limit(1)).first() is not None
+
+    def firma(self) -> tuple:
+        """Lo que identifica al contenido de la base. Es la llave del caché.
+
+        Sobre un archivo, su tamaño y su fecha lo dicen todo y salen gratis.
+        Sobre un servidor no hay archivo que mirar, así que se le pregunta por el
+        último identificador de las tablas que crecen. Son búsquedas sobre la
+        llave primaria: instantáneas, no cuentan filas.
+
+        Entran TODAS las tablas que crecen, no las tres o cuatro que hoy alimentan
+        la pantalla. Elegir un subconjunto obliga a acertar cuál importa y a
+        volver a acertar cada vez que una pantalla nueva lee una tabla que no
+        estaba en la lista; como cada una cuesta una búsqueda por llave primaria y
+        todas caben en un viaje, no hay nada que ganar dejando alguna fuera.
+
+        Lo único que no mueve la firma es un UPDATE, porque no crea identificador
+        nuevo: es el caso de marcar un hecho como sospechoso. Por eso la bitácora
+        entra también —toda operación que marca hechos deja ahí su registro— y la
+        prueba 47 lo verifica escribiendo de verdad, en vez de confiar en que siga
+        siendo cierto.
+        """
+        if self.motor.dialect.name != "postgresql":
+            try:
+                estado = Path(self.motor.url.database or "").stat()
+            except OSError:
+                return (0, 0)
+            return (estado.st_size, estado.st_mtime_ns)
+        partes = [
+            f"(SELECT max(id) FROM {t.name})"
+            for t in esquema.metadata.sorted_tables
+            if "id" in t.c
+        ]
+        with self.motor.connect() as cx:
+            fila = cx.execute(text("SELECT " + ", ".join(partes))).one()
+        return tuple(int(v or 0) for v in fila)
 
     def emisores(self) -> pd.DataFrame:
         with self.motor.connect() as cx:
@@ -286,6 +374,57 @@ class Repositorio:
                 ],
             )
 
+    def copiar_filas(self, tabla, filas: Sequence[dict]) -> int:
+        """Escribe filas ya formadas en cualquier tabla. Para mudar la base de motor.
+
+        Es la misma escritura idempotente que usa la ingesta, expuesta con nombre
+        propio: el migrador copia tablas que no tienen un ``guardar_…`` porque
+        nadie las escribe una por una, y no tiene por qué meter la mano en lo
+        privado del repositorio para eso.
+        """
+        return self._insertar(tabla, filas)
+
+    def _sentencia_idempotente(self, tabla):
+        """INSERT que el MOTOR resuelve como idempotente, no Python.
+
+        La versión anterior insertaba fila por fila y dejaba que el duplicado
+        tronara para atraparlo con un ``except``. Eso funcionaba en SQLite, que
+        tolera una sentencia fallida dentro de una transacción y sigue, pero es
+        exactamente lo que Postgres no hace: ahí el primer error aborta la
+        transacción entera y todo lo que viene después contesta
+        ``current transaction is aborted``. La ingesta completa se caía a los
+        treinta segundos del arranque.
+
+        ``ON CONFLICT DO NOTHING`` mueve la decisión al motor, donde el choque
+        deja de ser un error. Los dos dialectos lo escriben igual y se comportan
+        igual —medido, no supuesto—, incluso con filas repetidas dentro del mismo
+        lote, que es el caso que la inserción fila por fila resolvía sin querer.
+        """
+        dialecto = self.motor.dialect.name
+        if dialecto == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert as insert_conflicto
+        elif dialecto == "sqlite":
+            from sqlalchemy.dialects.sqlite import insert as insert_conflicto
+        else:
+            return insert(tabla)
+        return insert_conflicto(tabla).on_conflict_do_nothing()
+
+    def _columna_para_contar(self, tabla):
+        """Qué columna devolver para saber cuántas filas entraron de verdad.
+
+        Con ``ON CONFLICT DO NOTHING`` el número de filas mandadas no es el
+        número de filas escritas, y el resumen de la ingesta reporta el segundo.
+        ``RETURNING`` sobre la llave primaria lo dice exacto. Casi todas las
+        tablas tienen un ``id``, pero ``emisores`` se identifica por su ticker:
+        darlo por hecho tronaba al copiar esa tabla.
+        """
+        if not self.motor.dialect.insert_returning:
+            return None
+        if "id" in tabla.c:
+            return tabla.c.id
+        llave = list(tabla.primary_key.columns)
+        return llave[0] if llave else None
+
     def _insertar(self, tabla, filas: Sequence[dict], fechas: tuple[str, ...] = ()) -> int:
         if not filas:
             return 0
@@ -297,25 +436,62 @@ class Repositorio:
                 if fila.get(campo) is not None:
                     fila[campo] = a_fecha(fila[campo])
             limpias.append(fila)
+
+        sentencia = self._sentencia_idempotente(tabla)
+        columna = self._columna_para_contar(tabla)
+        contar = sentencia.returning(columna) if columna is not None else None
         insertadas = 0
         with self.motor.begin() as cx:
-            for fila in limpias:
+            for inicio in range(0, len(limpias), TAMANO_DE_LOTE):
+                lote = limpias[inicio : inicio + TAMANO_DE_LOTE]
                 try:
-                    cx.execute(insert(tabla), [fila])
-                    insertadas += 1
-                except Exception as exc:  # noqa: BLE001 - duplicado idempotente
-                    mensaje = str(exc)
-                    if "UNIQUE constraint" in mensaje or "duplicate key" in mensaje.lower():
-                        continue
-                    if "CHECK constraint" in mensaje:
-                        # El esquema rechazó la fila. Es la barrera funcionando, no un
-                        # fallo del programa: se convierte en un error legible que el
-                        # llamador puede registrar sin tumbar toda la ingesta.
-                        raise RegistroRechazado(
-                            f"El esquema rechazó la fila {fila!r}: {mensaje.splitlines()[0]}"
-                        ) from exc
-                    raise
+                    with cx.begin_nested():
+                        if contar is None:
+                            cx.execute(sentencia, lote)
+                            insertadas += len(lote)
+                        else:
+                            insertadas += len(cx.execute(contar, lote).fetchall())
+                except Exception as exc:  # noqa: BLE001 - lo rechazado se identifica abajo
+                    # Con el duplicado ya resuelto por el motor, lo único que
+                    # puede tronar aquí es que el esquema rechace una fila. El
+                    # lote no dice cuál, así que se repite fila por fila para
+                    # poder nombrarla. Es el camino lento y es el correcto: solo
+                    # se recorre cuando ya hay un dato malo.
+                    insertadas += self._insertar_nombrando_la_mala(cx, tabla, lote, exc)
         return insertadas
+
+    def _insertar_nombrando_la_mala(self, cx, tabla, lote: Sequence[dict], falla: Exception) -> int:
+        """Reinserta un lote rechazado fila por fila para decir CUÁL fue.
+
+        El SAVEPOINT por fila es lo que permite seguir después de un rechazo sin
+        envenenar la transacción en Postgres. Un error sin fila identificada no
+        sirve de nada al que lo lee: casi siempre significa que el parser tomó una
+        tabla de guía por una de resultados, y para verlo hay que ver la fila.
+        """
+        sentencia = self._sentencia_idempotente(tabla)
+        columna = self._columna_para_contar(tabla)
+        contar = sentencia.returning(columna) if columna is not None else None
+        insertadas = 0
+        for fila in lote:
+            try:
+                with cx.begin_nested():
+                    if contar is None:
+                        cx.execute(sentencia, [fila])
+                        insertadas += 1
+                    else:
+                        insertadas += len(cx.execute(contar, [fila]).fetchall())
+            except Exception as exc:  # noqa: BLE001
+                mensaje = str(exc)
+                # SQLite dice «CHECK constraint failed»; Postgres, «violates check
+                # constraint». Es la misma barrera con dos redacciones.
+                if "check constraint" in mensaje.lower():
+                    raise RegistroRechazado(
+                        f"El esquema rechazó la fila {fila!r}: {mensaje.splitlines()[0]}"
+                    ) from exc
+                raise
+        # Ninguna fila suelta falló: el lote tronó por algo que no es una fila
+        # (permisos, disco, conexión). Ocultarlo sería peor que el bug original.
+        raise falla
 
     # ---------------------------------------------------------------- lectura PIT
 

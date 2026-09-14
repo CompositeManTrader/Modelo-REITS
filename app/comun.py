@@ -30,6 +30,31 @@ RAIZ = Path(__file__).resolve().parent.parent
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
+
+def _publicar_la_base_antes_de_configurar() -> None:
+    """Pasa ``REIT_DB`` de los secretos al entorno ANTES de importar la configuración.
+
+    El orden es todo el asunto. ``src.config`` resuelve la ruta de la base en el
+    momento en que se importa, así que un secreto publicado después no llega a
+    tiempo: la aplicación se conectaría al archivo local —que en Streamlit Cloud
+    no existe— y reconstruiría todo en cada apertura, sin decir por qué. Los
+    demás secretos no tienen este problema porque sus módulos leen el entorno
+    cuando los usan, no cuando se cargan.
+
+    Va en una función y no suelto para poder decir esto aquí, donde se ve.
+    """
+    if os.environ.get("REIT_DB"):
+        return
+    try:
+        valor = st.secrets["REIT_DB"]
+    except Exception:  # noqa: BLE001 - sin secretos configurados se usa el archivo local
+        return
+    if valor:
+        os.environ["REIT_DB"] = str(valor)
+
+
+_publicar_la_base_antes_de_configurar()
+
 # Los tokens visuales viven en `marca.py`, que es la fuente única. Aquí solo se
 # reexportan para que las páginas sigan importándolos de un lugar.
 from marca import (  # noqa: E402
@@ -48,7 +73,21 @@ from marca import (  # noqa: E402
     TEXTO,
 )
 from src.config import DESCARGO, MIN_APUESTAS_EFECTIVAS, RUTA_BD, Fuente  # noqa: E402
-from src.datos.repositorio import Repositorio  # noqa: E402
+from src.datos.repositorio import Repositorio, es_servidor  # noqa: E402
+
+
+def marca_de_la_base() -> str:
+    """Identifica a la base SIN llevarse la contraseña.
+
+    Va como argumento de las funciones que corren una sola vez por proceso, para
+    que cambiar de base las vuelva a disparar. La cadena de conexión de un
+    servidor administrado trae usuario y contraseña, y una llave de caché acaba
+    en trazas y en registros: lo que identifica aquí es el servidor y el nombre
+    de la base, que es lo único que hace falta para distinguirlas.
+    """
+    if not es_servidor(RUTA_BD):
+        return str(RUTA_BD)
+    return str(RUTA_BD).split("@")[-1].split("?")[0]
 
 # --------------------------------------------------------------------------------------
 # Configuración de página y estado
@@ -65,7 +104,20 @@ def obtener_repo(ruta: str | None = None) -> Repositorio:
 
 
 def base_existe() -> bool:
-    return Path(RUTA_BD).exists()
+    """¿Hay fundamentales en la base? Se pregunta por el contenido, no por el archivo.
+
+    Miraba si existía el archivo. Cuando la base vive en un servidor no hay
+    archivo que mirar, así que la respuesta habría sido *no* en cada apertura y
+    la aplicación habría reconstruido todo cada vez —justo lo que la mudanza a
+    Postgres viene a quitar—. Es además la pregunta correcta para el archivo: uno
+    vacío existe y no sirve de nada.
+    """
+    if not es_servidor(RUTA_BD):
+        return Path(RUTA_BD).exists()
+    try:
+        return obtener_repo().hay_hechos()
+    except Exception:  # noqa: BLE001 - una base inalcanzable es una base sin datos
+        return False
 
 
 # --------------------------------------------------------------------------------------
@@ -82,20 +134,31 @@ def base_existe() -> bool:
 # no puede ensuciarle el dato a otra. Lo que falta es la llave.
 
 
-def firma_de_la_base() -> tuple[int, int]:
-    """El tamaño y la fecha de la base: la llave que invalida el caché.
+def firma_de_la_base() -> tuple:
+    """Lo que identifica al contenido de la base: la llave que invalida el caché.
 
     Va como argumento de cada función cacheada, y por eso el caché se tira solo
     cuando la base cambia —una ingesta, una reconstrucción— sin que nadie tenga
     que acordarse de limpiarlo. Es lo contrario de cachear por tiempo: un TTL
     sirve datos viejos durante su ventana y recalcula datos frescos al salir de
     ella; esto no hace ninguna de las dos.
+
+    Sobre un archivo eso es su tamaño y su fecha, que salen gratis y sin abrir la
+    base. Sobre un servidor no hay archivo que medir: el ``stat`` fallaba y la
+    firma devolvía ``(0, 0)`` **para siempre**, así que el caché no se habría
+    invalidado nunca y la pantalla habría servido cifras viejas sin avisar. Un
+    error así no truena: miente. Quién lo contesta entonces es el repositorio.
     """
+    if not es_servidor(RUTA_BD):
+        try:
+            estado = Path(RUTA_BD).stat()
+        except OSError:
+            return (0, 0)
+        return (estado.st_size, estado.st_mtime_ns)
     try:
-        estado = Path(RUTA_BD).stat()
-    except OSError:
+        return obtener_repo().firma()
+    except Exception:  # noqa: BLE001 - sin base no hay nada que cachear
         return (0, 0)
-    return (estado.st_size, estado.st_mtime_ns)
 
 
 # El repositorio va como `_repo` a propósito: el guion bajo le dice a Streamlit
@@ -323,6 +386,36 @@ def _sembrar_una_sola_vez(marca: str) -> dict:
     return reporte
 
 
+@st.cache_resource(show_spinner="Actualizando precios y tasas…")
+def _refrescar_lo_diario_una_sola_vez(marca: str, dia: str) -> dict:
+    """Trae precios, dividendos y tasas. Una vez por día y por proceso.
+
+    Es la contraparte necesaria de mudar la base a un servidor. Mientras el disco
+    era efímero, la base moría con el contenedor y la aplicación ingestaba todo en
+    cada arranque, así que los precios llegaban frescos por accidente. Con una
+    base que sobrevive, esa ingesta ya no corre, y sin esto los precios se
+    quedarían congelados el día de la mudanza sin que nada lo dijera.
+
+    ``dia`` va en la llave para que el refresco vuelva a ocurrir mañana aunque el
+    proceso siga vivo. Es la única cosa de esta aplicación que sí debe caducar con
+    el reloj, porque lo que la mueve —que abra la bolsa— también lo hace.
+
+    ``REIT_SIN_REFRESCO`` lo apaga. Es para CI y para la prueba de humo, donde la
+    pregunta es si las páginas dibujan y no si FRED está arriba: sin el
+    interruptor, un tropiezo de la red se vería como una falla de la interfaz.
+    """
+    from src.ingesta.orquestador import refrescar_diario
+
+    if os.environ.get("REIT_SIN_REFRESCO"):
+        return {"texto": "", "errores": []}
+    _publicar_secretos()
+    try:
+        resumen = refrescar_diario(obtener_repo())
+    except Exception as exc:  # noqa: BLE001 - sin precios nuevos se sigue con los de ayer
+        return {"texto": "", "errores": [str(exc)]}
+    return {"texto": resumen.como_texto(), "errores": resumen.errores}
+
+
 def exigir_base() -> Repositorio:
     """Devuelve el repositorio; si no existe, lo construye desde fuente primaria.
 
@@ -330,13 +423,18 @@ def exigir_base() -> Repositorio:
     no hay terminal, y el sistema de archivos es efímero: cada reinicio del
     contenedor borra la base. Por eso la primera carga ingesta sola, en vez de
     mostrar un comando que ahí nadie puede correr.
+
+    Cuando la base SÍ sobrevive —porque vive en un servidor— la ingesta completa
+    deja de correr y hay que traer aparte lo que cambia todos los días. Son las
+    dos mitades de lo mismo: lo que no cambió no se vuelve a pedir, y lo que sí,
+    sí.
     """
     if not base_existe():
         # Primero el repositorio, y solo después la red. El almacén versionado
         # trae los fundamentales de las diez emisoras en unos pocos MB; bajarlos
         # otra vez de la SEC son 810 peticiones y 128 MB, y aquí el disco es
         # efímero, así que eso pasaba en CADA reinicio del contenedor.
-        instantanea = _reconstruir_una_sola_vez(str(RUTA_BD))
+        instantanea = _reconstruir_una_sola_vez(marca_de_la_base())
         if not instantanea["vacia"]:
             st.success(
                 f"**Base reconstruida desde el repositorio**, sin descargar nada: "
@@ -355,7 +453,7 @@ def exigir_base() -> Repositorio:
             icon="⏳",
         )
         try:
-            reporte = _sembrar_una_sola_vez(str(RUTA_BD))
+            reporte = _sembrar_una_sola_vez(marca_de_la_base())
         except Exception as exc:  # noqa: BLE001 - la pantalla debe decir qué pasó
             st.error(
                 f"La ingesta falló y no hay datos que mostrar: `{exc}`\n\n"
@@ -375,6 +473,22 @@ def exigir_base() -> Repositorio:
                 st.markdown("**Advertencias**")
                 for linea in reporte["errores"]:
                     st.text(linea)
+        return obtener_repo()
+
+    # La base ya estaba, así que la ingesta completa no corrió. Lo que la ingesta
+    # traía de paso —precios, dividendos, tasas— hay que traerlo aparte, o la
+    # pantalla serviría las cifras del día de la mudanza sin decirlo.
+    diario = _refrescar_lo_diario_una_sola_vez(marca_de_la_base(), dt.date.today().isoformat())
+    if diario["errores"]:
+        st.warning(
+            f"Los fundamentales están completos, pero el refresco de precios y tasas dejó "
+            f"{len(diario['errores'])} advertencia(s). Los datos de mercado pueden venir "
+            "rezagados; su latencia está etiquetada en cada pantalla.",
+            icon="⚠️",
+        )
+        with st.expander("Ver el detalle del refresco"):
+            for linea in diario["errores"]:
+                st.text(linea)
     return obtener_repo()
 
 

@@ -4,6 +4,7 @@ numpy>=1.26
 scipy>=1.11
 statsmodels>=0.14
 SQLAlchemy>=2.0
+psycopg[binary]>=3.2  # solo si REIT_DB apunta a Postgres; con SQLite no se usa
 openpyxl>=3.1
 plotly>=5.18
 streamlit>=1.49  # width="stretch" reemplaza use_container_width
