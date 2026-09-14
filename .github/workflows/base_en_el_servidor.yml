@@ -67,11 +67,29 @@ jobs:
         # habiendo llenado una base que el runner tira al apagarse. Es el mismo
         # error que tiene hoy `estados.yml` con SEC_USER_AGENT.
         run: |
+          # Se dice de los TRES cuál llegó, aunque solo uno sea fatal. Un mensaje
+          # que solo nombra al que falta no distingue «lo puse en la pestaña
+          # equivocada» de «le erré al nombre», y son arreglos distintos: si los
+          # otros dos llegaron y este no, es el nombre; si no llegó ninguno, es
+          # el lugar. Nunca se imprime el valor: este repositorio es público y
+          # los registros de Actions también.
+          echo "Secretos que llegaron a este trabajo:"
+          for nombre in REIT_DB SEC_USER_AGENT BANXICO_TOKEN; do
+            if [ -n "${!nombre}" ]; then
+              echo "  presente  $nombre"
+            else
+              echo "  VACÍO     $nombre"
+            fi
+          done
+          echo
           if [ -z "$REIT_DB" ]; then
             echo "::error::Falta el secreto REIT_DB. Sin él, esto llenaría una base"
             echo "::error::temporal del runner que se borra al terminar, y el trabajo"
             echo "::error::saldría en verde sin haber dejado nada en el servidor."
-            echo "Se agrega en Settings → Secrets and variables → Actions."
+            echo "Va en Settings → Secrets and variables → **Actions** → Repository"
+            echo "secrets. Ojo con dos confusiones comunes: las pestañas Codespaces y"
+            echo "Dependabot son OTROS almacenes y sus secretos no llegan aquí; y un"
+            echo "Environment secret solo llega si el trabajo declara ese environment."
             exit 1
           fi
           case "$REIT_DB" in
