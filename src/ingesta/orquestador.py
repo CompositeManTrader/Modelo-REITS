@@ -565,6 +565,16 @@ def refrescar_diario(
     from src.ingesta import tasas as mod_tasas
 
     resumen = ResumenDiario()
+    # Las anclas van ANTES de pedir un solo precio, y no es orden decorativo.
+    # Son cierres capturados a mano y la verificación más fuerte de P2: sin ellas
+    # en la base, `ingestar_precios` cae a la prueba de coherencia aritmética, que
+    # es más débil, y lo hace EN SILENCIO —la serie se guarda aprobada igual—.
+    # Viven en el código, así que sembrarlas no cuesta una petición; olvidarlas sí
+    # costaba, y se vio armando una base desde cero: `anclas_precio` quedaba en 0
+    # y nadie se enteraba hasta auditar por qué una serie pasó con la prueba floja.
+    repo.registrar_emisores(UNIVERSO_INICIAL)
+    repo.guardar_anclas(list(precios.ANCLAS_VERIFICADAS))
+
     for serie in list(mod_tasas.SERIES_FRED) + list(mod_tasas.SERIES_BANXICO):
         try:
             filas = (

@@ -3,6 +3,7 @@
 
     python scripts/ingesta.py --tickers O,NNN --desde 2020-01-01
     python scripts/ingesta.py --solo-tasas
+    python scripts/ingesta.py --solo-diario   # precios y tasas, sin tocar EDGAR
 
 Respeta el límite de 10 solicitudes por segundo de la SEC y exige un User-Agent
 identificable. Configúralo con la variable de entorno ``SEC_USER_AGENT``.
@@ -20,7 +21,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.config import RUTA_BD, SERIE_UST10, asegurar_directorios  # noqa: E402
 from src.datos.repositorio import Repositorio  # noqa: E402
 from src.ingesta import tasas as mod_tasas  # noqa: E402
-from src.ingesta.orquestador import MAX_COMUNICADOS, correr_ingesta  # noqa: E402
+from src.ingesta.orquestador import (  # noqa: E402
+    MAX_COMUNICADOS,
+    correr_ingesta,
+    refrescar_diario,
+)
 
 
 def verificar_identificadores(repo: Repositorio) -> None:
@@ -82,7 +87,28 @@ def main() -> int:
     p.add_argument("--sin-xbrl", action="store_true", help="Omite companyfacts (es lo más pesado).")
     p.add_argument("--sin-precios", action="store_true", help="Omite precios y dividendos.")
     p.add_argument("--solo-tasas", action="store_true")
+    p.add_argument(
+        "--solo-diario",
+        action="store_true",
+        help=(
+            "Solo lo que se mueve todos los días: precios, dividendos y tasas. No toca "
+            "EDGAR. Es lo que hay que correr a diario cuando la base vive en un servidor "
+            "y ya no se reconstruye sola en cada arranque."
+        ),
+    )
     args = p.parse_args()
+
+    if args.solo_diario:
+        asegurar_directorios()
+        repo = Repositorio(ruta=args.bd)
+        print("Solo lo diario: precios, dividendos y tasas. Sin tocar EDGAR.")
+        resumen = refrescar_diario(
+            repo, tickers=args.tickers.split(",") if args.tickers else None
+        )
+        print("  " + resumen.como_texto())
+        for e in resumen.errores[:10]:
+            print(f"      ! {e[:160]}")
+        return 0
 
     asegurar_directorios()
     repo = Repositorio(ruta=args.bd)
