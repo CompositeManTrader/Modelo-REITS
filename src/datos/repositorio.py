@@ -20,7 +20,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 
 import pandas as pd
-from sqlalchemy import Engine, create_engine, delete, insert, select, text
+from sqlalchemy import Engine, create_engine, delete, func, insert, select, text
 
 from src.config import (
     PRECEDENCIA_DESCONOCIDA,
@@ -186,6 +186,24 @@ class Repositorio:
         """
         with self.motor.connect() as cx:
             return cx.execute(select(esquema.hechos.c.id).limit(1)).first() is not None
+
+    def conteos(self) -> dict[str, int]:
+        """Cuántas filas tiene cada tabla. Para poder DECIR qué quedó en la base.
+
+        Cuenta de verdad, tabla por tabla, y por eso no sirve como llave de caché
+        —para eso está ``firma``, que no cuenta nada—. Sirve para lo otro: cuando
+        alguien arma la base en un servidor que no puede ver, el único reporte que
+        vale es el número de filas que quedó de cada cosa. Una tabla en cero ahí
+        es la diferencia entre "ya está" y "está a medias", y sin esto la
+        distinción no se nota hasta que la pantalla sale vacía.
+        """
+        with self.motor.connect() as cx:
+            return {
+                tabla.name: int(
+                    cx.execute(select(func.count()).select_from(tabla)).scalar_one()
+                )
+                for tabla in esquema.metadata.sorted_tables
+            }
 
     def firma(self) -> tuple:
         """Lo que identifica al contenido de la base. Es la llave del caché.

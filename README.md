@@ -845,7 +845,23 @@ la base pesa unos 50 MB—:
 REIT_DB = "postgresql://usuario:clave@ep-algo.neon.tech/reits?sslmode=require"
 ```
 
-La mudanza, una sola vez, desde la computadora donde ya está la base:
+Para armarla hay dos caminos, y ninguno necesita que la base ya exista en alguna
+computadora:
+
+**1. El flujo de GitHub** (`Actions → Base en el servidor → Run workflow`). Corre
+desde los servidores de GitHub y deja la base lista antes de que alguien abra la
+página. Dos alcances: `primer-arranque` reconstruye los fundamentales desde la
+instantánea versionada —sin pedirle nada a la SEC— y encima trae precios y tasas;
+`solo-diario` trae nada más lo que se mueve todos los días. Al terminar reporta
+cuántas filas quedaron de cada tabla, y **truena si alguna de las tres que
+importan quedó vacía**: un trabajo en verde con la base vacía es peor que uno que
+falla, porque el error aparece días después al abrir la pantalla.
+
+**2. No hacer nada.** La aplicación se arma sola en su primer arranque —74
+segundos medidos contra un Postgres recién creado— y de ahí en adelante ya no.
+El flujo de arriba solo mueve ese costo fuera de la vista del usuario.
+
+Si además ya tienes la base en un archivo local y quieres moverla tal cual:
 
 ```bash
 python scripts/migrar.py --destino "postgresql://..." --verificar

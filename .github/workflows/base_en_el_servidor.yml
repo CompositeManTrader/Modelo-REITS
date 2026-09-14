@@ -1,0 +1,146 @@
+name: Base en el servidor
+
+# Arma y mantiene la base que vive FUERA del contenedor de Streamlit.
+#
+# Por qué existe
+# --------------
+# El disco de Streamlit Cloud es efímero, así que la base se reconstruía en cada
+# apertura en frío: 176 segundos para volver a tener lo mismo que había ayer. Con
+# la base en un Postgres administrado eso se acaba, pero quedan dos trabajos que
+# alguien tiene que hacer y que ya no ocurren solos:
+#
+#   1. ARMARLA la primera vez. La aplicación sabe hacerlo en su primer arranque,
+#      pero son un par de minutos que paga quien abra la página. Aquí se hace
+#      antes, desde los servidores de GitHub.
+#   2. TRAER LO DIARIO. Mientras el disco se borraba, la aplicación bajaba todo
+#      en cada arranque y los precios llegaban frescos de rebote. Con una base que
+#      sobrevive, esa ingesta ya no corre.
+#
+# Lo que este flujo NO hace es volver a pedirle a la SEC ochocientos comunicados
+# de resultados. Eso reconstruye cifras trimestrales que no cambiaron desde el
+# último reporte y pertenece a la ventana de resultados, que es lo que corre
+# `ingest.yml` cuatro veces al año.
+
+on:
+  workflow_dispatch:
+    inputs:
+      alcance:
+        description: "Qué traer"
+        required: true
+        type: choice
+        default: primer-arranque
+        options:
+          # Los fundamentales desde la instantánea versionada (sin red a la SEC)
+          # y encima los precios, dividendos y tasas. Es lo que deja la base lista.
+          - primer-arranque
+          # Nada más lo que se mueve todos los días. Es lo que se corre después.
+          - solo-diario
+
+jobs:
+  poblar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      REIT_DB: ${{ secrets.REIT_DB }}
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+      BANXICO_TOKEN: ${{ secrets.BANXICO_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verificar que el secreto apunte al servidor
+        # Un secreto VACÍO es el modo de falla de verdad, y es peor que uno
+        # ausente: `REIT_DB: ${{ secrets.REIT_DB }}` define la variable como
+        # cadena vacía cuando el secreto no existe, y el código entonces cae
+        # calladamente al archivo local. El trabajo terminaría en verde,
+        # habiendo llenado una base que el runner tira al apagarse. Es el mismo
+        # error que tiene hoy `estados.yml` con SEC_USER_AGENT.
+        run: |
+          # Se dice de los TRES cuál llegó, aunque solo uno sea fatal. Un mensaje
+          # que solo nombra al que falta no distingue «lo puse en la pestaña
+          # equivocada» de «le erré al nombre», y son arreglos distintos: si los
+          # otros dos llegaron y este no, es el nombre; si no llegó ninguno, es
+          # el lugar. Nunca se imprime el valor: este repositorio es público y
+          # los registros de Actions también.
+          echo "Secretos que llegaron a este trabajo:"
+          for nombre in REIT_DB SEC_USER_AGENT BANXICO_TOKEN; do
+            if [ -n "${!nombre}" ]; then
+              echo "  presente  $nombre"
+            else
+              echo "  VACÍO     $nombre"
+            fi
+          done
+          echo
+          if [ -z "$REIT_DB" ]; then
+            echo "::error::Falta el secreto REIT_DB. Sin él, esto llenaría una base"
+            echo "::error::temporal del runner que se borra al terminar, y el trabajo"
+            echo "::error::saldría en verde sin haber dejado nada en el servidor."
+            echo "Va en Settings → Secrets and variables → **Actions** → Repository"
+            echo "secrets. Ojo con dos confusiones comunes: las pestañas Codespaces y"
+            echo "Dependabot son OTROS almacenes y sus secretos no llegan aquí; y un"
+            echo "Environment secret solo llega si el trabajo declara ese environment."
+            exit 1
+          fi
+          case "$REIT_DB" in
+            postgres://*|postgresql://*|postgresql+*) ;;
+            *)
+              echo "::error::REIT_DB no apunta a un Postgres. Lo que trae no es una URL"
+              echo "::error::de servidor, así que esto escribiría en un archivo local."
+              exit 1
+              ;;
+          esac
+          echo "REIT_DB apunta a un servidor Postgres."
+
+      - name: Reconstruir los fundamentales desde la instantánea
+        if: inputs.alcance == 'primer-arranque'
+        # Sin red a la SEC: lee `data/emisoras/*.csv.gz`, que está versionado en
+        # este repositorio. Es idempotente, así que re-correrlo no duplica nada.
+        run: python scripts/instantanea.py reconstruir
+
+      - name: Traer precios, dividendos y tasas
+        run: python scripts/ingesta.py --solo-diario
+
+      - name: Qué quedó en la base
+        # Sin esto el trabajo diría "terminé" y nadie sabría si dejó algo. Una
+        # tabla en cero es la diferencia entre "ya está" y "está a medias", y esa
+        # distinción no se nota hasta que la pantalla sale vacía.
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          from src.datos.repositorio import Repositorio
+
+          print("### Filas en el servidor\n")
+          print("| tabla | filas |")
+          print("|---|---:|")
+          for tabla, n in Repositorio().conteos().items():
+              print(f"| {tabla} | {n:,} |")
+          PY
+          cat "$GITHUB_STEP_SUMMARY"
+
+      - name: Exigir que la base haya quedado utilizable
+        # Terminar en verde con la base vacía sería el peor resultado posible:
+        # el que lo corrió se va tranquilo y el error aparece al abrir la página.
+        run: |
+          python - <<'PY'
+          import sys
+
+          from src.datos.repositorio import Repositorio
+
+          conteos = Repositorio().conteos()
+          vacias = [t for t in ("hechos", "precios", "tasas") if not conteos.get(t)]
+          if vacias:
+              print(f"::error::Quedaron vacías: {', '.join(vacias)}")
+              sys.exit(1)
+          print(f"Base utilizable: {conteos['hechos']:,} hechos, "
+                f"{conteos['precios']:,} precios, {conteos['tasas']:,} tasas.")
+          PY

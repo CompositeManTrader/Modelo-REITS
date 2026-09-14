@@ -529,3 +529,111 @@ def test_el_migrador_no_imprime_la_contrasena():
     assert "ep-x.neon.tech/reits" in limpia, "ya no se sabe a qué base va"
     ruta = "sqlite:////home/usuario/reit.db"
     assert sin_credenciales(ruta) == ruta
+
+
+# --------------------------------------------------------------------------------------
+# 47.6 · Armar la base en un servidor que no se puede ver
+# --------------------------------------------------------------------------------------
+#
+# Cuando la base vive afuera, quien la arma no la tiene enfrente: corre un trabajo
+# en GitHub y lee un reporte. Eso cambia qué cuenta como terminar bien. Un trabajo
+# que sale en verde con una tabla vacía es peor que uno que truena, porque el que
+# lo corrió se va tranquilo y el error aparece días después, al abrir la página.
+
+
+def test_los_conteos_cubren_todas_las_tablas(repo_limpio):
+    """El reporte tiene que poder decir «esta quedó vacía», y para eso debe nombrarlas."""
+    conteos = repo_limpio.conteos()
+    assert set(conteos) == {t.name for t in esquema.metadata.sorted_tables}
+    assert all(v == 0 for v in conteos.values()), "la base de prueba no estaba limpia"
+    repo_limpio.guardar_hechos([hecho("ffo")])
+    assert repo_limpio.conteos()["hechos"] == 1
+
+
+def test_el_refresco_diario_siembra_las_anclas(repo_limpio, monkeypatch):
+    """La regresión que destapó armar una base desde cero.
+
+    Las anclas son cierres capturados a mano y la verificación más fuerte de P2.
+    Viven en el código, no en una fuente externa, y `correr_ingesta` las sembraba;
+    la puerta diaria no. En una base recién creada `anclas_precio` quedaba en 0 y
+    `ingestar_precios` caía a la prueba de coherencia aritmética —más débil— SIN
+    DECIRLO: la serie se guardaba aprobada igual. Se vio contando filas, no
+    leyendo el código.
+    """
+    from src.ingesta import tasas as mod_tasas
+    from src.ingesta.orquestador import refrescar_diario
+
+    monkeypatch.setattr(mod_tasas, "ingestar_fred", lambda *a, **k: [])
+    monkeypatch.setattr(mod_tasas, "ingestar_banxico", lambda *a, **k: [])
+
+    assert repo_limpio.conteos()["anclas_precio"] == 0
+    refrescar_diario(repo_limpio, tickers=[])  # sin emisoras: no sale a la red
+    conteos = repo_limpio.conteos()
+    assert conteos["anclas_precio"] > 0, "los precios se validarían con la prueba floja"
+    assert conteos["emisores"] > 0, "una base nueva quedaría sin catálogo de emisoras"
+
+
+def test_las_anclas_se_siembran_ANTES_de_pedir_precios():
+    """El orden es el bug, no la presencia.
+
+    Sembrarlas después del ciclo de precios deja la base correcta al final y aun
+    así valida la primera pasada con la prueba débil. Una prueba de resultado no
+    nota la diferencia; el orden del texto, sí.
+    """
+    import inspect
+
+    from src.ingesta.orquestador import refrescar_diario
+
+    cuerpo = inspect.getsource(refrescar_diario)
+    # Se buscan las LLAMADAS, no los nombres: el comentario que explica esto
+    # menciona `ingestar_precios` más arriba, y buscar el nombre suelto encontraba
+    # el comentario en vez del código.
+    assert cuerpo.index("repo.guardar_anclas(") < cuerpo.index("= ingestar_precios("), (
+        "las anclas se siembran después de pedir precios: la primera pasada se "
+        "validaría sin ellas"
+    )
+
+
+def test_existe_la_puerta_de_linea_de_comandos_para_lo_diario():
+    """Es lo que corre el trabajo de GitHub; sin ella el flujo no tiene qué llamar."""
+    fuente = (RAIZ / "scripts" / "ingesta.py").read_text(encoding="utf-8")
+    assert "--solo-diario" in fuente
+    assert "refrescar_diario" in fuente
+
+
+def test_el_flujo_de_github_exige_que_el_secreto_apunte_al_servidor():
+    """El modo de falla real es el secreto VACÍO, no el ausente.
+
+    `REIT_DB: ${{ secrets.REIT_DB }}` define la variable como cadena vacía cuando
+    el secreto no existe, y entonces el código cae calladamente al archivo local:
+    el trabajo llenaría una base del runner que se borra al apagarse y terminaría
+    EN VERDE. Es exactamente el error que tiene hoy `estados.yml` con
+    SEC_USER_AGENT, y es la razón de que esta prueba exista.
+    """
+    flujo = (RAIZ / ".github" / "workflows" / "base_en_el_servidor.yml").read_text(
+        encoding="utf-8"
+    )
+    assert '-z "$REIT_DB"' in flujo, "no verifica que el secreto venga vacío"
+    assert "postgresql://*" in flujo, "no verifica que apunte a un servidor"
+    assert "conteos()" in flujo, "el trabajo no reporta qué dejó en la base"
+    assert flujo.count("exit 1") >= 2, "las verificaciones no tumban el trabajo"
+
+
+def test_el_flujo_de_github_no_imprime_la_cadena_de_conexion():
+    """La cadena trae usuario y contraseña, y los registros de Actions se comparten.
+
+    Lo que se persigue es imprimir el VALOR (``$REIT_DB``), no mencionar el
+    nombre: los mensajes de error tienen que poder decir «falta el secreto
+    REIT_DB» o no sirven de nada. La primera versión de esta prueba marcaba
+    cualquier ``echo`` que tuviera el nombre y señalaba justo ese mensaje.
+    """
+    flujo = (RAIZ / ".github" / "workflows" / "base_en_el_servidor.yml").read_text(
+        encoding="utf-8"
+    )
+    for linea in flujo.splitlines():
+        limpia = linea.strip()
+        if limpia.startswith("#"):
+            continue
+        expande = "$REIT_DB" in limpia or "${REIT_DB" in limpia
+        if expande and limpia.startswith(("echo ", "printf ", "cat ")):
+            raise AssertionError(f"esta línea imprimiría la cadena completa: {limpia}")
