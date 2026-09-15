@@ -46,6 +46,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.config import UNIVERSO_INICIAL, asegurar_directorios  # noqa: E402
 from src.datos import esquema  # noqa: E402
 from src.datos.almacen import (  # noqa: E402
+    ARCHIVO_CRUDOS,
+    Manifiesto,
     escribir_conciliacion,
     escribir_crudos,
     escribir_hechos_externos,
@@ -133,10 +135,24 @@ def exportar(repo: Repositorio, tickers: list[str] | None) -> int:
     """Escribe la instantánea al repositorio desde una base ya ingestada."""
     cliente = ClienteEdgar()
     emisores = [e for e in UNIVERSO_INICIAL if tickers is None or e.ticker in set(tickers)]
+    # El manifiesto lo mantenía SOLO `estados.py`, y este script escribe el mismo
+    # `hechos.csv.gz`. Cada exportación dejaba la huella del manifiesto apuntando a
+    # un archivo que ya no existía, y `estados.py --revisar` lo reportaba como
+    # «cambió fuera del proceso de ingesta» —lo cual era literalmente cierto y
+    # completamente inútil: el cambio venía de aquí—. Tuvo el flujo de estados en
+    # rojo desde que se regeneraron los crudos, con las diez emisoras fallando.
+    #
+    # Quien escribe un archivo sellado registra lo que escribió. No es cortesía:
+    # una huella que se sabe desfasada deja de ser una alarma y se vuelve ruido,
+    # y una alarma que siempre suena no protege de nada.
+    manifiesto = Manifiesto.cargar()
 
     for e in emisores:
         crudos = armar_crudos(cliente, e.ticker, e.cik)
         huella = escribir_crudos(e.ticker, crudos)
+        registro = manifiesto.registro(e.ticker)
+        registro.huellas[ARCHIVO_CRUDOS] = huella
+        registro.n_hechos_crudos = len(crudos)
 
         # Los estados TAL COMO los publicó la emisora, del renderizado que la
         # propia SEC hace de su XBRL. Se versionan aquí por la misma razón que la
@@ -254,6 +270,9 @@ def exportar(repo: Repositorio, tickers: list[str] | None) -> int:
             f"  {e.ticker:6} crudos {len(crudos):>7,} ({huella[:10]}) · "
             f"externos {len(externos):>6,} · conciliación {len(conc):>5,}"
         )
+
+    manifiesto.guardar()
+    print("Manifiesto actualizado con la huella de los crudos.")
     return 0
 
 

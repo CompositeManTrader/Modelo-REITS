@@ -6,6 +6,7 @@
     python scripts/estados.py --tickers O,NNN
     python scripts/estados.py --revisar          # no toca la red: verifica lo guardado
     python scripts/estados.py --pendientes       # qué etiquetas faltan por mapear
+    python scripts/estados.py --resellar         # vuelve a sellar contra el disco
 
 El proceso completo, en orden:
 
@@ -49,9 +50,11 @@ from src.datos.almacen import (  # noqa: E402
     DIR_EMISORAS,
     Manifiesto,
     decidir_descarga,
+    dir_emisora,
     escribir_cobertura,
     escribir_crudos,
     escribir_estado,
+    huella_de,
     leer_crudos,
     nombre_estado,
     verificar_huellas,
@@ -200,6 +203,73 @@ def revisar(manifiesto: Manifiesto, tickers: list[str], *, asof: dt.date) -> int
     return fallos
 
 
+def resellar(manifiesto: Manifiesto, tickers: list[str]) -> int:
+    """Vuelve a sellar el manifiesto contra lo que hay en disco. Sin red.
+
+    Para cuándo existe
+    ------------------
+    Un archivo sellado se regeneró por un camino que no mantenía el manifiesto, y
+    la huella quedó apuntando a bytes que ya no existen. Eso pasó de verdad:
+    ``instantanea.py exportar`` escribía ``hechos.csv.gz`` sin registrar su huella,
+    y las diez emisoras fallaban la verificación desde entonces.
+
+    Por qué NO es una forma de callar la alarma
+    -------------------------------------------
+    Resellar a ciegas convertiría la huella en un adorno: bastaría correr esto
+    para que cualquier corrupción pase. La diferencia está en la guarda: el
+    manifiesto registra cuántos hechos crudos había cuando selló, y esta función
+    **se niega** a resellar una emisora cuyo archivo tenga MENOS. Un archivo que
+    creció es el crudo ampliado con más filings —el caso legítimo—; uno que
+    encogió perdió datos, y eso no se sella, se investiga.
+
+    No sustituye a arreglar quién escribe sin sellar. Eso va en el otro lado.
+    """
+    problemas = 0
+    resellados = 0
+    print(f"{'':7s} {'hechos sellados':>16s} {'en disco':>10s} {'archivos':>9s}")
+    for ticker in tickers:
+        registro = manifiesto.registro(ticker)
+        carpeta = dir_emisora(ticker)
+        if not carpeta.exists():
+            continue
+        crudos = leer_crudos(ticker)
+        antes = registro.n_hechos_crudos
+        if not crudos.empty and antes and len(crudos) < antes:
+            print(
+                f"  NIEGA {ticker:5s} {antes:>16,} {len(crudos):>10,}  "
+                f"perdió {antes - len(crudos):,} hecho(s): eso no se sella"
+            )
+            problemas += 1
+            continue
+
+        movidas = []
+        for nombre in sorted(registro.huellas):
+            ruta = carpeta / nombre
+            if not ruta.exists():
+                print(f"  FALTA {ticker:5s} {nombre}")
+                problemas += 1
+                continue
+            nueva = huella_de(ruta.read_bytes())
+            if nueva != registro.huellas[nombre]:
+                movidas.append(nombre)
+                registro.huellas[nombre] = nueva
+        if not crudos.empty:
+            registro.n_hechos_crudos = len(crudos)
+        resellados += bool(movidas)
+        marca = "sella" if movidas else "igual"
+        print(
+            f"  {marca} {ticker:5s} {antes:>16,} {len(crudos):>10,} {len(movidas):>9d}"
+            + (f"  ({', '.join(movidas)})" if movidas else "")
+        )
+
+    if problemas:
+        print(f"\n{problemas} problema(s). No se guardó nada.")
+        return problemas
+    manifiesto.guardar()
+    print(f"\nManifiesto resellado: {resellados} emisora(s) con archivos nuevos.")
+    return 0
+
+
 def pendientes(tickers: list[str], *, limite: int = 12) -> None:
     """Etiquetas frecuentes que el catálogo todavía no mapea, por emisora.
 
@@ -227,6 +297,15 @@ def main() -> int:
     p.add_argument("--forzar", action="store_true", help="Baja aunque no haya reporte nuevo.")
     p.add_argument("--revisar", action="store_true", help="Solo verifica lo guardado, sin red.")
     p.add_argument("--pendientes", action="store_true", help="Etiquetas por mapear, sin red.")
+    p.add_argument(
+        "--resellar",
+        action="store_true",
+        help=(
+            "Vuelve a sellar el manifiesto contra el disco, sin red. Para cuando un "
+            "archivo se regeneró por un camino que no mantenía el manifiesto. Se niega "
+            "a sellar una emisora que perdió hechos."
+        ),
+    )
     args = p.parse_args()
 
     tickers = (
@@ -241,6 +320,10 @@ def main() -> int:
     if args.pendientes:
         pendientes(tickers)
         return 0
+
+    if args.resellar:
+        print("Resellando el manifiesto contra el disco, sin red:")
+        return resellar(manifiesto, tickers)
 
     if args.revisar:
         print(f"Revisión de {len(tickers)} emisora(s), sin red.\n")

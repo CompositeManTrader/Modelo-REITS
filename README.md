@@ -141,7 +141,23 @@ no como un archivo binario distinto.
 python scripts/estados.py              # solo lo que tenga reporte nuevo
 python scripts/estados.py --revisar    # verifica lo guardado, sin red
 python scripts/estados.py --pendientes # etiquetas frecuentes por mapear
+python scripts/estados.py --resellar   # vuelve a sellar contra el disco, sin red
 ```
+
+#### Quien escribe un archivo sellado, lo sella
+
+La huella existe para detectar un archivo cambiado fuera del proceso de ingesta.
+Eso solo sirve si el manifiesto se mantiene al día, y durante un tiempo no lo
+estuvo: `instantanea.py exportar` escribía `hechos.csv.gz` sin registrar su
+huella, así que las diez emisoras fallaban la verificación y el flujo de estados
+estaba rojo. **Una alarma que siempre suena no protege de nada** — enseña a
+ignorarla, y entonces la de verdad también se ignora.
+
+`--resellar` arregla un manifiesto ya desfasado, sin red, y trae la guarda que lo
+hace honesto: **se niega a sellar una emisora cuyo archivo perdió hechos**. Uno
+que creció es el crudo ampliado con más filings; uno que encogió perdió datos, y
+eso no se sella, se investiga. Sin esa guarda, resellar sería el botón para callar
+cualquier corrupción.
 
 **La descarga se dispara con el reporte, no con el calendario.** El manifiesto
 guarda el `accession` del último 10-Q o 10-K de cada emisora; mientras la SEC no
