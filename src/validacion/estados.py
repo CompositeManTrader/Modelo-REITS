@@ -507,21 +507,56 @@ _ESTRICTAMENTE_POSITIVAS = (
 
 
 def verificar_signos(ticker: str, estado: pd.DataFrame) -> list[Incidencia]:
+    """Negativo nunca; cero solo antes de que la emisora empezara a operar.
+
+    El cero no significa lo mismo en los dos extremos de la historia. Global Net
+    Lease reportó ingresos de CERO en los tres primeros trimestres de 2012, y es
+    verdad: era una REIT no listada recién formada —su primer filing es de mayo de
+    ese año— que todavía no compraba un solo inmueble. Exigir que los ingresos
+    fueran positivos ahí no detectaba un error, inventaba uno.
+
+    Después del primer periodo con ingresos, un cero exacto sí es sospechoso: una
+    empresa que ya cobró renta no deja de cobrarla de golpe, y lo que casi siempre
+    hay detrás es un renglón que el catálogo dejó de encontrar. Esa es la
+    distinción, y es la fecha la que la hace: **cero antes de la primera cifra
+    positiva es historia; cero después es un hueco**.
+    """
     incidencias = []
     if estado.empty:
         return incidencias
     for linea in _ESTRICTAMENTE_POSITIVAS:
         if linea not in estado.index:
             continue
-        for periodo in _periodos(estado):
+        ya_opero = False
+        # En ORDEN CRONOLÓGICO, que es lo que da sentido a «antes» y «después».
+        # Las columnas vienen con el periodo más reciente primero, así que
+        # recorrerlas tal cual haría que el primer trimestre de la emisora llegara
+        # al final, ya con cifras positivas vistas, y el cero de sus inicios se
+        # reportaría como el hueco que no es.
+        for periodo in sorted(_periodos(estado)):
             valor = _valor(estado, linea, periodo)
-            if valor is not None and valor <= 0:
-                incidencias.append(Incidencia(
-                    ticker, ERROR, "signo_imposible",
-                    f"«{LINEA_POR_CLAVE[linea].etiqueta}» vale {valor:,.0f}, y no puede ser "
-                    "menor o igual a cero.",
-                    periodo,
-                ))
+            if valor is None:
+                continue
+            if valor > 0:
+                ya_opero = True
+                continue
+            if valor < 0:
+                motivo = "y no puede ser negativo."
+            elif ya_opero:
+                motivo = (
+                    "y un cero exacto después de un periodo con cifra positiva es un "
+                    "renglón que el catálogo dejó de encontrar, no un negocio que dejó "
+                    "de operar."
+                )
+            else:
+                # Todavía no hay ninguna cifra positiva: la emisora no había
+                # empezado a operar y el cero es el dato.
+                continue
+            incidencias.append(Incidencia(
+                ticker, ERROR, "signo_imposible",
+                f"«{LINEA_POR_CLAVE[linea].etiqueta}» vale {valor:,.0f}, {motivo}",
+                periodo,
+            ))
     return incidencias
 
 

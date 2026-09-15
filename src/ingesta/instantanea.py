@@ -42,6 +42,7 @@ from src.ingesta.orquestador import (
     CONCEPTOS_RECONSTRUIBLES,
     reconstruir_desde_acumulados,
     revisar_escala,
+    revisar_fechado,
     revisar_imposibles,
 )
 
@@ -150,6 +151,7 @@ def reconstruir(
         # millones —donde son 17,715— y el apalancamiento de ese trimestre sale
         # en 0.05x. Va después de la escala, como en la ingesta.
         revisar_imposibles(repo, e.ticker, asof=dt.date.today())
+        revisar_fechado(repo, e.ticker, asof=dt.date.today())
 
         resumen.emisoras.append(e.ticker)
 

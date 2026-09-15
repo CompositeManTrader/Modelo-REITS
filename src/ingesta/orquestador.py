@@ -539,6 +539,47 @@ def revisar_imposibles(repo: Repositorio, ticker: str, *, asof: dt.date | None =
     return marcados
 
 
+def revisar_fechado(repo: Repositorio, ticker: str, *, asof: dt.date | None = None) -> int:
+    """Marca como SOSPECHOSOS los saldos que llegaron con la fecha de otro periodo.
+
+    Pide TODAS las versiones y no solo la vigente, al revés que las dos pasadas
+    anteriores, porque aquí el defecto **es** la versión: el saldo malo llegó en un
+    filing posterior y por eso le gana al bueno. Marcarlo hace que la celda caiga
+    sola a la versión que sí cuadra con su balance, que es una observación de
+    verdad y no un hueco.
+
+    Ver `src/validacion/fechado.py` para qué evidencia se exige antes de marcar.
+    """
+    from src.validacion.fechado import (
+        CLAVE_ACTIVO,
+        CLAVE_DECLARADO,
+        CLAVE_TEMPORAL,
+        CLAVES_PARTES,
+        detectar_mal_fechados,
+    )
+
+    hoy = asof or dt.date.today()
+    hechos = repo.hechos(asof=hoy, tickers=ticker, vigentes=False)
+    if hechos.empty:
+        return 0
+    saldos = hechos[
+        (hechos["periodo_tipo"] == "PUNTUAL")
+        & (hechos["concepto"].isin({CLAVE_ACTIVO, CLAVE_DECLARADO, CLAVE_TEMPORAL, *CLAVES_PARTES}))
+    ].rename(columns={"concepto": "clave"})
+    hallazgos = detectar_mal_fechados(ticker, saldos)
+    marcables = {h.id_hecho: h.nota() for h in hallazgos if h.id_hecho is not None}
+    if not marcables:
+        return 0
+    marcados = repo.marcar_hechos(marcables, estado=Estado.SOSPECHOSO)
+    fechas = sorted({h.fecha_dato for h in hallazgos})
+    repo.registrar_bitacora(
+        "mal_fechado",
+        f"{marcados} saldo(s) marcados con fecha de otro periodo: {', '.join(fechas)}.",
+        ticker=ticker,
+    )
+    return marcados
+
+
 def refrescar_diario(
     repo: Repositorio,
     *,
@@ -680,6 +721,10 @@ def correr_ingesta(
         # Y después la escala, nunca antes: esta pasada mira la serie VIGENTE, y
         # quiere verla sin lo que la anterior ya retiró.
         revisar_imposibles(repo, e.ticker, asof=hoy)
+        # Y al final el fechado, que mira TODAS las versiones: si corriera antes,
+        # las dos pasadas anteriores juzgarían una serie que todavía incluye un
+        # saldo con la fecha de otro periodo.
+        revisar_fechado(repo, e.ticker, asof=hoy)
 
         resumen.novedades = detectar_novedades(repo, e.ticker, asof=hoy)
         for nota in resumen.novedades:

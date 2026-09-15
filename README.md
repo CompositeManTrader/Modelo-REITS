@@ -443,6 +443,31 @@ Y probar contra los demás emisores del universo encontró tres más:
    su guía del año en el mismo comunicado que su trimestre. Lo cachó la restricción
    `fecha_publicacion >= fecha_dato` del esquema — la última barrera funcionando.
 
+Y del XBRL, no del comunicado, salieron dos más:
+
+9. **Un saldo puede venir con la fecha de otro periodo, desde la SEC.** El 10-Q de
+   Welltower del primer trimestre de 2013 declara `Assets = 19,549,109,000` dos
+   veces: con fecha 2012-12-31, que es el cierre comparativo y es correcta, y con
+   fecha 2012-03-31, que no —ese trimestre cerró en 15,859,734,000, como dijo su
+   propio 10-Q de entonces—. Prologis tiene el mismo defecto en 2017. Viene así de
+   `companyfacts`; se verificó contra la fuente.
+
+   El modelo se lo creía porque P1 manda tomar la versión más reciente, y eso es
+   correcto **para una serie**. Un balance es una IDENTIDAD, y esa igualdad solo
+   existe dentro de un filing: al tomar el activo de una cosecha y el pasivo de
+   otra, se rompe sin que ninguna cifra esté mal por su cuenta. `fechado.py` no
+   debilita P1 — usa la contabilidad como evidencia sobre cuál cosecha describe al
+   periodo, y solo marca cuando el valor cuadra en una fecha y contradice en otra.
+   Medido antes de escribir la regla: el patrón aparece en **dos** celdas del
+   universo y las dos están mal.
+
+10. **Cero no significa lo mismo al principio que a la mitad.** Global Net Lease
+    reportó ingresos de cero en los tres primeros trimestres de 2012, y es verdad:
+    era una REIT no listada recién formada que todavía no compraba un inmueble.
+    Exigir ingresos positivos ahí no detectaba un error, lo inventaba. Después de
+    la primera cifra positiva un cero exacto sí es un renglón que el catálogo dejó
+    de encontrar. **La fecha es la que hace la distinción.**
+
 De ahí salieron dos decisiones de diseño:
 
 **Dos convenciones de signo, explícitas.** Los valores del parser vienen ya
