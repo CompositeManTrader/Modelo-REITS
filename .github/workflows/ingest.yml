@@ -1,11 +1,17 @@
 name: Ingesta
 
 # Corre diario durante las ventanas de reportes trimestrales, detecta 8-K nuevos
-# por CIK, parsea la conciliación de AFFO, valida y escribe.
+# por CIK, parsea la conciliación de AFFO, valida y escribe EN EL SERVIDOR.
 #
-# La base se versiona como artefacto y no como commit: los datos de mercado no
-# pertenecen al historial de git, y un commit automático diario haría ilegible
-# el log del repositorio.
+# Antes escribía en un SQLite que iba y venía como artefacto entre corridas. Eso
+# tenía sentido cuando la base no vivía en ningún lado: el artefacto era su única
+# continuidad. Con la base en Postgres administrado dejó de tenerlo, y peor:
+# habría seguido llenando un archivo que ya nadie lee, con la apariencia intacta
+# de estar trabajando. Una tubería que corre y no le sirve a nadie es más cara
+# que una apagada, porque además da confianza.
+#
+# Lo que sí se sigue guardando como artefacto es la bitácora, que es evidencia de
+# la corrida y no un dato del modelo.
 
 on:
   schedule:
@@ -24,12 +30,23 @@ on:
         required: false
         default: ""
 
+# Los dos flujos que ESCRIBEN en la base comparten grupo. Las escrituras son
+# idempotentes, pero `purgar_hechos_derivados` borra antes de reescribir, y dos
+# corridas encimadas podrían dejar a la pantalla sin esos renglones el rato que
+# dure la otra. No es hipotético: la purga existe justo porque el catálogo cambia.
+concurrency:
+  group: escribe-en-la-base
+  cancel-in-progress: false
+
 jobs:
   ingesta:
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
     env:
+      # Sin esto la ingesta escribiría en el archivo local del runner, que se
+      # borra al apagarse, y el trabajo terminaría en verde.
+      REIT_DB: ${{ secrets.REIT_DB }}
       # La SEC exige un User-Agent identificable con correo de contacto.
       SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
       BANXICO_TOKEN: ${{ secrets.BANXICO_TOKEN }}
@@ -47,20 +64,42 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Recuperar la base de la corrida anterior
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: reit-db
-          path: data/
-
-      - name: Verificar el User-Agent de la SEC
+      - name: Verificar los secretos
+        # Se dice de los tres cuál llegó, aunque solo dos sean fatales. Un mensaje
+        # que solo nombra al que falta no distingue «lo puse en la pestaña
+        # equivocada» de «le erré al nombre», y son arreglos distintos. Nunca se
+        # imprime el valor: este repositorio es público y los registros también.
         run: |
+          echo "Secretos que llegaron a este trabajo:"
+          for nombre in REIT_DB SEC_USER_AGENT BANXICO_TOKEN; do
+            if [ -n "${!nombre}" ]; then
+              echo "  presente  $nombre"
+            else
+              echo "  VACÍO     $nombre"
+            fi
+          done
+          echo
           if [ -z "$SEC_USER_AGENT" ]; then
-            echo "Falta el secreto SEC_USER_AGENT. La SEC exige un User-Agent"
-            echo "identificable con correo de contacto; sin él, bloquea las solicitudes."
+            echo "::error::Falta el secreto SEC_USER_AGENT. La SEC exige un User-Agent"
+            echo "::error::identificable con correo de contacto; sin él, bloquea las solicitudes."
             exit 1
           fi
+          # Un REIT_DB vacío no es lo mismo que ausente: `${{ secrets.REIT_DB }}`
+          # define la variable como cadena vacía cuando el secreto no existe, y el
+          # código entonces cae calladamente al archivo local del runner. La
+          # ingesta correría cuarenta minutos, escribiría en un archivo que se
+          # borra al apagarse, y terminaría EN VERDE.
+          case "$REIT_DB" in
+            postgres://*|postgresql://*|postgresql+*) ;;
+            *)
+              echo "::error::REIT_DB no apunta a un Postgres. Esto escribiría en un"
+              echo "::error::archivo del runner que se borra al terminar, y el trabajo"
+              echo "::error::saldría en verde sin haber dejado nada en el servidor."
+              echo "Va en Settings → Secrets and variables → Actions → Repository secrets."
+              exit 1
+              ;;
+          esac
+          echo "REIT_DB apunta a un servidor Postgres."
 
       - name: Ingesta
         run: |
@@ -79,12 +118,38 @@ jobs:
             echo "::warning::en la página de Valuación antes de usar los datos."
           fi
 
-      - name: Guardar la base
-        uses: actions/upload-artifact@v4
-        with:
-          name: reit-db
-          path: data/reit.db
-          retention-days: 90
+      - name: Qué quedó en el servidor
+        # Sin esto el trabajo diría «terminé» y nadie sabría si dejó algo. Cuando
+        # la base está en otro lado, el conteo de filas es el único reporte que
+        # vale, y una tabla en cero es la diferencia entre «ya está» y «está a
+        # medias» — distinción que no se nota hasta que la pantalla sale vacía.
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          from src.datos.repositorio import Repositorio
+
+          print("### Filas en el servidor\n")
+          print("| tabla | filas |")
+          print("|---|---:|")
+          for tabla, n in Repositorio().conteos().items():
+              print(f"| {tabla} | {n:,} |")
+          PY
+          cat "$GITHUB_STEP_SUMMARY"
+
+      - name: Exigir que la base siga utilizable
+        run: |
+          python - <<'PY'
+          import sys
+
+          from src.datos.repositorio import Repositorio
+
+          conteos = Repositorio().conteos()
+          vacias = [t for t in ("hechos", "precios", "tasas") if not conteos.get(t)]
+          if vacias:
+              print(f"::error::Quedaron vacías: {', '.join(vacias)}")
+              sys.exit(1)
+          print(f"Base utilizable: {conteos['hechos']:,} hechos, "
+                f"{conteos['precios']:,} precios, {conteos['tasas']:,} tasas.")
+          PY
 
       - name: Guardar la bitácora
         uses: actions/upload-artifact@v4

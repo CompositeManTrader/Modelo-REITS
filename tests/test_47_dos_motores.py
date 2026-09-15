@@ -637,3 +637,83 @@ def test_el_flujo_de_github_no_imprime_la_cadena_de_conexion():
         expande = "$REIT_DB" in limpia or "${REIT_DB" in limpia
         if expande and limpia.startswith(("echo ", "printf ", "cat ")):
             raise AssertionError(f"esta línea imprimiría la cadena completa: {limpia}")
+
+
+# --------------------------------------------------------------------------------------
+# 47.6 · Todo flujo que escribe en el servidor, bajo las mismas reglas
+# --------------------------------------------------------------------------------------
+#
+# Las reglas no se verifican sobre UN flujo sino sobre todos los que escriben,
+# porque el que se olvide va a ser el siguiente, no el que ya está. Se leen como
+# texto y no con un parser de YAML a propósito: pyyaml no es dependencia del
+# proyecto, y una prueba que solo corre donde alguien lo instaló no es una prueba.
+
+DIR_FLUJOS = RAIZ / ".github" / "workflows"
+
+
+def flujos_que_escriben() -> dict[str, str]:
+    """Los que llevan el secreto de la base al entorno del trabajo."""
+    return {
+        f.name: f.read_text(encoding="utf-8")
+        for f in sorted(DIR_FLUJOS.glob("*.yml"))
+        if "REIT_DB: ${{ secrets.REIT_DB }}" in f.read_text(encoding="utf-8")
+    }
+
+
+def test_hay_flujos_que_escriben_en_el_servidor():
+    """Si esto falla, las tres pruebas de abajo pasarían sin mirar nada."""
+    assert flujos_que_escriben(), "ningún flujo lleva REIT_DB: las reglas no verifican nada"
+
+
+def test_todo_flujo_que_escribe_verifica_que_el_secreto_apunte_al_servidor():
+    """El modo de falla es el secreto VACÍO, y termina en verde.
+
+    `${{ secrets.REIT_DB }}` define la variable como cadena vacía cuando el
+    secreto no existe, y el código cae calladamente al archivo local del runner.
+    La ingesta correría cuarenta minutos, escribiría en algo que se borra al
+    apagarse, y reportaría éxito. Ya se probó en un runner de verdad.
+    """
+    sin_guarda = [
+        nombre for nombre, texto in flujos_que_escriben().items()
+        if 'postgresql://*' not in texto or 'exit 1' not in texto
+    ]
+    assert sin_guarda == [], (
+        f"escriben en la base sin verificar que el secreto apunte a un servidor: {sin_guarda}"
+    )
+
+
+def test_todo_flujo_que_escribe_esta_en_el_mismo_grupo_de_concurrencia():
+    """Un grupo solo sirve si están TODOS.
+
+    Uno afuera basta para que las escrituras se encimen, y entonces el grupo da
+    una seguridad que no existe — peor que no tenerlo, porque nadie lo revisa.
+    """
+    fuera = [
+        nombre for nombre, texto in flujos_que_escriben().items()
+        if "group: escribe-en-la-base" not in texto
+    ]
+    assert fuera == [], f"escriben en la base fuera del grupo de concurrencia: {fuera}"
+
+
+def test_todo_flujo_que_escribe_reporta_lo_que_dejo():
+    """Un trabajo que no puede mostrar qué dejó es un trabajo que no se puede creer."""
+    mudos = [
+        nombre for nombre, texto in flujos_que_escriben().items()
+        if "conteos()" not in texto
+    ]
+    assert mudos == [], f"escriben en la base sin reportar qué quedó: {mudos}"
+
+
+def test_ningun_flujo_pasea_la_base_como_artefacto():
+    """El artefacto era la única continuidad de la base cuando no vivía en ningún lado.
+
+    Con la base en el servidor dejó de serlo, y peor: habría seguido llenando un
+    archivo que ya nadie lee, con la apariencia intacta de estar trabajando. Una
+    tubería que corre y no le sirve a nadie es más cara que una apagada, porque
+    además da confianza.
+    """
+    culpables = [
+        f.name for f in sorted(DIR_FLUJOS.glob("*.yml"))
+        if "reit.db" in f.read_text(encoding="utf-8")
+    ]
+    assert culpables == [], f"todavía suben o bajan la base como artefacto: {culpables}"
