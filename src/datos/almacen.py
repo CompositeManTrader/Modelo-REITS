@@ -200,8 +200,18 @@ def decidir_descarga(
 # --------------------------------------------------------------------------------------
 
 
-def _huella(datos: bytes) -> str:
+def huella_de(datos: bytes) -> str:
+    """La huella de un contenido. Pública porque quien SELLA no es solo quien escribe.
+
+    `instantanea.py` también escribe archivos sellados, y el resellado del
+    manifiesto la necesita para comparar contra el disco. Mientras fue privada,
+    el único camino era duplicar el `sha256(...)[:16]` en otro lado, y dos copias
+    de una definición de huella se separan en cuanto una cambia.
+    """
     return hashlib.sha256(datos).hexdigest()[:16]
+
+
+_huella = huella_de  # nombre viejo, todavía usado dentro de este módulo
 
 
 def _csv_bytes(df: pd.DataFrame, *, indice: bool = False) -> bytes:
