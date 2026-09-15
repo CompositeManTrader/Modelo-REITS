@@ -834,11 +834,32 @@ fracciones. Las tres son fallas que la aplicación no reporta sola.
 
 `.github/workflows/ingest.yml` corre durante las ventanas de reportes (primeras
 tres semanas de febrero, mayo, agosto y noviembre), detecta 8-K nuevos, parsea,
-valida y escribe. La base viaja como artefacto entre corridas, no como commit: los
-datos de mercado no pertenecen al historial de git.
+valida y escribe **en el servidor**.
 
-Secretos que hay que configurar: `SEC_USER_AGENT` (obligatorio) y `BANXICO_TOKEN`
-(opcional, gratuito, se obtiene en el portal del SIE).
+Antes escribía en un SQLite que iba y venía como artefacto entre corridas, porque
+el artefacto era la única continuidad que la base tenía. Con la base en Postgres
+administrado eso dejó de ser cierto, y peor: habría seguido llenando un archivo
+que ya nadie lee, con la apariencia intacta de estar trabajando. **Una tubería que
+corre y no le sirve a nadie es más cara que una apagada**, porque además da
+confianza. Lo que sí sigue como artefacto es la bitácora, que es evidencia de la
+corrida y no un dato del modelo.
+
+### Las cuatro reglas de todo flujo que escribe en la base
+
+No se verifican sobre un flujo sino sobre **todos** los que llevan `REIT_DB`,
+porque el que se olvide va a ser el siguiente y no el que ya está (prueba 47):
+
+| Regla | Por qué |
+|---|---|
+| Verificar que el secreto apunte a un servidor | Un `REIT_DB` vacío no es lo mismo que ausente: la variable queda como cadena vacía y el código cae al archivo local del runner. La ingesta correría cuarenta minutos y terminaría **en verde** |
+| Estar en el grupo `escribe-en-la-base` | Un grupo solo sirve si están todos; uno afuera da una seguridad que no existe |
+| Reportar qué quedó | Un trabajo que no puede mostrar lo que dejó es un trabajo que no se puede creer |
+| Tronar si una tabla quedó vacía | Verde con la base vacía es peor que rojo: el error aparece días después |
+
+Secretos que hay que configurar en **Settings → Secrets and variables → Actions**:
+`REIT_DB` y `SEC_USER_AGENT` (obligatorios) y `BANXICO_TOKEN` (opcional, gratuito,
+se obtiene en el portal del SIE). Son un almacén distinto del de Streamlit; hacen
+falta en los dos lados.
 
 ---
 

@@ -36,6 +36,14 @@ on:
           # Nada más lo que se mueve todos los días. Es lo que se corre después.
           - solo-diario
 
+# El mismo grupo que `ingest.yml`, y por eso tiene que decir lo mismo: un grupo de
+# concurrencia solo sirve si TODOS los que escriben están en él. Uno afuera basta
+# para que las escrituras se encimen, y entonces el grupo da una seguridad que no
+# existe, que es peor que no tenerlo.
+concurrency:
+  group: escribe-en-la-base
+  cancel-in-progress: false
+
 jobs:
   poblar:
     runs-on: ubuntu-latest
