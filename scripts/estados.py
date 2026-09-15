@@ -73,7 +73,8 @@ from src.ingesta.estados import (  # noqa: E402
     hechos_crudos,
     periodos_disponibles,
 )
-from src.validacion.estados import ERROR, verificar_todo  # noqa: E402
+from src.validacion.estados import AVISO, ERROR, Incidencia, verificar_todo  # noqa: E402
+from src.validacion.fechado import descartar_del_crudo  # noqa: E402
 
 # Qué combinaciones se guardan. El balance es un saldo: no lleva tipo de periodo.
 COMBINACIONES: tuple[tuple[str, str | None], ...] = tuple(
@@ -94,6 +95,10 @@ def armar_y_verificar(ticker: str, crudos: pd.DataFrame, *, asof: dt.date):
     10-Q del cuarto trimestre y sin él la serie trimestral tiene un hueco anual.
     """
     tags = elegir_tags(crudos, ticker)
+    # Antes de armar nada: fuera los saldos cuya fecha el propio XBRL del emisor
+    # equivocó. Es lo primero porque un activo total mal fechado envenena todo lo
+    # que se derive de él —el balance, su cuadre, y cualquier razón que lo use—.
+    crudos, mal_fechados = descartar_del_crudo(ticker, crudos, tags)
     completos = derivar_trimestres_faltantes(crudos, tags)
     estados = {}
     for estado, tipo in COMBINACIONES:
@@ -101,6 +106,13 @@ def armar_y_verificar(ticker: str, crudos: pd.DataFrame, *, asof: dt.date):
             completos, ticker, estado, asof=asof, periodo_tipo=tipo or "Q", tags=tags
         )
     incidencias = verificar_todo(ticker, completos, estados)
+    # Se reportan como AVISO y no como ERROR: el dato malo ya no está en el
+    # balance, así que no hay nada roto. Pero callarlo dejaría al lector sin saber
+    # que una cifra del emisor se descartó, y esa omisión es la que no se vale.
+    incidencias += [
+        Incidencia(ticker, AVISO, "mal_fechado", h.nota(), h.fecha_dato)
+        for h in mal_fechados
+    ]
     return estados, incidencias
 
 
