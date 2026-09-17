@@ -13,6 +13,11 @@ pip install -r requirements-dev.txt
 python scripts/sembrar.py        # datos de DEMOSTRACIÓN, para recorrer la app
 streamlit run app/Inicio.py
 
+# Para hablarle a la SEC hace falta identificarse. No hay valor por omisión: uno
+# que funcionara le prestaría a un desconocido la identidad de quien lo escribió,
+# y la SEC bloquea por User-Agent.
+export SEC_USER_AGENT="Modelo-REITS/0.1 (tu-correo@ejemplo.com)"
+
 python scripts/ingesta.py        # datos de fuente primaria desde la SEC
 python scripts/estados.py        # estados financieros completos, si hay reporte nuevo
 python scripts/cobertura.py      # cuánto parsea y valida el sistema, por emisor
@@ -118,7 +123,11 @@ directamente y tarde o temprano alguna olvidaría el corte.
   por el nombre del archivo: Realty Income nombra su Exhibit 99.1
   `o-991q22026.htm`, sin la cadena "ex99" en ningún lado.
 - Límite de la SEC respetado: 10 solicitudes por segundo y User-Agent
-  identificable (variable de entorno `SEC_USER_AGENT`).
+  identificable (variable de entorno `SEC_USER_AGENT`), **sin valor por omisión**:
+  el cliente se niega a construirse si no trae correo de contacto. La SEC mide y
+  bloquea por User-Agent, así que un respaldo que funcionara haría que cualquiera
+  que clone el repositorio le hablara a la SEC con la identidad de otro — y el
+  bloqueo le caería al dueño del correo, por tráfico que nunca generó.
 
 ### Estados financieros completos, versionados en el repositorio
 

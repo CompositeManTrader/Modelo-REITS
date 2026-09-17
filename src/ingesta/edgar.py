@@ -101,8 +101,17 @@ class ClienteEdgar:
         dir_cache: Path | None = None,
     ):
         if "@" not in user_agent:
+            # Este mensaje es lo único que va a ver quien se tope con esto, así
+            # que tiene que alcanzar para arreglarlo sin ir a leer el código: qué
+            # falta, qué forma tiene y en cuál de los tres almacenes va, según
+            # desde dónde se esté corriendo.
             raise ValueError(
-                "La SEC exige un User-Agent con correo de contacto. Configura SEC_USER_AGENT."
+                "La SEC exige un User-Agent con correo de contacto y bloquea las "
+                "solicitudes que no lo traen. Configura SEC_USER_AGENT con la forma "
+                "«Modelo-REITS/0.1 (tu-correo@ejemplo.com)». Va como variable de "
+                "entorno en la línea de comandos; en Settings → Secrets si corre en "
+                "Streamlit; y en Settings → Secrets and variables → Actions si corre "
+                "en GitHub. Son tres almacenes distintos y no se hablan entre ellos."
             )
         self.sesion = requests.Session()
         self.sesion.headers.update(
