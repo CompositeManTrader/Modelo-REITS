@@ -49,9 +49,25 @@ def asegurar_directorios() -> None:
 # --------------------------------------------------------------------------------------
 
 # La SEC exige un User-Agent identificable con correo de contacto y limita a 10 req/s.
-SEC_USER_AGENT = os.environ.get(
-    "SEC_USER_AGENT", "Modelo-REITS/0.1 (albertoalarcon3012@gmail.com)"
-)
+#
+# El valor por omisión NO trae correo, a propósito, y por dos razones distintas.
+#
+# La primera es que este repositorio es público. Un correo personal escrito aquí
+# queda legible para cualquiera, y además viaja: se copia al clonar, al hacer un
+# fork y a cada caché que indexe el archivo.
+#
+# La segunda pesa más y es operativa. La SEC identifica, mide y BLOQUEA por
+# User-Agent. Con un correo real de fábrica, cualquiera que clone el repositorio y
+# corra la ingesta le habla a la SEC haciéndose pasar por su dueño —sin querer y
+# sin enterarse—; si le pega fuerte, a quien la SEC bloquea es al dueño del correo,
+# y la tubería que se cae es la suya. Prestarle la identidad a un desconocido no es
+# un descuido de privacidad, es un riesgo de disponibilidad.
+#
+# Sin correo el valor no es utilizable, y eso es exactamente lo que se busca:
+# `ClienteEdgar` lo rechaza al construirse, antes de la primera solicitud, con un
+# mensaje que dice qué configurar y dónde. Falla temprano y fuerte, en vez de
+# funcionar de más con la identidad de alguien que no eligió prestarla.
+SEC_USER_AGENT = os.environ.get("SEC_USER_AGENT", "Modelo-REITS/0.1 (SIN CONFIGURAR)")
 SEC_MAX_RPS = 10.0
 SEC_TIMEOUT = 30
 SEC_REINTENTOS = 4
