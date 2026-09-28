@@ -201,29 +201,20 @@ INICIOS_VERIFICABLES: dict[str, InicioVerificable] = {
 }
 
 
-@dataclass(frozen=True)
-class AnclaLarga:
-    """Un cierre NYSE publicado por el emisor, anterior a lo que cubre la base.
-
-    Las anclas de ``src.ingesta.precios`` validan la serie diaria de diez años; las
-    de aquí validan la historia larga donde no hay otra serie contra qué comparar.
-    """
-
-    fecha: dt.date
-    cierre: float
-    fuente: str
+# Cierres NYSE publicados por el emisor —«last reported sale price» de sus
+# prospectos, «closing sales prices» de las tablas trimestrales de sus 10-K—, uno por
+# renglón con su documento y la frase citada. Las anclas de ``src.ingesta.precios``
+# validan la serie diaria de diez años; estas validan la historia larga, donde no
+# hay otra serie contra qué comparar. Van en un archivo y no en el código porque
+# cada una lleva su cita, y son decenas.
+ARCHIVO_ANCLAS = "anclas.csv"
 
 
-ANCLAS_LARGAS: dict[str, tuple[AnclaLarga, ...]] = {
-    "NNN": (
-        AnclaLarga(dt.date(1996, 1, 3), 13.125,
-                   "Prospecto 424B5 de ene-1996: «The last reported sale price of the Common "
-                   "Stock on the New York Stock Exchange on January 3, 1996 was $13.125»."),
-        AnclaLarga(dt.date(1996, 1, 23), 13.00,
-                   "Prospecto 424B2 de ene-1996: «The last reported sale price of the Common "
-                   "Stock on the New York Stock Exchange on January 23, 1996 was $13.00»."),
-    ),
-}
+def anclas_largas(ticker: str, raiz: Path | None = None) -> pd.DataFrame:
+    ruta = dir_de(ticker, raiz) / ARCHIVO_ANCLAS
+    if not ruta.exists():
+        return pd.DataFrame(columns=["fecha", "cierre", "fuente", "url", "cita"])
+    return pd.read_csv(ruta, parse_dates=["fecha"])
 
 
 @dataclass(frozen=True)
@@ -504,17 +495,18 @@ class Validacion:
         )
 
 
-def anclas_del_estudio(ticker: str, anclas_base: pd.DataFrame | None = None) -> pd.DataFrame:
+def anclas_del_estudio(
+    ticker: str, anclas_base: pd.DataFrame | None = None, raiz: Path | None = None
+) -> pd.DataFrame:
     """Las anclas de la base más las de la historia larga, en un solo formato."""
-    largas = pd.DataFrame(
-        [{"fecha_dato": a.fecha, "cierre_crudo": a.cierre, "fuente": a.fuente}
-         for a in ANCLAS_LARGAS.get(ticker.upper(), ())],
-        columns=["fecha_dato", "cierre_crudo", "fuente"],
-    )
+    a = anclas_largas(ticker, raiz)
+    largas = pd.DataFrame({"fecha_dato": pd.to_datetime(a["fecha"]).dt.date,
+                           "cierre_crudo": a["cierre"].astype(float), "fuente": a["fuente"]})
     partes = [p for p in (anclas_base, largas) if p is not None and not p.empty]
     if not partes:
         return largas
     todas = pd.concat([p[["fecha_dato", "cierre_crudo", "fuente"]] for p in partes], ignore_index=True)
+    todas["fecha_dato"] = pd.to_datetime(todas["fecha_dato"]).dt.date
     return todas.sort_values("fecha_dato").reset_index(drop=True)
 
 

@@ -273,7 +273,9 @@ def anual(
         poner("ebitdare", ebitdare[ebitdare.index >= primer_anio], "derivado de XBRL")
 
     # Razones.
-    tabla["payout_ffo"] = tabla.get("dividendo_por_accion") / tabla.get("ffo_por_accion")
+    if "ffo_por_accion" not in tabla:
+        tabla["ffo_por_accion"] = np.nan
+    tabla["payout_ffo"] = tabla["dividendo_por_accion"] / tabla["ffo_por_accion"]
     if "affo_por_accion" in tabla:
         tabla["payout_affo"] = tabla["dividendo_por_accion"] / tabla["affo_por_accion"]
     if {"deuda_total", "activos_totales"} <= set(tabla.columns):

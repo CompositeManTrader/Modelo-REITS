@@ -271,7 +271,7 @@ def _historia(e) -> str:
         fuente = f"<a href='{_e(h.url)}'>{_e(h.fuente)}</a>" if h.url else _e(h.fuente)
         items.append(
             f"<div class='hito'><span class='f'>{_e(h.fecha_texto)}</span>{marca}<br>"
-            f"<b>{_e(h.titulo)}.</b> {_e(h.detalle)} <span class='fuente'>— {fuente}</span></div>"
+            f"<b>{_e(h.titulo.rstrip('.'))}.</b> {_e(h.detalle)} <span class='fuente'>— {fuente}</span></div>"
         )
     return (
         "<h2 class='salto'>La historia</h2>"
@@ -353,7 +353,7 @@ def _retorno(e, fig) -> str:
         "<h2 class='salto'>De dónde salió el retorno</h2>"
         f"<p>Un dólar invertido {'el día del listado' if not e.historia_mercado.inicio_verificable else 'al inicio de ' + str(e.tabla.index[0].year)}, "
         "reinvirtiendo cada dividendo (escala logarítmica).</p>"
-        + fig("retorno_total", pie=textos.escisiones_en_el_retorno(e.historia_mercado)
+        + fig("retorno_total", pie=textos.escisiones_en_el_retorno(e.historia_mercado) + textos.pesos_desde(e)
               + ("Validado contra el índice ajustado del proveedor: desviación máxima de "
                  + pct(e.serie.validacion_rt, 2) + " en toda la historia." if e.serie.validacion_rt is not None else ""))
         + "<div class='bloque'><p><b>Negocio contra mercado.</b> El precio es el dividendo ÷ el yield, así que el retorno "
@@ -447,9 +447,10 @@ def _riesgos(e) -> str:
 def _metodologia(e) -> str:
     man = e.historia_mercado.manifiesto
     v = man.get("validacion", {})
-    anclas = "".join(
-        f"<li>Cierre NYSE {a['fecha']}: real {usd(a['real'])}, reconstruido {usd(a['reconstruido'])} "
-        f"({a['error']:+.3%}).</li>" for a in v.get("anclas", [])
+    resumen_anclas, listar = textos.anclas(v)
+    anclas = (f"<li>{_e(resumen_anclas)}</li>" if resumen_anclas else "") + "".join(
+        f"<li>Cierre NYSE {a['fecha']}: real {usd(a['real'], 3)}, reconstruido {usd(a['reconstruido'], 3)} "
+        f"({a['error']:+.3%}).</li>" for a in listar
     )
     correcciones = "".join(f"<li>{_e(c)}</li>" for c in man.get("correcciones_de_dividendos", []))
     d = e.diagnostico_ffo.tabla
@@ -473,7 +474,8 @@ def _metodologia(e) -> str:
         "<h3>Dividendos corregidos contra el reporte del emisor</h3>"
         f"<ul class='chico'>{correcciones}</ul>" if correcciones else
         "<h3>Dividendos contra el reporte del emisor</h3>"
-        "<p class='chico'>No hizo falta corregir ningún registro del proveedor.</p>"
+        + ("" if textos.nota(e.narrativa, "dividendos") else
+           "<p class='chico'>No hizo falta corregir ningún registro del proveedor.</p>")
     )
     return (
         "<h2 class='salto'>Metodología, validaciones y fuentes</h2>"
@@ -486,7 +488,7 @@ def _metodologia(e) -> str:
         + (f"<p class='chico'>{_e(textos.nota(e.narrativa, 'dividendos'))}</p>"
            if textos.nota(e.narrativa, "dividendos") else "")
         + "<h3>Por qué el FFO no se deriva de la contabilidad</h3>"
-        f"<p class='chico'>{_e(textos.diagnostico_ffo(e.diagnostico_ffo))}</p>"
+        f"<p class='chico'>{_e(textos.diagnostico_ffo(e.diagnostico_ffo, e.narrativa))}</p>"
         + tabla(filas_d, ["Año", "FFO por acción derivado", "Reportado", "Error"], clase="chico")
         + "<h3>Lo que se sabía en cada fecha</h3>"
         "<p class='chico'>Toda señal de valuación usa solo lo publicado a esa fecha (P1): el FFO de un "

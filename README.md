@@ -332,51 +332,73 @@ Dos decisiones de diseño de la semilla que valen la pena:
 ## Estudio de largo plazo
 
 La página de valuación contesta «¿está caro hoy?». La página **Estudio** contesta
-las preguntas lentas, desde el primer día de cotización: qué le pasó al negocio,
-de dónde salió lo que rindió, en qué momentos convenía entrar —con lo que se sabía
-ese día— y si lo que paga hoy compensa el riesgo contra el Udibono. El mismo
-objeto (`src/estudio/estudio.py`) alimenta la página y el PDF, así que no pueden
-decir cifras distintas.
+las preguntas lentas, desde donde la historia se puede verificar: qué le pasó al
+negocio, de dónde salió lo que rindió, en qué momentos convenía entrar —con lo que
+se sabía ese día— y si lo que paga hoy compensa el riesgo contra el Udibono. El
+mismo objeto (`src/estudio/estudio.py`) alimenta la página y el PDF, así que no
+pueden decir cifras distintas.
+
+Hoy hay dos emisores: **O** (desde su listado en 1994) y **NNN** (desde 1992).
 
 ```bash
-python scripts/estudio.py mercado O   # baja, desajusta, valida y versiona precio y dividendos desde 1994
-python scripts/estudio.py resumen O   # imprime las conclusiones
-python scripts/estudio.py pdf O       # genera docs/estudios/estudio_O.pdf (requiere Chromium vía Playwright)
+python scripts/estudio.py mercado NNN   # baja, desajusta, valida y versiona precio y dividendos
+python scripts/estudio.py resumen NNN   # imprime las conclusiones
+python scripts/estudio.py pdf NNN       # genera docs/estudios/estudio_NNN.pdf (requiere Chromium vía Playwright)
 ```
 
 | Qué | Desde | De dónde |
 |---|---|---|
-| Precio y dividendos | el listado (O: 1994) | `data/estudios/<TICKER>/`, versionado |
-| FFO y AFFO por acción antes de 2019 | 1996 / 2010 | 10-K y comunicados capturados uno por uno: `anuales_primarios.csv` |
+| Precio y dividendos | O: 1994 · NNN: 1992 | `data/estudios/<TICKER>/`, versionado, con su manifiesto de validación |
+| Cierres NYSE para validar la historia larga | NNN: 1996-2024 | `data/estudios/<TICKER>/anclas.csv`, cada uno con su cita |
+| FFO, AFFO y la operación por año | O: 1996 · NNN: 1992 | 10-K, prospectos y comunicados, cifra por cifra: `anuales_primarios.csv` |
 | Estados financieros | 2008 | XBRL de la base |
-| FFO y AFFO después de 2019 | 2019 | 8-K de la base |
+| FFO y AFFO trimestrales | 2019 | 8-K de la base, solo si no contradicen a lo reportado |
 
 Lo que costó trabajo y por qué:
 
 - **El proveedor de la historia larga ajusta por eventos de capital**, y registra
   la escisión de Orion (2021) como si fuera un split. Se desajusta con un
   **catálogo verificado por emisor**; un evento que no esté en el catálogo detiene
-  la descarga. Validado contra el precio crudo del proveedor diario: 2,513 días,
-  error de 0.0000%.
-- **Cuatro dividendos de 1995-1996 estaban mal** en el proveedor —uno partido a la
-  mitad, tres distribuciones sumadas en un registro, dos mensualidades que
-  fabricaban un recorte—. Se corrigieron contra los 10-K, con la fuente al lado.
+  la descarga. El catálogo de NNN está vacío a propósito: «sin eventos» también es
+  una afirmación verificada.
+- **La serie empieza donde se puede verificar, no donde empieza el proveedor.** NNN
+  cotiza desde 1984, pero el proveedor no trae sus dividendos de 1984 a 1989 y el
+  primer reporte en EDGAR es de 1995. Un retorno total con esos dividendos en cero
+  no es un retorno: la serie arranca en 1992 y el manifiesto dice por qué.
+- **Validación donde no hay traslape**: además de 2,513 días contra el precio crudo
+  diario, la historia de NNN cuadra con 61 cierres NYSE publicados por el emisor y
+  con los 16 rangos trimestrales de 1992-1995. Un solo cierre queda fuera (30-sep-1994)
+  y está catalogado como excepción revisada.
+- **Cuatro dividendos de 1995-1996 de O estaban mal** en el proveedor. Se
+  corrigieron contra los 10-K. Los de NNN coinciden uno por uno con el emisor.
 - **El dividendo TTM se suma por conteo**, no por calendario: con la liquidación
-  T+1 mayo de 2024 quedó sin fecha ex, y la suma por año inventaba un recorte.
-- **El FFO no se deriva de la contabilidad**: la fórmula de Nareit sobre XBRL falla
-  más de 15% antes de 2015 (las ventas iban a discontinuadas). Solo cifras
-  reportadas por el emisor.
-- **P1 con comparativas**: los trimestres de 2019-2023 llegaron a la base como
-  comparativas de comunicados de 2024; su fecha de publicación original se estima
-  como cierre + 60 días y la página dice cuántas son.
+  T+1 un mes puede quedar sin fecha ex, y la suma por año inventaba un recorte.
+- **Lo capturado del documento manda sobre lo que la base leyó de los 8-K**, y lo
+  que la base trae y contradice a lo reportado se descarta y se avisa. El lector de
+  8-K guardó para NNN −1.00 (una llamada de nota «(1)» leída como negativo) y
+  trimestres en el lugar del año.
+- **El FFO no se deriva de la contabilidad**; la derivación queda como diagnóstico, y
+  la causa de que falle es de cada emisor (en O, ventas en operaciones
+  discontinuadas; en NNN, dividendos preferentes que la base no resta).
+- **FFO con la definición vigente de Nareit.** En 2009 y 2010 los deterioros de
+  inmuebles movieron el FFO que publicó NNN más de 10% (1.13 contra 1.65 en 2009);
+  se usa la cifra sin deterioros, que Nareit excluye desde 2011. Cada año lleva la
+  cifra que el emisor publicó primero (P1); las reexpresiones se conservan aparte.
+- **P1 con comparativas**: los trimestres que llegaron a la base como comparativas
+  de comunicados posteriores se fechan como cierre + 60 días.
 - **La descomposición es exacta**: `(1 + RT) = (1 + ingreso) × (1 + crecimiento
   del dividendo) × (1 + revaluación) × (1 + escisión)`.
 - **El análisis de entradas no es una regla de compra**: con treinta años hay unas
   seis ventanas de cinco años que no se enciman, y el veredicto es INCONCLUSO (P7).
+- **Ninguna frase de un emisor habla de otro**: lo que depende del emisor —splits,
+  escisiones, frecuencia del dividendo, desde cuándo— lo arma `src/estudio/textos.py`
+  con sus datos, y lo que solo aplica a uno va en las notas de su narrativa.
 
-Para agregar otro emisor: su catálogo de eventos en `src/estudio/mercado.py`, sus
-cifras primarias en `data/estudios/<TICKER>/anuales_primarios.csv` y su narrativa
-—con fuente en cada hito— en `src/estudio/historia.py`.
+Para agregar otro emisor: su catálogo de eventos (y, si hace falta, su inicio
+verificable y sus rangos) en `src/estudio/mercado.py`; sus cierres NYSE en
+`anclas.csv`; sus cifras primarias en `anuales_primarios.csv`; y su narrativa —con
+fuente en cada hito— en `src/estudio/historia.py`. La página solo lo ofrece cuando
+tiene historia de mercado Y cifras primarias.
 
 ---
 

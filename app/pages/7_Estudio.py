@@ -152,7 +152,7 @@ if n:
         marca_industria = " · *industria*" if h.categoria == "industria" else ""
         st.markdown(
             f"<span class='cifra rotulo-gris'>{h.fecha_texto}</span>{marca_industria}  \n"
-            f"**{h.titulo}.** {h.detalle} <span style='font-size:12px;opacity:.7'>— {fuente}</span>",
+            f"**{h.titulo.rstrip('.')}.** {h.detalle} <span style='font-size:12px;opacity:.7'>— {fuente}</span>",
             unsafe_allow_html=True,
         )
 else:
@@ -235,7 +235,7 @@ st.header("De dónde salió el retorno")
 st.markdown(
     f"Un dólar invertido {'el día del listado' if not hm.inicio_verificable else f'al inicio de {t0:%Y}'}, "
     "reinvirtiendo cada dividendo. La escala es logarítmica: la misma distancia vertical es el "
-    "mismo porcentaje. " + textos.escisiones_en_el_retorno(hm)
+    "mismo porcentaje. " + textos.escisiones_en_el_retorno(hm) + textos.pesos_desde(e)
 )
 grafica("retorno_total")
 st.markdown(
@@ -330,7 +330,10 @@ with st.expander("Metodología, validaciones y fuentes"):
     if hm.inicio_verificable:
         st.markdown(f"**Por qué empieza en {hm.inicio_verificable['fecha'][:4]}.** "
                     f"{hm.inicio_verificable['motivo']}")
-    for a in v.get("anclas", []):
+    resumen_anclas, listar = textos.anclas(v)
+    if resumen_anclas:
+        st.caption(resumen_anclas)
+    for a in listar:
         st.caption(f"Ancla NYSE {a['fecha']}: real {a['real']:.3f}, reconstruido "
                    f"{a['reconstruido']:.3f} ({a['error']:+.3%}).")
     if v.get("rangos_n"):
@@ -348,7 +351,7 @@ with st.expander("Metodología, validaciones y fuentes"):
     if textos.nota(n, "dividendos"):
         st.caption(textos.nota(n, "dividendos"))
     st.markdown(f"**Por qué el FFO no se deriva de la contabilidad.** "
-                f"{textos.diagnostico_ffo(e.diagnostico_ffo)}")
+                f"{textos.diagnostico_ffo(e.diagnostico_ffo, e.narrativa)}")
     mostrar_tabla(vistas.diagnostico_ffo(e))
     st.markdown("**Fuentes**")
     if n:

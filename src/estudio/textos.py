@@ -40,8 +40,9 @@ def base_por_accion(historia: HistoriaMercado) -> str:
     if not historia.splits:
         return (f"{historia.ticker} no ha hecho splits en el periodo: las cifras por acción de "
                 "cualquier año se comparan tal cual.")
-    partes = [f"el split de {s.fecha.year} va dividido entre {s.factor:g}" for s in historia.splits]
-    return "Todo en acciones de hoy: lo anterior a " + " y a ".join(partes) + "."
+    partes = [f"lo anterior al split de {s.fecha.year} va dividido entre {s.factor:g}"
+              for s in historia.splits]
+    return "Todo en acciones de hoy: " + "; ".join(partes) + "."
 
 
 def eventos_del_proveedor(historia: HistoriaMercado) -> str:
@@ -77,21 +78,59 @@ def desde(historia: HistoriaMercado, inicio) -> str:
     return f"desde el listado en {inicio:%Y}"
 
 
-def diagnostico_ffo(d) -> str:
-    """Por qué el FFO no se deriva de la contabilidad, con los errores medidos."""
+def diagnostico_ffo(d, narrativa=None) -> str:
+    """Por qué el FFO no se deriva de la contabilidad: los errores medidos y, si se
+    conoce, la causa, que es de cada emisor (``notas["ffo_derivado"]``).
+
+    La causa NO va aquí escrita: en O son las ventas clasificadas como operaciones
+    discontinuadas; en NNN, dividendos preferentes que la base no resta. Una frase
+    general habría atribuido a uno la causa del otro.
+    """
     if d.tabla.empty:
         return "No hay estados XBRL suficientes para derivar el FFO y compararlo."
+    causa = nota(narrativa, "ffo_derivado")
     if d.primer_anio_confiable is None:
         return ("La fórmula de Nareit aplicada a XBRL no cuadra con lo reportado en ningún tramo "
-                "reciente completo; el estudio usa solo cifras reportadas por el emisor.")
+                "reciente completo. " + (causa + " " if causa else "")
+                + "El estudio usa solo cifras reportadas por el emisor.")
     antiguo = d.error_max_antiguo
     frase = (f"La fórmula de Nareit aplicada a XBRL cuadra con lo reportado desde "
              f"{d.primer_anio_confiable} (error máximo {d.error_max_reciente:.1%})")
     if antiguo is not None:
-        frase += (f", y antes falla por hasta {antiguo:.0%}: en esos años las ventas de inmuebles "
-                  "se clasificaban como operaciones discontinuadas y no pasan por las líneas que "
-                  "la fórmula toca")
-    return frase + ". El estudio usa solo cifras reportadas por el emisor."
+        frase += f", y antes falla por hasta {antiguo:.0%}"
+    return frase + ". " + (causa + " " if causa else "") + \
+        "El estudio usa solo cifras reportadas por el emisor."
+
+
+# Con más anclas que esto, la metodología las resume en vez de listarlas: 61 renglones
+# de «+0.000%» ocupaban página y media y escondían la única que no cuadraba.
+ANCLAS_A_LISTAR = 6
+# Lo que se considera «exacto»: medio centavo en un precio de diez dólares.
+ANCLA_EXACTA = 0.0005
+
+
+def anclas(validacion: dict) -> tuple[str, list[dict]]:
+    """Resumen de las anclas y las que vale la pena listar una por una."""
+    todas = validacion.get("anclas", [])
+    if len(todas) <= ANCLAS_A_LISTAR:
+        return "", todas
+    peor = max(todas, key=lambda a: abs(a["error"]))
+    exactas = sum(abs(a["error"]) <= ANCLA_EXACTA for a in todas)
+    resumen = (f"{len(todas)} cierres NYSE publicados por el emisor, de {todas[0]['fecha'][:4]} a "
+               f"{todas[-1]['fecha'][:4]}: {exactas} coinciden al centavo; el error máximo es "
+               f"{peor['error']:+.2%} ({peor['fecha']}).")
+    return resumen, [a for a in todas if abs(a["error"]) > ANCLA_EXACTA]
+
+
+def pesos_desde(e) -> str:
+    """Si la serie en pesos arranca después que la de dólares, desde cuándo y por qué."""
+    from src.estudio.graficas import mes
+
+    mxn = e.tabla["rt_mxn"].dropna()
+    if mxn.empty or (mxn.index[0] - e.tabla.index[0]).days < 31:
+        return ""
+    return (f"La línea en pesos empieza en {mes(mxn.index[0])}, el primer día con tipo de cambio "
+            "en la base. ")
 
 
 def nota(narrativa, clave: str, defecto: str = "") -> str:
