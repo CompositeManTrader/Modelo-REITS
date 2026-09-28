@@ -20,6 +20,9 @@ DIR_DATOS = RAIZ / "data"
 DIR_SEMILLA = DIR_DATOS / "semilla"
 DIR_CACHE = DIR_DATOS / "cache"
 DIR_EXPORTES = DIR_DATOS / "exportes"
+# Los estudios de largo plazo por emisor: la historia de mercado desde el IPO,
+# versionada, porque el proveedor diario solo alcanza diez años hacia atrás.
+DIR_ESTUDIOS = DIR_DATOS / "estudios"
 
 
 def _ruta_de_la_base() -> Path | str:

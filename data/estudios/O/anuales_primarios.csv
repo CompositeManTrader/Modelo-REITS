@@ -1,0 +1,146 @@
+anio,concepto,valor,base,metodo,fuente,fecha_publicacion
+1994,ingresos_totales,48863000,na,reportado,10-K 1998 (Selected Financial Data),1995-03-31
+1995,ingresos_totales,51555000,na,reportado,10-K 1998 (Selected Financial Data),1996-03-31
+1996,ingresos_totales,56957000,na,reportado,10-K 1998 (Selected Financial Data),1997-03-31
+1997,ingresos_totales,67897000,na,reportado,10-K 1998 (Selected Financial Data),1998-03-31
+1998,ingresos_totales,85132000,na,reportado,10-K 1998 (Selected Financial Data),1999-03-31
+1994,activos_totales,352768000,na,reportado,10-K 1998 (Selected Financial Data),1995-03-31
+1995,activos_totales,417639000,na,reportado,10-K 1998 (Selected Financial Data),1996-03-31
+1996,activos_totales,454097000,na,reportado,10-K 1998 (Selected Financial Data),1997-03-31
+1997,activos_totales,577021000,na,reportado,10-K 1998 y 10-K 2001 (Selected Financial Data),1998-03-31
+1998,activos_totales,759234000,na,reportado,10-K 1998 y 10-K 2001 (Selected Financial Data),1999-03-31
+1999,activos_totales,905404000,na,reportado,10-K 2001 (Selected Financial Data),2000-03-31
+2000,activos_totales,934766000,na,reportado,10-K 2001 (Selected Financial Data),2001-03-31
+2001,activos_totales,1003708000,na,reportado,10-K 2001 (Selected Financial Data),2002-03-31
+1994,deuda_total,12616000,na,reportado,10-K 1998 (Selected Financial Data),1995-03-31
+1995,deuda_total,18597000,na,reportado,10-K 1998 (Selected Financial Data),1996-03-31
+1996,deuda_total,70000000,na,reportado,10-K 1998 (Selected Financial Data),1997-03-31
+1997,deuda_total,132600000,na,reportado,10-K 1998 y 10-K 2001 (Selected Financial Data),1998-03-31
+1998,deuda_total,294800000,na,reportado,10-K 1998 y 10-K 2001 (Selected Financial Data),1999-03-31
+1999,deuda_total,349200000,na,reportado,10-K 2001 (Selected Financial Data),2000-03-31
+2000,deuda_total,404000000,na,reportado,10-K 2001 (Selected Financial Data),2001-03-31
+2001,deuda_total,315300000,na,reportado,10-K 2001 (Selected Financial Data),2002-03-31
+1996,ffo,47718000,na,reportado,10-K 1998 (Funds from Operations),1997-03-31
+1997,ffo,52353000,na,reportado,10-K 1998 (Funds from Operations),1998-03-31
+1998,ffo,62799000,na,reportado,10-K 1998 (Funds from Operations),1999-03-31
+1999,ffo,65900000,na,reportado,10-K 2000 (MD&A: «$67.2 million versus $65.9 million during 1999»),2000-03-31
+2000,ffo,67200000,na,reportado,10-K 2001 (MD&A),2001-03-31
+2001,ffo,77800000,na,reportado,10-K 2001 (MD&A: «increased 15.8% to $77.8 million»),2002-03-31
+2002,ffo,93700000,na,reportado,8-K 2004-02-04 (resultados 2003),2003-02-15
+2003,ffo,104000000,na,reportado,8-K 2004-02-04 (resultados 2003),2004-02-04
+2004,ffo,118181000,na,reportado,8-K 2006-02-15 (resultados 2005),2005-02-15
+2005,ffo,129647000,na,reportado,8-K 2006-02-15 (resultados 2005),2006-02-15
+2006,ffo,155799000,na,reportado,8-K 2008-02 (resultados 2007),2007-02-15
+2007,ffo,189675000,na,reportado,8-K 2008-02 (resultados 2007),2008-02-15
+1996,ffo_por_accion,2.077,pre_split,calculado,FFO 47.718 MM ÷ 22.976.789 acciones promedio (10-K 1998),1997-03-31
+1997,ffo_por_accion,2.22,pre_split,reportado,10-K 1998,1998-03-31
+1998,ffo_por_accion,2.36,pre_split,reportado,10-K 1998,1999-03-31
+1999,ffo_por_accion,2.457,pre_split,calculado,FFO 65.9 MM ÷ 26.826.090 acciones diluidas (10-K 2000 y 10-K 2001),2000-03-31
+2000,ffo_por_accion,2.517,pre_split,calculado,FFO 67.2 MM ÷ 26.700.806 acciones diluidas (10-K 2001),2001-03-31
+2001,ffo_por_accion,2.657,pre_split,calculado,FFO 77.8 MM ÷ 29.281.120 acciones diluidas (10-K 2001),2002-03-31
+2002,ffo_por_accion,2.76,pre_split,reportado,8-K 2004-02-04 (resultados 2003),2003-02-15
+2003,ffo_por_accion,2.92,pre_split,reportado,8-K 2004-02-04 (resultados 2003),2004-02-04
+2004,ffo_por_accion,1.50,actual,reportado,8-K 2006-02-15 (resultados 2005; ya en base post-split),2005-02-15
+2005,ffo_por_accion,1.62,actual,reportado,8-K 2006-02-15 (resultados 2005),2006-02-15
+2006,ffo_por_accion,1.73,actual,reportado,8-K 2008-02 (resultados 2007),2007-02-15
+2007,ffo_por_accion,1.89,actual,reportado,8-K 2008-02 (resultados 2007),2008-02-15
+1996,dividendo_declarado_por_accion,1.710,pre_split,reportado,10-K 1998 y 10-K 1996,1997-03-31
+1997,dividendo_declarado_por_accion,1.895,pre_split,reportado,10-K 1998 y 10-K 2001,1998-03-31
+1998,dividendo_declarado_por_accion,1.975,pre_split,reportado,10-K 1998 y 10-K 2001,1999-03-31
+1999,dividendo_declarado_por_accion,2.095,pre_split,reportado,10-K 2001,2000-03-31
+2000,dividendo_declarado_por_accion,2.1875,pre_split,reportado,10-K 2001,2001-03-31
+2001,dividendo_declarado_por_accion,2.2475,pre_split,reportado,10-K 2001,2002-03-31
+1995,propiedades,686,na,reportado,10-K 1995 (al 1-feb-1996; 42 estados),1996-03-31
+1997,propiedades,826,na,reportado,10-K 1998,1998-03-31
+1998,propiedades,970,na,reportado,10-K 1998,1999-03-31
+2001,propiedades,1124,na,reportado,10-K 2001 (ocupación 98.2%),2002-03-31
+2003,propiedades,1404,na,reportado,8-K 2004-02-04 (48 estados; ocupación 98.1%),2004-02-04
+2005,propiedades,1646,na,reportado,8-K 2006-02-15 (48 estados; ocupación 98.5%),2006-02-15
+2007,propiedades,2270,na,reportado,8-K 2008-02 (ocupación 97.9%),2008-02-15
+2001,ocupacion,0.982,na,reportado,10-K 2001,2002-03-31
+2003,ocupacion,0.981,na,reportado,8-K 2004-02-04,2004-02-04
+2005,ocupacion,0.985,na,reportado,8-K 2006-02-15,2006-02-15
+2007,ocupacion,0.979,na,reportado,8-K 2008-02,2008-02-15
+2003,inversion_en_adquisiciones,371600000,na,reportado,8-K 2004-02-04 (302 propiedades),2004-02-04
+2005,inversion_en_adquisiciones,486600000,na,reportado,8-K 2006-02-15 (156 propiedades),2006-02-15
+2007,inversion_en_adquisiciones,533700000,na,reportado,8-K 2008-02 (357 propiedades),2008-02-15
+2008,ffo_por_accion,1.83,actual,reportado,8-K 2010-02-10 (resultados 2009),2009-02-15
+2009,ffo_por_accion,1.84,actual,reportado,8-K 2010-02-10 (resultados 2009),2010-02-10
+2010,ffo_por_accion,1.83,actual,reportado,8-K 2012-02-09 (resultados 2011),2011-02-15
+2011,ffo_por_accion,1.98,actual,reportado,8-K 2012-02-09 (resultados 2011),2012-02-09
+2012,ffo_por_accion,1.96,actual,reportado,8-K 2014-02-13 (resultados 2013),2013-02-15
+2013,ffo_por_accion,2.34,actual,reportado,8-K 2014-02-13 (resultados 2013),2014-02-13
+2014,ffo_por_accion,2.58,actual,reportado,8-K 2016-02 (resultados 2015),2015-02-15
+2015,ffo_por_accion,2.77,actual,reportado,8-K 2016-02 (resultados 2015),2016-02-10
+2016,ffo_por_accion,2.88,actual,reportado,8-K 2018-02-21 (resultados 2017),2017-02-15
+2017,ffo_por_accion,2.82,actual,reportado,8-K 2018-02-21 (resultados 2017; castigado por pérdida de 42.4 MM en redención anticipada de deuda),2018-02-21
+2018,ffo_por_accion,3.12,actual,reportado,8-K 2019-02-20 (resultados 2018),2019-02-20
+2010,affo_por_accion,1.86,actual,reportado,8-K 2012-02-09 (resultados 2011),2011-02-15
+2011,affo_por_accion,2.01,actual,reportado,8-K 2012-02-09 (resultados 2011),2012-02-09
+2012,affo_por_accion,2.06,actual,reportado,8-K 2014-02-13 (resultados 2013),2013-02-15
+2013,affo_por_accion,2.41,actual,reportado,8-K 2014-02-13 (resultados 2013),2014-02-13
+2014,affo_por_accion,2.57,actual,reportado,8-K 2016-02 (resultados 2015),2015-02-15
+2015,affo_por_accion,2.74,actual,reportado,8-K 2016-02 (resultados 2015),2016-02-10
+2016,affo_por_accion,2.88,actual,reportado,8-K 2018-02-21 (resultados 2017),2017-02-15
+2017,affo_por_accion,3.06,actual,reportado,8-K 2018-02-21 (resultados 2017),2018-02-21
+2018,affo_por_accion,3.19,actual,reportado,8-K 2019-02-20 (resultados 2018),2019-02-20
+2008,ffo,185524000,na,reportado,8-K 2010-02-10 (resultados 2009); confirmado por el 10-K 2008 (185.5 MM),2009-02-15
+2009,ffo,190444000,na,reportado,8-K 2010-02-10 (resultados 2009),2010-02-10
+2008,dividendo_pagado_por_accion,1.662,actual,reportado,8-K 2010-02-10,2009-02-15
+2009,dividendo_pagado_por_accion,1.707,actual,reportado,8-K 2010-02-10,2010-02-10
+2012,dividendo_pagado_por_accion,1.772,actual,reportado,8-K 2014-02-13,2013-02-15
+2013,dividendo_pagado_por_accion,2.147,actual,reportado,8-K 2014-02-13 (+21.2%),2014-02-13
+2014,dividendo_pagado_por_accion,2.192,actual,reportado,8-K 2016-02,2015-02-15
+2015,dividendo_pagado_por_accion,2.271,actual,reportado,8-K 2016-02,2016-02-10
+2016,dividendo_pagado_por_accion,2.392,actual,reportado,8-K 2018-02-21,2017-02-15
+2017,dividendo_pagado_por_accion,2.527,actual,reportado,8-K 2018-02-21,2018-02-21
+2018,dividendo_pagado_por_accion,2.631,actual,reportado,8-K 2019-02-20,2019-02-20
+2008,propiedades,2348,na,reportado,8-K 2010-02-10,2009-02-15
+2009,propiedades,2339,na,reportado,8-K 2010-02-10 (ocupación 96.8%),2010-02-10
+2013,propiedades,3896,na,reportado,8-K 2014-02-13 (ocupación 98.2%),2014-02-13
+2015,propiedades,4538,na,reportado,8-K 2016-02 (ocupación 98.4%),2016-02-10
+2017,propiedades,5172,na,reportado,8-K 2018-02-21 (ocupación 98.4%),2018-02-21
+2018,propiedades,5797,na,reportado,8-K 2019-02-20 (ocupación 98.6%),2019-02-20
+2009,ocupacion,0.968,na,reportado,8-K 2010-02-10,2010-02-10
+2012,ocupacion,0.972,na,reportado,8-K 2014-02-13,2013-02-15
+2013,ocupacion,0.982,na,reportado,8-K 2014-02-13,2014-02-13
+2015,ocupacion,0.984,na,reportado,8-K 2016-02,2016-02-10
+2017,ocupacion,0.984,na,reportado,8-K 2018-02-21,2018-02-21
+2018,ocupacion,0.986,na,reportado,8-K 2019-02-20,2019-02-20
+2009,inversion_en_adquisiciones,57900000,na,reportado,8-K 2010-02-10 (16 propiedades),2010-02-10
+2011,inversion_en_adquisiciones,1000000000,na,reportado,8-K 2012-02-09 (164 propiedades),2012-02-09
+2013,inversion_en_adquisiciones,4700000000,na,reportado,8-K 2014-02-13 (974 propiedades; incluye ARCT por 3.2 mil MM),2014-02-13
+2015,inversion_en_adquisiciones,1260000000,na,reportado,8-K 2016-02 (286 propiedades),2016-02-10
+2017,inversion_en_adquisiciones,1520000000,na,reportado,8-K 2018-02-21 (303 propiedades),2018-02-21
+2018,inversion_en_adquisiciones,1800000000,na,reportado,8-K 2019-02-20 (764 propiedades),2019-02-20
+2009,cap_rate_adquisicion,0.097,na,reportado,8-K 2010-02-10 (yield inicial promedio),2010-02-10
+2011,cap_rate_adquisicion,0.078,na,reportado,8-K 2012-02-09 (yield inicial promedio),2012-02-09
+2013,cap_rate_adquisicion,0.071,na,reportado,8-K 2014-02-13 (cap rate inicial en efectivo),2014-02-13
+2015,cap_rate_adquisicion,0.066,na,reportado,8-K 2016-02 (yield inicial promedio en efectivo),2016-02-10
+2017,cap_rate_adquisicion,0.064,na,reportado,8-K 2018-02-21 (yield inicial promedio),2018-02-21
+2018,cap_rate_adquisicion,0.064,na,reportado,8-K 2019-02-20 (cap rate inicial en efectivo),2019-02-20
+2025,ffo_por_accion,4.25,actual,reportado,8-K 2026-02-24 (resultados 2025),2026-02-24
+2025,affo_por_accion,4.28,actual,reportado,8-K 2026-02-24 (resultados 2025),2026-02-24
+2019,inversion_en_adquisiciones,3715200000,na,reportado,10-K 2020 (789 propiedades),2020-02-24
+2020,inversion_en_adquisiciones,2307281000,na,reportado,10-K 2020 (244 propiedades; 921 MM en Reino Unido),2021-02-22
+2021,inversion_en_adquisiciones,6167482000,na,reportado,8-K 2022-02-22 (843 propiedades; 2.57 mil MM en Europa),2022-02-22
+2022,inversion_en_adquisiciones,8995300000,na,reportado,8-K 2023-02-21 (incluye Encore Boston Harbor por 1.7 mil MM a 5.9%),2023-02-21
+2023,inversion_en_adquisiciones,9500000000,na,reportado,8-K 2024-02 (resultados 2023),2024-02-20
+2024,inversion_en_adquisiciones,3165600000,na,reportado,10-K 2024 (sin contar la fusión con Spirit por 9.3 mil MM),2025-02-24
+2025,inversion_en_adquisiciones,6300000000,na,reportado,8-K 2026-02-24 (6.2 mil MM a prorrata),2026-02-24
+2019,cap_rate_adquisicion,0.064,na,reportado,10-K 2020 (yield inicial promedio en efectivo),2020-02-24
+2020,cap_rate_adquisicion,0.059,na,reportado,10-K 2020 (yield inicial promedio en efectivo),2021-02-22
+2021,cap_rate_adquisicion,0.055,na,reportado,8-K 2022-02-22 (yield inicial promedio en efectivo),2022-02-22
+2022,cap_rate_adquisicion,0.059,na,reportado,8-K 2023-02-21 (yield inicial promedio en efectivo),2023-02-21
+2023,cap_rate_adquisicion,0.071,na,reportado,8-K 2024-02 (yield inicial promedio en efectivo),2024-02-20
+2024,cap_rate_adquisicion,0.071,na,reportado,10-K 2024 (yield inicial promedio en efectivo),2025-02-24
+2025,cap_rate_adquisicion,0.073,na,reportado,8-K 2026-02-24 (yield inicial promedio en efectivo),2026-02-24
+2021,propiedades,11136,na,reportado,8-K 2022-02-22 (50 estados + Puerto Rico + Reino Unido + España),2022-02-22
+2022,propiedades,12237,na,reportado,8-K 2023-02-21,2023-02-21
+2025,propiedades,15511,na,reportado,8-K 2026-02-24,2026-02-24
+2021,ocupacion,0.985,na,reportado,8-K 2022-02-22,2022-02-22
+2022,ocupacion,0.990,na,reportado,8-K 2023-02-21,2023-02-21
+2025,ocupacion,0.989,na,reportado,8-K 2026-02-24,2026-02-24
+2021,deuda_neta_ebitdare_proforma,5.3,na,reportado,8-K 2022-02-22 (pro forma: incluye VEREIT el año completo),2022-02-22
+2022,deuda_neta_ebitdare_proforma,5.3,na,reportado,8-K 2023-02-21,2023-02-21
+2025,deuda_neta_ebitdare_proforma,5.4,na,reportado,8-K 2026-02-24,2026-02-24

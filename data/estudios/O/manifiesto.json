@@ -1,0 +1,65 @@
+{
+  "ticker": "O",
+  "fuente": "MERCADO-YAHOO",
+  "descargado_en": "2026-09-28T17:47:42+00:00",
+  "primera_cotizacion": "1994-10-18",
+  "precios": {
+    "n": 8039,
+    "desde": "1994-10-18",
+    "hasta": "2026-09-28"
+  },
+  "dividendos": {
+    "n": 384,
+    "desde": "1994-10-26",
+    "hasta": "2026-08-31"
+  },
+  "eventos": [
+    {
+      "fecha": "2005-01-03",
+      "factor": 2.0,
+      "tipo": "split",
+      "descripcion": "Split 2 por 1 de la acción común.",
+      "fuente": "Realty Income, comunicado del 2004-12 sobre el split; factor verificado con el primer dividendo mensual posterior al IPO (0.15 dólares)."
+    },
+    {
+      "fecha": "2021-11-15",
+      "factor": 1.032,
+      "tipo": "escision",
+      "descripcion": "Escisión de Orion Office REIT (ONL): una acción de ONL por cada diez de O. No cambió el número de acciones de O.",
+      "fuente": "Formulario 10 de Orion Office REIT y 8-K de Realty Income (nov-2021); factor verificado contra 1,307 cierres crudos previos, error 0.0000%."
+    }
+  ],
+  "correcciones_de_dividendos": [
+    "1995-08-16: 0.0780 → 0.155 (regular). 10-Q 3T-1995: «increased its monthly distributions to $0.155 per share in August and September». No hubo distribución prorrateada por la fusión con el asesor; el proveedor registra la de agosto a la mitad.",
+    "1995-12-21: 0.5400 → 0.155 (regular) + 0.155 (regular) + 0.23 (especial). 10-K 1995: en diciembre se declararon dos distribuciones de $0.155 y una especial de $0.23 (exigida por el régimen REIT tras la fusión con el asesor). El proveedor las suma en un registro y deja vacío enero de 1996.",
+    "1996-11-27: 0.1540 → 0.1575 (regular). 10-K 1996: el 4T declaró $0.470 = 0.155 + 0.1575 + 0.1575. El 0.154 del proveedor fabricaría el único recorte de la historia de O.",
+    "1996-12-27: 0.1540 → 0.1575 (regular). 10-K 1996: «a distribution of $0.1575 per share had been declared» al 31-dic-1996, pagada el 15-ene-1997."
+  ],
+  "validacion": {
+    "traslape_n": 2513,
+    "traslape_error_max": 6.283834341758165e-08,
+    "traslape_error_medio": 2.4880138737151795e-10,
+    "anclas": [
+      {
+        "fecha": "2021-12-31",
+        "real": 71.56,
+        "reconstruido": 71.58999633789062,
+        "error": 0.0004191774439719076
+      },
+      {
+        "fecha": "2022-12-30",
+        "real": 63.43,
+        "reconstruido": 63.43000030517578,
+        "error": 4.811221421263667e-09
+      },
+      {
+        "fecha": "2023-12-29",
+        "real": 57.42,
+        "reconstruido": 57.41999816894531,
+        "error": -3.1888796381274176e-08
+      }
+    ],
+    "dividendos_traslape_n": 61,
+    "dividendos_error_max": 0.0021223949044586465
+  }
+}
