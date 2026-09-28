@@ -97,10 +97,12 @@ src/
 ├── portafolio/          Transacciones, TWR/TIR/atribución, meta y rebalanceo
 ├── simulacion/          Monte Carlo, backtest, inmueble CDMX, escenarios
 ├── fiscal/mexico.py     Retenciones, régimen cedular, estate tax, ISR de arrendamiento
+├── estudio/             Historia de largo plazo: mercado desde el listado, retornos, narrativa
 ├── export/excel.py      Libro con fórmulas VIVAS
+├── export/pdf_estudio.py  El estudio en PDF, con las mismas figuras que la página
 └── servicio.py          Capa que arma los paneles de la interfaz
-app/                     Streamlit: Inicio + seis páginas
-scripts/                 sembrar.py, ingesta.py, estados.py, cobertura.py, ficha.py, humo_app.py
+app/                     Streamlit: Inicio + siete páginas
+scripts/                 sembrar.py, ingesta.py, estados.py, estudio.py, cobertura.py, ficha.py, humo_app.py
 tests/                   Las trece obligatorias, los principios, e integración
 ```
 
@@ -324,6 +326,57 @@ Dos decisiones de diseño de la semilla que valen la pena:
 - El dividendo sale del AFFO por un payout objetivo, no de `precio × yield`.
   Derivarlo del precio hacía que el payout se moviera con el múltiplo y la puerta
   de deterioro disparara sobre un artefacto de la simulación.
+
+---
+
+## Estudio de largo plazo
+
+La página de valuación contesta «¿está caro hoy?». La página **Estudio** contesta
+las preguntas lentas, desde el primer día de cotización: qué le pasó al negocio,
+de dónde salió lo que rindió, en qué momentos convenía entrar —con lo que se sabía
+ese día— y si lo que paga hoy compensa el riesgo contra el Udibono. El mismo
+objeto (`src/estudio/estudio.py`) alimenta la página y el PDF, así que no pueden
+decir cifras distintas.
+
+```bash
+python scripts/estudio.py mercado O   # baja, desajusta, valida y versiona precio y dividendos desde 1994
+python scripts/estudio.py resumen O   # imprime las conclusiones
+python scripts/estudio.py pdf O       # genera docs/estudios/estudio_O.pdf (requiere Chromium vía Playwright)
+```
+
+| Qué | Desde | De dónde |
+|---|---|---|
+| Precio y dividendos | el listado (O: 1994) | `data/estudios/<TICKER>/`, versionado |
+| FFO y AFFO por acción antes de 2019 | 1996 / 2010 | 10-K y comunicados capturados uno por uno: `anuales_primarios.csv` |
+| Estados financieros | 2008 | XBRL de la base |
+| FFO y AFFO después de 2019 | 2019 | 8-K de la base |
+
+Lo que costó trabajo y por qué:
+
+- **El proveedor de la historia larga ajusta por eventos de capital**, y registra
+  la escisión de Orion (2021) como si fuera un split. Se desajusta con un
+  **catálogo verificado por emisor**; un evento que no esté en el catálogo detiene
+  la descarga. Validado contra el precio crudo del proveedor diario: 2,513 días,
+  error de 0.0000%.
+- **Cuatro dividendos de 1995-1996 estaban mal** en el proveedor —uno partido a la
+  mitad, tres distribuciones sumadas en un registro, dos mensualidades que
+  fabricaban un recorte—. Se corrigieron contra los 10-K, con la fuente al lado.
+- **El dividendo TTM se suma por conteo**, no por calendario: con la liquidación
+  T+1 mayo de 2024 quedó sin fecha ex, y la suma por año inventaba un recorte.
+- **El FFO no se deriva de la contabilidad**: la fórmula de Nareit sobre XBRL falla
+  más de 15% antes de 2015 (las ventas iban a discontinuadas). Solo cifras
+  reportadas por el emisor.
+- **P1 con comparativas**: los trimestres de 2019-2023 llegaron a la base como
+  comparativas de comunicados de 2024; su fecha de publicación original se estima
+  como cierre + 60 días y la página dice cuántas son.
+- **La descomposición es exacta**: `(1 + RT) = (1 + ingreso) × (1 + crecimiento
+  del dividendo) × (1 + revaluación) × (1 + escisión)`.
+- **El análisis de entradas no es una regla de compra**: con treinta años hay unas
+  seis ventanas de cinco años que no se enciman, y el veredicto es INCONCLUSO (P7).
+
+Para agregar otro emisor: su catálogo de eventos en `src/estudio/mercado.py`, sus
+cifras primarias en `data/estudios/<TICKER>/anuales_primarios.csv` y su narrativa
+—con fuente en cada hito— en `src/estudio/historia.py`.
 
 ---
 

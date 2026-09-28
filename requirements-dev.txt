@@ -4,3 +4,6 @@ ruff>=0.4
 # Para leer el libro de Excel YA RECALCULADO por LibreOffice (prueba 38):
 # openpyxl lee la fórmula, no su resultado.
 odfpy>=1.4
+# Solo para generar el PDF del estudio (`scripts/estudio.py pdf`). La aplicación en
+# la nube no lo necesita: ofrece el PDF ya generado y versionado.
+playwright>=1.40
