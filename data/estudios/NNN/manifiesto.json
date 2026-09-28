@@ -1,0 +1,55 @@
+{
+  "ticker": "NNN",
+  "fuente": "MERCADO-YAHOO",
+  "descargado_en": "2026-09-28T19:37:08+00:00",
+  "primera_cotizacion": "1984-10-09",
+  "inicio_verificable": {
+    "fecha": "1992-01-01",
+    "motivo": "NNN cotiza desde 1984 (como Golden Corral Realty), pero el proveedor no trae los dividendos de 1984 a 1989 y le falta el de julio de 1990. El primer reporte del emisor en EDGAR es de 1995 y su tabla más antigua empieza en 1992: el prospecto de enero de 1996 da los dividendos de 1992 a 1995 trimestre por trimestre, y coinciden con el proveedor. Antes de 1992 no hay contra qué verificar."
+  },
+  "precios": {
+    "n": 8746,
+    "desde": "1992-01-02",
+    "hasta": "2026-09-28"
+  },
+  "dividendos": {
+    "n": 139,
+    "desde": "1992-01-27",
+    "hasta": "2026-07-31"
+  },
+  "eventos": [],
+  "correcciones_de_dividendos": [],
+  "validacion": {
+    "traslape_n": 2513,
+    "traslape_error_max": 5.5352318284462854e-08,
+    "traslape_error_medio": -1.6218255257143291e-10,
+    "anclas": [
+      {
+        "fecha": "1996-01-03",
+        "real": 13.125,
+        "reconstruido": 13.125,
+        "error": 0.0
+      },
+      {
+        "fecha": "1996-01-23",
+        "real": 13.0,
+        "reconstruido": 12.875,
+        "error": -0.009615384615384581
+      }
+    ],
+    "dividendos_traslape_n": 20,
+    "dividendos_error_max": 0.0,
+    "rangos_n": 16,
+    "rangos_fuera": [],
+    "rangos_aceptados": [
+      {
+        "trimestre": "1994-T3",
+        "maximo": 14.0,
+        "minimo": 12.875,
+        "cierre_max": 14.0,
+        "cierre_min": 12.25,
+        "explicacion": "Un solo cierre, el del viernes 30-sep-1994 (12.25), queda bajo el mínimo publicado del trimestre (12.875); el lunes 3-oct el proveedor repite 12.25, que sí cabe en el 4T. Todos los demás cierres del trimestre caben. La firma es la de un desfase de un día en el dato antiguo del proveedor, no la de un precio ajustado: un precio ajustado por dividendos estaría abajo todo el año, no un día."
+      }
+    ]
+  }
+}

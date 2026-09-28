@@ -34,6 +34,9 @@ def cmd_mercado(ticker: str) -> int:
     precios, dividendos, eventos = mercado.desajustar(crudo)
     for e in eventos:
         print(f"  {e.fecha}  {e.tipo:9s} ×{e.factor}  {e.descripcion}")
+    precios, dividendos, inicio = mercado.recortar_al_inicio(ticker, precios, dividendos)
+    if inicio:
+        print(f"\nSe corta al {inicio.fecha}: {inicio.motivo}")
     dividendos, correcciones = mercado.aplicar_correcciones(ticker, dividendos)
     if correcciones:
         print("\nCorrecciones contra el reporte del emisor:")
@@ -45,7 +48,9 @@ def cmd_mercado(ticker: str) -> int:
         dividendos,
         crudo_diario=repo.serie_precio(ticker, asof=hoy),
         dividendos_diarios=repo.dividendos(ticker, asof=hoy),
-        anclas=repo.anclas(ticker),
+        anclas=mercado.anclas_del_estudio(ticker, repo.anclas(ticker)),
+        rangos=mercado.RANGOS_TRIMESTRALES.get(ticker, ()),
+        excepciones=mercado.EXCEPCIONES_DE_RANGO.get(ticker, {}),
     )
     print("\nValidación contra fuentes que no dependen de este proveedor:")
     print(f"  traslape con el precio crudo diario: {validacion.traslape_n:,} días, "
@@ -53,6 +58,13 @@ def cmd_mercado(ticker: str) -> int:
     for a in validacion.anclas:
         print(f"  ancla NYSE {a['fecha']}: real {a['real']:.2f}, reconstruido "
               f"{a['reconstruido']:.2f}, error {a['error']:+.3%}")
+    if validacion.rangos_n:
+        print(f"  rangos trimestrales del emisor: {validacion.rangos_n} revisados, "
+              f"{len(validacion.rangos_fuera)} con cierres fuera")
+        for r in validacion.rangos_fuera:
+            print(f"    {r}")
+        for r in validacion.rangos_aceptados:
+            print(f"    aceptado {r['trimestre']}: {r['explicacion'][:110]}…")
     if validacion.dividendos_traslape_n:
         print(f"  dividendos en traslape: {validacion.dividendos_traslape_n}, "
               f"error máximo {validacion.dividendos_error_max:.4%}")
@@ -61,7 +73,7 @@ def cmd_mercado(ticker: str) -> int:
         return 1
     destino = mercado.guardar(
         ticker, precios, dividendos, eventos, validacion,
-        primera_cotizacion=crudo.primera_cotizacion, correcciones=correcciones,
+        primera_cotizacion=crudo.primera_cotizacion, correcciones=correcciones, inicio=inicio,
     )
     print(f"\nGuardado en {destino.relative_to(RAIZ)}")
     return 0

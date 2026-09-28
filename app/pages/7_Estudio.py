@@ -37,6 +37,7 @@ from src.estudio import graficas as g  # noqa: E402
 from src.estudio import historia as hist  # noqa: E402
 from src.estudio import (
     mercado,  # noqa: E402
+    textos,  # noqa: E402
     vistas,  # noqa: E402
 )
 
@@ -51,16 +52,18 @@ st.title("Estudio de largo plazo")
 repo = exigir_base()
 asof = selector_de_corte()
 
-con_estudio = [t for t in sorted(repo.emisores()["ticker"]) if mercado.hay_historia(t)]
+con_estudio = [t for t in sorted(repo.emisores()["ticker"]) if mercado.hay_estudio(t)]
 if not con_estudio:
     st.error(
-        "Ningún emisor tiene todavía su historia de mercado larga. Se arma con "
-        "`python scripts/estudio.py mercado TICKER`."
+        "Ningún emisor tiene todavía su historia de mercado larga y sus cifras primarias. La "
+        "historia se arma con `python scripts/estudio.py mercado TICKER`; las cifras van en "
+        "`data/estudios/TICKER/anuales_primarios.csv`."
     )
     st.stop()
 ticker = st.sidebar.selectbox("Emisor", con_estudio, help=(
-    "Solo aparecen los emisores con historia de mercado desde su listado. Para agregar uno: "
-    "`python scripts/estudio.py mercado TICKER`, y su narrativa en `src/estudio/historia.py`."
+    "Solo aparecen los emisores con historia de mercado verificada y cifras primarias capturadas "
+    "de sus 10-K y comunicados. Para agregar uno: `python scripts/estudio.py mercado TICKER`, sus "
+    "cifras en `anuales_primarios.csv` y su narrativa en `src/estudio/historia.py`."
 ))
 
 
@@ -86,18 +89,20 @@ st.subheader(n.nombre if n else ticker)
 if n:
     st.markdown(n.perfil)
 
-anios = (e.tabla.index[-1] - t0).days / 365.25
+hm = e.historia_mercado
 rt_mxn = e.tabla["rt_mxn"].dropna()
 k1, k2, k3, k4 = st.columns(4)
 k1.metric("Retorno anual, USD", f"{e.total.retorno_total:.1%}",
-          help=f"Desde el listado en {t0:%Y}, con los dividendos reinvertidos y la escisión de "
-               "Orion incluida.")
+          help=f"{textos.desde(hm, e.total.inicio).capitalize()}, con los dividendos reinvertidos. "
+               + textos.escisiones_en_el_retorno(hm))
 if len(rt_mxn) > 1:
     anios_mxn = (rt_mxn.index[-1] - rt_mxn.index[0]).days / 365.25
     k2.metric("Retorno anual, MXN", f"{(rt_mxn.iloc[-1] / rt_mxn.iloc[0]) ** (1 / anios_mxn) - 1:.1%}",
-              help="Incluye la devaluación de 1994-95, que coincidió con el listado.")
+              help=f"Desde {g.mes(rt_mxn.index[0])}, primer día con tipo de cambio en la base. "
+                   + textos.nota(n, "mxn"))
 k3.metric("Dividendo hoy", f"{e.hoy.yield_actual:.2%}",
-          help=f"Mensualidad vigente × 12 = {e.hoy.dividendo_anualizado:.3f} dólares por acción.")
+          help=f"{textos.dividendo_vigente(hm).capitalize()} = {e.hoy.dividendo_anualizado:.3f} "
+               "dólares por acción.")
 if e.hoy.p_ffo is not None:
     # La mediana va en la etiqueta y no como «delta»: Streamlit le pone flecha al
     # delta, y una flecha hacia arriba junto a un múltiplo se lee «subió».
@@ -160,24 +165,23 @@ else:
 st.header("El negocio en el tiempo")
 explicar("FFO", "AFFO")
 st.markdown(
-    "**Por acción.** Todo en acciones de hoy: lo anterior al split de 2005 va dividido entre "
-    "dos. El FFO y el AFFO son los que publicó el emisor —10-K y comunicados antes de 2019, "
-    "8-K después—; no se derivan desde la contabilidad, por la razón que explica la sección "
-    "de metodología."
+    f"**Por acción.** {textos.base_por_accion(hm)} El FFO y el AFFO son los que publicó el "
+    "emisor en sus 10-K, prospectos y comunicados; no se derivan desde la contabilidad, por la "
+    "razón que explica la sección de metodología."
 )
 grafica("por_accion")
 
 st.markdown(
-    "**El negocio creció mucho más que la acción.** O crece emitiendo acciones para comprar "
-    "inmuebles. Lo que le importa al accionista no es cuánto crece la empresa sino cuánto "
-    "crece su parte: el FFO **por acción**."
+    f"**El negocio creció mucho más que la acción.** {ticker} crece emitiendo acciones para "
+    "comprar inmuebles. Lo que le importa al accionista no es cuánto crece la empresa sino "
+    "cuánto crece su parte: el FFO **por acción**."
 )
 grafica("escala")
 
 st.markdown(
-    "**El motor: comprar por encima de lo que cuesta el capital.** Si O compra a un yield "
-    "mayor que el que rinde su propia acción, cada compra con acciones suma por acción; si "
-    "compra por debajo, resta aunque la empresa crezca."
+    f"**El motor: comprar por encima de lo que cuesta el capital.** Si {ticker} compra a un "
+    "yield mayor que el que rinde su propia acción, cada compra con acciones suma por acción; "
+    "si compra por debajo, resta aunque la empresa crezca."
 )
 grafica("spread_inversion")
 if not e.spread_inversion.empty:
@@ -186,11 +190,15 @@ if not e.spread_inversion.empty:
 
 with st.expander("Apalancamiento en libros"):
     grafica("apalancamiento")
+    primer = e.anual.attrs.get("primer_anio_ebitdare")
     st.caption(
-        "Deuda ÷ activos totales en libros. La deuda neta ÷ EBITDAre se calcula desde 2015: "
-        "antes, las ventas de inmuebles iban a operaciones discontinuadas y el EBITDAre "
-        "derivado de XBRL no es confiable. En 2021 el cociente salta porque la deuda al cierre "
-        "ya incluye a VEREIT y el EBITDAre solo dos meses de ella; el emisor reporta 5.3x pro forma."
+        "Deuda ÷ activos totales en libros. "
+        + (f"La deuda neta ÷ EBITDAre se calcula desde {primer}, el primer año desde el cual el "
+           "FFO derivado de XBRL cuadra con el reportado; antes, el EBITDAre derivado con las "
+           "mismas partidas no es confiable. " if primer else
+           "La deuda neta ÷ EBITDAre no se calcula: el FFO derivado de XBRL no cuadra con el "
+           "reportado en ningún tramo, y el EBITDAre usa las mismas partidas. ")
+        + textos.nota(n, "apalancamiento")
     )
 
 with st.expander("La tabla anual completa, con la fuente de cada cifra"):
@@ -225,8 +233,9 @@ grafica("spread")
 
 st.header("De dónde salió el retorno")
 st.markdown(
-    "Un dólar invertido el día del listado, reinvirtiendo cada dividendo. La escala es "
-    "logarítmica: la misma distancia vertical es el mismo porcentaje."
+    f"Un dólar invertido {'el día del listado' if not hm.inicio_verificable else f'al inicio de {t0:%Y}'}, "
+    "reinvirtiendo cada dividendo. La escala es logarítmica: la misma distancia vertical es el "
+    "mismo porcentaje. " + textos.escisiones_en_el_retorno(hm)
 )
 grafica("retorno_total")
 st.markdown(
@@ -249,9 +258,9 @@ if e.eras:
 
 st.header("¿Cuándo hubiera convenido entrar?")
 st.markdown(
-    "Cada punto es un fin de mes: qué tan caro estaba O ese día —con el FFO que se conocía— y "
-    "cuánto rindió al año en los cinco años siguientes. Los rombos son la mediana de cada "
-    "quinto de la historia, del más caro al más barato."
+    f"Cada punto es un fin de mes: qué tan caro estaba {ticker} ese día —con el FFO que se "
+    "conocía— y cuánto rindió al año en los cinco años siguientes. Los rombos son la mediana "
+    "de cada quinto de la historia, del más caro al más barato."
 )
 grafica("entradas")
 ent = e.entradas
@@ -286,7 +295,8 @@ if h.p_affo is not None:
     m2.metric("AFFO yield", f"{h.affo_yield:.2%}", help=f"P/AFFO {h.p_affo:.1f}x")
 if h.spread is not None:
     m3.metric(f"Spread vs bono · pctl {h.percentil_spread:.0%}", f"{h.spread:.2%}",
-              help="Yield de O menos el Treasury a 10 años, y en qué percentil de su historia está.")
+              help=f"Yield de {ticker} menos el Treasury a 10 años, y en qué percentil de su "
+                   "historia está.")
 if h.udibono_real is not None:
     m4.metric("Udibono 10a (real)", f"{h.udibono_real:.2%}")
 grafica("escenarios")
@@ -312,15 +322,22 @@ with st.expander("Metodología, validaciones y fuentes"):
     man = e.historia_mercado.manifiesto
     v = man.get("validacion", {})
     st.markdown(
-        f"**Precio desde {man['precios']['desde']}** ({man['precios']['n']:,} cierres). El "
-        "proveedor entrega el cierre ajustado por split y por la escisión de Orion; aquí se "
-        "desajusta para tener el precio al que de verdad cotizó (P2). Contra el precio crudo del "
-        f"proveedor diario: {v.get('traslape_n', 0):,} días de traslape, error máximo "
+        f"**Precio desde {man['precios']['desde']}** ({man['precios']['n']:,} cierres). "
+        f"{textos.eventos_del_proveedor(hm)} Contra el precio crudo del proveedor diario: "
+        f"{v.get('traslape_n', 0):,} días de traslape, error máximo "
         f"{(v.get('traslape_error_max') or 0):.4%}."
     )
+    if hm.inicio_verificable:
+        st.markdown(f"**Por qué empieza en {hm.inicio_verificable['fecha'][:4]}.** "
+                    f"{hm.inicio_verificable['motivo']}")
     for a in v.get("anclas", []):
-        st.caption(f"Ancla NYSE {a['fecha']}: real {a['real']:.2f}, reconstruido "
-                   f"{a['reconstruido']:.2f} ({a['error']:+.3%}).")
+        st.caption(f"Ancla NYSE {a['fecha']}: real {a['real']:.3f}, reconstruido "
+                   f"{a['reconstruido']:.3f} ({a['error']:+.3%}).")
+    if v.get("rangos_n"):
+        st.caption(f"Rangos trimestrales publicados por el emisor: {v['rangos_n']} trimestres "
+                   f"revisados, {len(v.get('rangos_fuera', []))} con cierres fuera.")
+        for r in v.get("rangos_aceptados", []):
+            st.caption(f"Excepción revisada, {r['trimestre']}: {r['explicacion']}")
     if e.serie.validacion_rt is not None:
         st.markdown(f"**Retorno total** contra el índice ajustado del proveedor: desviación "
                     f"máxima de {e.serie.validacion_rt:.2%} en toda la historia.")
@@ -328,11 +345,10 @@ with st.expander("Metodología, validaciones y fuentes"):
         st.markdown("**Dividendos corregidos contra el reporte del emisor:**")
         for c in man["correcciones_de_dividendos"]:
             st.caption(c)
-    st.markdown(
-        "**Por qué el FFO no se deriva de la contabilidad.** La fórmula de Nareit aplicada a "
-        "XBRL cuadra con lo reportado en los años recientes y falla por más de 15% antes de "
-        "2015, cuando las ventas de inmuebles iban a operaciones discontinuadas:"
-    )
+    if textos.nota(n, "dividendos"):
+        st.caption(textos.nota(n, "dividendos"))
+    st.markdown(f"**Por qué el FFO no se deriva de la contabilidad.** "
+                f"{textos.diagnostico_ffo(e.diagnostico_ffo)}")
     mostrar_tabla(vistas.diagnostico_ffo(e))
     st.markdown("**Fuentes**")
     if n:

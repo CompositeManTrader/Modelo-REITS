@@ -2,25 +2,27 @@
 
 Tres fuentes, y cuál manda
 --------------------------
-* ``anuales_primarios.csv`` — cifras de los 10-K y comunicados de 1994 a 2018,
-  capturadas una por una con su documento. Cubre lo que XBRL no alcanza.
+* ``anuales_primarios.csv`` — cifras de los 10-K, prospectos y comunicados,
+  capturadas una por una con su documento y su cita. MANDA: es lo único que se
+  leyó en el documento del emisor, cifra por cifra.
 * XBRL (``SEC-XBRL`` en la base) — estados financieros de 2008 en adelante.
-* 8-K (``SEC-8K-EX99.1`` en la base) — FFO y AFFO reportados, de 2019 en adelante.
+* 8-K (``SEC-8K-EX99.1`` en la base) — FFO y AFFO leídos automáticamente de los
+  comunicados. Llenan huecos y dan la actualización trimestral, pero solo si no
+  contradicen a lo reportado (ver ``contra_lo_reportado``).
 
 Para FFO y AFFO **solo se usan cifras reportadas por el emisor**. Derivar el FFO
 desde GAAP —utilidad + depreciación + deterioro − ganancia por venta— cuadra
-dentro de 0.4% de 2019 a 2023, pero antes de 2015 falla por más de 20%: 224.6
-millones contra 185.5 reportados en 2008, 2.88 por acción contra 2.34 en 2013.
-En esos años O clasificaba las ventas de inmuebles como operaciones
-discontinuadas, y ni sus ganancias ni su depreciación pasan por las líneas que
-la fórmula toca. Un FFO con 20% de error hace ver barata a la acción en toda la
-década de 2010. La derivación queda como diagnóstico visible, no como insumo.
+con lo reportado en los años recientes, pero falla por más de 20% cuando el
+emisor clasificaba las ventas de inmuebles como operaciones discontinuadas: en O,
+224.6 millones contra 185.5 reportados en 2008. Ni esas ganancias ni esa
+depreciación pasan por las líneas que la fórmula toca. La derivación queda como
+diagnóstico visible, no como insumo.
 
 Base por acción
 ---------------
-Todo va en **acciones de hoy**: lo publicado antes del split de 2005 se divide
-entre 2 (el catálogo de eventos de ``mercado`` dice cuánto y desde cuándo). La
-escisión de 2021 no toca esta base porque no cambió el número de acciones.
+Todo va en **acciones de hoy**: lo publicado antes de un split se divide entre su
+factor (el catálogo de eventos de ``mercado`` dice cuánto y desde cuándo). Una
+escisión no toca esta base porque no cambia el número de acciones.
 """
 
 from __future__ import annotations
@@ -33,7 +35,13 @@ import numpy as np
 import pandas as pd
 
 from src.datos.repositorio import Repositorio
-from src.estudio.mercado import EventoDeCapital, HistoriaMercado, dir_de, dividendo_ttm
+from src.estudio.mercado import (
+    EventoDeCapital,
+    HistoriaMercado,
+    dir_de,
+    dividendo_ttm,
+    pagos_por_anio,
+)
 from src.servicio import _derivar_ebitdare, deuda_por_periodo
 
 ARCHIVO_PRIMARIOS = "anuales_primarios.csv"
@@ -51,10 +59,11 @@ CONCEPTOS_SALDO = (
 )
 
 # Desde qué año el EBITDAre derivado de XBRL es confiable para el apalancamiento.
-# Por la misma razón que el FFO: antes de 2015 las ventas iban a discontinuadas.
-# Medido con el FFO, que usa las mismas partidas: +4% en 2015-2016, dentro de
-# 0.4% desde 2018.
-PRIMER_ANIO_EBITDARE = 2015
+# Usa las mismas partidas que el FFO derivado, así que se mide con él: el primer
+# año desde el cual la derivación del FFO cuadra con lo reportado dentro de esta
+# tolerancia, ese año y todos los siguientes. En O da 2015 (+4% en 2015-2016,
+# dentro de 0.4% desde 2018); antes, las ventas iban a operaciones discontinuadas.
+TOLERANCIA_DERIVACION = 0.05
 
 
 # --------------------------------------------------------------------------------------
@@ -127,8 +136,47 @@ def _suma_de_trimestres(repo: Repositorio, ticker: str, concepto: str, asof: dt.
     return pd.Series(anios, dtype=float)
 
 
+# Cuánto puede separarse una cifra por acción leída de la base de lo que el emisor
+# reportó para ese año (un cuarto de lo anual, si es trimestral) antes de
+# descartarla. Holgado a propósito: un trimestre con una partida extraordinaria
+# se aparta 15-20% y es un dato legítimo. Lo que atrapa es otra cosa: el −1.00
+# que sale de leer la llamada de nota «(1)» como negativo, o un trimestre (0.79)
+# guardado en el lugar del año (3.32). Eso pasó con los 8-K de NNN.
+TOLERANCIA_CONTRA_REPORTADO = 0.35
+# Si el año no tiene cifra primaria, la referencia es la del año más cercano,
+# hasta esta distancia.
+ANIOS_DE_REFERENCIA = 3
+
+
+def contra_lo_reportado(
+    versiones: pd.DataFrame, reportado: pd.Series
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Separa las cifras de la base que contradicen a lo reportado por el emisor.
+
+    ``versiones`` trae ``fecha_dato``, ``periodo_tipo`` («Q» o «FY») y ``valor``;
+    ``reportado`` es la cifra ANUAL primaria, indexada por año. Devuelve lo que se
+    queda y lo que se descarta, con lo que se esperaba.
+    """
+    if versiones.empty or reportado.dropna().empty:
+        return versiones, versiones.iloc[0:0].assign(esperado=pd.Series(dtype=float))
+    ref = reportado.dropna()
+    ref.index = ref.index.astype(int)
+    esperado = []
+    for f, tipo in zip(pd.to_datetime(versiones["fecha_dato"]), versiones["periodo_tipo"], strict=True):
+        cercanos = ref[(ref.index - f.year).map(abs) <= ANIOS_DE_REFERENCIA]
+        if cercanos.empty:
+            esperado.append(np.nan)
+            continue
+        anual = float(cercanos.iloc[(cercanos.index - f.year).map(abs).argmin()])
+        esperado.append(anual / 4 if tipo == "Q" else anual)
+    esperado = pd.Series(esperado, index=versiones.index, dtype=float)
+    valor = pd.to_numeric(versiones["valor"], errors="coerce")
+    malo = esperado.gt(0) & ((valor / esperado - 1).abs() > TOLERANCIA_CONTRA_REPORTADO)
+    return versiones[~malo], versiones[malo].assign(esperado=esperado[malo])
+
+
 def dividendos_por_anio(historia: HistoriaMercado, *, asof: dt.date) -> pd.Series:
-    """Dividendo REGULAR por acción de hoy: los doce pagos más recientes al 31-dic.
+    """Dividendo REGULAR por acción de hoy: los pagos de un año más recientes al 31-dic.
 
     Por conteo (ver ``mercado.dividendo_ttm``): sumar por año de fecha ex le daba
     a O once pagos en 2024 y trece en 2025 por el cambio a T+1. Solo años
@@ -176,16 +224,24 @@ def anual(
         tabla.loc[vacias, col] = serie.reindex(tabla.index[vacias]).values
         fuente.loc[vacias, col] = etiqueta
 
-    # Lo reportado primero; lo demás solo llena huecos.
+    # Lo capturado del documento primero; lo leído de la base solo llena huecos, y
+    # solo si no contradice a lo reportado en los años vecinos.
+    descartadas = []
     for c in ("ffo_por_accion", "affo_por_accion"):
-        if c in fy:
-            poner(c, fy[c], "8-K del emisor")
-        poner(c, _suma_de_trimestres(repo, ticker, c, asof), "suma de los 4 trimestres del 8-K")
         p = primarios[primarios["concepto"] == c].set_index("anio")
         for metodo in ("reportado", "calculado"):
             sub = p[p["metodo"] == metodo]["valor_actual"]
             poner(c, sub, "10-K / comunicado del emisor" + ("" if metodo == "reportado"
                                                               else " (total ÷ acciones)"))
+        referencia = p["valor_actual"].groupby(level=0).last()
+        if c in fy:
+            base = fy[c].dropna()
+            versiones = pd.DataFrame({"fecha_dato": [pd.Timestamp(a, 12, 31) for a in base.index],
+                                      "periodo_tipo": "FY", "valor": base.values}, index=base.index)
+            quedan, fuera = contra_lo_reportado(versiones, referencia)
+            poner(c, quedan["valor"], "8-K del emisor")
+            descartadas.append(fuera.assign(concepto=c))
+        poner(c, _suma_de_trimestres(repo, ticker, c, asof), "suma de los 4 trimestres del 8-K")
 
     for c in ("ingresos_totales", "acciones_diluidas", "utilidad_neta", "gasto_intereses",
               "depreciacion_amortizacion", "gasto_administracion"):
@@ -206,12 +262,15 @@ def anual(
         poner("acciones_diluidas", implicitas, "implícitas: FFO ÷ FFO por acción")
 
     poner("dividendo_por_accion", dividendos_por_anio(historia, asof=asof),
-          "doce mensualidades regulares al 31-dic")
+          f"{pagos_por_anio(historia.dividendos)} pagos regulares al 31-dic")
 
-    # EBITDAre solo donde es confiable (ver PRIMER_ANIO_EBITDARE).
-    if not fy.empty and {"utilidad_neta", "gasto_intereses"} <= set(fy.columns):
+    # EBITDAre solo donde es confiable (ver TOLERANCIA_DERIVACION).
+    primer_anio = primer_anio_confiable(
+        ffo_derivado(fy), tabla.get("ffo_por_accion", pd.Series(dtype=float))
+    )
+    if primer_anio is not None and {"utilidad_neta", "gasto_intereses"} <= set(fy.columns):
         ebitdare = _derivar_ebitdare(fy)
-        poner("ebitdare", ebitdare[ebitdare.index >= PRIMER_ANIO_EBITDARE], "derivado de XBRL")
+        poner("ebitdare", ebitdare[ebitdare.index >= primer_anio], "derivado de XBRL")
 
     # Razones.
     tabla["payout_ffo"] = tabla.get("dividendo_por_accion") / tabla.get("ffo_por_accion")
@@ -228,6 +287,8 @@ def anual(
     if {"gasto_administracion", "ingresos_totales"} <= set(tabla.columns):
         tabla["gya_sobre_ingresos"] = tabla["gasto_administracion"] / tabla["ingresos_totales"]
     tabla.attrs["fuentes"] = fuente
+    tabla.attrs["primer_anio_ebitdare"] = primer_anio
+    tabla.attrs["descartadas"] = pd.concat(descartadas) if descartadas else pd.DataFrame()
     return tabla
 
 
@@ -303,19 +364,27 @@ def flujo_conocido(
     """
     p = primarios[primarios["concepto"] == concepto]
     anual_pub = pd.Series(p["valor_actual"].values, index=pd.to_datetime(p["fecha_publicacion"]))
+    referencia = p.groupby("anio")["valor_actual"].last()
 
     estimadas = 0
     versiones = repo.hechos(asof=asof, tickers=ticker, conceptos=concepto,
                             periodo_tipo="Q", vigentes=False)
+    # Una versión que contradice a lo reportado no entra: con la regla de «gana la
+    # última», una comparativa mal leída pisaría a la cifra buena original.
+    versiones, fuera_q = contra_lo_reportado(versiones, referencia)
     ttm = pd.Series(dtype=float)
+    anios_estimados: set[int] = set()
     if not versiones.empty:
         efectiva = fecha_efectiva(versiones)
-        estimadas += int((efectiva != versiones["fecha_publicacion"]).sum())
+        cambiadas = efectiva != versiones["fecha_publicacion"]
+        estimadas += int(cambiadas.sum())
+        anios_estimados |= set(pd.to_datetime(versiones.loc[cambiadas, "fecha_dato"]).dt.year)
         ttm = _ttm_por_publicacion(
             versiones.assign(fecha_publicacion=efectiva, _llegada=versiones["fecha_publicacion"])
         )
 
     fy = repo.hechos(asof=asof, tickers=ticker, conceptos=concepto, periodo_tipo="FY", vigentes=False)
+    fy, fuera_fy = contra_lo_reportado(fy, referencia)
     fy_pub = pd.Series(dtype=float)
     por_anio = pd.DataFrame(columns=["efectiva", "valor"])
     if not fy.empty:
@@ -345,7 +414,27 @@ def flujo_conocido(
     todo = todo[~todo.index.duplicated(keep="last")]
     todo = todo[todo.index <= pd.Timestamp(asof)]
     todo.attrs["fechas_estimadas"] = estimadas
+    todo.attrs["anios_estimados"] = (min(anios_estimados), max(anios_estimados)) if anios_estimados else None
+    todo.attrs["descartadas"] = pd.concat([fuera_q, fuera_fy]).assign(concepto=concepto)
+    todo.attrs["rezago_dias"] = _rezago_observado(pd.concat([versiones, fy]))
     return todo
+
+
+def _rezago_observado(versiones: pd.DataFrame) -> tuple[int, int] | None:
+    """Entre cuántos días después del cierre publica el emisor, medido y no supuesto.
+
+    Solo cuentan las versiones con su fecha real (no las comparativas de un
+    documento posterior): son las que dicen cuándo se supo el dato por primera vez.
+    """
+    if versiones.empty:
+        return None
+    v = versiones.reset_index(drop=True)
+    v = v.assign(rezago=(pd.to_datetime(v["fecha_publicacion"]) - pd.to_datetime(v["fecha_dato"])).dt.days)
+    propias = v[v["rezago"].between(0, UMBRAL_COMPARATIVA.days)]
+    if propias.empty:
+        return None
+    primeras = propias.groupby("fecha_dato")["rezago"].min()
+    return int(primeras.min()), int(primeras.max())
 
 
 def en_fechas(conocido: pd.Series, fechas: pd.DatetimeIndex) -> pd.Series:
@@ -363,31 +452,59 @@ def en_fechas(conocido: pd.Series, fechas: pd.DatetimeIndex) -> pd.Series:
 @dataclass
 class DiagnosticoFFO:
     tabla: pd.DataFrame        # anio, derivado, reportado, error
+    primer_anio_confiable: int | None = None
 
     @property
     def error_max_reciente(self) -> float | None:
-        r = self.tabla[self.tabla.index >= 2019]["error"].dropna()
+        """El peor error desde el primer año confiable."""
+        if self.primer_anio_confiable is None:
+            return None
+        r = self.tabla[self.tabla.index >= self.primer_anio_confiable]["error"].dropna()
         return float(r.abs().max()) if not r.empty else None
 
     @property
     def error_max_antiguo(self) -> float | None:
-        r = self.tabla[self.tabla.index < 2015]["error"].dropna()
+        """El peor error antes del primer año confiable (o en toda la tabla si no lo hay)."""
+        t = self.tabla if self.primer_anio_confiable is None else \
+            self.tabla[self.tabla.index < self.primer_anio_confiable]
+        r = t["error"].dropna()
         return float(r.abs().max()) if not r.empty else None
+
+
+def ffo_derivado(fy: pd.DataFrame) -> pd.Series:
+    """FFO por acción con la fórmula de Nareit sobre XBRL, por año. Diagnóstico, no insumo."""
+    necesarios = {"utilidad_neta_comun", "depreciacion_amortizacion", "acciones_diluidas"}
+    if fy.empty or not necesarios <= set(fy.columns):
+        return pd.Series(dtype=float)
+    return ((
+        fy["utilidad_neta_comun"] + fy["depreciacion_amortizacion"]
+        + fy.get("deterioro", 0).fillna(0) - fy.get("ganancia_venta_inmuebles", 0).fillna(0)
+    ) / fy["acciones_diluidas"]).dropna()
+
+
+def primer_anio_confiable(
+    derivado: pd.Series, reportado: pd.Series, *, tolerancia: float = TOLERANCIA_DERIVACION
+) -> int | None:
+    """El primer año desde el cual la derivación cuadra con lo reportado, sin excepción.
+
+    «Desde el cual» es literal: ese año y TODOS los posteriores con los dos datos
+    tienen que caber en la tolerancia. Un año bueno aislado entre años malos no
+    vuelve confiable a la fórmula.
+    """
+    err = (derivado / reportado.reindex(derivado.index) - 1).dropna().sort_index()
+    if err.empty:
+        return None
+    malos = err.index[err.abs() > tolerancia]
+    posteriores = err.index[err.index > malos.max()] if len(malos) else err.index
+    return int(posteriores.min()) if len(posteriores) else None
 
 
 def diagnostico_ffo(repo: Repositorio, ticker: str, *, asof: dt.date, tabla_anual: pd.DataFrame) -> DiagnosticoFFO:
     fy = repo.panel(ticker, CONCEPTOS_ANUALES, asof=asof, periodo_tipo="FY")
-    if fy.empty:
+    derivado = ffo_derivado(_por_anio(fy)) if not fy.empty else pd.Series(dtype=float)
+    if derivado.empty:
         return DiagnosticoFFO(pd.DataFrame(columns=["derivado", "reportado", "error"]))
-    fy = _por_anio(fy)
-    necesarios = {"utilidad_neta_comun", "depreciacion_amortizacion", "acciones_diluidas"}
-    if not necesarios <= set(fy.columns):
-        return DiagnosticoFFO(pd.DataFrame(columns=["derivado", "reportado", "error"]))
-    derivado = (
-        fy["utilidad_neta_comun"] + fy["depreciacion_amortizacion"]
-        + fy.get("deterioro", 0).fillna(0) - fy.get("ganancia_venta_inmuebles", 0).fillna(0)
-    ) / fy["acciones_diluidas"]
     reportado = tabla_anual.get("ffo_por_accion", pd.Series(dtype=float))
     t = pd.DataFrame({"derivado": derivado, "reportado": reportado.reindex(derivado.index)})
     t["error"] = t["derivado"] / t["reportado"] - 1
-    return DiagnosticoFFO(t.dropna(subset=["derivado"]))
+    return DiagnosticoFFO(t, primer_anio_confiable=primer_anio_confiable(derivado, reportado))

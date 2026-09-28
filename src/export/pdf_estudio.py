@@ -31,7 +31,7 @@ import requests
 from src.config import DIR_CACHE
 from src.estudio import graficas as g
 from src.estudio import historia as hist
-from src.estudio import vistas
+from src.estudio import textos, vistas
 
 TINTA = g.CLARO.texto
 ACENTO = g.CLARO.principal
@@ -224,7 +224,8 @@ def _portada(e) -> str:
     mxn = (rt_mxn.iloc[-1] / rt_mxn.iloc[0]) ** (1 / anios_mxn) - 1
     kpis = [
         (pct(e.total.retorno_total), f"retorno anual en dólares desde {t0:%Y}, dividendos reinvertidos"),
-        (pct(mxn), "lo mismo, en pesos"),
+        (pct(mxn), "lo mismo, en pesos" + ("" if rt_mxn.index[0].year == t0.year
+                                           else f" (desde {g.mes(rt_mxn.index[0])})")),
         (pct(h.yield_actual, 2), "dividendo al precio de hoy"),
         (veces(h.p_ffo), f"P/FFO hoy · mediana histórica {veces(e.tabla['p_ffo'].median())}"),
     ]
@@ -235,9 +236,9 @@ def _portada(e) -> str:
       <div style='flex-grow:1;display:flex;flex-direction:column;justify-content:center'>
         <div class='rotulo'>Estudio de largo plazo · {_e(e.ticker)}</div>
         <h1>{_e(n.nombre if n else e.ticker)}</h1>
-        <p style='font-size:12.5pt;max-width:150mm'>Qué le ha pasado al REIT desde que cotiza,
-        de dónde salió lo que rindió, cuándo hubiera convenido entrar y si lo que paga hoy
-        compensa el riesgo.</p>
+        <p style='font-size:12.5pt;max-width:150mm'>Qué le ha pasado al REIT
+        {_e(textos.desde(e.historia_mercado, t0))}, de dónde salió lo que rindió, cuándo hubiera
+        convenido entrar y si lo que paga hoy compensa el riesgo.</p>
         <div class='kpis'>{kpi_html}</div>
         <p class='gris chico' style='max-width:150mm'>{_e(n.perfil) if n else ''}</p>
       </div>
@@ -288,27 +289,36 @@ def _negocio(e, fig) -> str:
               "—" if pd.isna(r.get("spread_contra_ponderado")) else f"{r.spread_contra_ponderado * 1e4:+,.0f}",
               usd(r.inversion / 1e6, 0)]
              for a, r in si.iterrows()] if not si.empty else []
+    tk = _e(e.ticker)
+    primer = e.anual.attrs.get("primer_anio_ebitdare")
+    pie_apalancamiento = (
+        "Deuda ÷ activos totales en libros. "
+        + (f"La deuda neta ÷ EBITDAre se mide desde {primer}, el primer año desde el cual el FFO "
+           "derivado de XBRL cuadra con el reportado; antes, el EBITDAre derivado con las mismas "
+           "partidas no es confiable. " if primer else
+           "La deuda neta ÷ EBITDAre no se calcula: el FFO derivado de XBRL no cuadra con el "
+           "reportado en ningún tramo. ")
+        + textos.nota(e.narrativa, "apalancamiento")
+    )
     return (
         "<h2 class='salto'>El negocio en el tiempo</h2>"
         "<h3>Flujo y dividendo por acción</h3>"
-        "<p>Todo en acciones de hoy: lo anterior al split de 2005 va dividido entre dos. FFO y "
-        "AFFO son los que publicó el emisor —10-K y comunicados antes de 2019, 8-K después—.</p>"
-        + fig("por_accion", pie="Fuente: 10-K y 8-K de la SEC; dividendos del proveedor de mercado, corregidos contra los 10-K.")
+        f"<p>{_e(textos.base_por_accion(e.historia_mercado))} FFO y AFFO son los que publicó el "
+        "emisor en sus 10-K, prospectos y comunicados.</p>"
+        + fig("por_accion", pie="Fuente: 10-K, prospectos y 8-K de la SEC; dividendos del proveedor de mercado, contrastados con los reportes del emisor.")
         + "<div class='bloque'><h3>El negocio creció mucho más que la acción</h3>"
-        "<p>O crece emitiendo acciones para comprar inmuebles. Lo que le importa al accionista no "
-        "es cuánto crece la empresa sino cuánto crece su parte.</p>"
+        f"<p>{tk} crece emitiendo acciones para comprar inmuebles. Lo que le importa al accionista "
+        "no es cuánto crece la empresa sino cuánto crece su parte.</p>"
         + fig("escala") + "</div>"
         + "<div class='bloque'><h3>El motor: comprar por encima de lo que cuesta el capital</h3>"
-        "<p>Si O compra a un yield mayor que el que rinde su propia acción, cada compra con "
+        f"<p>Si {tk} compra a un yield mayor que el que rinde su propia acción, cada compra con "
         "acciones suma por acción; si compra por debajo, resta aunque la empresa crezca.</p>"
-        + fig("spread_inversion", pie="Yield de compra: el que reporta el emisor. Costo de las acciones: AFFO yield promedio del año (FFO antes de 2010). Costo ponderado: acciones y deuda por su peso de mercado; la deuda a su costo promedio en libros.")
+        + fig("spread_inversion", pie="Yield de compra: el que reporta el emisor. Costo de las acciones: AFFO yield promedio del año (FFO yield en los años sin AFFO publicado). Costo ponderado: acciones y deuda por su peso de mercado; la deuda a su costo promedio en libros.")
         + tabla(filas, ["Año", "Compra a", "Costo acciones", "Medida", "Costo deuda", "Peso deuda",
                         "Costo ponderado", "Margen vs acciones (pb)", "Margen vs ponderado (pb)", "Invertido (MM USD)"],
                 alinear="lrrlrrrrrr") + "</div>"
         + "<div class='bloque'><h3>Apalancamiento en libros</h3>"
-        + fig("apalancamiento", pie="Deuda ÷ activos totales en libros. La deuda neta ÷ EBITDAre se "
-              "mide desde 2015: antes, las ventas de inmuebles iban a operaciones discontinuadas y el "
-              "EBITDAre derivado de XBRL no es confiable. El emisor reporta 5.4x pro forma al cierre de 2025.")
+        + fig("apalancamiento", pie=pie_apalancamiento)
         + "</div>"
     )
 
@@ -341,9 +351,11 @@ def _retorno(e, fig) -> str:
         )
     return (
         "<h2 class='salto'>De dónde salió el retorno</h2>"
-        "<p>Un dólar invertido el día del listado, reinvirtiendo cada dividendo (escala logarítmica).</p>"
-        + fig("retorno_total", pie="Incluye la escisión de Orion (2021) como distribución en especie reinvertida. Validado contra el índice ajustado del proveedor: desviación máxima de "
-              + pct(e.serie.validacion_rt, 2) + " en toda la historia." if e.serie.validacion_rt is not None else "")
+        f"<p>Un dólar invertido {'el día del listado' if not e.historia_mercado.inicio_verificable else 'al inicio de ' + str(e.tabla.index[0].year)}, "
+        "reinvirtiendo cada dividendo (escala logarítmica).</p>"
+        + fig("retorno_total", pie=textos.escisiones_en_el_retorno(e.historia_mercado)
+              + ("Validado contra el índice ajustado del proveedor: desviación máxima de "
+                 + pct(e.serie.validacion_rt, 2) + " en toda la historia." if e.serie.validacion_rt is not None else ""))
         + "<div class='bloque'><p><b>Negocio contra mercado.</b> El precio es el dividendo ÷ el yield, así que el retorno "
         "se reparte exacto —sin residuo— en el dividendo cobrado, el crecimiento del dividendo por "
         "acción y el cambio de valuación: <span class='cifra'>(1 + RT) = (1 + ingreso) × (1 + "
@@ -376,7 +388,7 @@ def _entradas(e, fig) -> str:
     corr = " · ".join(f"{_e(k)}: {v:+.2f}" for k, v in ent.correlaciones.items())
     return (
         "<h2 class='salto'>¿Cuándo hubiera convenido entrar?</h2>"
-        "<p>Cada punto es un fin de mes: qué tan caro estaba O ese día —con el FFO que se "
+        f"<p>Cada punto es un fin de mes: qué tan caro estaba {_e(e.ticker)} ese día —con el FFO que se "
         "conocía— y cuánto rindió al año en los cinco años siguientes. Los rombos son la mediana "
         "de cada quinto de la historia.</p>"
         + fig("entradas")
@@ -399,8 +411,11 @@ def _entradas(e, fig) -> str:
 
 def _hoy(e, fig) -> str:
     h = e.hoy
+    base = next((s for s in h.escenarios if s.nombre.startswith("AFFO por acción, 10")), None) \
+        or (h.escenarios[0] if h.escenarios else None)
     kpis = [
-        (pct(h.yield_actual, 2), f"dividendo (mensualidad × 12 = {usd(h.dividendo_anualizado, 3)})"),
+        (pct(h.yield_actual, 2),
+         f"dividendo ({textos.dividendo_vigente(e.historia_mercado)} = {usd(h.dividendo_anualizado, 3)})"),
         (pct(h.affo_yield, 2), f"AFFO yield · P/AFFO {veces(h.p_affo)}"),
         (pct(h.spread, 2), f"spread vs Treasury · percentil {pct(h.percentil_spread, 0)}"),
         (pct(h.udibono_real, 2), "Udibono 10 años, real"),
@@ -412,7 +427,8 @@ def _hoy(e, fig) -> str:
     return (
         "<h2 class='salto'>¿Paga buen retorno hoy?</h2>"
         f"<div class='kpis'>{kpi_html}</div>"
-        + fig("escenarios", pie="Retorno real anual, neto de impuestos, con el crecimiento del AFFO por acción de los últimos diez años.")
+        + fig("escenarios", pie="Retorno real anual, neto de impuestos, con el crecimiento de "
+              + (base.nombre.replace(", ", " en los últimos ") if base else "el flujo por acción") + ".")
         + tabla(filas, ["Crecimiento supuesto", "g", "USD, múltiplo constante", "USD, vuelve el spread",
                         "USD, vuelve el P/FFO", "Real neto", "Real neto, spread", "Real neto, P/FFO"],
                 alinear="lrrrrrrr")
@@ -442,24 +458,35 @@ def _metodologia(e) -> str:
     if e.narrativa:
         fuentes = "".join(f"<li><b>{_e(t)}.</b> {_e(x)}</li>" for t, x in e.narrativa.fuentes_extra)
     avisos = "".join(f"<li>{_e(a)}</li>" for a in e.avisos)
+    hm = e.historia_mercado
+    inicio = ""
+    if hm.inicio_verificable:
+        inicio = (f"<p class='chico'><b>Por qué empieza en {hm.inicio_verificable['fecha'][:4]}.</b> "
+                  f"{_e(hm.inicio_verificable['motivo'])}</p>")
+    rangos = ""
+    if v.get("rangos_n"):
+        aceptados = "".join(f"<li>Excepción revisada, {_e(r['trimestre'])}: {_e(r['explicacion'])}</li>"
+                            for r in v.get("rangos_aceptados", []))
+        rangos = (f"<li>Rangos trimestrales publicados por el emisor: {v['rangos_n']} trimestres "
+                  f"revisados, {len(v.get('rangos_fuera', []))} con cierres fuera.</li>{aceptados}")
+    bloque_correcciones = (
+        "<h3>Dividendos corregidos contra el reporte del emisor</h3>"
+        f"<ul class='chico'>{correcciones}</ul>" if correcciones else
+        "<h3>Dividendos contra el reporte del emisor</h3>"
+        "<p class='chico'>No hizo falta corregir ningún registro del proveedor.</p>"
+    )
     return (
         "<h2 class='salto'>Metodología, validaciones y fuentes</h2>"
-        "<h3>Precio y dividendos desde el listado</h3>"
-        f"<p>{num(man['precios']['n'])} cierres desde {man['precios']['desde']}. El proveedor entrega el "
-        "cierre ajustado por el split de 2005 y —como si fuera split— por la escisión de Orion de "
-        "2021; aquí se desajusta para obtener el precio al que de verdad cotizó (P2). Cada evento de "
-        "capital está en un catálogo verificado: un evento que el proveedor reporte y no esté "
-        "catalogado detiene la descarga.</p>"
-        f"<ul class='chico'><li>Contra el precio crudo del proveedor diario: {num(v.get('traslape_n'))} "
-        f"días de traslape, error máximo {pct(v.get('traslape_error_max'), 4)}.</li>{anclas}</ul>"
-        "<h3>Dividendos corregidos contra el reporte del emisor</h3>"
-        f"<ul class='chico'>{correcciones}</ul>"
-        "<p class='chico'>La suma anual cuadra con los 10-K dentro de 0.8% de 1997 a 2007. El dividendo "
-        "anualizado del último comunicado (3.252 dólares) coincide con la serie.</p>"
-        "<h3>Por qué el FFO no se deriva de la contabilidad</h3>"
-        "<p class='chico'>La fórmula de Nareit aplicada a XBRL cuadra con lo reportado en los años "
-        "recientes y falla por más de 15% antes de 2015, cuando las ventas de inmuebles iban a "
-        "operaciones discontinuadas. El estudio usa solo cifras reportadas por el emisor.</p>"
+        f"<h3>Precio y dividendos {_e(textos.desde(hm, e.tabla.index[0]))}</h3>"
+        f"<p>{num(man['precios']['n'])} cierres desde {man['precios']['desde']}. "
+        f"{_e(textos.eventos_del_proveedor(hm))}</p>" + inicio
+        + f"<ul class='chico'><li>Contra el precio crudo del proveedor diario: {num(v.get('traslape_n'))} "
+        f"días de traslape, error máximo {pct(v.get('traslape_error_max'), 4)}.</li>{anclas}{rangos}</ul>"
+        + bloque_correcciones
+        + (f"<p class='chico'>{_e(textos.nota(e.narrativa, 'dividendos'))}</p>"
+           if textos.nota(e.narrativa, "dividendos") else "")
+        + "<h3>Por qué el FFO no se deriva de la contabilidad</h3>"
+        f"<p class='chico'>{_e(textos.diagnostico_ffo(e.diagnostico_ffo))}</p>"
         + tabla(filas_d, ["Año", "FFO por acción derivado", "Reportado", "Error"], clase="chico")
         + "<h3>Lo que se sabía en cada fecha</h3>"
         "<p class='chico'>Toda señal de valuación usa solo lo publicado a esa fecha (P1): el FFO de un "

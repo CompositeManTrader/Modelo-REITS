@@ -62,6 +62,11 @@ class HistoriaEmisor:
     eras: tuple[Era, ...]
     riesgos: tuple[Riesgo, ...]
     fuentes_extra: tuple[tuple[str, str], ...] = field(default_factory=tuple)
+    # Lo que solo aplica a este emisor y la página/PDF muestran junto a una gráfica o
+    # en la metodología. Claves que se usan: «apalancamiento», «dividendos», «mxn».
+    # Lo que se puede decir con datos (splits, escisiones, frecuencia) NO va aquí:
+    # lo arma ``textos`` para que no envejezca.
+    notas: dict[str, str] = field(default_factory=dict)
 
 
 D = dt.date
@@ -297,6 +302,18 @@ HISTORIA_O = HistoriaEmisor(
         ("Inquilinos principales", "Suplementos trimestrales de 2025 (8-K Ex-99.2); Globe and "
          "Mail sobre Walgreens."),
     ),
+    notas={
+        "apalancamiento": (
+            "En 2021 el cociente salta porque la deuda al cierre ya incluye a VEREIT y el "
+            "EBITDAre solo dos meses de ella; el emisor reporta 5.3x pro forma en 2021 y 5.4x al "
+            "cierre de 2025."
+        ),
+        "dividendos": (
+            "La suma anual cuadra con los 10-K dentro de 0.8% de 1997 a 2007. El dividendo "
+            "anualizado del último comunicado (3.252 dólares) coincide con la serie."
+        ),
+        "mxn": "Incluye la devaluación de 1994-95, que coincidió con el listado.",
+    },
 )
 
 HISTORIAS: dict[str, HistoriaEmisor] = {"O": HISTORIA_O}

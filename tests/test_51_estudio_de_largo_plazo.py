@@ -276,18 +276,62 @@ def test_la_precedencia_primaria_es_por_anio(repo_vacio):
     Pasó: con un corte por la última fecha primaria, el FFO se quedó en el de
     2018 durante siete años y el crecimiento de esas eras salió en 0.0%.
     """
+    def trimestre(anio: int) -> float:
+        return round(0.80 + 0.01 * (anio - 2020), 2)
+
     filas = []
     for anio in range(2020, 2025):
         for q, mes in ((1, 5), (2, 8), (3, 11)):
             fin = pd.Timestamp(anio, 3 * q, 1) + pd.offsets.MonthEnd(0)
-            filas.append(_hecho("ffo_por_accion", "Q", str(fin.date()), f"{anio}-{mes:02d}-06", 1.0 + anio - 2020))
-        filas.append(_hecho("ffo_por_accion", "Q", f"{anio}-12-31", f"{anio + 1}-02-20", 1.0 + anio - 2020))
+            filas.append(_hecho("ffo_por_accion", "Q", str(fin.date()), f"{anio}-{mes:02d}-06", trimestre(anio)))
+        filas.append(_hecho("ffo_por_accion", "Q", f"{anio}-12-31", f"{anio + 1}-02-20", trimestre(anio)))
     repo_vacio.guardar_hechos(filas)
-    primarios = _primarios((2018, 3.12, "2019-02-20"), (2025, 9.99, "2026-02-24"))
+    primarios = _primarios((2018, 3.12, "2019-02-20"), (2025, 3.40, "2026-02-24"))
     s = fund.flujo_conocido(repo_vacio, "ZZ", "ffo_por_accion", asof=D(2026, 6, 1), primarios=primarios)
     en_2023 = fund.en_fechas(s, pd.DatetimeIndex(["2023-12-01"])).iloc[0]
     assert en_2023 != pytest.approx(3.12), "el TTM de 2023 quedó tapado por el primario de 2018"
-    assert en_2023 == pytest.approx(4.0 * 3 + 3.0)
+    assert en_2023 == pytest.approx(3 * trimestre(2023) + trimestre(2022))
+    assert s.attrs["descartadas"].empty, "cifras coherentes con lo reportado no se descartan"
+
+
+def test_la_base_no_contradice_a_lo_reportado(repo_vacio):
+    """El lector de 8-K de NNN guardó −1.00 (la llamada de nota «(1)» leída como
+    negativo) en comparativas posteriores, y un trimestre en el lugar del año.
+
+    Con la regla de «gana la última versión», la comparativa mala pisaba a la cifra
+    buena original. Lo que contradice a lo reportado no entra, y se cuenta.
+    """
+    filas = [
+        _hecho("affo_por_accion", "Q", "2021-03-31", "2021-05-04", 0.72),
+        _hecho("affo_por_accion", "Q", "2021-06-30", "2021-08-03", 0.73),
+        _hecho("affo_por_accion", "Q", "2021-09-30", "2021-11-02", 0.74),
+        _hecho("affo_por_accion", "Q", "2021-12-31", "2022-02-09", 0.77),
+        # La comparativa del año siguiente, mal leída: tiene que perder, no ganar.
+        _hecho("affo_por_accion", "Q", "2021-12-31", "2023-02-09", -1.00),
+        # Un trimestre guardado como año.
+        _hecho("affo_por_accion", "FY", "2022-12-31", "2023-02-09", 0.77),
+    ]
+    repo_vacio.guardar_hechos(filas)
+    primarios = pd.DataFrame([
+        {"anio": 2021, "concepto": "affo_por_accion", "valor": 2.96, "valor_actual": 2.96,
+         "base": "actual", "metodo": "reportado", "fuente": "prueba",
+         "fecha_publicacion": pd.Timestamp("2022-02-09")},
+    ])
+    s = fund.flujo_conocido(repo_vacio, "ZZ", "affo_por_accion", asof=D(2026, 1, 1), primarios=primarios)
+    fuera = s.attrs["descartadas"]
+    assert sorted(fuera["valor"].round(2)) == [-1.00, 0.77]
+    # Después de la comparativa mala, el TTM sigue siendo el bueno.
+    en = fund.en_fechas(s, pd.DatetimeIndex(["2023-03-01"])).iloc[0]
+    assert en == pytest.approx(0.72 + 0.73 + 0.74 + 0.77)
+    assert (s > 0).all()
+
+
+def test_un_trimestre_con_partida_extraordinaria_no_se_descarta():
+    """La tolerancia es holgada a propósito: un 1T con −18% por un cargo es dato."""
+    versiones = pd.DataFrame({"fecha_dato": pd.to_datetime(["2021-03-31", "2021-06-30"]),
+                              "periodo_tipo": ["Q", "Q"], "valor": [0.57, 0.70]})
+    quedan, fuera = fund.contra_lo_reportado(versiones, pd.Series({2021: 2.68}))
+    assert len(quedan) == 2 and fuera.empty
 
 
 def test_factor_de_base_solo_cuenta_splits():

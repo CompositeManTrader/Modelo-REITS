@@ -318,10 +318,10 @@ def yield_contra_bono(e, t: Tema = OSCURO) -> go.Figure:
     fig = go.Figure()
     fig.add_scatter(x=s.index, y=s["ust10"], name="Treasury 10 años", line={"color": t.contexto, "width": 1.6},
                     hovertemplate="Treasury: %{y:.2%}<extra></extra>")
-    fig.add_scatter(x=s.index, y=s["yield_ttm"], name="Yield de O", line={"color": t.principal, "width": 1.8},
-                    hovertemplate="Yield O: %{y:.2%}<extra></extra>")
+    fig.add_scatter(x=s.index, y=s["yield_ttm"], name=f"Yield de {e.ticker}", line={"color": t.principal, "width": 1.8},
+                    hovertemplate=f"Yield {e.ticker}: %{{y:.2%}}<extra></extra>")
     items = []
-    for col, nombre, color in (("yield_ttm", "Yield O", t.principal), ("ust10", "Treasury", t.contexto)):
+    for col, nombre, color in (("yield_ttm", f"Yield {e.ticker}", t.principal), ("ust10", "Treasury", t.contexto)):
         x, y = _ultimo(s[col])
         items.append((x, y, f"{nombre} {y:.1%}", color))
     _etiquetas_finales(fig, t, items)
@@ -344,7 +344,7 @@ def spread(e, t: Tema = OSCURO) -> go.Figure:
                        font={"color": t.texto_2, "size": 10, "family": t.mono})
     x, y = _ultimo(s)
     _etiquetas_finales(fig, t, [(x, y, f"hoy {y:.1%}", t.principal)])
-    fig = _base(fig, t, alto=280, eje_y="yield de O − Treasury", formato_y=".1%")
+    fig = _base(fig, t, alto=280, eje_y=f"yield de {e.ticker} − Treasury", formato_y=".1%")
     _rango_x(fig, s.index[0], s.index[-1])
     return fig
 

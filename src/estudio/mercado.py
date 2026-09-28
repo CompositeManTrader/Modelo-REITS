@@ -47,7 +47,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import pandas as pd
@@ -115,6 +115,9 @@ EVENTOS_DE_CAPITAL: dict[str, tuple[EventoDeCapital, ...]] = {
                    "factor verificado contra 1,307 cierres crudos previos, error 0.0000%.",
         ),
     ),
+    # Vacío a propósito, y declarado: «sin eventos» es una afirmación verificada, no
+    # la ausencia de una. Si el proveedor llega a reportar uno, la descarga se detiene.
+    "NNN": (),
 }
 
 SPLITS_DE_TIPO = ("split", "escision")
@@ -169,6 +172,116 @@ CORRECCIONES_DE_DIVIDENDOS: dict[str, tuple[CorreccionDividendo, ...]] = {
         ),
     ),
 }
+
+@dataclass(frozen=True)
+class InicioVerificable:
+    """Desde cuándo el registro del proveedor se puede contrastar con el emisor.
+
+    Antes de esta fecha el precio existe pero los dividendos no están completos, y
+    un retorno total sin dividendos no es un retorno total: es un precio. La serie
+    se corta aquí, con la razón escrita, en vez de rellenar con lo que no se pudo
+    comprobar.
+    """
+
+    fecha: dt.date
+    motivo: str
+
+
+INICIOS_VERIFICABLES: dict[str, InicioVerificable] = {
+    "NNN": InicioVerificable(
+        fecha=dt.date(1992, 1, 1),
+        motivo=(
+            "NNN cotiza desde 1984 (como Golden Corral Realty), pero el proveedor no trae los "
+            "dividendos de 1984 a 1989 y le falta el de julio de 1990. El primer reporte del "
+            "emisor en EDGAR es de 1995 y su tabla más antigua empieza en 1992: el prospecto de "
+            "enero de 1996 da los dividendos de 1992 a 1995 trimestre por trimestre, y coinciden "
+            "con el proveedor. Antes de 1992 no hay contra qué verificar."
+        ),
+    ),
+}
+
+
+@dataclass(frozen=True)
+class AnclaLarga:
+    """Un cierre NYSE publicado por el emisor, anterior a lo que cubre la base.
+
+    Las anclas de ``src.ingesta.precios`` validan la serie diaria de diez años; las
+    de aquí validan la historia larga donde no hay otra serie contra qué comparar.
+    """
+
+    fecha: dt.date
+    cierre: float
+    fuente: str
+
+
+ANCLAS_LARGAS: dict[str, tuple[AnclaLarga, ...]] = {
+    "NNN": (
+        AnclaLarga(dt.date(1996, 1, 3), 13.125,
+                   "Prospecto 424B5 de ene-1996: «The last reported sale price of the Common "
+                   "Stock on the New York Stock Exchange on January 3, 1996 was $13.125»."),
+        AnclaLarga(dt.date(1996, 1, 23), 13.00,
+                   "Prospecto 424B2 de ene-1996: «The last reported sale price of the Common "
+                   "Stock on the New York Stock Exchange on January 23, 1996 was $13.00»."),
+    ),
+}
+
+
+@dataclass(frozen=True)
+class RangoTrimestral:
+    """Máximo y mínimo de un trimestre según el emisor: todo cierre debe caber."""
+
+    anio: int
+    trimestre: int
+    maximo: float
+    minimo: float
+    fuente: str
+
+
+def _rangos(fuente: str, anio: int, filas: tuple[tuple[float, float], ...]) -> tuple[RangoTrimestral, ...]:
+    return tuple(RangoTrimestral(anio, i + 1, alto, bajo, fuente) for i, (alto, bajo) in enumerate(filas))
+
+
+_PROSPECTO_NNN_1996 = "Prospecto 424B2 de ene-1996 (Price Range of Common Stock)"
+RANGOS_TRIMESTRALES: dict[str, tuple[RangoTrimestral, ...]] = {
+    "NNN": (
+        *_rangos(_PROSPECTO_NNN_1996, 1992, ((10.0, 9.0), (10.25, 9.25), (12.125, 9.25), (12.5, 11.375))),
+        *_rangos(_PROSPECTO_NNN_1996, 1993, ((14.0, 11.75), (15.0, 13.125), (14.375, 13.125), (14.625, 13.0))),
+        *_rangos(_PROSPECTO_NNN_1996, 1994, ((14.375, 13.25), (14.5, 13.25), (14.0, 12.875), (12.625, 11.875))),
+        *_rangos(_PROSPECTO_NNN_1996, 1995, ((12.5, 11.75), (13.75, 11.875), (13.625, 12.125), (13.375, 12.5))),
+    ),
+}
+
+
+# Un cierre fuera del rango publicado detiene la descarga, salvo que esté aquí con
+# su explicación. No es una tolerancia: cada excepción se revisó a mano y el
+# manifiesto la lista, para que quien lea la validación sepa que existe.
+EXCEPCIONES_DE_RANGO: dict[str, dict[str, str]] = {
+    "NNN": {
+        "1994-T3": (
+            "Un solo cierre, el del viernes 30-sep-1994 (12.25), queda bajo el mínimo publicado "
+            "del trimestre (12.875); el lunes 3-oct el proveedor repite 12.25, que sí cabe en el "
+            "4T. Todos los demás cierres del trimestre caben. La firma es la de un desfase de un "
+            "día en el dato antiguo del proveedor, no la de un precio ajustado: un precio ajustado "
+            "por dividendos estaría abajo todo el año, no un día."
+        ),
+    },
+}
+
+
+def recortar_al_inicio(
+    ticker: str, precios: pd.DataFrame, dividendos: pd.DataFrame
+) -> tuple[pd.DataFrame, pd.DataFrame, InicioVerificable | None]:
+    """Quita lo anterior al inicio verificable del emisor, si lo tiene."""
+    inicio = INICIOS_VERIFICABLES.get(ticker.upper())
+    if inicio is None:
+        return precios, dividendos, None
+    corte = pd.Timestamp(inicio.fecha)
+    return (
+        precios[precios["fecha"] >= corte].reset_index(drop=True),
+        dividendos[dividendos["fecha_ex"] >= corte].reset_index(drop=True),
+        inicio,
+    )
+
 
 # Cuánto puede bajar una mensualidad antes de llamarlo recorte. El proveedor
 # redondea a tres decimales y 0.18375 le sale a veces 0.184 y a veces 0.183: esa
@@ -363,6 +476,13 @@ def desajustar(crudo: CrudoProveedor) -> tuple[pd.DataFrame, pd.DataFrame, tuple
 # --------------------------------------------------------------------------------------
 
 
+# Holgura para que un cierre quepa en el rango trimestral publicado. Los precios de
+# los noventa cotizaban en octavos y el proveedor los guarda en flotante: 1/8 de
+# dólar sobre 12 es 1%, así que medio punto porcentual no deja pasar un precio
+# ajustado por dividendos —que en 1992 estaría 60% abajo— y sí el redondeo.
+TOLERANCIA_RANGO = 0.005
+
+
 @dataclass
 class Validacion:
     traslape_n: int
@@ -371,14 +491,54 @@ class Validacion:
     anclas: list[dict]
     dividendos_traslape_n: int
     dividendos_error_max: float | None
+    rangos_n: int = 0
+    rangos_fuera: list[dict] = field(default_factory=list)
+    rangos_aceptados: list[dict] = field(default_factory=list)
 
     @property
     def aprobada(self) -> bool:
         errores = [self.traslape_error_max, self.dividendos_error_max,
                    *(a["error"] for a in self.anclas)]
-        return self.traslape_n > 0 and all(
+        return self.traslape_n > 0 and not self.rangos_fuera and all(
             e is None or abs(e) <= TOLERANCIA_TRASLAPE for e in errores
         )
+
+
+def anclas_del_estudio(ticker: str, anclas_base: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Las anclas de la base más las de la historia larga, en un solo formato."""
+    largas = pd.DataFrame(
+        [{"fecha_dato": a.fecha, "cierre_crudo": a.cierre, "fuente": a.fuente}
+         for a in ANCLAS_LARGAS.get(ticker.upper(), ())],
+        columns=["fecha_dato", "cierre_crudo", "fuente"],
+    )
+    partes = [p for p in (anclas_base, largas) if p is not None and not p.empty]
+    if not partes:
+        return largas
+    todas = pd.concat([p[["fecha_dato", "cierre_crudo", "fuente"]] for p in partes], ignore_index=True)
+    return todas.sort_values("fecha_dato").reset_index(drop=True)
+
+
+def _fuera_de_rango(
+    serie: pd.Series, rangos: tuple[RangoTrimestral, ...], excepciones: dict[str, str]
+) -> tuple[int, list[dict], list[dict]]:
+    """Trimestres con cierres fuera del rango publicado: los que fallan y los aceptados."""
+    revisados, fuera, aceptados = 0, [], []
+    for r in rangos:
+        periodo = pd.Period(year=r.anio, quarter=r.trimestre, freq="Q")
+        del_trimestre = serie[(serie.index >= periodo.start_time) & (serie.index <= periodo.end_time)]
+        if del_trimestre.empty:
+            continue
+        revisados += 1
+        alto, bajo = float(del_trimestre.max()), float(del_trimestre.min())
+        if alto > r.maximo * (1 + TOLERANCIA_RANGO) or bajo < r.minimo * (1 - TOLERANCIA_RANGO):
+            clave = f"{r.anio}-T{r.trimestre}"
+            caso = {"trimestre": clave, "maximo": r.maximo, "minimo": r.minimo,
+                    "cierre_max": alto, "cierre_min": bajo}
+            if clave in excepciones:
+                aceptados.append({**caso, "explicacion": excepciones[clave]})
+            else:
+                fuera.append(caso)
+    return revisados, fuera, aceptados
 
 
 def validar(
@@ -388,12 +548,16 @@ def validar(
     crudo_diario: pd.Series,
     dividendos_diarios: pd.DataFrame,
     anclas: pd.DataFrame,
+    rangos: tuple[RangoTrimestral, ...] = (),
+    excepciones: dict[str, str] | None = None,
 ) -> Validacion:
-    """Compara contra tres cosas que no dependen de este proveedor.
+    """Compara contra cosas que no dependen de este proveedor.
 
     1. El cierre crudo del proveedor diario, día por día, en todo el traslape.
-    2. Las anclas NYSE capturadas a mano (P2).
+    2. Las anclas NYSE: las de la base (P2) y las de la historia larga.
     3. Los dividendos del proveedor diario, por fecha ex.
+    4. Los rangos trimestrales que publicó el emisor, donde no hay traslape: todo
+       cierre del trimestre tiene que caber entre su mínimo y su máximo.
     """
     serie = precios.set_index("fecha")["cierre_crudo"]
     otra = crudo_diario.copy()
@@ -422,6 +586,7 @@ def validar(
         if d_n:
             d_err_max = float((m["monto_pagado"] / m["monto"] - 1).abs().max())
 
+    rangos_n, rangos_fuera, rangos_aceptados = _fuera_de_rango(serie, rangos, excepciones or {})
     return Validacion(
         traslape_n=int(len(comun)),
         traslape_error_max=float(err.abs().max()) if len(err) else None,
@@ -429,6 +594,9 @@ def validar(
         anclas=resultados_anclas,
         dividendos_traslape_n=d_n,
         dividendos_error_max=d_err_max,
+        rangos_n=rangos_n,
+        rangos_fuera=rangos_fuera,
+        rangos_aceptados=rangos_aceptados,
     )
 
 
@@ -450,6 +618,7 @@ def guardar(
     *,
     primera_cotizacion: dt.date | None,
     correcciones: list[str] | None = None,
+    inicio: InicioVerificable | None = None,
     raiz: Path | None = None,
 ) -> Path:
     if not validacion.aprobada:
@@ -471,6 +640,7 @@ def guardar(
         "fuente": FUENTE_LARGA,
         "descargado_en": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
         "primera_cotizacion": str(primera_cotizacion) if primera_cotizacion else None,
+        "inicio_verificable": {"fecha": str(inicio.fecha), "motivo": inicio.motivo} if inicio else None,
         "precios": {"n": int(len(precios)), "desde": str(precios["fecha"].min().date()),
                     "hasta": str(precios["fecha"].max().date())},
         "dividendos": {"n": int(len(dividendos)), "desde": str(dividendos["fecha_ex"].min().date()),
@@ -499,6 +669,15 @@ class HistoriaMercado:
     @property
     def escisiones(self) -> tuple[EventoDeCapital, ...]:
         return tuple(e for e in self.eventos if e.tipo == "escision")
+
+    @property
+    def splits(self) -> tuple[EventoDeCapital, ...]:
+        return tuple(e for e in self.eventos if e.tipo == "split")
+
+    @property
+    def inicio_verificable(self) -> dict | None:
+        """Si la serie se cortó después del listado: desde cuándo y por qué."""
+        return self.manifiesto.get("inicio_verificable")
 
 
 def pagos_por_anio(dividendos: pd.DataFrame) -> int:
@@ -552,6 +731,16 @@ def dividendo_anualizado(dividendos: pd.DataFrame, fechas: pd.DatetimeIndex, *, 
 
 def hay_historia(ticker: str, raiz: Path | None = None) -> bool:
     return (dir_de(ticker, raiz) / ARCHIVO_MANIFIESTO).exists()
+
+
+def hay_estudio(ticker: str, raiz: Path | None = None) -> bool:
+    """Historia de mercado Y cifras primarias capturadas del documento del emisor.
+
+    Sin las primarias, el FFO saldría solo de lo que la base leyó de los 8-K, y en
+    NNN esa lectura trae −1.00 y trimestres guardados como años. Un estudio sin
+    cifras verificadas no se ofrece.
+    """
+    return hay_historia(ticker, raiz) and (dir_de(ticker, raiz) / "anuales_primarios.csv").exists()
 
 
 def cargar(
