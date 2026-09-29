@@ -865,3 +865,11 @@ def cargar(
         manifiesto=manifiesto,
         dias_empalmados=empalmados,
     )
+
+
+def con_estudio(raiz: Path | None = None) -> list[str]:
+    """Los emisores con estudio completo, en orden alfabético."""
+    base = raiz or DIR_ESTUDIOS
+    if not base.exists():
+        return []
+    return sorted(d.name for d in base.iterdir() if d.is_dir() and hay_estudio(d.name, raiz))

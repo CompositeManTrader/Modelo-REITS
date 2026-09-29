@@ -144,6 +144,13 @@ def cargar_primarios(
     return d
 
 
+def publicado_al(cifras: pd.DataFrame, asof: dt.date) -> pd.DataFrame:
+    """Las cifras capturadas cuyo documento ya se había publicado al corte (P1)."""
+    if cifras.empty:
+        return cifras
+    return cifras[pd.to_datetime(cifras["fecha_publicacion"]) <= pd.Timestamp(asof)].reset_index(drop=True)
+
+
 def cargar_trimestrales(
     ticker: str, eventos: tuple[EventoDeCapital, ...], raiz: Path | None = None
 ) -> pd.DataFrame:
@@ -284,7 +291,8 @@ def anual(
     primarios: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """Una fila por año con todo lo que el estudio grafica. Cada celda, su fuente."""
-    primarios = primarios if primarios is not None else cargar_primarios(ticker, historia.eventos)
+    primarios = publicado_al(primarios if primarios is not None else cargar_primarios(ticker, historia.eventos),
+                             asof)
 
     fy = repo.panel(ticker, CONCEPTOS_ANUALES, asof=asof, periodo_tipo="FY")
     fy = _por_anio(fy) if not fy.empty else pd.DataFrame()
@@ -428,7 +436,7 @@ def _ttm_por_publicacion(versiones: pd.DataFrame) -> pd.Series:
     # vinieron de comparativas y se les estimó la misma— se ordenan por cuándo
     # llegaron de verdad. La posterior es la corrección y es la que gana.
     orden = ["fecha_publicacion", "_llegada"] if "_llegada" in v else ["fecha_publicacion"]
-    salida = {}
+    salida, periodo = {}, {}
     for pub in sorted(v["fecha_publicacion"].unique()):
         conocido = (
             v[v["fecha_publicacion"] <= pub]
@@ -442,7 +450,10 @@ def _ttm_por_publicacion(versiones: pd.DataFrame) -> pd.Series:
         if (ult.index[-1] - ult.index[0]).n != 3:
             continue
         salida[pd.Timestamp(pub)] = float(ult.sum())
-    return pd.Series(salida, dtype=float).sort_index()
+        periodo[pd.Timestamp(pub)] = ult.index[-1].end_time.normalize()
+    s = pd.Series(salida, dtype=float).sort_index()
+    s.attrs["periodo"] = pd.Series(periodo, dtype="datetime64[ns]").sort_index()
+    return s
 
 
 def flujo_conocido(
@@ -458,6 +469,7 @@ def flujo_conocido(
     """
     p = primarios[primarios["concepto"] == concepto]
     anual_pub = pd.Series(p["valor_actual"].values, index=pd.to_datetime(p["fecha_publicacion"]))
+    anual_periodo = pd.Series([pd.Timestamp(int(a), 12, 31) for a in p["anio"]], index=anual_pub.index)
     referencia = p.groupby("anio")["valor_actual"].last()
 
     estimadas = 0
@@ -493,6 +505,7 @@ def flujo_conocido(
     fy = repo.hechos(asof=asof, tickers=ticker, conceptos=concepto, periodo_tipo="FY", vigentes=False)
     fy, fuera_fy = contra_lo_reportado(fy, referencia)
     fy_pub = pd.Series(dtype=float)
+    fy_periodo = pd.Series(dtype="datetime64[ns]")
     por_anio = pd.DataFrame(columns=["efectiva", "valor"])
     if not fy.empty:
         efectiva = fecha_efectiva(fy)
@@ -502,6 +515,7 @@ def flujo_conocido(
         fy = fy.assign(efectiva=efectiva).sort_values("fecha_publicacion")
         por_anio = fy.groupby("fecha_dato").agg(efectiva=("efectiva", "min"), valor=("valor", "last"))
         fy_pub = pd.Series(por_anio["valor"].astype(float).values, index=pd.to_datetime(por_anio["efectiva"].values))
+        fy_periodo = pd.Series(pd.to_datetime(por_anio.index).values, index=fy_pub.index)
     # La precedencia es POR AÑO, no por fecha. Si la cifra primaria y el 8-K
     # traen el mismo año fiscal, manda la primaria, porque su fecha es la del
     # documento de la época y la del 8-K puede ser una comparativa estimada. Los
@@ -514,16 +528,24 @@ def flujo_conocido(
     anios_primarios = set(p["anio"].astype(int))
     if not fy_pub.empty:
         anio_fy = pd.Series(sorted(por_anio.index), dtype="datetime64[ns]").dt.year.values
-        fy_pub = fy_pub[[a not in anios_primarios for a in anio_fy]]
-    todo = pd.concat([anual_pub, fy_pub, ttm]).sort_index()
+        quedan = [a not in anios_primarios for a in anio_fy]
+        fy_pub, fy_periodo = fy_pub[quedan], fy_periodo[quedan]
+    todo = pd.concat([anual_pub, fy_pub, ttm]).sort_index(kind="stable")
+    periodo = pd.concat([anual_periodo, fy_periodo, ttm.attrs.get("periodo", pd.Series(dtype="datetime64[ns]"))])
+    periodo = periodo.sort_index(kind="stable")
     # Si dos cosas se publicaron el mismo día (el FY y el TTM del 4T), gana la
     # última en llegar a la concatenación: el TTM, que es el que se sigue usando.
-    todo = todo[~todo.index.duplicated(keep="last")]
-    todo = todo[todo.index <= pd.Timestamp(asof)]
+    quedan = ~todo.index.duplicated(keep="last") & (todo.index <= pd.Timestamp(asof))
+    todo, periodo = todo[quedan], periodo[quedan]
     todo.attrs["fechas_estimadas"] = estimadas
     todo.attrs["anios_estimados"] = (min(anios_estimados), max(anios_estimados)) if anios_estimados else None
     todo.attrs["descartadas"] = pd.concat([fuera_q, fuera_fy]).assign(concepto=concepto)
     todo.attrs["rezago_dias"] = _rezago_observado(pd.concat([versiones, primarias_q, fy]))
+    # El cierre del periodo que cubre cada cifra: el payout tiene que dividir el
+    # dividendo de ESE periodo, no el de hoy. Con el AFFO anual de 2012 y el dividendo
+    # de fines de 2013 —ya con el aumento de 15% por la compra de ARCT—, O salía con
+    # un payout de 106% que nunca tuvo.
+    todo.attrs["periodo"] = periodo
     return todo
 
 

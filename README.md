@@ -424,6 +424,47 @@ tiene historia de mercado Y cifras primarias.
 
 ---
 
+## Reglas de compra y venta: el semáforo puesto a prueba en toda la historia
+
+La página **Reglas** y `docs/estudios/reglas_de_decision.pdf` contestan: si hubiera
+seguido el semáforo cada mes, ¿cuándo habría comprado, comprado menos o vendido por
+tesis rota, y cuánto habría rendido contra aportar lo mismo sin reglas?
+
+```bash
+python scripts/estudio.py tbill        # baja y versiona el T-bill a 3 meses (la reserva)
+python scripts/estudio.py reglas WPC   # backtest de un emisor, en texto
+python scripts/estudio.py reglas-pdf   # PDF de todos los emisores con estudio
+```
+
+El modelo NO es nuevo: cada fin de mes se evalúa `senal.evaluar_semaforo` —la misma
+función de la pantalla de valuación— con lo publicado a esa fecha, y su acción decide
+qué hacer con la aportación y los dividendos netos del mes:
+
+| Semáforo | Decisión | Dinero del mes |
+|---|---|---|
+| COMPRAR (prima en el percentil ≥ 70) | Comprar | todo, más toda la reserva |
+| MANTENER (percentil 30–70) | Comprar menos | la mitad; la otra mitad a la reserva |
+| NO COMPRAR MÁS o DESCARTADO por calidad | No comprar | todo a la reserva |
+| VENDER (Puerta 3) | Vender por tesis rota | se vende todo |
+| INCONCLUSO | Sin señal | todo, como sin reglas |
+
+- **Los umbrales son los de `config.UMBRALES`**, fijados para la pantalla antes de este
+  backtest. Lo único nuevo es la mitad de «comprar menos»; la sensibilidad (0%, 50%,
+  100%) se reporta completa.
+- **Benchmark del mismo activo (P6)**: aportar lo mismo al mismo papel cada mes. Se
+  comparan TIR money-weighted (P9) ya con impuestos de un residente mexicano vía SIC
+  (20% al dividendo y a los intereses, 10% a la ganancia) y 0.25% de comisión.
+- **Cuatro variantes** separan de dónde sale la diferencia: el modelo completo, solo las
+  compras (nunca vende), solo la tesis rota (compra fija) y sin reglas.
+- **Point-in-time**: el payout divide el dividendo del mismo periodo que cubre el flujo;
+  los «dos trimestres seguidos» de la Puerta 3 se cuentan en reportes nuevos (antes de
+  2019 la cifra es anual); las cifras anuales valen 18 meses; el grado de inversión sale
+  de `data/estudios/calificaciones.csv`, con la fecha del documento que lo dice. Una
+  prueba arma el estudio a 2015 y verifica que las decisiones hasta 2015 no cambian.
+- **Veredicto**: con 30 años y una señal lenta hay decenas de cambios de postura, no
+  cientos. El dictamen pasa por P7 y P8 y sale INCONCLUSO: muestra cómo se hubiera
+  comportado el modelo, no prueba que funcione.
+
 ## El semáforo: tres puertas, por separado
 
 No es una caja negra. Cada puerta responde una pregunta distinta y se muestra sola.

@@ -4,8 +4,11 @@
     python scripts/estudio.py mercado O     # baja, valida y versiona precio y dividendos desde el IPO
     python scripts/estudio.py resumen O     # imprime las cifras del estudio
     python scripts/estudio.py pdf O         # genera el entregable en PDF
+    python scripts/estudio.py tbill         # baja y versiona el T-bill a 3 meses (reserva del backtest)
+    python scripts/estudio.py reglas O      # backtest de las reglas de decisión de un emisor
+    python scripts/estudio.py reglas-pdf    # entregable del backtest de todos los emisores con estudio
 
-``mercado`` es lo único que toca la red. Se niega a guardar si la serie no cuadra
+``mercado`` y ``tbill`` son lo único que toca la red. Se niega a guardar si la serie no cuadra
 contra el proveedor diario y las anclas NYSE: una historia larga que no coincide
 con la corta en el traslape no es historia, es otro instrumento.
 """
@@ -114,18 +117,55 @@ def cmd_pdf(ticker: str) -> int:
     return 0
 
 
+def cmd_tbill() -> int:
+    from src.estudio import reglas
+
+    destino = reglas.guardar_tbill(reglas.descargar_tbill())
+    t = reglas.cargar_tbill()
+    print(f"T-bill 3M: {len(t):,} días, {t.index.min():%Y-%m-%d} a {t.index.max():%Y-%m-%d} → "
+          f"{destino.relative_to(RAIZ)}")
+    return 0
+
+
+def cmd_reglas(ticker: str) -> int:
+    from src.estudio import reglas
+
+    r = reglas.backtest(_armar(ticker))
+    print(reglas.resumen_en_texto(r))
+    return 0
+
+
+def cmd_reglas_pdf() -> int:
+    from src.estudio import reglas
+    from src.export.pdf_reglas import generar_pdf
+
+    resultados = [reglas.backtest(_armar(t)) for t in mercado.con_estudio()]
+    destino = RAIZ / "docs" / "estudios" / "reglas_de_decision.pdf"
+    generar_pdf(resultados, destino)
+    print(f"PDF: {destino.relative_to(RAIZ)} ({destino.stat().st_size / 1024:,.0f} KB)")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="comando", required=True)
-    for nombre in ("mercado", "resumen", "pdf"):
+    for nombre in ("mercado", "resumen", "pdf", "reglas"):
         s = sub.add_parser(nombre)
         s.add_argument("ticker")
+    sub.add_parser("tbill")
+    sub.add_parser("reglas-pdf")
     args = p.parse_args()
+    if args.comando == "tbill":
+        return cmd_tbill()
+    if args.comando == "reglas-pdf":
+        return cmd_reglas_pdf()
     ticker = args.ticker.upper()
     if args.comando == "mercado":
         return cmd_mercado(ticker)
     if args.comando == "resumen":
         return cmd_resumen(ticker)
+    if args.comando == "reglas":
+        return cmd_reglas(ticker)
     return cmd_pdf(ticker)
 
 

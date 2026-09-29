@@ -201,7 +201,10 @@ class ResultadoPuerta:
     def fallidos(self) -> list[str]:
         if self.criterios.empty or "cumple" not in self.criterios:
             return []
-        return self.criterios.loc[~self.criterios["cumple"].fillna(True), "criterio"].tolist()
+        # Con un criterio sin datos la columna mezcla ``None`` y booleanos y pandas la
+        # guarda como ``object``: ahí ``~True`` es −2, no False, y el filtro tronaba.
+        cumple = self.criterios["cumple"].astype("boolean").fillna(True)
+        return self.criterios.loc[~cumple.to_numpy(dtype=bool), "criterio"].tolist()
 
 
 def numero_o_nulo(valor) -> float | None:

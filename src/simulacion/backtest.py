@@ -598,4 +598,6 @@ def _retorno_activo_por_capital(
 
 
 def _fmt(x: float | None) -> str:
-    return "n/d" if x is None or (isinstance(x, float) and np.isnan(x)) else f"{x:.2f}"
+    if x is None or (isinstance(x, float) and np.isnan(x)):
+        return "n/d"
+    return f"{0.0 if round(x, 2) == 0 else x:.2f}"   # sin «-0.00»

@@ -53,6 +53,9 @@ class Estudio:
     # serie es el precio entre ESTE flujo (FFO de Nareit salvo que el emisor tenga otro
     # catalogado, ver ``fundamentales.MEDIDAS_DE_VALUACION``).
     medida: fund.MedidaDeValuacion = fund.FFO
+    # FFO y AFFO por acción conocidos en cada fecha (``fundamentales.flujo_conocido``),
+    # con el periodo que cubre cada cifra en ``attrs["periodo"]``.
+    flujos: dict[str, pd.Series] = field(default_factory=dict)
     conclusiones: list[Conclusion] = field(default_factory=list)
     avisos: list[str] = field(default_factory=list)
 
@@ -75,7 +78,7 @@ def _spread_de_inversion(anual: pd.DataFrame, tabla: pd.DataFrame) -> pd.DataFra
     anios = anual.index[anual["cap_rate_adquisicion"].notna()]
     filas = []
     for a in anios:
-        ventana = tabla.loc[str(a)]
+        ventana = tabla[tabla.index.year == a]
         if ventana.empty:
             continue
         ay = ventana["affo_yield"].mean()
@@ -322,9 +325,11 @@ def armar(
         crudo_diario=repo.serie_precio(ticker, asof=asof),
         dividendos_diarios=repo.dividendos(ticker, asof=asof),
     )
-    primarios = fund.cargar_primarios(ticker, historia_m.eventos)
+    # Solo lo publicado al corte (P1). Con el estudio siempre armado a hoy no se notaba;
+    # armado a 2015 —como lo hace la prueba de las reglas— veía cap rates de 2017.
+    primarios = fund.publicado_al(fund.cargar_primarios(ticker, historia_m.eventos), asof)
     anual = fund.anual(repo, ticker, asof=asof, historia=historia_m, primarios=primarios)
-    trimestrales = fund.cargar_trimestrales(ticker, historia_m.eventos)
+    trimestrales = fund.publicado_al(fund.cargar_trimestrales(ticker, historia_m.eventos), asof)
     ffo = fund.flujo_conocido(repo, ticker, "ffo_por_accion", asof=asof, primarios=primarios,
                               trimestrales=trimestrales)
     affo = fund.flujo_conocido(repo, ticker, "affo_por_accion", asof=asof, primarios=primarios,
@@ -414,6 +419,7 @@ def armar(
         diagnostico_ffo=fund.diagnostico_ffo(repo, ticker, asof=asof, tabla_anual=anual),
         serie=serie, eras=eras, total=total, entradas=entradas, hoy=hoy,
         spread_inversion=_spread_de_inversion(anual, serie.tabla), avisos=avisos, medida=medida,
+        flujos={"ffo_por_accion": ffo, "affo_por_accion": affo},
     )
     e.conclusiones = _conclusiones(e)
     return e

@@ -96,8 +96,9 @@ _UMBRAL_FRACCION = 1.0
 # bajarlo dejaría de cazar el defecto real en las columnas donde sí aplica.
 #
 # Lo mismo el aporte de una escisión al retorno anual: la de NLOP le sumó a WPC 0.7% al
-# año en su era, y es cero en todas las demás.
-_COLUMNAS_QUE_PUEDEN_SER_CHICAS = ("crecimiento", "cagr", "spread", "brecha", "diferencia", "escision")
+# año en su era, y es cero en todas las demás. Y lo que rindió el papel en una ventana
+# alrededor de una venta: con una sola venta, puede ser +0.99% y es un dato.
+_COLUMNAS_QUE_PUEDEN_SER_CHICAS = ("crecimiento", "cagr", "spread", "brecha", "diferencia", "escision", "papel")
 
 
 def _revisar_escala(prueba) -> list[str]:
