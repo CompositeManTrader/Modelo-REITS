@@ -1,0 +1,12 @@
+{
+  "descargado_en": "2026-09-29T18:21:48+00:00",
+  "fuentes": {
+    "lista": "api.nasdaq.com (screener, industria «Real Estate Investment Trusts») y stockanalysis.com (listas por industria y página de cada emisor)",
+    "precios_y_dividendos": "Yahoo Finance, chart v8 (mismo proveedor que el estudio largo)"
+  },
+  "candidatos": 191,
+  "reits_de_capital": 147,
+  "con_precios": 148,
+  "fallas": [],
+  "referencia": "VNQ"
+}

@@ -21,6 +21,8 @@ def test_el_diseno_quedo_fijado():
             d.g_dividendo, d.anios_crecimiento, d.margen_r_menos_g, d.grupos, d.meses_de_cohorte,
             d.recorte, d.desplome, d.sorteos, d.semilla) == (
         60, 0.25, 1.0, 0.50, 5, (0.0, 0.04), 5, 0.02, 3, 12, 0.90, -0.30, 200, 11)
+    # Agregado antes de correr, viendo solo cuántos elegibles había por mes (commit del motor).
+    assert d.minimo_de_elegibles == 30
 
 
 def test_cada_industria_tiene_su_prima():

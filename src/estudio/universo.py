@@ -100,13 +100,22 @@ def bajar_historias(tickers: list[str], pausa: float = 0.5) -> tuple[pd.DataFram
 
     precios, dividendos, eventos, fallas = [], [], [], []
     for t in tickers:
-        try:
-            crudo = mercado.descargar(t)
-        except Exception as exc:  # noqa: BLE001 — se reporta y se sigue con los demás
-            fallas.append((t, str(exc)[:120]))
+        crudo = None
+        for intento in range(4):
+            try:
+                crudo = mercado.descargar(t)
+                break
+            except Exception as exc:  # noqa: BLE001 — se reporta y se sigue con los demás
+                # Yahoo limita la tasa (HTTP 429): se espera y se reintenta.
+                if "429" in str(exc) and intento < 3:
+                    time.sleep(30 * (intento + 1))
+                    continue
+                fallas.append((t, str(exc)[:120]))
+                break
+            finally:
+                time.sleep(pausa)
+        if crudo is None:
             continue
-        finally:
-            time.sleep(pausa)
         p = crudo.precios.set_index("fecha")
         mes = p.index.to_period("M")
         fin = p.groupby(mes).tail(1)
@@ -165,3 +174,18 @@ def cargar(raiz: Path | None = None) -> dict[str, pd.DataFrame]:
 
 def hay_universo(raiz: Path | None = None) -> bool:
     return ((raiz or DIR_UNIVERSO) / "lista.csv").exists()
+
+
+def completar(pausa: float = 2.0, raiz: Path | None = None) -> list:
+    """Toca la red: baja lo que falló la vez anterior y lo agrega a lo versionado."""
+    destino = raiz or DIR_UNIVERSO
+    u = cargar(destino)
+    manifiesto = json.loads((destino / "manifiesto.json").read_text(encoding="utf-8"))
+    faltan = [f["ticker"] for f in manifiesto.get("fallas", [])]
+    if not faltan:
+        return []
+    p, d, s, fallas = bajar_historias(faltan, pausa=pausa)
+    guardar(u["lista"], pd.concat([u["precios"], p], ignore_index=True),
+            pd.concat([u["dividendos"], d], ignore_index=True),
+            pd.concat([u["splits"], s], ignore_index=True), fallas, destino)
+    return fallas

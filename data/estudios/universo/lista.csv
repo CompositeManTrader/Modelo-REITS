@@ -1,0 +1,192 @@
+ticker,nombre,industria,sector_aplicacion,fuente_lista,es_reit_de_capital
+AAT,American Assets Trust Inc. Common Stock,REIT - Diversified,,nasdaq+stockanalysis,True
+ABR,Arbor Realty Trust Common Stock,REIT - Mortgage,,nasdaq,False
+ACR,ACRES Commercial Realty Corp. Common Stock,REIT - Mortgage,,nasdaq,False
+ACRE,Ares Commercial Real Estate Corporation Common Stock,REIT - Mortgage,,nasdaq,False
+ADAM,Adamas Trust Inc. Common Stock,REIT - Mortgage,,nasdaq,False
+ADC,Agree Realty Corporation Common Stock,REIT - Retail,Net Lease,nasdaq+stockanalysis,True
+AGNC,AGNC Investment Corp. Common Stock,REIT - Mortgage,,nasdaq,False
+AHR,American Healthcare REIT Inc. Common Stock,REIT - Healthcare Facilities,,nasdaq+stockanalysis,True
+AHRT,AH REALTY TRUST INC,REIT - Diversified,,stockanalysis,True
+AHT,Ashford Hospitality Trust Inc Common Stock,REIT - Hotel & Motel,,nasdaq+stockanalysis,True
+AIV,Apartment Investment and Management Company Common Stock,REIT - Residential,,nasdaq+stockanalysis,True
+AKR,Acadia Realty Trust Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+ALX,Alexander's Inc. Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+AMH,American Homes 4 Rent Common Shares of Beneficial Interest,REIT - Residential,,nasdaq+stockanalysis,True
+AMT,American Tower Corporation (REIT) Common Stock,REIT - Specialty,,nasdaq+stockanalysis,True
+APLE,Apple Hospitality REIT Inc. Common Shares,REIT - Hotel & Motel,,nasdaq+stockanalysis,True
+ARE,Alexandria Real Estate Equities Inc. Common Stock,REIT - Office,,nasdaq+stockanalysis,True
+ARI,Apollo Commercial Real Estate Finance Inc,REIT - Mortgage,,nasdaq,False
+ARR,ARMOUR Residential REIT Inc.,REIT - Mortgage,,nasdaq,False
+BDN,Brandywine Realty Trust Common Stock,REIT - Office,,nasdaq+stockanalysis,True
+BFS,Saul Centers Inc. Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+BHM,Bluerock Homes Trust Inc. Class A Common Stock,REIT - Residential,,nasdaq+stockanalysis,True
+BHR,Braemar Hotels & Resorts Inc. Common Stock,REIT - Hotel & Motel,,nasdaq+stockanalysis,True
+BNL,Broadstone Net Lease Inc. Common Stock,REIT - Diversified,,nasdaq+stockanalysis,True
+BRT,BRT Apartments Corp. (MD) Common Stock,REIT - Residential,,nasdaq+stockanalysis,True
+BRX,Brixmor Property Group Inc. Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+BXDC,Blackstone Digital Infrastructure Trust,REIT - Specialty,,stockanalysis,True
+BXMT,Blackstone Mortgage Trust Inc. Common Stock,REIT - Mortgage,,nasdaq,False
+BXP,BXP Inc. Common Stock,REIT - Office,,nasdaq+stockanalysis,True
+CBL,CBL & Associates Properties Inc. Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+CCI,Crown Castle Inc. Common Stock,REIT - Specialty,,nasdaq+stockanalysis,True
+CDP,COPT Defense Properties Common Shares of Beneficial Interest,REIT - Office,,nasdaq+stockanalysis,True
+CHCT,Community Healthcare Trust Incorporated Common Stock,REIT - Healthcare Facilities,,nasdaq+stockanalysis,True
+CHMI,Cherry Hill Mortgage Investment Corporation Common Stock,REIT - Mortgage,,nasdaq,False
+CIM,Chimera Investment Corporation Common Stock,REIT - Mortgage,,nasdaq,False
+CLDT,Chatham Lodging Trust (REIT) Common Shares of Beneficial Interest,REIT - Hotel & Motel,,nasdaq+stockanalysis,True
+CLPR,Clipper Realty Inc. Common Stock,REIT - Residential,,nasdaq+stockanalysis,True
+CMCT,Creative Media & Community Trust Corporation Common stock,REIT - Office,,nasdaq+stockanalysis,True
+COLD,Americold Realty Trust Inc. Common Stock,REIT - Industrial,,nasdaq+stockanalysis,True
+CPT,Camden Property Trust Common Stock,REIT - Residential,,nasdaq+stockanalysis,True
+CSR,D/B/A Centerspace Common Stock,REIT - Residential,,nasdaq+stockanalysis,True
+CTO,CTO Realty Growth Inc. Common Stock,REIT - Diversified,,nasdaq+stockanalysis,True
+CTRE,CareTrust REIT Inc. Common Stock,REIT - Healthcare Facilities,,nasdaq+stockanalysis,True
+CUBE,CubeSmart Common Shares,REIT - Industrial,,nasdaq+stockanalysis,True
+CURB,Curbline Properties,REIT - Retail,,stockanalysis,True
+CUZ,Cousins Properties Incorporated Common Stock,REIT - Office,,nasdaq+stockanalysis,True
+CXW,CoreCivic Inc. Common Stock,,,nasdaq,False
+DBRG,DigitalBridge Group Inc.,,,nasdaq,False
+DEA,Easterly Government Properties Inc. Common Stock,REIT - Office,,nasdaq+stockanalysis,True
+DEI,Douglas Emmett Inc. Common Stock,REIT - Office,,nasdaq+stockanalysis,True
+DHC,Diversified Healthcare Trust Common Shares of Beneficial Interest,REIT - Healthcare Facilities,,nasdaq+stockanalysis,True
+DLR,Digital Realty Trust Inc. Common Stock,REIT - Specialty,,nasdaq+stockanalysis,True
+DOC,Healthpeak Properties Inc. Common Stock,REIT - Healthcare Facilities,,nasdaq+stockanalysis,True
+DRH,Diamondrock Hospitality Company Common Stock,REIT - Hotel & Motel,,nasdaq+stockanalysis,True
+DX,Dynex Capital Inc. Common Stock,REIT - Mortgage,,nasdaq,False
+EARN,Ellington Credit Company Common Shares of Beneficial Interest,,,nasdaq,False
+EGP,EastGroup Properties Inc. Common Stock,REIT - Industrial,,nasdaq+stockanalysis,True
+ELME,Elme Communities Common Stock,REIT - Residential,,nasdaq+stockanalysis,True
+ELS,Equity Lifestyle Properties Inc. Common Stock,REIT - Residential,,nasdaq+stockanalysis,True
+EPR,EPR Properties Common Stock,REIT - Specialty,,nasdaq+stockanalysis,True
+EPRT,Essential Properties Realty Trust Inc. Common Stock,REIT - Retail,Net Lease,nasdaq+stockanalysis,True
+EQIX,Equinix Inc. Common Stock REIT,REIT - Specialty,,nasdaq+stockanalysis,True
+ESBA,,,,stockanalysis,False
+ESRT,Empire State Realty Trust Inc. Class A Common Stock,REIT - Diversified,,nasdaq+stockanalysis,True
+ESS,Essex Property Trust Inc. Common Stock,REIT - Residential,,nasdaq+stockanalysis,True
+EXR,Extra Space Storage Inc Common Stock,REIT - Industrial,Self Storage,nasdaq+stockanalysis,True
+FBRT,Franklin BSP Realty Trust Inc. Common Stock,REIT - Mortgage,,nasdaq,False
+FCPT,Four Corners Property Trust Inc. Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+FPI,Farmland Partners Inc. Common Stock,REIT - Specialty,,nasdaq+stockanalysis,True
+FR,First Industrial Realty Trust Inc. Common Stock,REIT - Industrial,,nasdaq+stockanalysis,True
+FRMI,Fermi Inc. Common Stock,REIT - Specialty,,nasdaq+stockanalysis,True
+FRT,Federal Realty Investment Trust Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+FSP,Franklin Street Properties Corp. Common Stock,REIT - Office,,nasdaq+stockanalysis,True
+FVR,FrontView REIT Inc. Common Stock,REIT - Diversified,,nasdaq+stockanalysis,True
+GIPR,Generation Income Properties Inc. Common Stock,REIT - Diversified,,nasdaq+stockanalysis,True
+GLPI,Gaming and Leisure Properties Inc. Common Stock,REIT - Specialty,,nasdaq+stockanalysis,True
+GNL,Global Net Lease Inc. Common Stock,REIT - Diversified,Net Lease,nasdaq+stockanalysis,True
+GOOD,Gladstone Commercial,REIT - Diversified,,stockanalysis,True
+GPMT,Granite Point Mortgage Trust Inc. Common Stock,REIT - Mortgage,,nasdaq,False
+GTY,Getty Realty,REIT - Retail,,stockanalysis,True
+HHH,Howard Hughes Holdings Inc. Common Stock,,,nasdaq,False
+HIW,Highwoods Properties Inc. Common Stock,REIT - Office,,nasdaq+stockanalysis,True
+HPP,Hudson Pacific Properties,REIT - Office,,stockanalysis,True
+HR,Healthcare Realty Trust Incorporated Common Stock,REIT - Healthcare Facilities,,nasdaq+stockanalysis,True
+HST,Host Hotels & Resorts Inc. Common Stock,REIT - Hotel & Motel,,nasdaq+stockanalysis,True
+IHT,InnSuites Hospitality Trust Shares of Beneficial Interest,REIT - Hotel & Motel,,nasdaq+stockanalysis,True
+IIPR,Innovative Industrial Properties,REIT - Industrial,,stockanalysis,True
+ILPT,Industrial Logistics Properties Trust Common Shares of Beneficial Interest,REIT - Industrial,,nasdaq+stockanalysis,True
+INN,Summit Hotel Properties Inc. Common Stock,REIT - Hotel & Motel,,nasdaq+stockanalysis,True
+INVH,Invitation Homes,REIT - Residential,,stockanalysis,True
+IOR,Income Opportunity Realty Investors Inc. Common Stock,,,nasdaq,False
+IRM,Iron Mountain Incorporated (Delaware)Common Stock REIT,REIT - Specialty,,nasdaq+stockanalysis,True
+IRT,Independence Realty Trust Inc. Common Stock,REIT - Residential,,nasdaq+stockanalysis,True
+IVR,INVESCO MORTGAGE CAPITAL INC Common Stock,REIT - Mortgage,,nasdaq,False
+IVT,InvenTrust Properties Corp. Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+JAN,Janus Living Inc. Class A-1 Common Stock,REIT - Residential,,nasdaq+stockanalysis,True
+JBGS,JBG SMITH Properties Common Shares ,REIT - Diversified,,nasdaq+stockanalysis,True
+KIM,Kimco Realty Corporation (HC) Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+KRC,Kilroy Realty Corporation Common Stock,REIT - Office,,nasdaq+stockanalysis,True
+KREF,KKR Real Estate Finance Trust Inc. Common Stock,REIT - Mortgage,,nasdaq,False
+KRG,Kite Realty Group Trust Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+LADR,Ladder Capital Corp Class A Common Stock,REIT - Mortgage,,nasdaq,False
+LAMR,Lamar Advertising Company Class A Common Stock,REIT - Specialty,,nasdaq+stockanalysis,True
+LAND,Gladstone Land Corporation Common Stock,REIT - Specialty,,nasdaq+stockanalysis,True
+LFT,Lument Finance Trust Inc. Common Stock,REIT - Mortgage,,nasdaq,False
+LINE,Lineage Inc. Common Stock,REIT - Industrial,,nasdaq+stockanalysis,True
+LOAN,Manhattan Bridge Capital Inc,REIT - Mortgage,,nasdaq,False
+LTC,LTC Properties Inc. Common Stock,REIT - Healthcare Facilities,,nasdaq+stockanalysis,True
+LXP,LXP Industrial Trust Common Stock (Maryland REIT),REIT - Industrial,,nasdaq+stockanalysis,True
+MAA,Mid-America Apartment Communities Inc. Common Stock,REIT - Residential,,nasdaq+stockanalysis,True
+MAC,Macerich Company (The) Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+MDRR,Medalist Diversified Inc. Common Stock,,,nasdaq,False
+MFA,MFA Financial Inc.,REIT - Mortgage,,nasdaq,False
+MITT,TPG Mortgage Investment Trust Inc. Common Stock,REIT - Mortgage,,nasdaq,False
+MKZR,MacKenzie Realty Capital Inc. Common Stock,REIT - Diversified,,nasdaq+stockanalysis,True
+MPT,Medical Properties Trust Inc. common stock,REIT - Healthcare Facilities,,nasdaq+stockanalysis,True
+MRP,Millrose Properties,REIT - Residential,,stockanalysis,True
+NHI,National Health Investors Inc. Common Stock,REIT - Healthcare Facilities,,nasdaq+stockanalysis,True
+NHP,National Healthcare Properties Inc. Class A Common Stock,REIT - Healthcare Facilities,,nasdaq+stockanalysis,True
+NLOP,Net Lease Office Properties Common Shares of Beneficial Interest,REIT - Office,,nasdaq+stockanalysis,True
+NLY,Annaly Capital Management Inc. Common Stock,REIT - Mortgage,,nasdaq,False
+NNN,NNN REIT Inc. Common Stock,REIT - Retail,Net Lease,nasdaq+stockanalysis,True
+NREF,NexPoint Real Estate Finance Inc. Common Stock,REIT - Mortgage,,nasdaq,False
+NTST,NetSTREIT Corp. Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+NXDT,NexPoint Diversified Real Estate Trust Common Stock,,,nasdaq,False
+NXRT,NexPoint Residential Trust Inc. Common Stock,REIT - Residential,,nasdaq+stockanalysis,True
+NYC,American Strategic Investment Co. Class A Common Stock,,,nasdaq,False
+O,Realty Income Corporation Common Stock,REIT - Retail,Net Lease,nasdaq+stockanalysis,True
+OHI,Omega Healthcare Investors Inc. Common Stock,REIT - Healthcare Facilities,,nasdaq+stockanalysis,True
+OLP,One Liberty Properties Inc. Common Stock,REIT - Diversified,,nasdaq+stockanalysis,True
+ONL,Orion Properties Inc. Common Stock,REIT - Office,,nasdaq+stockanalysis,True
+OPI,Office Properties Income Trust,REIT - Office,,stockanalysis,True
+ORC,Orchid Island Capital Inc. Common Stock,REIT - Mortgage,,nasdaq,False
+OUT,OUTFRONT Media Inc. Common Stock,REIT - Specialty,,nasdaq+stockanalysis,True
+PDM,Piedmont Realty Trust,REIT - Office,,stockanalysis,True
+PEB,Pebblebrook Hotel Trust Common Shares of Beneficial Interest,REIT - Hotel & Motel,,nasdaq+stockanalysis,True
+PECO,Phillips Edison & Company Inc. Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+PINE,Alpine Income Property Trust Inc. Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+PK,Park Hotels &amp; Resorts,REIT - Hotel & Motel,,stockanalysis,True
+PLD,Prologis Inc. Common Stock,REIT - Industrial,Industrial,nasdaq+stockanalysis,True
+PMT,PennyMac Mortgage Investment Trust Common Shares of Beneficial Interest,REIT - Mortgage,,nasdaq,False
+PSA,Public Storage Common Stock,REIT - Industrial,Self Storage,nasdaq+stockanalysis,True
+PSTL,Postal Realty Trust Inc. Class A Common Stock,REIT - Office,,nasdaq+stockanalysis,True
+PW,Power REIT (MD) Common Stock,REIT - Specialty,,nasdaq+stockanalysis,True
+RC,Ready Capital Corporation Common Stock,REIT - Mortgage,,nasdaq,False
+REFI,Chicago Atlantic Real Estate Finance Inc. Common Stock,REIT - Mortgage,,nasdaq,False
+REG,Regency Centers Corporation Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+REXR,Rexford Industrial Realty Inc. Common Stock,REIT - Industrial,,nasdaq+stockanalysis,True
+RHP,Ryman Hospitality Properties Inc. (REIT),REIT - Hotel & Motel,,nasdaq+stockanalysis,True
+RITM,Rithm Capital Corp. Common Stock,REIT - Mortgage,,nasdaq,False
+RLJ,RLJ Lodging Trust Common Shares of Beneficial Interest $0.01 par value,REIT - Hotel & Motel,,nasdaq+stockanalysis,True
+RPT,Rithm Property Trust Inc. Common stock,REIT - Mortgage,,nasdaq,False
+RWT,Redwood Trust Inc. Common Stock,REIT - Mortgage,,nasdaq,False
+RYN,Rayonier Inc. REIT Common Stock,REIT - Specialty,,nasdaq+stockanalysis,True
+SACH,Sachem Capital Corp. Common Shares,REIT - Mortgage,,nasdaq,False
+SAFE,Safehold Inc. New Common Stock ,REIT - Diversified,,nasdaq+stockanalysis,True
+SBAC,SBA Communications Corporation Class A Common Stock,REIT - Specialty,,nasdaq+stockanalysis,True
+SBRA,Sabra Health Care REIT Inc. Common Stock,REIT - Healthcare Facilities,,nasdaq+stockanalysis,True
+SELF,Global Self Storage Inc. Common Stock,REIT - Specialty,,nasdaq+stockanalysis,True
+SEVN,Seven Hills Realty Trust Common Stock,REIT - Mortgage,,nasdaq,False
+SHO,Sunstone Hotel Investors,REIT - Hotel & Motel,,stockanalysis,True
+SITC,SITE Centers Corp. Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+SKT,Tanger Inc. Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+SLG,SL Green Realty Corp Common Stock,REIT - Office,,nasdaq+stockanalysis,True
+SMA,SmartStop Self Storage REIT Inc. Common Stock,REIT - Industrial,,nasdaq+stockanalysis,True
+SPG,Simon Property Group Inc. Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+SQFT,Presidio Property Trust Inc. Class A Common Stock,REIT - Diversified,,nasdaq+stockanalysis,True
+STAG,Stag Industrial Inc. Common Stock,REIT - Industrial,,nasdaq+stockanalysis,True
+STRW,Strawberry Fields REIT Inc. Common Stock,REIT - Healthcare Facilities,,nasdaq+stockanalysis,True
+STWD,STARWOOD PROPERTY TRUST INC. Starwood Property Trust Inc.,REIT - Mortgage,,nasdaq,False
+SUI,Sun Communities Inc. Common Stock,REIT - Residential,,nasdaq+stockanalysis,True
+SUNS,Sunrise Realty Trust Inc. Common Stock,REIT - Mortgage,,nasdaq,False
+SVC,Service Properties Trust Common Shares of Beneficial Interest,REIT - Hotel & Motel,,nasdaq+stockanalysis,True
+TCI,Transcontinental Realty Investors Inc. Common Stock,,,nasdaq,False
+TRNO,Terreno Realty,REIT - Industrial,,stockanalysis,True
+TRTX,TPG RE Finance Trust Inc. Common Stock,REIT - Mortgage,,nasdaq,False
+UDR,UDR Inc. Common Stock,REIT - Residential,,nasdaq+stockanalysis,True
+UE,Urban Edge Properties,REIT - Retail,,stockanalysis,True
+UHT,Universal Health Realty Income Trust Common Stock,REIT - Healthcare Facilities,,nasdaq+stockanalysis,True
+UMH,UMH Properties Inc. Common Stock,REIT - Residential,,nasdaq+stockanalysis,True
+UNIT,Uniti Group Inc. Common Stock,REIT - Specialty,,nasdaq+stockanalysis,True
+VICI,VICI Properties Inc. Common Stock,REIT - Diversified,,nasdaq+stockanalysis,True
+VMRK,Vivmark Residential Common Shares of Beneficial Interest,REIT - Residential,,nasdaq+stockanalysis,True
+VNO,Vornado Realty Trust Common Stock,REIT - Office,,nasdaq+stockanalysis,True
+VTR,Ventas Inc. Common Stock,REIT - Healthcare Facilities,,nasdaq+stockanalysis,True
+WELL,Welltower Inc. Common Stock,REIT - Healthcare Facilities,Salud,nasdaq+stockanalysis,True
+WHLR,Wheeler Real Estate Investment Trust Inc. Common Stock,REIT - Retail,,nasdaq+stockanalysis,True
+WPC,W. P. Carey Inc. REIT,REIT - Diversified,Net Lease,nasdaq+stockanalysis,True
+WY,Weyerhaeuser Company Common Stock,REIT - Specialty,,nasdaq+stockanalysis,True
+XHR,Xenia Hotels &amp; Resorts,REIT - Hotel & Motel,,stockanalysis,True
+XRN,Chiron Real Estate Inc. Common Stock,REIT - Healthcare Facilities,,nasdaq+stockanalysis,True

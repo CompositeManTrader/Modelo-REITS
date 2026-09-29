@@ -23,7 +23,9 @@ VNQ, que sí los tuvo mientras existieron.
 **Elegibles cada fin de mes.** Al menos 60 meses de precio, dividendo de los últimos 12 meses
 mayor que cero, yield de hasta 25% (arriba es error de datos o un dividendo que ya no existe) y
 precio de al menos 1 dólar. Un mes con un salto de precio de más de 50% sin evento que lo
-explique se marca como error de datos y ese emisor sale ese mes.
+explique se marca como error de datos y ese emisor sale ese mes. *Agregado antes de correr,
+viendo solo el conteo:* un mes cuenta si tiene al menos 30 elegibles (desde 1998); antes hay
+muy pocos para formar terciles.
 
 **Tres señales, todas con precio y dividendos conocidos a esa fecha (P1):**
 
@@ -103,6 +105,9 @@ class Diseno:
     sorteos: int = 200
     semilla: int = 11
     rezago_newey_west: int = 12
+    # Agregado antes de correr, viendo solo cuántos elegibles hay por mes: antes de 1998 hay
+    # menos de 25 (en 1978, uno), y terciles de tres o cuatro emisores no son grupos.
+    minimo_de_elegibles: int = 30
 
 
 DISENO = Diseno()
@@ -202,13 +207,15 @@ def panel(u: dict[str, pd.DataFrame], ust10: pd.Series, diseno: Diseno = DISENO)
     x = x.reset_index()
     x["elegible"] = ((x["meses_de_historia"] >= d.meses_minimos) & (x["dividendo_12m"] > 0)
                      & (x["yield"] <= d.yield_maximo) & (x["precio"] >= d.precio_minimo) & ~x["salto"])
+    x["elegible"] &= x.groupby("fecha")["elegible"].transform("sum") >= d.minimo_de_elegibles
     # Señal 2: contra la mediana de su sector entre los elegibles de ese mes.
     elegibles = x[x["elegible"]]
     mediana = elegibles.groupby(["fecha", "industria"])["yield"].transform("median")
     cuantos = elegibles.groupby(["fecha", "industria"])["yield"].transform("size")
     x.loc[elegibles.index, "yield_sector"] = (elegibles["yield"] / mediana).where(cuantos >= d.minimo_por_sector)
     # Señal 3: DDM con la prima de la aplicación.
-    r = macro.conocido_en("ust10", ust10, pd.DatetimeIndex(x["fecha"])).to_numpy() / 100
+    unicas = pd.DatetimeIndex(sorted(x["fecha"].unique()))
+    r = x["fecha"].map(macro.conocido_en("ust10", ust10, unicas)).to_numpy(float) / 100
     prima = np.array([prima_de(i, s or None) for i, s in zip(x["industria"], x["sector_aplicacion"], strict=True)])
     x["tasa"] = r + prima
     crec = (x["dividendo_12m"] / x["dividendo_hace_5a"]) ** (1 / d.anios_crecimiento) - 1
