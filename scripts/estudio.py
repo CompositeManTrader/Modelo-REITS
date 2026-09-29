@@ -9,6 +9,7 @@
     python scripts/estudio.py reglas O      # backtest de las reglas de decisión de un emisor
     python scripts/estudio.py reglas-pdf    # entregable del backtest de todos los emisores con estudio
     python scripts/estudio.py metodos       # métodos de valuación en el tiempo: PDF y Excel trimestral
+    python scripts/estudio.py universo      # baja y versiona la lista, precios y dividendos del universo de REITs
 
 ``mercado`` y ``tbill`` son lo único que toca la red. Se niega a guardar si la serie no cuadra
 contra el proveedor diario y las anclas NYSE: una historia larga que no coincide
@@ -159,6 +160,25 @@ def cmd_reglas_pdf() -> int:
     return 0
 
 
+def cmd_universo() -> int:
+    from src.estudio import macro, universo
+
+    print("Serie macro del Treasury a 10 años…")
+    macro.guardar("ust10", macro.descargar("ust10"))
+    print("Lista del universo (Nasdaq + stockanalysis)…")
+    lista = universo.construir_lista()
+    capital = lista[lista["es_reit_de_capital"]]
+    print(f"  {len(lista)} candidatos, {len(capital)} REITs de capital")
+    tickers = sorted(capital["ticker"]) + [universo.REFERENCIA]
+    print(f"Precios y dividendos de {len(tickers)} tickers (Yahoo)…")
+    precios, dividendos, splits, fallas = universo.bajar_historias(tickers)
+    destino = universo.guardar(lista, precios, dividendos, splits, fallas)
+    print(f"  {precios['ticker'].nunique()} con precios, {len(fallas)} fallas → {destino.relative_to(RAIZ)}")
+    for t, m in fallas:
+        print(f"    {t}: {m}")
+    return 0
+
+
 def cmd_metodos() -> int:
     from src.estudio import metodos
     from src.export import excel_metodos
@@ -184,6 +204,7 @@ def main() -> int:
     sub.add_parser("macro")
     sub.add_parser("reglas-pdf")
     sub.add_parser("metodos")
+    sub.add_parser("universo")
     args = p.parse_args()
     if args.comando == "tbill":
         return cmd_tbill()
@@ -193,6 +214,8 @@ def main() -> int:
         return cmd_reglas_pdf()
     if args.comando == "metodos":
         return cmd_metodos()
+    if args.comando == "universo":
+        return cmd_universo()
     ticker = args.ticker.upper()
     if args.comando == "mercado":
         return cmd_mercado(ticker)

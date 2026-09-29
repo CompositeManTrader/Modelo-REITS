@@ -1,0 +1,10 @@
+{
+  "serie": "DGS10",
+  "fuente": "FRED, Reserva Federal de St. Louis: Market Yield on U.S. Treasury Securities at 10-Year Constant Maturity (https://fred.stlouisfed.org/series/DGS10)",
+  "unidad": "porcentaje anual",
+  "rezago_de_publicacion_dias": 1,
+  "descargado_en": "2026-09-29T18:13:00+00:00",
+  "desde": "1962-01-02",
+  "hasta": "2026-09-25",
+  "n": 16169
+}

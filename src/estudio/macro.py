@@ -36,6 +36,8 @@ SERIES: dict[str, SerieMacro] = {
     "baa": SerieMacro("baa", "DBAA", "Moody's Seasoned Baa Corporate Bond Yield", "porcentaje anual"),
     "cpi": SerieMacro("cpi", "CPIAUCSL", "Consumer Price Index for All Urban Consumers: All Items",
                       "índice 1982-84 = 100", rezago_dias=45),
+    "ust10": SerieMacro("ust10", "DGS10", "Market Yield on U.S. Treasury Securities at 10-Year Constant Maturity",
+                        "porcentaje anual"),
 }
 
 
