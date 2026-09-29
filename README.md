@@ -338,7 +338,8 @@ se sabía ese día— y si lo que paga hoy compensa el riesgo contra el Udibono.
 mismo objeto (`src/estudio/estudio.py`) alimenta la página y el PDF, así que no
 pueden decir cifras distintas.
 
-Hoy hay dos emisores: **O** (desde su listado en 1994) y **NNN** (desde 1992).
+Hoy hay tres emisores: **O** (desde su listado en 1994), **NNN** (desde 1992) y **WPC**
+(desde su listado en 1998, como Carey Diversified).
 
 ```bash
 python scripts/estudio.py mercado NNN   # baja, desajusta, valida y versiona precio y dividendos
@@ -348,11 +349,11 @@ python scripts/estudio.py pdf NNN       # genera docs/estudios/estudio_NNN.pdf (
 
 | Qué | Desde | De dónde |
 |---|---|---|
-| Precio y dividendos | O: 1994 · NNN: 1992 | `data/estudios/<TICKER>/`, versionado, con su manifiesto de validación |
-| Cierres NYSE para validar la historia larga | NNN: 1996-2024 | `data/estudios/<TICKER>/anclas.csv`, cada uno con su cita |
-| FFO, AFFO y la operación por año | O: 1996 · NNN: 1992 | 10-K, prospectos y comunicados, cifra por cifra: `anuales_primarios.csv` |
+| Precio y dividendos | O: 1994 · NNN: 1992 · WPC: 1998 | `data/estudios/<TICKER>/`, versionado, con su manifiesto de validación |
+| Cierres NYSE para validar la historia larga | NNN: 1996-2024 · WPC: 1998-2025 | `data/estudios/<TICKER>/anclas.csv`, cada uno con su cita |
+| FFO, AFFO y la operación por año | O: 1996 · NNN: 1992 · WPC: 1998 | 10-K, prospectos y comunicados, cifra por cifra: `anuales_primarios.csv` |
 | Estados financieros | 2008 | XBRL de la base |
-| FFO y AFFO trimestrales | 2019 | 8-K de la base, solo si no contradicen a lo reportado |
+| FFO y AFFO trimestrales | 2019 | 8-K de la base, solo si no contradicen a lo reportado; WPC: capturados de cada comunicado, `trimestrales_primarios.csv` |
 
 Lo que costó trabajo y por qué:
 
@@ -368,7 +369,15 @@ Lo que costó trabajo y por qué:
 - **Validación donde no hay traslape**: además de 2,513 días contra el precio crudo
   diario, la historia de NNN cuadra con 61 cierres NYSE publicados por el emisor y
   con los 16 rangos trimestrales de 1992-1995. Un solo cierre queda fuera (30-sep-1994)
-  y está catalogado como excepción revisada.
+  y está catalogado como excepción revisada. La de WPC cuadra con 63 cierres del
+  emisor de 1998 a 2025; tres del cuadro de precios de 2000 del 10-K se aceptan aparte
+  porque otro documento del emisor —el proxy de la fusión— lo contradice.
+- **WPC tuvo tres distribuciones especiales** (2007, 2009 y 2013) que el proveedor suma
+  al dividendo del trimestre; se separan para que no inflen el yield. Sus dividendos
+  regulares coinciden con lo declarado cada año de 1998 a 2025 (±0.2%). La escisión de
+  NLOP (2023) entra al retorno como distribución en especie; el factor del proveedor
+  la valora en 2.1% del precio y el Formulario 8937 del emisor en 1.4%, y el catálogo
+  lo anota.
 - **Cuatro dividendos de 1995-1996 de O estaban mal** en el proveedor. Se
   corrigieron contra los 10-K. Los de NNN coinciden uno por uno con el emisor.
 - **El dividendo TTM se suma por conteo**, no por calendario: con la liquidación
@@ -379,7 +388,18 @@ Lo que costó trabajo y por qué:
   trimestres en el lugar del año.
 - **El FFO no se deriva de la contabilidad**; la derivación queda como diagnóstico, y
   la causa de que falle es de cada emisor (en O, ventas en operaciones
-  discontinuadas; en NNN, dividendos preferentes que la base no resta).
+  discontinuadas; en NNN, dividendos preferentes que la base no resta; en WPC, la
+  depreciación proporcional de sus coinversiones y una ganancia por cambio de control
+  en 2018).
+- **Cada emisor se valúa con su medida.** Por omisión, P/FFO de Nareit. WPC se valúa
+  por AFFO: su FFO de Nareit carga gastos de fusiones, cambiario y minusvalías de
+  inversiones (0.57 contra 1.28 de AFFO en el 2T-2025), y la serie que publicó desde
+  1998 —«FFO» hasta 2008, «AFFO» desde 2009, con la misma definición— es la continua. La razón se muestra en la página
+  y en el PDF (`MEDIDAS_DE_VALUACION` en `src/estudio/fundamentales.py`).
+- **Un trimestre raro no es un error de lectura.** El FFO de Nareit de WPC fue 0.57 en
+  el 2T-2025 con un anual de 3.96; la regla de «un cuarto del anual» lo descartaba.
+  Donde hay cifra trimestral capturada del comunicado, la comparación es contra ella,
+  al centavo, y entra con su fecha de publicación real.
 - **FFO con la definición vigente de Nareit.** En 2009 y 2010 los deterioros de
   inmuebles movieron el FFO que publicó NNN más de 10% (1.13 contra 1.65 en 2009);
   se usa la cifra sin deterioros, que Nareit excluye desde 2011. Cada año lleva la
@@ -395,8 +415,10 @@ Lo que costó trabajo y por qué:
   con sus datos, y lo que solo aplica a uno va en las notas de su narrativa.
 
 Para agregar otro emisor: su catálogo de eventos (y, si hace falta, su inicio
-verificable y sus rangos) en `src/estudio/mercado.py`; sus cierres NYSE en
-`anclas.csv`; sus cifras primarias en `anuales_primarios.csv`; y su narrativa —con
+verificable, sus rangos y sus excepciones revisadas) en `src/estudio/mercado.py`; sus
+cierres NYSE en `anclas.csv`; sus cifras primarias en `anuales_primarios.csv` (y, si su
+FFO trimestral es muy volátil, `trimestrales_primarios.csv`); su medida de valuación
+si no es el FFO; y su narrativa —con
 fuente en cada hito— en `src/estudio/historia.py`. La página solo lo ofrece cuando
 tiene historia de mercado Y cifras primarias.
 

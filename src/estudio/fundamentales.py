@@ -45,6 +45,47 @@ from src.estudio.mercado import (
 from src.servicio import _derivar_ebitdare, deuda_por_periodo
 
 ARCHIVO_PRIMARIOS = "anuales_primarios.csv"
+# Cifras trimestrales capturadas de cada comunicado, para los emisores cuyo FFO
+# trimestral se aparta mucho de un cuarto del anual (ver ``contra_lo_reportado``).
+ARCHIVO_TRIMESTRALES = "trimestrales_primarios.csv"
+
+
+@dataclass(frozen=True)
+class MedidaDeValuacion:
+    """El flujo por acción contra el que se mide qué tan caro está un emisor.
+
+    Por omisión es el FFO de Nareit, el mismo para todos. Un emisor usa otro solo
+    cuando el FFO de Nareit, con sus partidas extraordinarias, no describe su flujo
+    recurrente a lo largo de su historia; la razón queda escrita aquí y el estudio
+    la muestra.
+    """
+
+    concepto: str
+    etiqueta: str
+    motivo: str = ""
+
+
+FFO = MedidaDeValuacion("ffo_por_accion", "FFO")
+MEDIDAS_DE_VALUACION: dict[str, MedidaDeValuacion] = {
+    "WPC": MedidaDeValuacion(
+        "affo_por_accion", "AFFO",
+        motivo=(
+            "WPC se valúa por AFFO, que es la medida con la que se reporta y con la que el mercado "
+            "lo compara. Su FFO de Nareit carga partidas que no se repiten. En 2012 quedó un tercio "
+            "por debajo del AFFO (2.47 contra 3.76), sobre todo por 41 millones de gastos de la "
+            "fusión con CPA:15 y por cómo registraba su participación en los fondos CPA. Desde "
+            "entonces se mueve con el tipo de cambio y con el valor de mercado de sus acciones de "
+            "otras empresas: en el 2T-2025 fue de 0.57 dólares contra 1.28 de AFFO, por 66 millones "
+            "de pérdida cambiaria y 69 de minusvalía en su inversión en Lineage. Con esas cifras, "
+            "un P/FFO la habría hecho ver cara en 2013 (25 veces contra 16 de AFFO) y a fines de "
+            "2025 (18 contra 13) por razones contables."
+        ),
+    ),
+}
+
+
+def medida_de_valuacion(ticker: str) -> MedidaDeValuacion:
+    return MEDIDAS_DE_VALUACION.get(ticker.upper(), FFO)
 
 CONCEPTOS_ANUALES = (
     "ingresos_totales", "ingresos", "ingreso_rentas", "utilidad_neta", "utilidad_neta_comun",
@@ -103,6 +144,33 @@ def cargar_primarios(
     return d
 
 
+def cargar_trimestrales(
+    ticker: str, eventos: tuple[EventoDeCapital, ...], raiz: Path | None = None
+) -> pd.DataFrame:
+    """Las cifras trimestrales capturadas a mano, con su cierre de trimestre como fecha."""
+    ruta = dir_de(ticker, raiz) / ARCHIVO_TRIMESTRALES
+    if not ruta.exists():
+        return pd.DataFrame(columns=["fecha_dato", "concepto", "valor", "valor_actual"])
+    d = pd.read_csv(ruta, parse_dates=["fecha_publicacion"])
+    d["fecha_dato"] = [pd.Period(year=int(a), quarter=int(t), freq="Q").end_time.normalize()
+                       for a, t in zip(d["anio"], d["trimestre"], strict=True)]
+    d["valor_actual"] = [
+        v / factor_de_base(a, eventos) if b == "pre_split" else v
+        for a, v, b in zip(d["anio"], d["valor"], d["base"], strict=True)
+    ]
+    return d
+
+
+def _del_trimestre(trimestrales: pd.DataFrame | None, concepto: str) -> pd.DataFrame:
+    """Las cifras trimestrales de un concepto, en el formato de las versiones de la base."""
+    if trimestrales is None or trimestrales.empty:
+        return pd.DataFrame(columns=["fecha_dato", "fecha_publicacion", "periodo_tipo", "valor"])
+    t = trimestrales[trimestrales["concepto"] == concepto]
+    return pd.DataFrame({"fecha_dato": pd.to_datetime(t["fecha_dato"]).values,
+                         "fecha_publicacion": pd.to_datetime(t["fecha_publicacion"]).values,
+                         "periodo_tipo": "Q", "valor": t["valor_actual"].astype(float).values})
+
+
 # --------------------------------------------------------------------------------------
 # El negocio por año
 # --------------------------------------------------------------------------------------
@@ -146,23 +214,40 @@ TOLERANCIA_CONTRA_REPORTADO = 0.35
 # Si el año no tiene cifra primaria, la referencia es la del año más cercano,
 # hasta esta distancia.
 ANIOS_DE_REFERENCIA = 3
+# Contra la cifra del MISMO trimestre capturada del comunicado, la comparación es
+# exacta: las dos se publican al centavo.
+TOLERANCIA_TRIMESTRE_PRIMARIO = 0.005
 
 
 def contra_lo_reportado(
-    versiones: pd.DataFrame, reportado: pd.Series
+    versiones: pd.DataFrame, reportado: pd.Series, trimestral: pd.Series | None = None
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Separa las cifras de la base que contradicen a lo reportado por el emisor.
 
     ``versiones`` trae ``fecha_dato``, ``periodo_tipo`` («Q» o «FY») y ``valor``;
     ``reportado`` es la cifra ANUAL primaria, indexada por año. Devuelve lo que se
     queda y lo que se descarta, con lo que se esperaba.
+
+    ``trimestral``, indexada por el cierre del trimestre, es la cifra de ese
+    trimestre capturada del comunicado. Donde existe manda ella, y exacta: el FFO
+    de Nareit de WPC fue 0.57 en el 2T-2025 y 1.51 en el 2T-2026 —cambiario y
+    ganancias por venta—, lejos de un cuarto de su anual y aun así correcto. La
+    regla del cuarto del anual es para cuando no hay nada mejor.
     """
-    if versiones.empty or reportado.dropna().empty:
-        return versiones, versiones.iloc[0:0].assign(esperado=pd.Series(dtype=float))
+    vacio = versiones.iloc[0:0].assign(esperado=pd.Series(dtype=float))
+    trimestral = trimestral.dropna() if trimestral is not None else pd.Series(dtype=float)
+    if versiones.empty or (reportado.dropna().empty and trimestral.empty):
+        return versiones, vacio
     ref = reportado.dropna()
     ref.index = ref.index.astype(int)
-    esperado = []
-    for f, tipo in zip(pd.to_datetime(versiones["fecha_dato"]), versiones["periodo_tipo"], strict=True):
+    esperado, exacto = [], []
+    for f, tipo in zip(pd.to_datetime(versiones["fecha_dato"]).dt.normalize(), versiones["periodo_tipo"],
+                       strict=True):
+        if tipo == "Q" and f in trimestral.index:
+            esperado.append(float(trimestral.loc[f]))
+            exacto.append(True)
+            continue
+        exacto.append(False)
         cercanos = ref[(ref.index - f.year).map(abs) <= ANIOS_DE_REFERENCIA]
         if cercanos.empty:
             esperado.append(np.nan)
@@ -170,9 +255,11 @@ def contra_lo_reportado(
         anual = float(cercanos.iloc[(cercanos.index - f.year).map(abs).argmin()])
         esperado.append(anual / 4 if tipo == "Q" else anual)
     esperado = pd.Series(esperado, index=versiones.index, dtype=float)
+    exacto = pd.Series(exacto, index=versiones.index)
     valor = pd.to_numeric(versiones["valor"], errors="coerce")
-    malo = esperado.gt(0) & ((valor / esperado - 1).abs() > TOLERANCIA_CONTRA_REPORTADO)
-    return versiones[~malo], versiones[malo].assign(esperado=esperado[malo])
+    malo = (exacto & ((valor - esperado).abs() > TOLERANCIA_TRIMESTRE_PRIMARIO)) | (
+        ~exacto & esperado.gt(0) & ((valor / esperado - 1).abs() > TOLERANCIA_CONTRA_REPORTADO))
+    return versiones[~malo], versiones[malo].assign(esperado=esperado[malo], exacto=exacto[malo])
 
 
 def dividendos_por_anio(historia: HistoriaMercado, *, asof: dt.date) -> pd.Series:
@@ -252,7 +339,7 @@ def anual(
         if c in saldos:
             poner(c, saldos[c], "XBRL (saldo al 31-dic)")
     for c in ("ingresos_totales", "activos_totales", "deuda_total", "propiedades", "ocupacion",
-              "inversion_en_adquisiciones", "cap_rate_adquisicion", "ffo"):
+              "inversion_en_adquisiciones", "cap_rate_adquisicion", "ffo", "affo"):
         p = primarios[primarios["concepto"] == c].set_index("anio")["valor_actual"]
         poner(c, p, "10-K / comunicado del emisor")
 
@@ -260,6 +347,10 @@ def anual(
     if "ffo" in tabla and "ffo_por_accion" in tabla:
         implicitas = tabla["ffo"] / tabla["ffo_por_accion"]
         poner("acciones_diluidas", implicitas, "implícitas: FFO ÷ FFO por acción")
+    # Y donde el emisor no publicó FFO de Nareit pero sí su AFFO (WPC, 1998-2008).
+    if "affo" in tabla and "affo_por_accion" in tabla:
+        implicitas = tabla["affo"] / tabla["affo_por_accion"]
+        poner("acciones_diluidas", implicitas, "implícitas: AFFO ÷ AFFO por acción")
 
     poner("dividendo_por_accion", dividendos_por_anio(historia, asof=asof),
           f"{pagos_por_anio(historia.dividendos)} pagos regulares al 31-dic")
@@ -356,6 +447,7 @@ def _ttm_por_publicacion(versiones: pd.DataFrame) -> pd.Series:
 
 def flujo_conocido(
     repo: Repositorio, ticker: str, concepto: str, *, asof: dt.date, primarios: pd.DataFrame,
+    trimestrales: pd.DataFrame | None = None,
 ) -> pd.Series:
     """El flujo por acción (anual o TTM) vigente en cada fecha, SIN mirar al futuro.
 
@@ -371,19 +463,32 @@ def flujo_conocido(
     estimadas = 0
     versiones = repo.hechos(asof=asof, tickers=ticker, conceptos=concepto,
                             periodo_tipo="Q", vigentes=False)
+    primarias_q = _del_trimestre(trimestrales, concepto)
+    primarias_q = primarias_q[primarias_q["fecha_publicacion"] <= pd.Timestamp(asof)]
     # Una versión que contradice a lo reportado no entra: con la regla de «gana la
     # última», una comparativa mal leída pisaría a la cifra buena original.
-    versiones, fuera_q = contra_lo_reportado(versiones, referencia)
+    versiones, fuera_q = contra_lo_reportado(
+        versiones, referencia,
+        pd.Series(primarias_q["valor"].values, index=pd.DatetimeIndex(primarias_q["fecha_dato"])),
+    )
+    # Donde está la cifra del comunicado, con la fecha en que se publicó, la versión
+    # de la base sobra: a lo más repite el valor con la fecha de una comparativa.
+    if not versiones.empty and not primarias_q.empty:
+        versiones = versiones[~pd.to_datetime(versiones["fecha_dato"]).dt.normalize()
+                              .isin(primarias_q["fecha_dato"])]
     ttm = pd.Series(dtype=float)
     anios_estimados: set[int] = set()
+    efectivas = []
     if not versiones.empty:
         efectiva = fecha_efectiva(versiones)
         cambiadas = efectiva != versiones["fecha_publicacion"]
         estimadas += int(cambiadas.sum())
         anios_estimados |= set(pd.to_datetime(versiones.loc[cambiadas, "fecha_dato"]).dt.year)
-        ttm = _ttm_por_publicacion(
-            versiones.assign(fecha_publicacion=efectiva, _llegada=versiones["fecha_publicacion"])
-        )
+        efectivas.append(versiones.assign(fecha_publicacion=efectiva, _llegada=versiones["fecha_publicacion"]))
+    if not primarias_q.empty:
+        efectivas.append(primarias_q.assign(_llegada=primarias_q["fecha_publicacion"]))
+    if efectivas:
+        ttm = _ttm_por_publicacion(pd.concat(efectivas, ignore_index=True))
 
     fy = repo.hechos(asof=asof, tickers=ticker, conceptos=concepto, periodo_tipo="FY", vigentes=False)
     fy, fuera_fy = contra_lo_reportado(fy, referencia)
@@ -418,7 +523,7 @@ def flujo_conocido(
     todo.attrs["fechas_estimadas"] = estimadas
     todo.attrs["anios_estimados"] = (min(anios_estimados), max(anios_estimados)) if anios_estimados else None
     todo.attrs["descartadas"] = pd.concat([fuera_q, fuera_fy]).assign(concepto=concepto)
-    todo.attrs["rezago_dias"] = _rezago_observado(pd.concat([versiones, fy]))
+    todo.attrs["rezago_dias"] = _rezago_observado(pd.concat([versiones, primarias_q, fy]))
     return todo
 
 

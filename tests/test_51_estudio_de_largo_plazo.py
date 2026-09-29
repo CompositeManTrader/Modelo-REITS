@@ -27,6 +27,7 @@ Qué se protege
 from __future__ import annotations
 
 import datetime as dt
+import html
 import json
 import sys
 from pathlib import Path
@@ -591,7 +592,7 @@ def test_ninguna_tabla_pierde_columnas_ni_dibuja_fracciones_como_otra_unidad(est
     for nombre, construir in vistas.VISTAS.items():
         tabla = construir(estudio_demo)
         clave = "momentos" if nombre in ("mejores", "peores") else nombre
-        if clave in vistas.COLUMNAS and list(tabla.columns) != list(vistas.COLUMNAS[clave]):
+        if clave in vistas.COLUMNAS and list(tabla.columns) != vistas.columnas(clave, estudio_demo.medida.etiqueta):
             problemas.append(f"{nombre}: columnas {list(tabla.columns)}")
         for columna in tabla.columns:
             serie = pd.to_numeric(tabla[columna], errors="coerce").dropna()
@@ -622,6 +623,181 @@ def test_las_frases_de_cada_emisor_salen_de_sus_datos(historia_o, historia_nnn):
 
 
 @pytest.fixture
+def historia_wpc():
+    if not mercado.hay_historia("WPC"):
+        pytest.skip("No está versionada la historia larga de WPC.")
+    return mercado.cargar("WPC", asof=D(2026, 9, 28))
+
+
+def test_historia_de_wpc_cuadra_con_sus_anclas(historia_wpc):
+    """63 cierres publicados por el emisor de 1998 a 2025, y tres del cuadro de precios de
+    2000 aceptados aparte porque otro documento del emisor lo contradice.
+
+    Todos caben en 0.05% salvo uno: el 30-sep-1998, que el 10-K de 1998 da en 19.875 y el
+    de 1999 en 19.75, el del proveedor.
+    """
+    v = historia_wpc.manifiesto["validacion"]
+    assert len(v["anclas"]) >= 63
+    assert all(abs(a["error"]) <= mercado.TOLERANCIA_TRASLAPE for a in v["anclas"])
+    assert [a["fecha"] for a in v["anclas"] if abs(a["error"]) > 0.0005] == ["1998-09-30"]
+    assert [a["fecha"] for a in v["anclas_aceptadas"]] == ["2000-03-31", "2000-06-30", "2000-09-29"]
+    # El proxy de la fusión confirma el 31-mar-2000 que el cuadro del 10-K contradice.
+    assert any(a["fecha"] == "2000-03-31" and a["real"] == pytest.approx(16.625) for a in v["anclas"])
+    assert v["traslape_n"] > 2000 and v["traslape_error_max"] < 1e-6
+
+
+def test_la_serie_de_wpc_pasa_con_el_catalogo_de_hoy():
+    """El manifiesto dice lo que pasó al guardarse; esto revalida la serie versionada con
+    las anclas y las excepciones tal como están hoy en el código."""
+    if not mercado.hay_historia("WPC"):
+        pytest.skip("No está versionada la historia larga de WPC.")
+    precios = pd.read_csv(mercado.dir_de("WPC") / mercado.ARCHIVO_PRECIOS, parse_dates=["fecha"])
+    v = mercado.validar(precios, pd.DataFrame(columns=["fecha_ex", "monto_pagado"]),
+                        crudo_diario=precios.set_index("fecha")["cierre_crudo"],
+                        dividendos_diarios=pd.DataFrame(), anclas=mercado.anclas_del_estudio("WPC"),
+                        excepciones_anclas=mercado.EXCEPCIONES_DE_ANCLA["WPC"])
+    assert v.aprobada, [a for a in v.anclas if abs(a["error"]) > mercado.TOLERANCIA_TRASLAPE]
+    assert len(v.anclas_aceptadas) == 3
+
+
+def test_una_excepcion_de_ancla_no_tapa_un_ancla_que_si_cuadra():
+    """La excepción es por fecha y solo aparta lo que NO cuadra: la otra ancla del mismo
+    día se valida como cualquiera, y un ancla mala en otra fecha sigue reprobando."""
+    fechas = pd.to_datetime(["2000-03-31", "2000-06-30"])
+    precios = pd.DataFrame({"fecha": fechas, "cierre_crudo": [16.625, 16.375]})
+    anclas = pd.DataFrame({"fecha_dato": [D(2000, 3, 31), D(2000, 3, 31), D(2000, 6, 30)],
+                           "cierre_crudo": [15.45, 16.625, 15.60]})
+    diario = pd.Series([16.625, 16.375], index=fechas)
+    v = mercado.validar(precios, pd.DataFrame(columns=["fecha_ex", "monto_pagado"]), crudo_diario=diario,
+                        dividendos_diarios=pd.DataFrame(), anclas=anclas,
+                        excepciones_anclas={"2000-03-31": "revisada"})
+    assert [a["real"] for a in v.anclas_aceptadas] == [15.45]
+    assert [a["real"] for a in v.anclas] == [16.625, 15.60]
+    assert not v.aprobada, "el 15.60 del 30-jun no tiene excepción y no cuadra"
+
+
+def test_wpc_separa_sus_tres_distribuciones_especiales(historia_wpc):
+    d = historia_wpc.dividendos.set_index(["fecha_ex", "tipo"])["monto_pagado"]
+    for fecha, regular, especial in (("2007-12-27", 0.477, 0.27), ("2009-12-29", 0.502, 0.30),
+                                     ("2013-12-27", 0.87, 0.11)):
+        assert d.loc[(pd.Timestamp(fecha), "regular")] == pytest.approx(regular)
+        assert d.loc[(pd.Timestamp(fecha), "especial")] == pytest.approx(especial)
+    assert (historia_wpc.dividendos["tipo"] == "especial").sum() == 3
+
+
+def test_los_dividendos_de_wpc_coinciden_con_los_declarados(historia_wpc):
+    """Del proveedor, por conteo de pagos regulares; del emisor, lo declarado en el año.
+    Cuadran de 1998 a 2025 dentro de 0.2%: la diferencia es el redondeo del 10-K."""
+    p = fund.cargar_primarios("WPC", ())
+    declarado = p[p["concepto"] == "dividendo_declarado_por_accion"].set_index("anio")["valor"]
+    medido = fund.dividendos_por_anio(historia_wpc, asof=D(2026, 9, 28)).reindex(declarado.index)
+    assert len(declarado) == 28
+    err = (medido / declarado - 1).abs()
+    assert (err < 0.0025).all(), err[err >= 0.0025]
+
+
+def test_la_escision_de_nlop_no_es_un_split(historia_wpc):
+    assert not historia_wpc.splits
+    (nlop,) = historia_wpc.escisiones
+    assert nlop.fecha == D(2023, 11, 2) and nlop.factor == pytest.approx(1.021)
+    assert "8937" in nlop.fuente, "la valuación del emisor, distinta a la del proveedor, queda anotada"
+
+
+def test_wpc_se_valua_por_affo_y_los_demas_por_ffo():
+    assert fund.medida_de_valuacion("WPC").concepto == "affo_por_accion"
+    assert fund.medida_de_valuacion("WPC").motivo
+    for t in ("O", "NNN", "ZZ"):
+        assert fund.medida_de_valuacion(t) == fund.FFO
+
+
+def test_el_trimestre_capturado_manda_sobre_el_cuarto_del_anual():
+    """El FFO de Nareit de WPC fue 0.57 en el 2T-2025 con un anual de 3.96: la regla del
+    cuarto del anual lo tiraba. Contra la cifra del comunicado se queda, y lo que no
+    coincide al centavo con ella se va."""
+    versiones = pd.DataFrame({
+        "fecha_dato": pd.to_datetime(["2025-06-30", "2025-09-30", "2025-03-31", "2024-12-31"]),
+        "periodo_tipo": "Q", "valor": [0.57, 1.11, 0.99, 0.30]})
+    anual = pd.Series({2025: 3.96, 2024: 4.06})
+    trimestral = pd.Series([0.57, 1.10], index=pd.to_datetime(["2025-06-30", "2025-09-30"]))
+    quedan, fuera = fund.contra_lo_reportado(versiones, anual, trimestral)
+    assert list(quedan["valor"]) == [0.57, 0.99]
+    assert list(fuera["valor"]) == [1.11, 0.30]
+    assert list(fuera["exacto"]) == [True, False]
+    # Sin la cifra trimestral, el 0.57 se habría descartado.
+    assert 0.57 in list(fund.contra_lo_reportado(versiones, anual)[1]["valor"])
+
+
+def test_los_trimestres_de_wpc_suman_su_anual():
+    t = fund.cargar_trimestrales("WPC", ())
+    if t.empty:
+        pytest.skip("No hay cifras trimestrales de WPC.")
+    p = fund.cargar_primarios("WPC", ())
+    assert not t.duplicated(["anio", "trimestre", "concepto"]).any()
+    for c in ("ffo_por_accion", "affo_por_accion"):
+        suma = t[(t["concepto"] == c) & (t["anio"] <= 2025)].groupby("anio")["valor"].agg(["sum", "count"])
+        anual = p[p["concepto"] == c].set_index("anio")["valor"].reindex(suma.index)
+        assert (suma["count"] == 4).all()
+        # Acciones promedio distintas en cada trimestre: la suma se separa unos centavos.
+        assert ((suma["sum"] - anual).abs() <= 0.04).all(), (suma["sum"] - anual)
+
+
+@pytest.fixture
+def estudio_demo_wpc(tmp_path):
+    if not mercado.hay_historia("WPC"):
+        pytest.skip("No está versionada la historia larga de WPC.")
+    from src.datos.repositorio import Repositorio
+    from src.datos.semilla import sembrar
+    from src.estudio import estudio
+
+    repo = Repositorio(ruta=tmp_path / "wpc.db")
+    sembrar(repo, tickers=["WPC"], inicio=D(2018, 1, 1), fin=D(2026, 6, 30))
+    return estudio.armar(repo, "WPC", asof=D(2026, 6, 30))
+
+
+def test_el_estudio_de_wpc_habla_de_affo(estudio_demo_wpc):
+    """La etiqueta del múltiplo sale de la medida del emisor en conclusiones, tablas y PDF."""
+    from src.estudio import vistas
+    from src.export.pdf_estudio import html_del_estudio
+
+    e = estudio_demo_wpc
+    assert e.medida.etiqueta == "AFFO"
+    assert g.multiplo(e).data[0].name == "P/AFFO"
+    assert g.entradas(e).layout.xaxis.title.text.startswith("P/AFFO")
+    assert any("P/AFFO" in c.texto or "veces AFFO" in c.texto for c in e.conclusiones)
+    assert not any("P/FFO" in c.texto for c in e.conclusiones)
+    assert "multiplo_affo" in vistas.momentos(e.entradas.mejores, "AFFO").columns
+    cuerpo = html_del_estudio(e, fuentes_css="").split("<body>", 1)[1].split("<script>", 1)[0]
+    # «P/FFO» solo donde se explica por qué no se usa.
+    assert "P/FFO" in e.medida.motivo
+    assert cuerpo.count("P/FFO") == cuerpo.count(html.escape(e.medida.motivo, quote=False)) \
+        * e.medida.motivo.count("P/FFO")
+    assert "P/AFFO" in cuerpo
+
+
+def test_el_crecimiento_de_wpc_avisa_que_incluye_la_escision(estudio_demo_wpc, estudio_demo_nnn):
+    """El AFFO por acción de WPC a 10 años cae con la escisión de NLOP de 2023: el flujo de
+    las oficinas lo siguió cobrando el accionista, pero en acciones de NLOP."""
+    from src.estudio.estudio import _escisiones_en
+
+    assert _escisiones_en(estudio_demo_wpc, "AFFO por acción, 10 años") == [2023]
+    assert _escisiones_en(estudio_demo_wpc, "AFFO por acción, 2 años") == []
+    assert _escisiones_en(estudio_demo_nnn, "AFFO por acción, 10 años") == []
+    hoy = next(c for c in estudio_demo_wpc.conclusiones if c.titulo == "Si paga buen retorno hoy")
+    assert "escisión de 2023" in hoy.texto
+    hoy_nnn = next(c for c in estudio_demo_nnn.conclusiones if c.titulo == "Si paga buen retorno hoy")
+    assert "escisión" not in hoy_nnn.texto
+
+
+def test_un_crecimiento_casi_nulo_no_se_escribe_menos_cero():
+    from src.estudio.estudio import _pct
+    from src.export.pdf_estudio import pct
+
+    assert _pct(-0.0004) == "0.0%" and pct(-0.0004) == "0.0%"
+    assert _pct(-0.012) == "-1.2%" and pct(-0.012) == "-1.2%"
+    assert _pct(0.0004) == "0.0%"
+
+
+@pytest.fixture
 def estudio_demo_nnn(tmp_path):
     if not mercado.hay_historia("NNN"):
         pytest.skip("No está versionada la historia larga de NNN.")
@@ -637,25 +813,28 @@ def estudio_demo_nnn(tmp_path):
 # Lo que pertenece a un emisor y no puede aparecer en el estudio del otro.
 PROPIO = {
     "O": ("Orion", "VEREIT", "split de 2005", "mensualidad", "Spirit"),
-    "NNN": ("Golden Corral", "Captec", "Macnab", "dividendo trimestral vigente"),
+    "NNN": ("Golden Corral", "Captec", "Macnab"),
+    "WPC": ("NLOP", "CPA:", "Carey Diversified", "Hellweg", "8937"),
 }
 
 
-def test_el_estudio_de_nnn_no_habla_de_o(estudio_demo_nnn, estudio_demo):
+def test_ningun_estudio_habla_de_otro_emisor(estudio_demo_nnn, estudio_demo, estudio_demo_wpc):
     from src.export.pdf_estudio import html_del_estudio
 
-    for e, otro in ((estudio_demo_nnn, "O"), (estudio_demo, "NNN")):
+    estudios = (estudio_demo, estudio_demo_nnn, estudio_demo_wpc)
+    for e in estudios:
         documento = html_del_estudio(e, fuentes_css="")
         cuerpo = documento.split("<body>", 1)[1].split("<script>", 1)[0]
-        for palabra in PROPIO[otro]:
-            assert palabra not in cuerpo, f"el estudio de {e.ticker} menciona «{palabra}», que es de {otro}"
-        for hueco in ("nan%", "nanx", "$nan", ">nan<", "None"):
+        for otro in (x.ticker for x in estudios if x.ticker != e.ticker):
+            for palabra in PROPIO[otro]:
+                assert palabra not in cuerpo, f"el estudio de {e.ticker} menciona «{palabra}», que es de {otro}"
+            for c in e.conclusiones:
+                assert f" {otro} " not in f" {c.texto} ", f"la conclusión «{c.titulo}» de {e.ticker} nombra a {otro}"
+        for hueco in ("nan%", "nanx", "$nan", ">nan<", "None", "-0.0%"):
             assert hueco not in cuerpo, f"el PDF de {e.ticker} imprime «{hueco}»"
-        for c in e.conclusiones:
-            assert f" {otro} " not in f" {c.texto} ", f"la conclusión «{c.titulo}» de {e.ticker} nombra a {otro}"
 
 
-@pytest.mark.parametrize("ticker", ["O", "NNN"])
+@pytest.mark.parametrize("ticker", ["O", "NNN", "WPC"])
 def test_una_sola_cifra_por_anio_y_concepto(ticker):
     """La tabla anual toma UNA cifra por año; las reexpresiones van con otro nombre.
 

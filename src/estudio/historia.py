@@ -545,4 +545,239 @@ HISTORIA_NNN = HistoriaEmisor(
     },
 )
 
-HISTORIAS: dict[str, HistoriaEmisor] = {"O": HISTORIA_O, "NNN": HISTORIA_NNN}
+SEC_WPC = "https://www.sec.gov/Archives/edgar/data/1025378/"
+
+HISTORIA_WPC = HistoriaEmisor(
+    ticker="WPC",
+    nombre="W. P. Carey Inc.",
+    perfil=(
+        "Dueño de inmuebles industriales, almacenes y comercio de un solo inquilino, rentados "
+        "con contratos largos de arrendamiento neto en EE. UU. y Europa. Casi la mitad de sus "
+        "rentas sube con la inflación. Al 30 de junio de 2026 tenía 1,748 propiedades rentadas a "
+        "384 inquilinos, 98.5% de ocupación y un plazo remanente promedio de 12.2 años; 61% de "
+        "la renta viene de EE. UU. y 33% de Europa. Fue una sociedad (LLC) que además "
+        "administraba fondos inmobiliarios hasta 2012, cuando se convirtió en REIT; en 2023 "
+        "escindió sus oficinas y recortó el dividendo por primera vez."
+    ),
+    modelo_de_negocio=(
+        "Hoy es un REIT de arrendamiento neto «puro»: compra inmuebles críticos para la operación "
+        "de una empresa —muchas veces a la propia empresa, que se lo renta de regreso— con "
+        "contratos de más de diez años en los que el inquilino paga impuestos, seguro y "
+        "mantenimiento. Lo distintivo es dónde y cómo: un tercio de la renta está en Europa y "
+        "casi la mitad se ajusta con la inflación, no con un porcentaje fijo. Eso lo protegió en "
+        "2022 y lo expone cuando la inflación baja. Durante su primera etapa fue otra cosa: una "
+        "LLC con dos negocios, sus inmuebles y la administración de los fondos no cotizados CPA, "
+        "que en 2011 ganaba más que la renta propia. Esa mezcla es la razón de que su historia de "
+        "valuación tenga dos épocas distintas."
+    ),
+    hitos=(
+        Hito(D(1973, 1, 1), "Fundación",
+             "Wm. Polk Carey funda W. P. Carey & Co. para agrupar a inversionistas individuales en "
+             "inmuebles rentados a largo plazo.",
+             "emisor", "W. P. Carey, «Our History»", "https://www.wpcarey.com/about-us/our-history",
+             precision="anio"),
+        Hito(D(1998, 1, 21), "Cotiza como Carey Diversified",
+             "Nueve fondos CPA —los primeros programas de la empresa— se consolidan en Carey "
+             "Diversified LLC, que empieza a cotizar en la Bolsa de Nueva York con la clave CDC.",
+             "emisor", "10-K405 2000", SEC_WPC + "000095012301002868/y47104e10-k405.txt"),
+        Hito(D(2000, 6, 28), "Nace W. P. Carey & Co. LLC",
+             "Carey Diversified absorbe al administrador de los fondos a cambio de 8 millones de "
+             "acciones y cambia la clave a WPC. Desde entonces tiene dos negocios: sus inmuebles y "
+             "las comisiones por administrar los fondos CPA.",
+             "emisor", "10-K405 2000", SEC_WPC + "000095012301002868/y47104e10-k405.txt"),
+        Hito(D(2005, 3, 17), "Gordon DuGan, director general",
+             "El fundador deja la dirección y se queda como presidente del consejo.",
+             "emisor", "8-K de mar-2005", "https://www.sec.gov/Archives/edgar/data/0001025378/000095012305003446/y07068ae8vk.txt"),
+        Hito(D(2008, 1, 1), "Primera distribución especial",
+             "0.27 dólares pagados en enero, aparte del dividendo del cuarto trimestre de 2007.",
+             "emisor", "Suplemento de resultados 2007 (8-K)",
+             "https://www.sec.gov/Archives/edgar/data/0001025378/000095012308002344/y50348exv99w1.htm",
+             precision="mes"),
+        Hito(D(2009, 3, 31), "La crisis",
+             "La acción cae de un máximo de 34.62 dólares en el primer trimestre de 2008 a un mínimo "
+             "de 16.15 un año después. Aun así, el dividendo sube cada trimestre, y en enero de 2010 "
+             "paga otra especial de 0.30.",
+             "emisor", "10-K 2008 y 2009", SEC_WPC + "000095012310017973/c96713e10vk.htm",
+             precision="anio"),
+        Hito(D(2010, 7, 6), "Relevo abrupto en la dirección",
+             "DuGan renuncia por «diferencias irreconciliables» con el presidente del consejo; "
+             "Trevor Bond toma la dirección y queda en firme en septiembre.",
+             "emisor", "8-K del 6-jul-2010",
+             "https://www.sec.gov/Archives/edgar/data/0001025378/000095012310063605/y85458e8vk.htm"),
+        Hito(D(2012, 1, 2), "Muere el fundador",
+             "Wm. Polk Carey muere a los 81 años. En 2011 la administración de fondos había ganado "
+             "más que los inmuebles propios: 73.4 contra 65.8 millones.",
+             "emisor", "8-K del 4-ene-2012; MD&A 2012",
+             SEC_WPC + "000119312512001563/d275412dex991.htm"),
+        Hito(D(2012, 9, 28), "Se convierte en REIT",
+             "La LLC pasa a ser W. P. Carey Inc. y absorbe el fondo CPA:15 por 2,600 millones de "
+             "dólares con deuda: 1.25 dólares y 0.2326 acciones por cada acción del fondo. El "
+             "dividendo sube 15%. El argumento: simplificar el reporte fiscal y atraer a los fondos "
+             "que solo compran REIT.",
+             "emisor", "8-K12G3 y comunicado del 14-sep-2012",
+             SEC_WPC + "000119312512415552/d421099d8k12g3.htm"),
+        Hito(D(2014, 1, 31), "Absorbe CPA:16 y obtiene grado de inversión",
+             "Unos 4,000 millones con deuda, pagados con 0.1830 acciones por acción del fondo. "
+             "Obtiene BBB y Baa2 y empieza a financiarse con bonos, en dólares y en euros.",
+             "emisor", "10-K 2013; comunicado del 4T-2013",
+             "https://www.sec.gov/Archives/edgar/data/0001025378/000102537814000012/wpc2013q48-kerexh991.htm"),
+        Hito(D(2016, 2, 10), "Mark DeCesaris, director general",
+             "Bond deja la empresa; su director de finanzas toma el cargo.",
+             "emisor", "8-K del 10-feb-2016",
+             "https://www.sec.gov/Archives/edgar/data/0001025378/000110465916095553/a16-4007_18k.htm"),
+        Hito(D(2017, 6, 15), "Deja de levantar fondos entre ahorradores",
+             "Sale de la venta de fondos no cotizados: la empresa se concentra en sus inmuebles.",
+             "emisor", "8-K del 15-jun-2017",
+             "https://www.sec.gov/Archives/edgar/data/0001025378/000110465917039591/a17-14610_28k.htm"),
+        Hito(D(2018, 1, 1), "Jason Fox, director general",
+             "En la empresa desde 2002. Sigue en el cargo.",
+             "emisor", "Proxy de 2018", SEC_WPC + "000104746918002478/a2235072zdef14a.htm"),
+        Hito(D(2018, 10, 31), "Absorbe CPA:17",
+             "5,900 millones con deuda. La empresa dice que su utilidad queda «casi toda» en renta "
+             "inmobiliaria, que el mercado paga a un múltiplo mayor que las comisiones.",
+             "emisor", "8-K del 31-oct-2018; presentación del 18-jun-2018",
+             SEC_WPC + "000110465918065081/a18-37294_2ex99d1.htm"),
+        Hito(D(2022, 8, 1), "Absorbe CPA:18 y cierra el negocio de fondos",
+             "2,700 millones. Con esta fusión termina su salida de los fondos no cotizados; al mes "
+             "siguiente Moody's la sube a Baa1.",
+             "emisor", "8-K del 1-ago-2022", SEC_WPC + "000110465922084447/tm2222201d1_ex99-2.htm"),
+        Hito(D(2023, 9, 21), "Plan para salir de oficinas",
+             "Anuncia la escisión de 59 oficinas y la venta de otras 87, y un nuevo pago de "
+             "dividendo de 70-75% del AFFO. La acción cae 8% ese día.",
+             "emisor", "8-K del 21-sep-2023; Commercial Property Executive",
+             SEC_WPC + "000110465923102585/tm2326526d1_ex99-1.htm"),
+        Hito(D(2023, 11, 1), "Escinde NLOP",
+             "Una acción de Net Lease Office Properties por cada 15 de WPC. En este estudio el valor "
+             "de NLOP que recibió el accionista entra al retorno total como distribución en especie.",
+             "emisor", "8-K del 6-oct-2023 y del 2-nov-2023",
+             SEC_WPC + "000110465923113522/tm2329364d1_ex99-1.htm"),
+        Hito(D(2023, 11, 30), "Entra al S&P MidCap 400", "",
+             "emisor", "S&P Dow Jones Indices",
+             "https://www.prnewswire.com/news-releases/carlyle-group-and-wp-carey-set-to-join-sp-midcap-400-others-to-join-sp-smallcap-600-301998451.html"),
+        Hito(D(2023, 12, 7), "Primer recorte del dividendo",
+             "De 1.071 a 0.86 dólares por trimestre (−19.7%), «reflejando la salida de oficinas y "
+             "un payout más bajo». Termina una racha de aumentos desde 1998. En 2023 la acción "
+             "pierde 17.1%.",
+             "emisor", "Comunicado del 4T-2023",
+             SEC_WPC + "000102537824000034/wpc2023q48-kerexh991.htm"),
+        Hito(D(2024, 10, 14), "True Value en quiebra",
+             "Nueve propiedades, 1.4% de la renta; el inquilino siguió al corriente.",
+             "emisor", "Comunicado del 3T-2024", SEC_WPC + "000102537824000137/wpc2024q38-kerexh991.htm"),
+        Hito(D(2025, 12, 31), "Año récord de inversión",
+             "2,100 millones a un cap rate inicial de ~7.6%, y ventas por 1,500 millones, sobre todo "
+             "bodegas de autoalmacenaje que operaba directamente.",
+             "emisor", "8-K del 7-ene-2026; comunicado del 4T-2025",
+             SEC_WPC + "000102537826000005/wpc2026q1investmentvolumee.htm", precision="anio"),
+        Hito(D(2026, 6, 16), "Insolvencia de Hellweg",
+             "Cadena alemana de ferretería con 16 propiedades y ~15 millones de renta. En septiembre "
+             "la empresa dice que espera recuperar casi toda la renta.",
+             "emisor", "8-K del 16-jun-2026 y del 10-sep-2026",
+             SEC_WPC + "000102537826000091/wpc-20260616.htm"),
+        Hito(D(2026, 9, 15), "Dividendo de 0.95",
+             "Sube cada trimestre desde el recorte: +10.5% desde 0.86, todavía 11% abajo del 1.071 "
+             "de 2023 (sin contar el valor de NLOP recibido).",
+             "emisor", "Comunicado de W. P. Carey",
+             "https://www.prnewswire.com/news-releases/w-p-carey-increases-quarterly-dividend-to-0-950-per-share-302882645.html",
+             precision="mes"),
+    ),
+    eras=(
+        Era("Carey Diversified", D(1998, 1, 21), D(1999, 12, 31),
+            "La empresa listada nace de consolidar nueve fondos CPA: una cartera de arrendamiento "
+            "neto administrada por fuera. Abre oficina en Londres, su primer paso en Europa. Como "
+            "a todo REIT, la euforia tecnológica le quita compradores."),
+        Era("La LLC de dos motores", D(1999, 12, 31), D(2007, 2, 6),
+            "Desde 2000 combina la renta de sus inmuebles con las comisiones de los fondos CPA, que "
+            "crecen con lo que se recauda entre ahorradores y con las compras que hacen. Es una "
+            "utilidad menos predecible que la de un REIT puro. Las tasas bajan y el crédito barato "
+            "empuja los precios de todo inmueble."),
+        Era("Crisis financiera", D(2007, 2, 6), D(2009, 3, 6),
+            "Se seca el financiamiento, quiebran inquilinos y los fondos CPA reciben más "
+            "solicitudes de retiro. WPC sigue subiendo el dividendo y paga dos especiales, pero la "
+            "acción cae a la mitad."),
+        Era("Recuperación y camino a REIT", D(2009, 3, 6), D(2012, 9, 28),
+            "La acción se recupera y el negocio de fondos llega a su mayor peso. Hay turbulencia en "
+            "la dirección y muere el fundador. En febrero de 2012 anuncia la conversión a REIT con "
+            "la compra de CPA:15, para atraer a los fondos que solo invierten en REIT."),
+        Era("El REIT consolidador", D(2012, 9, 28), D(2019, 12, 31),
+            "Como REIT absorbe CPA:16 y CPA:17, obtiene grado de inversión, emite bonos en euros y "
+            "deja de levantar fondos. La utilidad pasa a ser casi toda renta. Cambia dos veces de "
+            "director."),
+        Era("Pandemia", D(2019, 12, 31), D(2021, 12, 31),
+            "La empresa reporta haber cobrado bien durante el Covid. Deja de administrar los fondos "
+            "hoteleros y en 2021 invierte a un ritmo récord."),
+        Era("Inflación y la decisión de salir de oficinas", D(2021, 12, 31), D(2023, 10, 27),
+            "Las rentas ligadas a inflación aceleran el crecimiento, y con CPA:18 termina el "
+            "negocio de fondos. Pero suben las tasas y las oficinas —16% de la renta— se vuelven "
+            "un lastre. En septiembre de 2023 anuncia la salida de oficinas y un dividendo más bajo."),
+        Era("WPC sin oficinas", D(2023, 10, 27), None,
+            "Escinde NLOP, recorta el dividendo, vende el resto de las oficinas y reconstruye el "
+            "AFFO. El dividendo vuelve a subir cada trimestre. Invierte a cap rates de ~7.6% y "
+            "enfrenta problemas puntuales de crédito."),
+    ),
+    riesgos=(
+        Riesgo("El crédito de los inquilinos",
+               "Solo 22.7% de la renta viene de inquilinos con grado de inversión, contra 29.9% a "
+               "mediados de 2023. True Value (2024) y Hellweg (2026) muestran que los problemas "
+               "son puntuales pero recurrentes; la guía de 2026 ya incluye una pérdida potencial "
+               "por eventos de crédito."),
+        Riesgo("Europa y el tipo de cambio",
+               "Un tercio de la renta está en Europa. La deuda en euros cubre una parte, pero un "
+               "dólar fuerte reduce el AFFO en dólares. Para quien invierte en pesos el riesgo es "
+               "doble: el dólar contra el peso, y el euro contra el dólar debajo."),
+        Riesgo("Las tasas",
+               "Con contratos de 12 años en promedio, la acción se comporta como un bono largo. Su "
+               "deuda tiene una tasa promedio de 3.2% y vence en 4.5 años en promedio: los "
+               "refinanciamientos recientes salen más caros (5.2% en dólares contra 4.25%)."),
+        Riesgo("El motor de crecimiento",
+               "Compra a ~7.6% inicial. Si la acción se abarata o las tasas suben, el margen contra "
+               "su costo de capital se cierra. Fue justo el argumento de la salida de oficinas de "
+               "2023."),
+        Riesgo("La inflación, en los dos sentidos",
+               "48% de las rentas sube con la inflación (30% sin tope). Eso llevó el crecimiento "
+               "interno a más de 4% en 2023, pero en 2026 ya fue de 2.6%: si la inflación baja, el "
+               "crecimiento se desacelera."),
+        Riesgo("Ejecución después de la salida de oficinas",
+               "La tesis depende de seguir vendiendo y comprando bien —1,500 millones vendidos y "
+               "2,100 invertidos en 2025— y de rerrentar cuando falla un inquilino. El dividendo "
+               "sigue 11% abajo del de 2023."),
+    ),
+    fuentes_extra=(
+        ("Precio y dividendos desde 1998", "Yahoo Finance (chart API), desajustado por la escisión "
+         "de NLOP y validado contra el precio crudo del proveedor diario (2,527 días, error "
+         "0.0000%) y contra 63 cierres publicados por el emisor en 10-K, informes anuales, "
+         "proxies y prospectos (data/estudios/WPC/anclas.csv). Las tres distribuciones "
+         "especiales se separan del dividendo regular."),
+        ("FFO, AFFO y la operación 1998-2025", "10-K, informes anuales, proxies y comunicados de "
+         "resultados (8-K Ex-99.1), uno por uno; ver data/estudios/WPC/anuales_primarios.csv. "
+         "FFO y AFFO de cada trimestre desde 2019, de su comunicado: trimestrales_primarios.csv."),
+        ("Estados financieros 2008-2026", "XBRL de la SEC (companyfacts) y 8-K trimestrales."),
+        ("Tasas", "Treasury a 10 años (FRED), Udibono, CETES y tipo de cambio FIX (Banxico)."),
+        ("Historia corporativa", "10-K, 8-K, 8-K12G3 y proxies de la SEC; wpcarey.com; filings de "
+         "NLOP; S&P Dow Jones Indices."),
+    ),
+    notas={
+        "apalancamiento": (
+            "Como LLC, de 1998 a 2011, su deuda fue de 23% a 40% de los activos en libros; como "
+            "REIT, con las fusiones de los fondos CPA pagadas en parte con deuda, de 34% a 53%. La "
+            "empresa publica deuda neta ÷ EBITDA ajustado desde 2012: entre 4.8x (2013) y 6.7x "
+            "(2012), 5.9x en 2025. Esa cifra anualiza el último trimestre, a prorrata, y excluye "
+            "las partidas que separan su FFO de su AFFO (875 contra 1,098 millones en 2025); la de "
+            "aquí es EBITDAre de Nareit de doce meses y por eso queda arriba: 7.2x en 2025, con "
+            "las compras del año contando solo desde que se hicieron."
+        ),
+        "ffo_derivado": (
+            "La conciliación del emisor suma partidas que la fórmula sobre XBRL no alcanza: la parte "
+            "proporcional de la depreciación de sus coinversiones y de los fondos CPA donde tenía "
+            "participación (10.6 millones en 2009; 5.3 en 2011) y, en 2018, resta 47.8 millones de "
+            "«ganancia por cambio de control» de inversiones al absorber CPA:17 —0.41 dólares por "
+            "acción—, que no es una venta de inmuebles y la fórmula no quita."
+        ),
+        "dividendos": (
+            "El proveedor suma cada distribución especial al dividendo del trimestre: 0.27 dólares "
+            "(pagada en enero de 2008), 0.30 (enero de 2010) y 0.11 (cuarto trimestre de 2013). Se "
+            "separan para que no inflen el yield ni dibujen aumentos y recortes que no ocurrieron."
+        ),
+    },
+)
+
+HISTORIAS: dict[str, HistoriaEmisor] = {"O": HISTORIA_O, "NNN": HISTORIA_NNN, "WPC": HISTORIA_WPC}

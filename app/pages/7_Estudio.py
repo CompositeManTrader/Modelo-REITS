@@ -106,7 +106,7 @@ k3.metric("Dividendo hoy", f"{e.hoy.yield_actual:.2%}",
 if e.hoy.p_ffo is not None:
     # La mediana va en la etiqueta y no como «delta»: Streamlit le pone flecha al
     # delta, y una flecha hacia arriba junto a un múltiplo se lee «subió».
-    k4.metric(f"P/FFO hoy · mediana {e.tabla['p_ffo'].median():.1f}x", f"{e.hoy.p_ffo:.1f}x")
+    k4.metric(f"P/{e.medida.etiqueta} hoy · mediana {e.tabla['p_ffo'].median():.1f}x", f"{e.hoy.p_ffo:.1f}x")
 
 for aviso in e.avisos:
     st.caption(aviso)
@@ -214,9 +214,10 @@ with st.expander("La tabla anual completa, con la fuente de cada cifra"):
 
 st.header("Qué tan caro ha estado")
 st.markdown(
-    "**Contra su propia historia.** Precio ÷ FFO por acción **conocido ese día**: el de cada "
-    "fecha usa solo lo que se había publicado entonces. La franja gris es el 60% central de "
-    "la historia; la línea punteada, la mediana."
+    f"**Contra su propia historia.** Precio ÷ {e.medida.etiqueta} por acción **conocido ese día**: "
+    "el de cada fecha usa solo lo que se había publicado entonces. La franja gris es el 60% "
+    "central de la historia; la línea punteada, la mediana."
+    + (f" {e.medida.motivo}" if e.medida.motivo else "")
 )
 grafica("multiplo")
 st.markdown(
@@ -258,7 +259,7 @@ if e.eras:
 
 st.header("¿Cuándo hubiera convenido entrar?")
 st.markdown(
-    f"Cada punto es un fin de mes: qué tan caro estaba {ticker} ese día —con el FFO que se "
+    f"Cada punto es un fin de mes: qué tan caro estaba {ticker} ese día —con el {e.medida.etiqueta} que se "
     "conocía— y cuánto rindió al año en los cinco años siguientes. Los rombos son la mediana "
     "de cada quinto de la historia, del más caro al más barato."
 )
@@ -271,9 +272,9 @@ st.caption(" · ".join(f"Correlación de rangos, {k}: {v:+.2f}" for k, v in ent.
 
 st.markdown("**Los cinco mejores momentos para comprar** (por retorno a 5 años, separados al "
             "menos 18 meses para no contar el mismo episodio cinco veces)")
-mostrar_tabla(vistas.momentos(ent.mejores))
+mostrar_tabla(vistas.momentos(ent.mejores, e.medida.etiqueta))
 st.markdown("**Los cinco peores**")
-mostrar_tabla(vistas.momentos(ent.peores))
+mostrar_tabla(vistas.momentos(ent.peores, e.medida.etiqueta))
 
 st.markdown(
     "**Y si hubieras comprado en cualquier mes, ¿cuánto llevarías al año hasta hoy?** El "
@@ -336,6 +337,11 @@ with st.expander("Metodología, validaciones y fuentes"):
     for a in listar:
         st.caption(f"Ancla NYSE {a['fecha']}: real {a['real']:.3f}, reconstruido "
                    f"{a['reconstruido']:.3f} ({a['error']:+.3%}).")
+    for a in v.get("anclas_aceptadas", []):
+        st.caption(f"Excepción revisada, cierre del {a['fecha']}: el documento dice {a['real']:.3f}, "
+                   f"la serie {a['reconstruido']:.3f} ({a['error']:+.2%}).")
+    for x in dict.fromkeys(a["explicacion"] for a in v.get("anclas_aceptadas", [])):
+        st.caption(x)
     if v.get("rangos_n"):
         st.caption(f"Rangos trimestrales publicados por el emisor: {v['rangos_n']} trimestres "
                    f"revisados, {len(v.get('rangos_fuera', []))} con cierres fuera.")

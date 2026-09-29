@@ -60,12 +60,23 @@ RENOMBRES_ANUAL = {
 }
 
 
-def _con(df: pd.DataFrame, clave: str) -> pd.DataFrame:
+def columnas(clave: str, medida: str = "FFO") -> list[str]:
+    """Las columnas de la vista, con el múltiplo nombrado por la medida del emisor.
+
+    WPC se valúa por AFFO: su columna es «multiplo_affo», no «multiplo_ffo». El
+    nombre sigue empezando por «multiplo», así que la unidad no cambia.
+    """
+    return [c.replace("multiplo_ffo", f"multiplo_{medida.lower()}") for c in COLUMNAS[clave]]
+
+
+def _con(df: pd.DataFrame, clave: str, medida: str = "FFO") -> pd.DataFrame:
     """Devuelve exactamente las columnas declaradas; si falta una, truena aquí."""
     faltan = [c for c in COLUMNAS[clave] if c not in df.columns]
     if faltan:
         raise KeyError(f"La vista «{clave}» perdió columnas: {faltan}")
-    return df[list(COLUMNAS[clave])].reset_index(drop=True)
+    v = df[list(COLUMNAS[clave])].reset_index(drop=True)
+    v.columns = columnas(clave, medida)
+    return v
 
 
 def spread_inversion(e) -> pd.DataFrame:
@@ -99,27 +110,27 @@ def eras(e) -> pd.DataFrame:
         "yield_inicio": d.yield_inicio, "yield_fin": d.yield_fin,
         "multiplo_ffo_inicio": d.p_ffo_inicio, "multiplo_ffo_fin": d.p_ffo_fin,
     } for d in [*e.eras, e.total]]
-    return _con(pd.DataFrame(filas), "eras")
+    return _con(pd.DataFrame(filas), "eras", e.medida.etiqueta)
 
 
 def quintiles(e) -> pd.DataFrame:
     q = e.entradas.quintiles
     if q.empty:
-        return pd.DataFrame(columns=COLUMNAS["quintiles"])
+        return pd.DataFrame(columns=columnas("quintiles", e.medida.etiqueta))
     return _con(q.reset_index().rename(columns={
         "desde": "multiplo_ffo_desde", "hasta": "multiplo_ffo_hasta",
         "rt_5a_mediana": "rendimiento_5a_mediana", "rt_5a_peor": "rendimiento_5a_peor",
         "rt_5a_mejor": "rendimiento_5a_mejor",
-    }), "quintiles")
+    }), "quintiles", e.medida.etiqueta)
 
 
-def momentos(df: pd.DataFrame) -> pd.DataFrame:
+def momentos(df: pd.DataFrame, medida: str = "FFO") -> pd.DataFrame:
     v = df[["precio", "p_ffo", "yield_ttm", "rt_5a", "rt_10a", "rt_a_hoy_usd", "yield_sobre_costo"]].copy()
     v.insert(0, "compra", [mes(f) for f in v.index])
     return _con(v.rename(columns={
         "p_ffo": "multiplo_ffo", "rt_5a": "rendimiento_5a", "rt_10a": "rendimiento_10a",
         "rt_a_hoy_usd": "rendimiento_a_hoy",
-    }), "momentos")
+    }), "momentos", medida)
 
 
 def cortes_de_compra(e) -> list[pd.Timestamp]:
@@ -143,7 +154,7 @@ def yield_sobre_costo(e) -> pd.DataFrame:
     return _con(v.rename(columns={
         "p_ffo": "multiplo_ffo", "rt_a_hoy_usd": "rendimiento_a_hoy_en_dólares",
         "rt_a_hoy_mxn": "rendimiento_a_hoy_en_pesos", "multiplo_a_hoy": "multiplo_de_lo_invertido",
-    }), "yield_sobre_costo")
+    }), "yield_sobre_costo", e.medida.etiqueta)
 
 
 def escenarios(e) -> pd.DataFrame:
@@ -171,6 +182,7 @@ def diagnostico_ffo(e) -> pd.DataFrame:
 
 VISTAS = {
     "spread_inversion": spread_inversion, "anual": anual, "eras": eras, "quintiles": quintiles,
-    "mejores": lambda e: momentos(e.entradas.mejores), "peores": lambda e: momentos(e.entradas.peores),
+    "mejores": lambda e: momentos(e.entradas.mejores, e.medida.etiqueta),
+    "peores": lambda e: momentos(e.entradas.peores, e.medida.etiqueta),
     "yield_sobre_costo": yield_sobre_costo, "escenarios": escenarios, "diagnostico_ffo": diagnostico_ffo,
 }

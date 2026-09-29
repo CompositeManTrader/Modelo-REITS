@@ -118,6 +118,25 @@ EVENTOS_DE_CAPITAL: dict[str, tuple[EventoDeCapital, ...]] = {
     # Vacío a propósito, y declarado: «sin eventos» es una afirmación verificada, no
     # la ausencia de una. Si el proveedor llega a reportar uno, la descarga se detiene.
     "NNN": (),
+    "WPC": (
+        EventoDeCapital(
+            fecha=dt.date(2023, 11, 2),
+            factor=1.021,
+            tipo="escision",
+            descripcion="Escisión de Net Lease Office Properties (NLOP): una acción de NLOP por "
+                        "cada 15 de WPC, distribuida el 1-nov-2023. No cambió el número de "
+                        "acciones de WPC.",
+            fuente="8-K de W. P. Carey del 6-oct-2023 («one NLOP common share for every 15 shares "
+                   "of W. P. Carey common stock») y del 2-nov-2023; NLOP cotiza «regular way» "
+                   "desde el 2-nov-2023. Factor verificado contra 2,527 cierres crudos del "
+                   "proveedor diario, error 0.0000%. El factor valora lo repartido en 1.12 "
+                   "dólares por acción de WPC (16.74 por acción de NLOP); el Formulario 8937 de "
+                   "WPC (30-ene-2024) lo valora en 11.44 por acción de NLOP, promedio ponderado "
+                   "de tres días: 0.76 por acción de WPC, 1.4% del precio en vez de 2.1%. La "
+                   "diferencia, una sola vez, pesa menos de 0.03 puntos al año en el retorno "
+                   "desde 1998. Se usa el del proveedor porque es el que reproduce sus cierres.",
+        ),
+    ),
 }
 
 SPLITS_DE_TIPO = ("split", "escision")
@@ -169,6 +188,31 @@ CORRECCIONES_DE_DIVIDENDOS: dict[str, tuple[CorreccionDividendo, ...]] = {
             partes=((0.1575, "regular"),),
             fuente="10-K 1996: «a distribution of $0.1575 per share had been declared» al "
                    "31-dic-1996, pagada el 15-ene-1997.",
+        ),
+    ),
+    # WPC: el proveedor suma cada distribución especial a la regular del trimestre. Sin
+    # separarlas, el yield de 2008, 2010 y 2014 sale inflado un año entero y la serie
+    # dibuja «aumentos» de 57% seguidos de «recortes» que nunca ocurrieron.
+    "WPC": (
+        CorreccionDividendo(
+            fecha_ex=dt.date(2007, 12, 27), proveedor=0.747,
+            partes=((0.477, "regular"), (0.27, "especial")),
+            fuente="Suplemento de resultados 2007 (8-K de 2008): distribución especial de $0.27 "
+                   "pagada en enero de 2008, aparte del dividendo del 4T-2007 ($0.477). El "
+                   "trimestre siguiente paga $0.482.",
+        ),
+        CorreccionDividendo(
+            fecha_ex=dt.date(2009, 12, 29), proveedor=0.802,
+            partes=((0.502, "regular"), (0.30, "especial")),
+            fuente="10-K 2009: especial de $0.30 pagada en enero de 2010 a los tenedores al "
+                   "31-dic-2009, «as a result of an increase in our 2009 taxable income»; el "
+                   "regular del 4T-2009 fue $0.502.",
+        ),
+        CorreccionDividendo(
+            fecha_ex=dt.date(2013, 12, 27), proveedor=0.98,
+            partes=((0.87, "regular"), (0.11, "especial")),
+            fuente="Comunicado del 4T-2013 (8-K): especial de $0.11 además del regular, que sube "
+                   "a $0.87 («fifty-first consecutive quarterly dividend increase»).",
         ),
     ),
 }
@@ -256,6 +300,25 @@ EXCEPCIONES_DE_RANGO: dict[str, dict[str, str]] = {
             "por dividendos estaría abajo todo el año, no un día."
         ),
     },
+}
+
+
+# Anclas de precio que contradicen la serie más allá de la tolerancia, revisadas una
+# por una y con su explicación. Igual que las de rango: no es una tolerancia más
+# holgada, es un documento del emisor que se demostró equivocado con OTRO
+# documento del emisor. El manifiesto las lista aparte; un ancla de esa fecha que
+# sí cuadra se valida como cualquier otra.
+_CUADRO_WPC_2000 = (
+    "El cuadro de precios de 2000 del 10-K de ese año (repetido en los informes de 2001 y "
+    "2002) no cuadra con otro documento del emisor: da 15.45 como cierre del 31-mar-2000 y "
+    "16.03 como máximo del trimestre, pero el proxy de la fusión (DEFM14A, 17-may-2000) da "
+    "16.625 como cierre de ese mismo día, igual que el proveedor. El 4T sí cuadra al centavo "
+    "(18.10), igual que los cierres trimestrales de 1998, 1999 y 2001 a 2004. Y las opciones "
+    "de 2000 se otorgaron a precios «desde 16.38»: el cierre del proveedor del 30-jun (16.375), "
+    "no el del cuadro (15.60)."
+)
+EXCEPCIONES_DE_ANCLA: dict[str, dict[str, str]] = {
+    "WPC": dict.fromkeys(("2000-03-31", "2000-06-30", "2000-09-29"), _CUADRO_WPC_2000),
 }
 
 
@@ -485,6 +548,7 @@ class Validacion:
     rangos_n: int = 0
     rangos_fuera: list[dict] = field(default_factory=list)
     rangos_aceptados: list[dict] = field(default_factory=list)
+    anclas_aceptadas: list[dict] = field(default_factory=list)
 
     @property
     def aprobada(self) -> bool:
@@ -542,6 +606,7 @@ def validar(
     anclas: pd.DataFrame,
     rangos: tuple[RangoTrimestral, ...] = (),
     excepciones: dict[str, str] | None = None,
+    excepciones_anclas: dict[str, str] | None = None,
 ) -> Validacion:
     """Compara contra cosas que no dependen de este proveedor.
 
@@ -557,16 +622,18 @@ def validar(
     comun = serie.to_frame("largo").join(otra.rename("diario"), how="inner").dropna()
     err = comun["largo"] / comun["diario"] - 1 if not comun.empty else pd.Series(dtype=float)
 
-    resultados_anclas = []
+    resultados_anclas, anclas_aceptadas = [], []
     for _, a in anclas.iterrows():
         f = pd.Timestamp(a["fecha_dato"]).normalize()
         if f in serie.index:
             real = float(a["cierre_crudo"])
-            resultados_anclas.append(
-                {"fecha": str(f.date()), "real": real,
-                 "reconstruido": float(serie.loc[f]),
-                 "error": float(serie.loc[f] / real - 1)}
-            )
+            caso = {"fecha": str(f.date()), "real": real, "reconstruido": float(serie.loc[f]),
+                    "error": float(serie.loc[f] / real - 1)}
+            explicacion = (excepciones_anclas or {}).get(caso["fecha"])
+            if explicacion and abs(caso["error"]) > TOLERANCIA_TRASLAPE:
+                anclas_aceptadas.append({**caso, "explicacion": explicacion})
+            else:
+                resultados_anclas.append(caso)
 
     d_err_max = None
     d_n = 0
@@ -589,6 +656,7 @@ def validar(
         rangos_n=rangos_n,
         rangos_fuera=rangos_fuera,
         rangos_aceptados=rangos_aceptados,
+        anclas_aceptadas=anclas_aceptadas,
     )
 
 

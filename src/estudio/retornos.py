@@ -265,7 +265,10 @@ def _quintiles(e: pd.DataFrame, columna: str, *, barato_es_alto: bool) -> pd.Dat
     return q.reindex(["1 · más caro", "2", "3", "4", "5 · más barato"])
 
 
-def analizar_entradas(serie: SerieDiaria, *, asof: dt.date, horizontes=(5, 10)) -> AnalisisEntradas:
+def analizar_entradas(
+    serie: SerieDiaria, *, asof: dt.date, horizontes=(5, 10), medida: str = "FFO"
+) -> AnalisisEntradas:
+    """Retorno por fecha de entrada. ``medida`` nombra el flujo de la columna ``p_ffo``."""
     t = serie.tabla
     fin_de_mes = t.groupby([t.index.year, t.index.month]).tail(1).index
     e = t.loc[fin_de_mes, ["precio", "precio_base", "yield_ttm", "ust10", "spread", "p_ffo",
@@ -293,7 +296,7 @@ def analizar_entradas(serie: SerieDiaria, *, asof: dt.date, horizontes=(5, 10)) 
             corr[f"{h} años"] = float(sub["spread"].rank().corr(sub[f"rt_{h}a"].rank()))
         sub = e[["p_ffo", f"rt_{h}a"]].dropna()
         if len(sub) > 10:
-            corr[f"{h} años (P/FFO)"] = float(sub["p_ffo"].rank().corr(sub[f"rt_{h}a"].rank()))
+            corr[f"{h} años (P/{medida})"] = float(sub["p_ffo"].rank().corr(sub[f"rt_{h}a"].rank()))
 
     # Apuestas efectivas (P7): ventanas que no se enciman dentro del periodo con
     # retorno futuro observado. Meses consecutivos comparten casi todo su futuro;

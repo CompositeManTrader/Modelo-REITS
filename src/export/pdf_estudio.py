@@ -91,7 +91,10 @@ def _e(texto) -> str:
 
 
 def pct(v, d: int = 1) -> str:
-    return "—" if v is None or pd.isna(v) else f"{v * 100:,.{d}f}%"
+    if v is None or pd.isna(v):
+        return "—"
+    # Sin «-0.0%»: un -0.04% redondeado a un decimal es cero, no «menos cero».
+    return f"{0.0 if round(v * 100, d) == 0 else v * 100:,.{d}f}%"
 
 
 def veces(v, d: int = 1) -> str:
@@ -227,7 +230,7 @@ def _portada(e) -> str:
         (pct(mxn), "lo mismo, en pesos" + ("" if rt_mxn.index[0].year == t0.year
                                            else f" (desde {g.mes(rt_mxn.index[0])})")),
         (pct(h.yield_actual, 2), "dividendo al precio de hoy"),
-        (veces(h.p_ffo), f"P/FFO hoy · mediana histórica {veces(e.tabla['p_ffo'].median())}"),
+        (veces(h.p_ffo), f"P/{e.medida.etiqueta} hoy · mediana histórica {veces(e.tabla['p_ffo'].median())}"),
     ]
     kpi_html = "".join(f"<div class='kpi'><div class='v'>{v}</div><div class='l'>{_e(leyenda)}</div></div>" for v, leyenda in kpis)
     return f"""
@@ -324,11 +327,13 @@ def _negocio(e, fig) -> str:
 
 
 def _valuacion(e, fig) -> str:
+    m = _e(e.medida.etiqueta)
+    motivo = f" {_e(e.medida.motivo)}" if e.medida.motivo else ""
     return (
         "<h2>Qué tan caro ha estado</h2>"
-        "<p><b>Contra su propia historia.</b> Precio ÷ FFO por acción conocido ese día: cada fecha "
+        f"<p><b>Contra su propia historia.</b> Precio ÷ {m} por acción conocido ese día: cada fecha "
         "usa solo lo que se había publicado entonces. La franja es el 60% central de la historia; "
-        "la línea punteada, la mediana.</p>"
+        f"la línea punteada, la mediana.{motivo}</p>"
         + fig("multiplo")
         + "<div class='bloque'><p><b>Contra el bono.</b> Un REIT de arrendamiento neto compite con "
         "el Treasury por el mismo ahorrador. Cuando el bono paga más, al REIT le exigen más yield y "
@@ -363,13 +368,14 @@ def _retorno(e, fig) -> str:
         "tercera, el mercado.</p>"
         + fig("eras") + "</div>"
         + tabla(filas, ["Era", "Periodo", "Años", "Retorno anual", "Dividendo cobrado", "Crecimiento div.",
-                        "Revaluación", "Escisión", "Yield", "P/FFO"], alinear="llrrrrrrrr")
+                        "Revaluación", "Escisión", "Yield", f"P/{e.medida.etiqueta}"], alinear="llrrrrrrrr")
         + "<h3>Qué pasó en cada era</h3>" + narrativa
     )
 
 
 def _entradas(e, fig) -> str:
     ent = e.entradas
+    m = e.medida.etiqueta
     q = ent.quintiles
     filas_q = [[_e(i), f"{veces(r.desde)} – {veces(r.hasta)}", pct(r.rt_5a_mediana), pct(r.rt_5a_peor),
                 pct(r.rt_5a_mejor), num(r.meses)] for i, r in q.iterrows()] if not q.empty else []
@@ -377,7 +383,7 @@ def _entradas(e, fig) -> str:
     def momentos(df: pd.DataFrame) -> str:
         filas = [[g.mes(f), usd(r.precio), veces(r.p_ffo), pct(r.yield_ttm), pct(r.rt_5a), pct(r.rt_10a),
                   pct(r.rt_a_hoy_usd), pct(r.yield_sobre_costo)] for f, r in df.iterrows()]
-        return tabla(filas, ["Compra", "Precio", "P/FFO", "Yield", "A 5 años", "A 10 años", "Hasta hoy",
+        return tabla(filas, ["Compra", "Precio", f"P/{m}", "Yield", "A 5 años", "A 10 años", "Hasta hoy",
                              "Yield sobre costo"])
 
     cortes = vistas.cortes_de_compra(e)
@@ -388,11 +394,11 @@ def _entradas(e, fig) -> str:
     corr = " · ".join(f"{_e(k)}: {v:+.2f}" for k, v in ent.correlaciones.items())
     return (
         "<h2 class='salto'>¿Cuándo hubiera convenido entrar?</h2>"
-        f"<p>Cada punto es un fin de mes: qué tan caro estaba {_e(e.ticker)} ese día —con el FFO que se "
+        f"<p>Cada punto es un fin de mes: qué tan caro estaba {_e(e.ticker)} ese día —con el {_e(m)} que se "
         "conocía— y cuánto rindió al año en los cinco años siguientes. Los rombos son la mediana "
         "de cada quinto de la historia.</p>"
         + fig("entradas")
-        + tabla(filas_q, ["Quinto de la historia", "P/FFO al comprar", "Mediana a 5 años", "Peor", "Mejor", "Meses"],
+        + tabla(filas_q, ["Quinto de la historia", f"P/{m} al comprar", "Mediana a 5 años", "Peor", "Mejor", "Meses"],
                 alinear="lrrrrr")
         + f"<div class='aviso'><b>Por qué esto no es una regla de compra.</b> {_e(ent.veredicto_p7)}"
           f"<br><span class='chico gris'>Correlaciones de rangos (Spearman): {corr}</span></div>"
@@ -404,7 +410,7 @@ def _entradas(e, fig) -> str:
           "la compra hasta hoy. El «yield sobre costo» es el dividendo de hoy entre lo que pagaste: "
           "cuánto te paga HOY lo que compraste entonces.</p>"
         + fig("retorno_a_hoy") + "</div>"
-        + tabla(yoc, ["Compra", "Precio", "P/FFO", "Anual hasta hoy (USD)", "(MXN)", "Veces lo invertido",
+        + tabla(yoc, ["Compra", "Precio", f"P/{m}", "Anual hasta hoy (USD)", "(MXN)", "Veces lo invertido",
                       "Yield sobre costo"])
     )
 
@@ -430,7 +436,8 @@ def _hoy(e, fig) -> str:
         + fig("escenarios", pie="Retorno real anual, neto de impuestos, con el crecimiento de "
               + (base.nombre.replace(", ", " en los últimos ") if base else "el flujo por acción") + ".")
         + tabla(filas, ["Crecimiento supuesto", "g", "USD, múltiplo constante", "USD, vuelve el spread",
-                        "USD, vuelve el P/FFO", "Real neto", "Real neto, spread", "Real neto, P/FFO"],
+                        f"USD, vuelve el P/{e.medida.etiqueta}", "Real neto", "Real neto, spread",
+                        f"Real neto, P/{e.medida.etiqueta}"],
                 alinear="lrrrrrrr")
         + "".join(f"<p class='chico gris'>{_e(s)}</p>" for s in h.supuestos)
     )
@@ -452,6 +459,11 @@ def _metodologia(e) -> str:
         f"<li>Cierre NYSE {a['fecha']}: real {usd(a['real'], 3)}, reconstruido {usd(a['reconstruido'], 3)} "
         f"({a['error']:+.3%}).</li>" for a in listar
     )
+    anclas += "".join(
+        f"<li>Excepción revisada, cierre del {a['fecha']}: el documento dice {usd(a['real'], 3)}, la serie "
+        f"{usd(a['reconstruido'], 3)} ({a['error']:+.2%}).</li>"
+        for a in v.get("anclas_aceptadas", [])
+    ) + "".join(f"<li>{_e(x)}</li>" for x in dict.fromkeys(a["explicacion"] for a in v.get("anclas_aceptadas", [])))
     correcciones = "".join(f"<li>{_e(c)}</li>" for c in man.get("correcciones_de_dividendos", []))
     d = e.diagnostico_ffo.tabla
     filas_d = [[str(a), usd(r.derivado), usd(r.reportado), pct(r.error)] for a, r in d.iterrows()]

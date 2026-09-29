@@ -51,6 +51,7 @@ def cmd_mercado(ticker: str) -> int:
         anclas=mercado.anclas_del_estudio(ticker, repo.anclas(ticker)),
         rangos=mercado.RANGOS_TRIMESTRALES.get(ticker, ()),
         excepciones=mercado.EXCEPCIONES_DE_RANGO.get(ticker, {}),
+        excepciones_anclas=mercado.EXCEPCIONES_DE_ANCLA.get(ticker, {}),
     )
     print("\nValidación contra fuentes que no dependen de este proveedor:")
     print(f"  traslape con el precio crudo diario: {validacion.traslape_n:,} días, "
@@ -58,6 +59,9 @@ def cmd_mercado(ticker: str) -> int:
     for a in validacion.anclas:
         print(f"  ancla NYSE {a['fecha']}: real {a['real']:.2f}, reconstruido "
               f"{a['reconstruido']:.2f}, error {a['error']:+.3%}")
+    for a in validacion.anclas_aceptadas:
+        print(f"  ancla aceptada {a['fecha']}: real {a['real']:.2f}, reconstruido "
+              f"{a['reconstruido']:.2f}, error {a['error']:+.3%}; {a['explicacion'][:90]}…")
     if validacion.rangos_n:
         print(f"  rangos trimestrales del emisor: {validacion.rangos_n} revisados, "
               f"{len(validacion.rangos_fuera)} con cierres fuera")

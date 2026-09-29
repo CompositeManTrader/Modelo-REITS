@@ -1,0 +1,444 @@
+{
+  "ticker": "WPC",
+  "fuente": "MERCADO-YAHOO",
+  "descargado_en": "2026-09-29T02:22:52+00:00",
+  "primera_cotizacion": "1998-01-21",
+  "inicio_verificable": null,
+  "precios": {
+    "n": 7216,
+    "desde": "1998-01-21",
+    "hasta": "2026-09-28"
+  },
+  "dividendos": {
+    "n": 117,
+    "desde": "1998-03-27",
+    "hasta": "2026-06-30"
+  },
+  "eventos": [
+    {
+      "fecha": "2023-11-02",
+      "factor": 1.021,
+      "tipo": "escision",
+      "descripcion": "Escisión de Net Lease Office Properties (NLOP): una acción de NLOP por cada 15 de WPC, distribuida el 1-nov-2023. No cambió el número de acciones de WPC.",
+      "fuente": "8-K de W. P. Carey del 6-oct-2023 («one NLOP common share for every 15 shares of W. P. Carey common stock») y del 2-nov-2023; NLOP cotiza «regular way» desde el 2-nov-2023. Factor verificado contra 2,527 cierres crudos del proveedor diario, error 0.0000%. El factor valora lo repartido en 1.12 dólares por acción de WPC (16.74 por acción de NLOP); el Formulario 8937 de WPC (30-ene-2024) lo valora en 11.44 por acción de NLOP, promedio ponderado de tres días: 0.76 por acción de WPC, 1.4% del precio en vez de 2.1%. La diferencia, una sola vez, pesa menos de 0.03 puntos al año en el retorno desde 1998. Se usa el del proveedor porque es el que reproduce sus cierres."
+    }
+  ],
+  "correcciones_de_dividendos": [
+    "2007-12-27: 0.7470 → 0.477 (regular) + 0.27 (especial). Suplemento de resultados 2007 (8-K de 2008): distribución especial de $0.27 pagada en enero de 2008, aparte del dividendo del 4T-2007 ($0.477). El trimestre siguiente paga $0.482.",
+    "2009-12-29: 0.8020 → 0.502 (regular) + 0.3 (especial). 10-K 2009: especial de $0.30 pagada en enero de 2010 a los tenedores al 31-dic-2009, «as a result of an increase in our 2009 taxable income»; el regular del 4T-2009 fue $0.502.",
+    "2013-12-27: 0.9800 → 0.87 (regular) + 0.11 (especial). Comunicado del 4T-2013 (8-K): especial de $0.11 además del regular, que sube a $0.87 («fifty-first consecutive quarterly dividend increase»)."
+  ],
+  "validacion": {
+    "traslape_n": 2527,
+    "traslape_error_max": 6.188196222112197e-08,
+    "traslape_error_medio": -1.1504653810977679e-09,
+    "anclas": [
+      {
+        "fecha": "1998-03-31",
+        "real": 20.125,
+        "reconstruido": 20.124999610900876,
+        "error": -1.9334117973279774e-08
+      },
+      {
+        "fecha": "1998-06-30",
+        "real": 19.75,
+        "reconstruido": 19.749999908447265,
+        "error": -4.635581474232708e-09
+      },
+      {
+        "fecha": "1998-09-30",
+        "real": 19.875,
+        "reconstruido": 19.749999908447265,
+        "error": -0.006289312782527534
+      },
+      {
+        "fecha": "1998-12-31",
+        "real": 19.6875,
+        "reconstruido": 19.687499958038327,
+        "error": -2.131386622750142e-09
+      },
+      {
+        "fecha": "1999-03-31",
+        "real": 17.69,
+        "reconstruido": 17.687499597549436,
+        "error": -0.00014134553140554562
+      },
+      {
+        "fecha": "1999-06-30",
+        "real": 17.25,
+        "reconstruido": 17.249999944686888,
+        "error": -3.2065572419526234e-09
+      },
+      {
+        "fecha": "1999-09-30",
+        "real": 20.0,
+        "reconstruido": 19.999999710083006,
+        "error": -1.4495849631757096e-08
+      },
+      {
+        "fecha": "1999-12-31",
+        "real": 16.88,
+        "reconstruido": 16.875000242233273,
+        "error": -0.00029619418049320334
+      },
+      {
+        "fecha": "2000-03-31",
+        "real": 16.625,
+        "reconstruido": 16.625000440597532,
+        "error": 2.650210717547452e-08
+      },
+      {
+        "fecha": "2000-12-29",
+        "real": 18.1,
+        "reconstruido": 18.100000438690184,
+        "error": 2.4237026607920598e-08
+      },
+      {
+        "fecha": "2001-03-30",
+        "real": 19.35,
+        "reconstruido": 19.349999446868896,
+        "error": -2.8585586786533668e-08
+      },
+      {
+        "fecha": "2001-06-29",
+        "real": 18.5,
+        "reconstruido": 18.500000900268553,
+        "error": 4.8663165053142166e-08
+      },
+      {
+        "fecha": "2001-09-28",
+        "real": 21.35,
+        "reconstruido": 21.349999807357786,
+        "error": -9.02305452576968e-09
+      },
+      {
+        "fecha": "2001-12-31",
+        "real": 23.2,
+        "reconstruido": 23.19999950790405,
+        "error": -2.1211032263934726e-08
+      },
+      {
+        "fecha": "2002-03-28",
+        "real": 23.24,
+        "reconstruido": 23.239999164581295,
+        "error": -3.594744846235898e-08
+      },
+      {
+        "fecha": "2002-06-28",
+        "real": 22.5,
+        "reconstruido": 22.49999967384338,
+        "error": -1.4495849742779399e-08
+      },
+      {
+        "fecha": "2002-09-30",
+        "real": 24.8,
+        "reconstruido": 24.799999406814575,
+        "error": -2.3918767189101686e-08
+      },
+      {
+        "fecha": "2002-12-31",
+        "real": 24.75,
+        "reconstruido": 24.749999835968016,
+        "error": -6.6275549492900154e-09
+      },
+      {
+        "fecha": "2003-03-31",
+        "real": 25.0,
+        "reconstruido": 24.999999637603757,
+        "error": -1.4495849742779399e-08
+      },
+      {
+        "fecha": "2003-06-30",
+        "real": 29.94,
+        "reconstruido": 29.94000008010864,
+        "error": 2.6756392657034667e-09
+      },
+      {
+        "fecha": "2003-09-30",
+        "real": 31.75,
+        "reconstruido": 31.750000123977657,
+        "error": 3.904808032473284e-09
+      },
+      {
+        "fecha": "2003-12-31",
+        "real": 30.52,
+        "reconstruido": 30.519998996734618,
+        "error": -3.287239125349117e-08
+      },
+      {
+        "fecha": "2004-03-31",
+        "real": 30.95,
+        "reconstruido": 30.94999920082092,
+        "error": -2.582161806596872e-08
+      },
+      {
+        "fecha": "2004-06-30",
+        "real": 29.78,
+        "reconstruido": 29.779999505996702,
+        "error": -1.6588425078012392e-08
+      },
+      {
+        "fecha": "2004-09-30",
+        "real": 29.86,
+        "reconstruido": 29.859998819351194,
+        "error": -3.953947769197441e-08
+      },
+      {
+        "fecha": "2004-12-31",
+        "real": 35.16,
+        "reconstruido": 35.160002014160156,
+        "error": 5.7285556298580786e-08
+      },
+      {
+        "fecha": "2005-12-30",
+        "real": 25.36,
+        "reconstruido": 25.36000044250488,
+        "error": 1.744893052268992e-08
+      },
+      {
+        "fecha": "2012-03-30",
+        "real": 46.52,
+        "reconstruido": 46.51999798583984,
+        "error": -4.3296650154012184e-08
+      },
+      {
+        "fecha": "2012-06-29",
+        "real": 46.03,
+        "reconstruido": 46.03000024414062,
+        "error": 5.303945727064274e-09
+      },
+      {
+        "fecha": "2012-09-28",
+        "real": 49.0,
+        "reconstruido": 49.00000006866455,
+        "error": 1.4013172844329347e-09
+      },
+      {
+        "fecha": "2012-10-17",
+        "real": 51.45,
+        "reconstruido": 51.45000046157836,
+        "error": 8.971396736612292e-09
+      },
+      {
+        "fecha": "2012-12-31",
+        "real": 52.15,
+        "reconstruido": 52.14999834823608,
+        "error": -3.167332529585565e-08
+      },
+      {
+        "fecha": "2013-03-28",
+        "real": 67.4,
+        "reconstruido": 67.39999793243408,
+        "error": -3.0676052364952966e-08
+      },
+      {
+        "fecha": "2013-06-28",
+        "real": 66.17,
+        "reconstruido": 66.1700026473999,
+        "error": 4.0009066060164855e-08
+      },
+      {
+        "fecha": "2013-09-30",
+        "real": 64.7,
+        "reconstruido": 64.70000163269043,
+        "error": 2.523478248583899e-08
+      },
+      {
+        "fecha": "2013-10-31",
+        "real": 66.61,
+        "reconstruido": 66.60999887084961,
+        "error": -1.6951664738584782e-08
+      },
+      {
+        "fecha": "2013-12-31",
+        "real": 61.35,
+        "reconstruido": 61.35000117492675,
+        "error": 1.9151210395307317e-08
+      },
+      {
+        "fecha": "2014-09-19",
+        "real": 67.99,
+        "reconstruido": 67.98999871063232,
+        "error": -1.8964078196681555e-08
+      },
+      {
+        "fecha": "2014-12-31",
+        "real": 70.1,
+        "reconstruido": 70.10000202178955,
+        "error": 2.8841505850252247e-08
+      },
+      {
+        "fecha": "2015-06-02",
+        "real": 63.5,
+        "reconstruido": 63.50000024795531,
+        "error": 3.904808032473284e-09
+      },
+      {
+        "fecha": "2015-12-31",
+        "real": 59.0,
+        "reconstruido": 58.99999992370605,
+        "error": -1.293117835032831e-09
+      },
+      {
+        "fecha": "2016-11-07",
+        "real": 58.8,
+        "reconstruido": 58.79999774551391,
+        "error": -3.8341600117064445e-08
+      },
+      {
+        "fecha": "2016-12-30",
+        "real": 59.09,
+        "reconstruido": 59.090001098632804,
+        "error": 1.8592533512773457e-08
+      },
+      {
+        "fecha": "2017-02-28",
+        "real": 63.09,
+        "reconstruido": 63.089997924804685,
+        "error": -3.2892618739843726e-08
+      },
+      {
+        "fecha": "2017-12-29",
+        "real": 68.9,
+        "reconstruido": 68.89999674224853,
+        "error": -4.728231450812359e-08
+      },
+      {
+        "fecha": "2018-06-15",
+        "real": 67.03,
+        "reconstruido": 67.0299991607666,
+        "error": -1.2520265713078516e-08
+      },
+      {
+        "fecha": "2018-12-31",
+        "real": 65.34,
+        "reconstruido": 65.34000003433226,
+        "error": 5.254401358456562e-10
+      },
+      {
+        "fecha": "2019-02-26",
+        "real": 74.03,
+        "reconstruido": 74.04000325775147,
+        "error": 0.00013512437865004223
+      },
+      {
+        "fecha": "2019-08-08",
+        "real": 87.29,
+        "reconstruido": 87.29000053405761,
+        "error": 6.118199058491314e-09
+      },
+      {
+        "fecha": "2019-12-31",
+        "real": 80.04,
+        "reconstruido": 80.03999849700926,
+        "error": -1.8777995269836367e-08
+      },
+      {
+        "fecha": "2020-06-16",
+        "real": 74.36,
+        "reconstruido": 74.36000051116943,
+        "error": 6.874252722610663e-09
+      },
+      {
+        "fecha": "2020-12-31",
+        "real": 70.58,
+        "reconstruido": 70.5799979019165,
+        "error": -2.97263176296525e-08
+      },
+      {
+        "fecha": "2021-06-04",
+        "real": 78.13,
+        "reconstruido": 78.13000125885009,
+        "error": 1.6112249978661453e-08
+      },
+      {
+        "fecha": "2021-08-06",
+        "real": 80.26,
+        "reconstruido": 80.26000050354003,
+        "error": 6.273860320149538e-09
+      },
+      {
+        "fecha": "2021-12-31",
+        "real": 82.05,
+        "reconstruido": 82.04999877166748,
+        "error": -1.4970536477143526e-08
+      },
+      {
+        "fecha": "2022-02-25",
+        "real": 77.66,
+        "reconstruido": 77.65999945068359,
+        "error": -7.073350682951229e-09
+      },
+      {
+        "fecha": "2022-04-29",
+        "real": 80.77,
+        "reconstruido": 80.77000196838378,
+        "error": 2.4370233830950383e-08
+      },
+      {
+        "fecha": "2022-12-30",
+        "real": 78.15,
+        "reconstruido": 78.1499971923828,
+        "error": -3.592600394952683e-08
+      },
+      {
+        "fecha": "2023-09-29",
+        "real": 54.08,
+        "reconstruido": 54.07999930953979,
+        "error": -1.2767385593193126e-08
+      },
+      {
+        "fecha": "2023-12-29",
+        "real": 64.81,
+        "reconstruido": 64.80999755859375,
+        "error": -3.7670209063200844e-08
+      },
+      {
+        "fecha": "2024-12-31",
+        "real": 54.48,
+        "reconstruido": 54.47999954223633,
+        "error": -8.402416873387608e-09
+      },
+      {
+        "fecha": "2025-04-30",
+        "real": 62.44,
+        "reconstruido": 62.439998626708984,
+        "error": -2.1993770249473243e-08
+      },
+      {
+        "fecha": "2025-12-31",
+        "real": 64.36,
+        "reconstruido": 64.36000061035156,
+        "error": 9.48339895501249e-09
+      }
+    ],
+    "dividendos_traslape_n": 20,
+    "dividendos_error_max": 4.3519394510305176e-07,
+    "rangos_n": 0,
+    "rangos_fuera": [],
+    "rangos_aceptados": [],
+    "anclas_aceptadas": [
+      {
+        "fecha": "2000-03-31",
+        "real": 15.45,
+        "reconstruido": 16.625000440597532,
+        "error": 0.0760518084529147,
+        "explicacion": "El cuadro de precios de 2000 del 10-K de ese año (repetido en los informes de 2001 y 2002) no cuadra con otro documento del emisor: da 15.45 como cierre del 31-mar-2000 y 16.03 como máximo del trimestre, pero el proxy de la fusión (DEFM14A, 17-may-2000) da 16.625 como cierre de ese mismo día, igual que el proveedor. El 4T sí cuadra al centavo (18.10), igual que los cierres trimestrales de 1998, 1999 y 2001 a 2004. Y las opciones de 2000 se otorgaron a precios «desde 16.38»: el cierre del proveedor del 30-jun (16.375), no el del cuadro (15.60)."
+      },
+      {
+        "fecha": "2000-06-30",
+        "real": 15.6,
+        "reconstruido": 16.37500063896179,
+        "error": 0.049679528138576234,
+        "explicacion": "El cuadro de precios de 2000 del 10-K de ese año (repetido en los informes de 2001 y 2002) no cuadra con otro documento del emisor: da 15.45 como cierre del 31-mar-2000 y 16.03 como máximo del trimestre, pero el proxy de la fusión (DEFM14A, 17-may-2000) da 16.625 como cierre de ese mismo día, igual que el proveedor. El 4T sí cuadra al centavo (18.10), igual que los cierres trimestrales de 1998, 1999 y 2001 a 2004. Y las opciones de 2000 se otorgaron a precios «desde 16.38»: el cierre del proveedor del 30-jun (16.375), no el del cuadro (15.60)."
+      },
+      {
+        "fecha": "2000-09-29",
+        "real": 17.15,
+        "reconstruido": 17.562499696731567,
+        "error": 0.024052460450820323,
+        "explicacion": "El cuadro de precios de 2000 del 10-K de ese año (repetido en los informes de 2001 y 2002) no cuadra con otro documento del emisor: da 15.45 como cierre del 31-mar-2000 y 16.03 como máximo del trimestre, pero el proxy de la fusión (DEFM14A, 17-may-2000) da 16.625 como cierre de ese mismo día, igual que el proveedor. El 4T sí cuadra al centavo (18.10), igual que los cierres trimestrales de 1998, 1999 y 2001 a 2004. Y las opciones de 2000 se otorgaron a precios «desde 16.38»: el cierre del proveedor del 30-jun (16.375), no el del cuadro (15.60)."
+      }
+    ]
+  }
+}

@@ -94,7 +94,10 @@ _UMBRAL_FRACCION = 1.0
 #
 # Se excluye por nombre y no bajando el umbral, que es lo que pide el comentario:
 # bajarlo dejaría de cazar el defecto real en las columnas donde sí aplica.
-_COLUMNAS_QUE_PUEDEN_SER_CHICAS = ("crecimiento", "cagr", "spread", "brecha", "diferencia")
+#
+# Lo mismo el aporte de una escisión al retorno anual: la de NLOP le sumó a WPC 0.7% al
+# año en su era, y es cero en todas las demás.
+_COLUMNAS_QUE_PUEDEN_SER_CHICAS = ("crecimiento", "cagr", "spread", "brecha", "diferencia", "escision")
 
 
 def _revisar_escala(prueba) -> list[str]:

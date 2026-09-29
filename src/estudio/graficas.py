@@ -189,11 +189,17 @@ def eras(e, t: Tema = OSCURO) -> go.Figure:
                 marker_color=t.principal, hovertemplate="Negocio: %{x:.1%}<extra></extra>")
     fig.add_bar(y=etiquetas, x=df["revaluacion"], orientation="h", name="Mercado: cambio de valuación",
                 marker_color=t.contexto, hovertemplate="Revaluación: %{x:.1%}<extra></extra>")
-    fig.add_scatter(y=etiquetas, x=df["total"], mode="markers+text", name="Retorno total anual",
+    fig.add_scatter(y=etiquetas, x=df["total"], mode="markers", name="Retorno total anual",
                     marker={"symbol": "diamond", "size": 10, "color": t.texto, "line": {"color": t.fondo, "width": 2}},
-                    text=[f"{v:+.1%}" for v in df["total"]], textposition="middle right",
-                    textfont={"family": t.mono, "size": 11, "color": t.texto},
                     hovertemplate="Total: %{x:.1%}<extra></extra>")
+    # La cifra va a la derecha de lo que esté más a la derecha en su renglón —barra o
+    # rombo—, no junto al rombo: con un total cerca de cero (WPC, 1998-1999) quedaba
+    # encima de la barra del negocio.
+    extremos = [*df["negocio"], *df["revaluacion"], *df["total"]]
+    rango = (max(extremos) - min(extremos)) or 0.1
+    fig.add_scatter(y=etiquetas, x=df[["negocio", "revaluacion", "total"]].max(axis=1).clip(lower=0) + 0.015 * rango,
+                    mode="text", text=[f"{v:+.1%}" for v in df["total"]], textposition="middle right",
+                    textfont={"family": t.mono, "size": 11, "color": t.texto}, showlegend=False, hoverinfo="skip")
     fig = _base(fig, t, alto=60 + 52 * len(df), formato_y=None, leyenda=True)
     fig.update_layout(barmode="group", bargap=0.35, bargroupgap=0.08, hovermode="closest",
                       yaxis={"autorange": "reversed"}, margin={"l": 210, "r": 60, "t": 40, "b": 30})
@@ -201,8 +207,6 @@ def eras(e, t: Tema = OSCURO) -> go.Figure:
     # Espacio para la etiqueta del total a la derecha del rombo más alejado.
     # Proporcional al rango: con un total de +40.7% (NNN, 2009-2013) un margen fijo de
     # 10 puntos dejaba la etiqueta cortada en el borde.
-    extremos = [*df["negocio"], *df["revaluacion"], *df["total"]]
-    rango = (max(extremos) - min(extremos)) or 0.1
     fig.update_xaxes(range=[min(extremos) - 0.06 * rango, max(extremos) + 0.24 * rango])
     return fig
 
@@ -240,15 +244,17 @@ def por_accion(e, t: Tema = OSCURO) -> go.Figure:
 def escala_contra_accion(e, t: Tema = OSCURO) -> go.Figure:
     """El negocio creció muchas veces; la acción, bastantes menos. Base 100."""
     a = e.anual
+    m = e.medida
     base = next((y for y in a.index if pd.notna(a.get("acciones_diluidas", pd.Series()).get(y))
-                 and pd.notna(a.get("ffo_por_accion", pd.Series()).get(y))), None)
+                 and pd.notna(a.get(m.concepto, pd.Series()).get(y))), None)
     fig = go.Figure()
     if base is None:
         return _base(fig, t)
     items = []
     for col, nombre, color in (("acciones_diluidas", "Acciones en circulación", t.contexto),
-                               ("ffo_por_accion", "FFO por acción", t.principal)):
+                               (m.concepto, f"{m.etiqueta} por acción", t.principal)):
         s = (a[col] / a.loc[base, col] * 100).dropna()
+        s = s[s.index >= base]
         fig.add_scatter(x=s.index, y=s, name=nombre, mode="lines", line={"color": color, "width": 2},
                         hovertemplate=f"{nombre}: %{{y:,.0f}}<extra></extra>")
         x, y = _ultimo(s)
@@ -285,6 +291,8 @@ def spread_de_inversion(e, t: Tema = OSCURO) -> go.Figure:
     _etiquetas_finales(fig, t, items, separacion=0.10)
     fig = _base(fig, t, eje_y="yield anual", formato_y=".1%")
     fig.update_layout(margin={"r": max(120, fig.layout.margin.r or 0)})
+    # Años enteros: con dos o tres años el eje ponía «2,024.5».
+    fig.update_xaxes(tickformat="d", dtick=1 if si.index.max() - si.index.min() <= 6 else None)
     _rango_x(fig, si.index.min() - 0.5, si.index.max() + 0.5)
     return fig
 
@@ -312,14 +320,15 @@ def multiplo(e, t: Tema = OSCURO) -> go.Figure:
     fig = go.Figure()
     fig.add_hrect(y0=p20, y1=p80, fillcolor=t.contexto, opacity=0.10, line_width=0)
     fig.add_hline(y=mediana, line={"color": t.contexto, "width": 1, "dash": "dash"})
-    fig.add_scatter(x=s.index, y=s, name="P/FFO", line={"color": t.principal, "width": 1.8},
-                    hovertemplate="P/FFO: %{y:.1f}x<extra></extra>")
+    m = e.medida.etiqueta
+    fig.add_scatter(x=s.index, y=s, name=f"P/{m}", line={"color": t.principal, "width": 1.8},
+                    hovertemplate=f"P/{m}: %{{y:.1f}}x<extra></extra>")
     fig.add_annotation(x=s.index[0], y=mediana, text=f"mediana {mediana:.1f}x", showarrow=False,
                        yshift=10, xanchor="left", bgcolor=t.mascara,
                        font={"color": t.texto_2, "size": 10, "family": t.mono})
     x, y = _ultimo(s)
     _etiquetas_finales(fig, t, [(x, y, f"hoy {y:.1f}x", t.principal)])
-    fig = _base(fig, t, eje_y="precio ÷ FFO por acción conocido ese día")
+    fig = _base(fig, t, eje_y=f"precio ÷ {m} por acción conocido ese día")
     _rango_x(fig, s.index[0], s.index[-1])
     return fig
 
@@ -373,7 +382,7 @@ def entradas(e, t: Tema = OSCURO) -> go.Figure:
         x=en["p_ffo"], y=en["rt_5a"], mode="markers", name="Cada fin de mes",
         marker={"size": 7, "color": t.principal, "opacity": 0.55, "line": {"color": t.fondo, "width": 1}},
         customdata=np.array([mes(d) for d in en.index]),
-        hovertemplate="%{customdata}<br>P/FFO %{x:.1f}x → %{y:.1%} anual a 5 años<extra></extra>",
+        hovertemplate="%{customdata}<br>P/" + e.medida.etiqueta + " %{x:.1f}x → %{y:.1%} anual a 5 años<extra></extra>",
     )
     q = e.entradas.quintiles
     if not q.empty:
@@ -393,7 +402,7 @@ def entradas(e, t: Tema = OSCURO) -> go.Figure:
                                    font={"size": 10, "color": t.texto_2, "family": t.mono})
     fig = _base(fig, t, alto=420, eje_y="retorno anual en los 5 años siguientes", formato_y=".0%", leyenda=True)
     fig.update_layout(hovermode="closest")
-    fig.update_xaxes(title_text="P/FFO el día de la compra", ticksuffix="x")
+    fig.update_xaxes(title_text=f"P/{e.medida.etiqueta} el día de la compra", ticksuffix="x")
     return fig
 
 
@@ -426,7 +435,8 @@ def escenarios(e, t: Tema = OSCURO) -> go.Figure:
     fig = go.Figure()
     if base is None:
         return _base(fig, t)
-    nombres = ["Si el spread vuelve<br>a su mediana", "Múltiplo constante", "Si el P/FFO vuelve<br>a su mediana"]
+    nombres = ["Si el spread vuelve<br>a su mediana", "Múltiplo constante",
+               f"Si el P/{e.medida.etiqueta} vuelve<br>a su mediana"]
     valores = [base.real_neto_reversion_spread, base.real_neto, base.real_neto_reversion_multiplo]
     colores = [t.contexto, t.principal, t.contexto]
     fig.add_bar(x=nombres, y=valores, marker_color=colores, text=[f"{v:.1%}" for v in valores],
