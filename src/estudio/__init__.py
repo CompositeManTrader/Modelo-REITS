@@ -10,6 +10,7 @@ Tres capas, en el orden en que dependen una de otra:
 * ``fundamentales`` — el negocio por periodo, con lo que se sabía en cada fecha (P1).
 * ``retornos``     — retorno total, su descomposición y el retorno por fecha de entrada.
 
-``historia`` guarda la narrativa verificada (hechos con fuente) y ``estudio`` arma
-todo en un solo objeto que consumen la página y el PDF.
+``historia`` guarda la narrativa verificada (hechos con fuente), ``textos`` arma las
+frases que dependen del emisor con sus datos, y ``estudio`` arma todo en un solo
+objeto que consumen la página y el PDF.
 """

@@ -17,6 +17,11 @@ Qué se protege
   INCONCLUSO debajo del umbral.
 * **Tres defectos que solo se vieron al mirar la página**: un eje logarítmico que
   llegaba a 10^224, etiquetas que se enciman, y tasas dibujadas como dólares.
+* **El segundo emisor (NNN).** La serie empieza donde se puede verificar (1992, no
+  1984) y cuadra con 61 cierres NYSE y 16 rangos trimestrales del emisor; lo que
+  la base leyó de los 8-K y contradice a lo reportado se descarta; el FFO de 2009
+  no trae los deterioros que Nareit excluye; y ninguna frase del estudio de un
+  emisor habla del otro.
 """
 
 from __future__ import annotations
@@ -201,6 +206,84 @@ def test_historia_versionada_de_o_cuadra_con_sus_anclas(historia_o):
     assert (r["monto_base"].pct_change().dropna() >= -mercado.TOLERANCIA_RECORTE).all()
 
 
+@pytest.fixture
+def historia_nnn():
+    if not mercado.hay_historia("NNN"):
+        pytest.skip("No está versionada la historia larga de NNN.")
+    return mercado.cargar("NNN", asof=D(2026, 9, 28))
+
+
+def test_historia_de_nnn_empieza_donde_se_puede_verificar(historia_nnn):
+    """NNN cotiza desde 1984, pero sin dividendos verificables antes de 1992.
+
+    Un retorno total que arranca en 1984 con los dividendos de 1984-1989 en cero no
+    es un retorno total: es un precio. La serie se corta y el manifiesto dice por qué.
+    """
+    man = historia_nnn.manifiesto
+    assert man["primera_cotizacion"] == "1984-10-09"
+    assert man["inicio_verificable"]["fecha"] == "1992-01-01"
+    assert "1990" in man["inicio_verificable"]["motivo"]
+    assert historia_nnn.precios.index[0] >= pd.Timestamp("1992-01-01")
+    # Sin eventos: el cierre del proveedor ya es el precio al que cotizó.
+    assert historia_nnn.eventos == ()
+    assert (historia_nnn.precios["cierre_crudo"] == historia_nnn.precios["cierre_base"]).all()
+    # El primer dividendo: 0.27 del 1T-1992, como en el prospecto de enero de 1996.
+    assert historia_nnn.dividendos.iloc[0]["monto_pagado"] == pytest.approx(0.27)
+    assert mercado.pagos_por_anio(historia_nnn.dividendos) == 4
+
+
+def test_historia_de_nnn_cuadra_con_sus_anclas_y_rangos(historia_nnn):
+    v = historia_nnn.manifiesto["validacion"]
+    assert v["traslape_n"] > 2000 and v["traslape_error_max"] < 0.001
+    assert len(v["anclas"]) >= 40
+    assert all(abs(a["error"]) <= 0.01 for a in v["anclas"])
+    assert v["rangos_n"] == 16 and v["rangos_fuera"] == []
+    assert [r["trimestre"] for r in v["rangos_aceptados"]] == ["1994-T3"]
+
+
+def test_la_excepcion_de_rango_es_la_unica_y_hace_falta(historia_nnn):
+    """El chequeo de rangos no pasa por accidente: sin la excepción revisada, falla
+    justo en el trimestre catalogado y en ningún otro."""
+    precios = historia_nnn.precios.reset_index()
+    kw = {"crudo_diario": historia_nnn.precios["cierre_crudo"].iloc[-300:],
+          "dividendos_diarios": pd.DataFrame(), "anclas": pd.DataFrame(columns=["fecha_dato", "cierre_crudo"]),
+          "rangos": mercado.RANGOS_TRIMESTRALES["NNN"]}
+    sin = mercado.validar(precios, historia_nnn.dividendos, **kw)
+    assert [r["trimestre"] for r in sin.rangos_fuera] == ["1994-T3"] and not sin.aprobada
+    con = mercado.validar(precios, historia_nnn.dividendos, excepciones=mercado.EXCEPCIONES_DE_RANGO["NNN"], **kw)
+    assert con.aprobada
+
+
+def test_un_precio_ajustado_por_dividendos_no_cabe_en_los_rangos(historia_nnn):
+    """La firma que el chequeo existe para atrapar: el precio ajustado por dividendos
+    de 1992 está decenas de por ciento abajo del que publicó el emisor."""
+    ajustado = pd.read_csv(mercado.dir_de("NNN") / mercado.ARCHIVO_PRECIOS, parse_dates=["fecha"])
+    ajustado = ajustado.assign(cierre_crudo=ajustado["ajustado_proveedor"])
+    v = mercado.validar(ajustado, historia_nnn.dividendos, crudo_diario=pd.Series(dtype=float),
+                        dividendos_diarios=pd.DataFrame(),
+                        anclas=pd.DataFrame(columns=["fecha_dato", "cierre_crudo"]),
+                        rangos=mercado.RANGOS_TRIMESTRALES["NNN"],
+                        excepciones=mercado.EXCEPCIONES_DE_RANGO["NNN"])
+    assert len(v.rangos_fuera) >= 12
+
+
+def test_dividendo_de_nnn_coincide_con_el_10k_2025(historia_nnn):
+    """Ancla externa: «paid an annual dividend per common share of $2.36 in 2025»."""
+    ttm = mercado.dividendo_ttm(historia_nnn.dividendos, pd.DatetimeIndex(["2025-12-31"]))
+    assert ttm.iloc[0] == pytest.approx(2.36, abs=0.001)
+
+
+def test_recortar_al_inicio_quita_lo_no_verificable():
+    precios = pd.DataFrame({"fecha": pd.to_datetime(["1991-12-31", "1992-01-02"]), "cierre_crudo": [9.0, 9.5]})
+    dividendos = pd.DataFrame({"fecha_ex": pd.to_datetime(["1991-10-25", "1992-01-27"]), "monto_pagado": [0.27, 0.27]})
+    p, d, inicio = mercado.recortar_al_inicio("NNN", precios, dividendos)
+    assert list(p["fecha"]) == [pd.Timestamp("1992-01-02")]
+    assert list(d["fecha_ex"]) == [pd.Timestamp("1992-01-27")]
+    assert inicio.fecha == D(1992, 1, 1)
+    p2, d2, sin = mercado.recortar_al_inicio("ZZ", precios, dividendos)
+    assert sin is None and len(p2) == 2
+
+
 def test_dividendo_anualizado_coincide_con_el_8k_del_segundo_trimestre_de_2026(historia_o):
     """Ancla externa: el 8-K del 2T-2026 reporta un dividendo anualizado de 3.252."""
     anualizado = mercado.dividendo_anualizado(historia_o.dividendos, pd.DatetimeIndex(["2026-06-30"]))
@@ -276,18 +359,62 @@ def test_la_precedencia_primaria_es_por_anio(repo_vacio):
     Pasó: con un corte por la última fecha primaria, el FFO se quedó en el de
     2018 durante siete años y el crecimiento de esas eras salió en 0.0%.
     """
+    def trimestre(anio: int) -> float:
+        return round(0.80 + 0.01 * (anio - 2020), 2)
+
     filas = []
     for anio in range(2020, 2025):
         for q, mes in ((1, 5), (2, 8), (3, 11)):
             fin = pd.Timestamp(anio, 3 * q, 1) + pd.offsets.MonthEnd(0)
-            filas.append(_hecho("ffo_por_accion", "Q", str(fin.date()), f"{anio}-{mes:02d}-06", 1.0 + anio - 2020))
-        filas.append(_hecho("ffo_por_accion", "Q", f"{anio}-12-31", f"{anio + 1}-02-20", 1.0 + anio - 2020))
+            filas.append(_hecho("ffo_por_accion", "Q", str(fin.date()), f"{anio}-{mes:02d}-06", trimestre(anio)))
+        filas.append(_hecho("ffo_por_accion", "Q", f"{anio}-12-31", f"{anio + 1}-02-20", trimestre(anio)))
     repo_vacio.guardar_hechos(filas)
-    primarios = _primarios((2018, 3.12, "2019-02-20"), (2025, 9.99, "2026-02-24"))
+    primarios = _primarios((2018, 3.12, "2019-02-20"), (2025, 3.40, "2026-02-24"))
     s = fund.flujo_conocido(repo_vacio, "ZZ", "ffo_por_accion", asof=D(2026, 6, 1), primarios=primarios)
     en_2023 = fund.en_fechas(s, pd.DatetimeIndex(["2023-12-01"])).iloc[0]
     assert en_2023 != pytest.approx(3.12), "el TTM de 2023 quedó tapado por el primario de 2018"
-    assert en_2023 == pytest.approx(4.0 * 3 + 3.0)
+    assert en_2023 == pytest.approx(3 * trimestre(2023) + trimestre(2022))
+    assert s.attrs["descartadas"].empty, "cifras coherentes con lo reportado no se descartan"
+
+
+def test_la_base_no_contradice_a_lo_reportado(repo_vacio):
+    """El lector de 8-K de NNN guardó −1.00 (la llamada de nota «(1)» leída como
+    negativo) en comparativas posteriores, y un trimestre en el lugar del año.
+
+    Con la regla de «gana la última versión», la comparativa mala pisaba a la cifra
+    buena original. Lo que contradice a lo reportado no entra, y se cuenta.
+    """
+    filas = [
+        _hecho("affo_por_accion", "Q", "2021-03-31", "2021-05-04", 0.72),
+        _hecho("affo_por_accion", "Q", "2021-06-30", "2021-08-03", 0.73),
+        _hecho("affo_por_accion", "Q", "2021-09-30", "2021-11-02", 0.74),
+        _hecho("affo_por_accion", "Q", "2021-12-31", "2022-02-09", 0.77),
+        # La comparativa del año siguiente, mal leída: tiene que perder, no ganar.
+        _hecho("affo_por_accion", "Q", "2021-12-31", "2023-02-09", -1.00),
+        # Un trimestre guardado como año.
+        _hecho("affo_por_accion", "FY", "2022-12-31", "2023-02-09", 0.77),
+    ]
+    repo_vacio.guardar_hechos(filas)
+    primarios = pd.DataFrame([
+        {"anio": 2021, "concepto": "affo_por_accion", "valor": 2.96, "valor_actual": 2.96,
+         "base": "actual", "metodo": "reportado", "fuente": "prueba",
+         "fecha_publicacion": pd.Timestamp("2022-02-09")},
+    ])
+    s = fund.flujo_conocido(repo_vacio, "ZZ", "affo_por_accion", asof=D(2026, 1, 1), primarios=primarios)
+    fuera = s.attrs["descartadas"]
+    assert sorted(fuera["valor"].round(2)) == [-1.00, 0.77]
+    # Después de la comparativa mala, el TTM sigue siendo el bueno.
+    en = fund.en_fechas(s, pd.DatetimeIndex(["2023-03-01"])).iloc[0]
+    assert en == pytest.approx(0.72 + 0.73 + 0.74 + 0.77)
+    assert (s > 0).all()
+
+
+def test_un_trimestre_con_partida_extraordinaria_no_se_descarta():
+    """La tolerancia es holgada a propósito: un 1T con −18% por un cargo es dato."""
+    versiones = pd.DataFrame({"fecha_dato": pd.to_datetime(["2021-03-31", "2021-06-30"]),
+                              "periodo_tipo": ["Q", "Q"], "valor": [0.57, 0.70]})
+    quedan, fuera = fund.contra_lo_reportado(versiones, pd.Series({2021: 2.68}))
+    assert len(quedan) == 2 and fuera.empty
 
 
 def test_factor_de_base_solo_cuenta_splits():
@@ -477,6 +604,162 @@ def test_ninguna_tabla_pierde_columnas_ni_dibuja_fracciones_como_otra_unidad(est
     for nombre in ("spread_inversion", "anual", "eras", "quintiles", "momentos", "yield_sobre_costo",
                    "escenarios", "diagnostico_ffo"):
         assert f"vistas.{nombre}(" in pagina, f"la página ya no usa la vista «{nombre}»"
+
+
+def test_las_frases_de_cada_emisor_salen_de_sus_datos(historia_o, historia_nnn):
+    """Las frases que antes eran de O escritas a mano y con NNN se volvían falsas."""
+    from src.estudio import textos
+
+    assert "split de 2005" in textos.base_por_accion(historia_o)
+    assert "no ha hecho splits" in textos.base_por_accion(historia_nnn)
+    assert "orion" in textos.eventos_del_proveedor(historia_o).lower()
+    assert "no reporta splits ni escisiones" in textos.eventos_del_proveedor(historia_nnn)
+    assert textos.dividendo_vigente(historia_o).startswith("mensualidad")
+    assert textos.dividendo_vigente(historia_nnn).startswith("dividendo trimestral")
+    assert textos.escisiones_en_el_retorno(historia_nnn) == ""
+    assert "orion" in textos.escisiones_en_el_retorno(historia_o).lower()
+    assert "verificable" in textos.desde(historia_nnn, pd.Timestamp("1992-01-27"))
+
+
+@pytest.fixture
+def estudio_demo_nnn(tmp_path):
+    if not mercado.hay_historia("NNN"):
+        pytest.skip("No está versionada la historia larga de NNN.")
+    from src.datos.repositorio import Repositorio
+    from src.datos.semilla import sembrar
+    from src.estudio import estudio
+
+    repo = Repositorio(ruta=tmp_path / "nnn.db")
+    sembrar(repo, tickers=["NNN"], inicio=D(2018, 1, 1), fin=D(2026, 6, 30))
+    return estudio.armar(repo, "NNN", asof=D(2026, 6, 30))
+
+
+# Lo que pertenece a un emisor y no puede aparecer en el estudio del otro.
+PROPIO = {
+    "O": ("Orion", "VEREIT", "split de 2005", "mensualidad", "Spirit"),
+    "NNN": ("Golden Corral", "Captec", "Macnab", "dividendo trimestral vigente"),
+}
+
+
+def test_el_estudio_de_nnn_no_habla_de_o(estudio_demo_nnn, estudio_demo):
+    from src.export.pdf_estudio import html_del_estudio
+
+    for e, otro in ((estudio_demo_nnn, "O"), (estudio_demo, "NNN")):
+        documento = html_del_estudio(e, fuentes_css="")
+        cuerpo = documento.split("<body>", 1)[1].split("<script>", 1)[0]
+        for palabra in PROPIO[otro]:
+            assert palabra not in cuerpo, f"el estudio de {e.ticker} menciona «{palabra}», que es de {otro}"
+        for hueco in ("nan%", "nanx", "$nan", ">nan<", "None"):
+            assert hueco not in cuerpo, f"el PDF de {e.ticker} imprime «{hueco}»"
+        for c in e.conclusiones:
+            assert f" {otro} " not in f" {c.texto} ", f"la conclusión «{c.titulo}» de {e.ticker} nombra a {otro}"
+
+
+@pytest.mark.parametrize("ticker", ["O", "NNN"])
+def test_una_sola_cifra_por_anio_y_concepto(ticker):
+    """La tabla anual toma UNA cifra por año; las reexpresiones van con otro nombre.
+
+    Con dos cifras del mismo año bajo el mismo concepto, la tabla escogería una
+    según el orden del archivo, en silencio.
+    """
+    p = fund.cargar_primarios(ticker, ())
+    if p.empty:
+        pytest.skip(f"No hay cifras primarias de {ticker}.")
+    repetidas = p[p.duplicated(["anio", "concepto"], keep=False)]
+    assert repetidas.empty, repetidas[["anio", "concepto", "valor"]].to_string()
+
+
+def test_el_ffo_de_nnn_de_2009_no_trae_deterioros():
+    """NNN publicó 1.13 de FFO en 2009, hundido por 42 millones de deterioros de
+    inmuebles que Nareit excluye desde 2011. Con 1.13, el P/FFO de 2010 salía en ~20x
+    en el piso de la crisis: el estudio habría llamado «caro» al mejor momento."""
+    p = fund.cargar_primarios("NNN", ())
+    if p.empty:
+        pytest.skip("No hay cifras primarias de NNN.")
+    ffo = p[p["concepto"] == "ffo_por_accion"].set_index("anio")["valor"]
+    assert ffo.loc[2009] == pytest.approx((90_087 + 42_208) / 79_953, abs=1e-3)
+    assert ffo.loc[2010] == pytest.approx(1.45)
+    publicado = p[p["concepto"] == "ffo_nareit_con_deterioros_por_accion"].set_index("anio")["valor"]
+    assert publicado.loc[2009] == pytest.approx(1.13)
+    # La fórmula de Nareit sobre XBRL —que suma los deterioros— da lo mismo: 1.658.
+    assert ffo.loc[2009] / 1.658 - 1 == pytest.approx(0, abs=0.01)
+
+
+def test_los_dividendos_de_nnn_coinciden_con_los_del_emisor(historia_nnn):
+    p = fund.cargar_primarios("NNN", ())
+    reportado = (p[p["concepto"].isin(["dividendo_pagado_por_accion", "dividendo_declarado_por_accion"])]
+                 .sort_values("concepto").groupby("anio")["valor"].last())
+    medido = fund.dividendos_por_anio(historia_nnn, asof=D(2026, 9, 28)).reindex(reportado.index)
+    assert len(reportado) >= 34
+    assert ((medido / reportado - 1).abs() < 1e-6).all(), (medido / reportado - 1)[lambda s: s.abs() > 1e-6]
+
+
+def test_primer_anio_confiable_exige_todos_los_anios_posteriores():
+    reportado = pd.Series({2014: 1.0, 2015: 1.0, 2016: 1.0, 2017: 1.0, 2018: 1.0})
+    derivado = pd.Series({2014: 1.20, 2015: 1.02, 2016: 1.30, 2017: 1.01, 2018: 1.00})
+    # 2015 cuadra, pero 2016 no: el primer año confiable es 2017, no 2015.
+    assert fund.primer_anio_confiable(derivado, reportado) == 2017
+    assert fund.primer_anio_confiable(derivado * 2, reportado) is None
+
+
+def test_anual_prefiere_lo_reportado_y_descarta_lo_que_lo_contradice(repo_vacio):
+    repo_vacio.guardar_hechos([
+        _hecho("affo_por_accion", "FY", "2022-12-31", "2023-02-09", 0.77),   # un trimestre como año
+        _hecho("affo_por_accion", "FY", "2023-12-31", "2024-02-08", 3.26),   # bueno, sin primaria
+    ])
+    historia = _historia(pd.Series(40.0, index=pd.bdate_range("2021-01-01", "2024-06-30")),
+                         [(f"{a}-{m:02d}-01", 0.55, "regular") for a in (2021, 2022, 2023) for m in (1, 4, 7, 10)])
+    primarios = pd.DataFrame([{"anio": 2021, "concepto": "affo_por_accion", "valor": 3.06, "valor_actual": 3.06,
+                               "base": "actual", "metodo": "reportado", "fuente": "prueba",
+                               "fecha_publicacion": pd.Timestamp("2022-02-09")}])
+    t = fund.anual(repo_vacio, "ZZ", asof=D(2024, 6, 30), historia=historia, primarios=primarios)
+    assert t.loc[2021, "affo_por_accion"] == pytest.approx(3.06)
+    assert pd.isna(t.loc[2022, "affo_por_accion"]), "el 0.77 guardado como año no debió entrar"
+    assert t.loc[2023, "affo_por_accion"] == pytest.approx(3.26)
+    assert list(t.attrs["descartadas"]["valor"]) == [0.77]
+
+
+def test_hay_estudio_exige_cifras_primarias(tmp_path):
+    (tmp_path / "ZZ").mkdir()
+    (tmp_path / "ZZ" / mercado.ARCHIVO_MANIFIESTO).write_text("{}", encoding="utf-8")
+    assert mercado.hay_historia("ZZ", tmp_path) and not mercado.hay_estudio("ZZ", tmp_path)
+    (tmp_path / "ZZ" / fund.ARCHIVO_PRIMARIOS).write_text("anio,concepto\n", encoding="utf-8")
+    assert mercado.hay_estudio("ZZ", tmp_path)
+
+
+def test_la_etiqueta_final_mas_larga_cabe():
+    """«Dividendo 2.36» y «Yield NNN 5.9%» se cortaban con el margen fijo de O."""
+    import plotly.graph_objects as go
+
+    fig = go.Figure()
+    fig.add_scatter(x=[1, 2], y=[1.0, 2.0])
+    g._etiquetas_finales(fig, g.CLARO, [(2, 2.0, "Una etiqueta bastante larga 5.9%", "#000")])
+    fig = g._base(fig, g.CLARO)
+    assert fig.layout.margin.r >= 6.8 * len("Una etiqueta bastante larga 5.9%")
+
+
+def test_el_margen_de_inversion_no_une_anios_sin_dato(estudio_demo_nnn):
+    """NNN reporta el yield de compra de 2006 y luego desde 2013: la línea no puede
+    dibujar siete años que el emisor no reportó."""
+    fig = g.spread_de_inversion(estudio_demo_nnn, g.CLARO)
+    traza = next(t for t in fig.data if t.name == "Yield de compra")
+    x, y = list(traza.x), list(traza.y)
+    assert 2010 in x, "el eje no incluye los años sin dato"
+    assert y[x.index(2010)] is None or pd.isna(y[x.index(2010)])
+    assert traza.connectgaps is False
+
+
+def test_las_anclas_se_resumen_y_se_listan_las_que_no_cuadran():
+    from src.estudio import textos
+
+    pocas = {"anclas": [{"fecha": "2021-12-31", "real": 1.0, "reconstruido": 1.0, "error": 0.0}]}
+    assert textos.anclas(pocas) == ("", pocas["anclas"])
+    muchas = {"anclas": [{"fecha": f"20{10 + i}-12-31", "real": 1.0, "reconstruido": 1.0, "error": 0.0}
+                         for i in range(9)]}
+    muchas["anclas"][3]["error"] = -0.0096
+    resumen, listar = textos.anclas(muchas)
+    assert "9 cierres" in resumen and "8 coinciden al centavo" in resumen and "-0.96%" in resumen
+    assert [a["fecha"] for a in listar] == ["2013-12-31"]
 
 
 def test_el_manifiesto_versionado_es_json_valido():

@@ -62,6 +62,11 @@ class HistoriaEmisor:
     eras: tuple[Era, ...]
     riesgos: tuple[Riesgo, ...]
     fuentes_extra: tuple[tuple[str, str], ...] = field(default_factory=tuple)
+    # Lo que solo aplica a este emisor y la página/PDF muestran junto a una gráfica o
+    # en la metodología. Claves que se usan: «apalancamiento», «dividendos», «mxn».
+    # Lo que se puede decir con datos (splits, escisiones, frecuencia) NO va aquí:
+    # lo arma ``textos`` para que no envejezca.
+    notas: dict[str, str] = field(default_factory=dict)
 
 
 D = dt.date
@@ -96,8 +101,10 @@ INDUSTRIA: tuple[Hito, ...] = (
          "industria", "Jones Day, «The One Big Beautiful Bill Becomes Law»",
          "https://www.jonesday.com/en/insights/2025/07/the-one-big-beautiful-bill-becomes-law-real-estate-tax-changes"),
     Hito(D(2024, 5, 28), "Liquidación T+1 en EE. UU.",
-         "La fecha ex de los dividendos mensuales pasa del último día hábil del mes al primero "
-         "del siguiente. Mayo de 2024 quedó sin fecha ex; los pagos no cambiaron.",
+         "Las operaciones se liquidan en un día en vez de dos. En los REIT que pagan cada mes, la "
+         "fecha ex brincó del último día hábil del mes al primero del siguiente y un mes quedó sin "
+         "fecha ex, aunque los pagos no cambiaron. Por eso el estudio suma dividendos por conteo "
+         "de pagos, no por meses del calendario.",
          "industria", "SEC, regla de liquidación T+1", "https://www.sec.gov/newsroom/press-releases/2023-29"),
     Hito(D(2025, 7, 4), "La deducción 199A se vuelve permanente",
          "La ley fiscal de 2025 elimina su vencimiento, que estaba previsto para fines de 2025.",
@@ -297,6 +304,245 @@ HISTORIA_O = HistoriaEmisor(
         ("Inquilinos principales", "Suplementos trimestrales de 2025 (8-K Ex-99.2); Globe and "
          "Mail sobre Walgreens."),
     ),
+    notas={
+        "apalancamiento": (
+            "En 2021 el cociente salta porque la deuda al cierre ya incluye a VEREIT y el "
+            "EBITDAre solo dos meses de ella; el emisor reporta 5.3x pro forma en 2021 y 5.4x al "
+            "cierre de 2025."
+        ),
+        "dividendos": (
+            "La suma anual cuadra con los 10-K dentro de 0.8% de 1997 a 2007. El dividendo "
+            "anualizado del último comunicado (3.252 dólares) coincide con la serie."
+        ),
+        "mxn": "Incluye la devaluación de 1994-95, que coincidió con el listado.",
+        "ffo_derivado": (
+            "Antes de 2015 O clasificaba las ventas de inmuebles como operaciones "
+            "discontinuadas, y ni sus ganancias ni su depreciación pasan por las líneas que la "
+            "fórmula toca."
+        ),
+    },
 )
 
-HISTORIAS: dict[str, HistoriaEmisor] = {"O": HISTORIA_O}
+SEC_NNN = "https://www.sec.gov/Archives/edgar/data/751364/"
+SITIO_NNN = "https://www.nnnreit.com/about-us/"
+
+HISTORIA_NNN = HistoriaEmisor(
+    ticker="NNN",
+    nombre="NNN REIT, Inc.",
+    perfil=(
+        "Dueño de inmuebles comerciales de un solo inquilino en EE. UU., casi todos de comercio "
+        "de servicio —talleres y lavados de autos, tiendas de conveniencia, restaurantes, "
+        "entretenimiento—, rentados con contratos triple net de 10 a 20 años: el inquilino paga "
+        "el predial, el seguro y el mantenimiento. Paga dividendo cada trimestre y lo ha subido "
+        "37 años seguidos, desde 1990. Al 30 de junio de 2026 tenía 3,774 propiedades en los 50 "
+        "estados, el Distrito de Columbia y Puerto Rico, 99.1% de ocupación y un plazo remanente "
+        "promedio de 10.1 años. Se llamó Commercial Net Lease Realty hasta 2006 y National Retail "
+        "Properties hasta 2023."
+    ),
+    modelo_de_negocio=(
+        "El negocio es el mismo diferencial que el de cualquier REIT de arrendamiento neto: "
+        "comprar inmuebles a un yield mayor que lo que le cuesta el dinero para comprarlos. Lo "
+        "que distingue a NNN es a quién le compra. En vez de perseguir inquilinos con grado de "
+        "inversión, trabaja con cadenas regionales y nacionales medianas —muchas sin "
+        "calificación, evaluadas con su propio análisis de crédito— y les compra el inmueble "
+        "para rentárselo de regreso (sale-leaseback). Según la empresa, cerca de 80% de sus "
+        "compras vienen de esas relaciones y no de subastas. Eso le da mejores contratos y "
+        "mejores yields, a cambio de más riesgo de crédito por inquilino y de una cartera más "
+        "concentrada que la de Realty Income, que es cuatro veces más grande. La meta que "
+        "repite la dirección es crecer POR ACCIÓN, no en tamaño."
+    ),
+    hitos=(
+        Hito(D(1984, 1, 1), "Sale a bolsa como Golden Corral Realty",
+             "Con 13 millones de dólares en activos. El estudio empieza en 1992 porque de antes no "
+             "hay registro de dividendos que se pueda verificar.",
+             "emisor", "NNN, «About Us»: «1984: Golden Corral Realty Corp. IPO - $13 million total "
+             "assets»", SITIO_NNN, precision="anio"),
+        Hito(D(1990, 1, 1), "Primer aumento de dividendo",
+             "Arranca la racha de aumentos anuales que llega a 37 años en 2026.",
+             "emisor", "NNN, «About Us»: «1990: Increased dividend for first time»", SITIO_NNN,
+             precision="anio"),
+        Hito(D(1992, 7, 10), "Llega CNL como asesor externo",
+             "El grupo de James Seneff toma la administración de una empresa con 28 propiedades "
+             "rentadas a un solo inquilino y abre la estrategia a todo el comercio.",
+             "emisor", "Proxy de 1997 y 10-K 1997",
+             "https://www.sec.gov/Archives/edgar/data/751364/0000928385-97-001865.txt"),
+        Hito(D(1993, 4, 29), "Se llama Commercial Net Lease Realty",
+             "Tras un año como CNL Realty Investors. En 1994 empieza a cotizar en la Bolsa de Nueva "
+             "York con la clave NNN.",
+             "emisor", "Encabezado EDGAR del 10-K 1997 (fecha de cambio de nombre); NNN, «About Us»",
+             SEC_NNN + "000075136498000002/0000751364-98-000002.txt"),
+        Hito(D(1998, 1, 1), "Deja de pagarle a un asesor externo",
+             "Absorbe a CNL Realty Advisors a cambio de 220,000 acciones y hasta 1.98 millones más "
+             "según el crecimiento de los activos. Las comisiones del asesor —3.7 millones de "
+             "dólares en 1996— crecían con el tamaño de la cartera, no con el valor por acción.",
+             "emisor", "10-K 1997", SEC_NNN + "000075136498000002/0000751364-98-000002.txt"),
+        Hito(D(1998, 3, 1), "Grado de inversión y primeros bonos",
+             "Coloca 100 millones de dólares en notas no garantizadas al 7.125% con vencimiento en "
+             "2008: empieza a financiarse con bonos y no con hipotecas.",
+             "emisor", "10-K405 1998; NNN, «About Us»",
+             SEC_NNN + "0000751364-99-000006.txt", precision="mes"),
+        Hito(D(2001, 12, 1), "Compra Captec Net Lease Realty",
+             "135 propiedades en 26 estados, pagadas con efectivo, 4.35 millones de acciones y 2 "
+             "millones de preferentes al 9%. Ese año los activos pasan de mil millones.",
+             "emisor", "10-K 2001", SEC_NNN + "000075136402000031/k10_2001.htm"),
+        Hito(D(2004, 2, 16), "Craig Macnab, director general",
+             "Reenfoca a la empresa en el comercio y vende los inmuebles que no lo son, incluidos "
+             "los rentados al gobierno de EE. UU. Dirige trece años.",
+             "emisor", "10-K/A 2003; comunicado del 4T-2004",
+             SEC_NNN + "000075136404000053/k10amended_2003.htm"),
+        Hito(D(2006, 5, 1), "Se llama National Retail Properties",
+             "La clave de pizarra sigue siendo NNN.",
+             "emisor", "8-K del 1-may-2006", SEC_NNN + "000095013306002126/w20322e8vk.htm"),
+        Hito(D(2008, 12, 31), "La crisis: sigue comprando y no recorta",
+             "En 2008 compra 109 propiedades por 355 millones y coloca acciones a 23.05 dólares; la "
+             "acción toca 10.53 en el cuarto trimestre. El dividendo trimestral se queda en 0.375 "
+             "del 2T-2008 al 4T-2009, sin recorte, y el anual sigue subiendo. La ocupación baja de "
+             "98% a 96%.",
+             "emisor", "Comunicado del 4T-2008; 10-K 2008 y 2009",
+             SEC_NNN + "000119312509016998/dex991.htm", precision="anio"),
+        Hito(D(2011, 1, 1), "Entra al S&P MidCap 400", "",
+             "emisor", "NNN, «About Us»", SITIO_NNN, precision="anio"),
+        Hito(D(2013, 12, 31), "Año récord de compras",
+             "Invierte 630 millones en 275 propiedades a un yield inicial de 7.8%.",
+             "emisor", "Comunicado del 4T-2013", SEC_NNN + "000075136414000003/ex991-12312013.htm",
+             precision="anio"),
+        Hito(D(2017, 4, 28), "Jay Whitehurst, director general",
+             "Sucede a Macnab. Su frase de la estrategia: cerca de 80% de las compras viene de "
+             "relaciones directas con cadenas en crecimiento, fuera de subasta.",
+             "emisor", "8-K del 29-sep-2016; Nareit (entrevista de 2018)",
+             SEC_NNN + "000119312516726506/d248558dex991.htm"),
+        Hito(D(2018, 9, 27), "Primer bono a 30 años",
+             "300 millones al 4.80% con vencimiento en 2048. Después coloca notas a 2050, 2051 y "
+             "2052, con cupones de 3.0% a 3.5%.",
+             "emisor", "8-K del 27-sep-2018", SEC_NNN + "000119312518285642/d629013d8k.htm"),
+        Hito(D(2020, 5, 4), "Covid: cobra la mitad de la renta de abril",
+             "Cobra cerca de 52% de la renta de abril; inquilinos con 37% de la renta piden "
+             "diferimientos y la empresa retira su guía. Cines, gimnasios y restaurantes de "
+             "servicio completo son los giros más golpeados. Aun así, en julio sube el dividendo.",
+             "emisor", "Comunicado del 1T-2020; comunicado del 15-jul-2020",
+             SEC_NNN + "000075136420000065/nnn8-k20200331exhibit991.htm"),
+        Hito(D(2022, 4, 29), "Stephen Horn, director general",
+             "Sucede a Whitehurst; sigue en el cargo.",
+             "emisor", "8-K del 21-ene-2022", SEC_NNN + "000119312522014868/d209621d8k.htm"),
+        Hito(D(2023, 5, 1), "Se llama NNN REIT",
+             "Sin cambio de estrategia ni de clave de pizarra.",
+             "emisor", "8-K del 27-abr-2023", SEC_NNN + "000095017023015338/nnn-ex99_1.htm"),
+        Hito(D(2024, 12, 31), "Dos inquilinos en problemas",
+             "Recupera 64 propiedades de un operador de restaurantes del medio oeste y 32 de una "
+             "mueblería en quiebra; la ocupación baja a 98.5% y se recupera después.",
+             "emisor", "Comunicado del 4T-2024", SEC_NNN + "000095017025017471/nnn-ex99_1.htm",
+             precision="anio"),
+        Hito(D(2025, 12, 31), "Compra a 7.4% y vende lo vacío",
+             "Invierte más de 900 millones a un yield inicial de 7.4% y vende 116 propiedades, 67 "
+             "de ellas vacías, por 190.5 millones.",
+             "emisor", "Comunicado del 4T-2025", SEC_NNN + "000119312526045612/nnn-ex99_1.htm",
+             precision="anio"),
+        Hito(D(2026, 7, 15), "Aumento número 37",
+             "El dividendo trimestral sube 3.3%, a 0.62 dólares: 37 años seguidos de aumentos "
+             "anuales. Solo otros dos REIT en bolsa tienen una racha así de larga.",
+             "emisor", "Comunicado del 15-jul-2026",
+             "https://www.prnewswire.com/news-releases/increased-common-dividend-declared-by-nnn-reit-inc-302823035.html"),
+    ),
+    eras=(
+        Era("Asesor externo y la resaca de 1998-99", D(1992, 1, 1), D(1999, 12, 31),
+            "Una empresa chica, administrada por un asesor externo, se convierte en un REIT de "
+            "comercio diversificado: Barnes & Noble y Eckerd llegan a pesar más de 10% de la renta "
+            "cada uno. En 1998 absorbe al asesor y obtiene grado de inversión. Al final del "
+            "periodo los REIT se vacían por la euforia tecnológica, y NNN con ellos."),
+        Era("Refugio, Captec y el reenfoque", D(1999, 12, 31), D(2007, 2, 6),
+            "Revienta la burbuja tecnológica y el dinero busca flujo seguro. NNN compra Captec, "
+            "cambia de director, vende lo que no es comercio y se rebautiza National Retail "
+            "Properties. Las tasas bajan y el crédito barato empuja los precios de todo inmueble."),
+        Era("Crisis financiera", D(2007, 2, 6), D(2009, 3, 6),
+            "Se congela el crédito. NNN sigue comprando y no recorta el dividendo, pero la acción "
+            "cae con todo lo que dependa de financiamiento. Los deterioros de 2008-2009 hunden el "
+            "FFO que se reportó entonces; el estudio usa el FFO sin deterioros de inmuebles, como "
+            "lo define Nareit desde 2011."),
+        Era("Tasas en el piso", D(2009, 3, 6), D(2013, 5, 17),
+            "La Reserva Federal lleva las tasas a cero y los ahorradores persiguen rendimiento. "
+            "NNN pasa a publicar AFFO, entra al S&P MidCap 400 y vuelve a comprar a buen ritmo con "
+            "una acción cada vez más cara."),
+        Era("Crecimiento relacional", D(2013, 5, 17), D(2019, 12, 31),
+            "El anuncio de que la Fed retirará estímulos corta el múltiplo; después viene la etapa "
+            "madura del modelo: compras recurrentes a cadenas con las que ya tiene relación, "
+            "relevo ordenado de director y los primeros bonos a 30 años. El yield inicial de sus "
+            "compras baja de 7.8% en 2013 a 6.9% en 2019."),
+        Era("Covid", D(2019, 12, 31), D(2021, 12, 31),
+            "La pandemia golpea justo sus giros de servicio: cines, gimnasios, entretenimiento y "
+            "restaurantes. Cobra la mitad de la renta de abril de 2020 —peor que Realty Income, según "
+            "Motley Fool— y aun así sube el dividendo. Para fines de 2021 cobra más de 99% y recupera lo diferido."),
+        Era("Choque de tasas", D(2021, 12, 31), D(2023, 10, 27),
+            "El bono a diez años pasa de 1.5% a casi 5%. Cambia el director y el nombre; el "
+            "negocio sigue creciendo, pero el mercado ya no necesita un REIT de arrendamiento neto "
+            "para conseguir rendimiento y el múltiplo se comprime."),
+        Era("Tasas altas y depuración", D(2023, 10, 27), None,
+            "Con las tasas estables en niveles altos, los yields de compra suben a más de 7%. En 2023 "
+            "emite solo 31 millones en acciones y crece con flujo retenido, deuda y venta de "
+            "inmuebles vacíos. Resuelve dos inquilinos en problemas y en 2026 vuelve a usar su programa de "
+            "colocación de acciones."),
+    ),
+    riesgos=(
+        Riesgo("El crédito de los inquilinos",
+               "Buena parte de la cartera está rentada a operadores sin calificación, evaluados con "
+               "el análisis propio de NNN. Es la fuente de su mejor yield y también un riesgo real: "
+               "en 2024 tuvo que recuperar 64 propiedades de un operador de restaurantes y 32 de una "
+               "mueblería en quiebra."),
+        Riesgo("Concentración en comercio de servicio",
+               "Seis giros —servicio automotriz, conveniencia, dos tipos de restaurante, "
+               "entretenimiento y agencias de autos— generan 63% de la renta; los cinco mayores "
+               "inquilinos, 17.8%. El entretenimiento fue el giro más frágil en 2020: los cines "
+               "pagaron 2% de su renta del segundo trimestre."),
+        Riesgo("Las tasas",
+               "Con contratos de diez años en promedio y rentas fijas, la acción se comporta como "
+               "un bono largo: cuando el Treasury sube, su precio baja aunque el negocio no cambie. "
+               "La deuda está casi toda a tasa fija y a diez años, pero las notas de 2020-2021 a "
+               "cupones de 2.5% a 3.5% costarán más cuando se refinancien."),
+        Riesgo("El motor de crecimiento depende del precio de la acción",
+               "NNN crece emitiendo acciones y deuda para comprar inmuebles a ~7.4%. Si su acción se "
+               "abarata frente a ese yield, crecer por acción se vuelve difícil: en 2023, con la "
+               "acción barata, emitió solo 31 millones en acciones."),
+        Riesgo("Menos escala que Realty Income",
+               "Con 3,774 propiedades, todas en EE. UU. y de comercio, cada inquilino pesa más y no "
+               "hay negocios fuera del comercio que compensen un mal año del sector. A cambio "
+               "opera con 85 empleados."),
+        Riesgo("Divisa, para quien invierte en pesos",
+               "Todos los inmuebles y el dividendo están en dólares. El retorno en pesos suma la "
+               "variación del tipo de cambio: una apreciación del peso resta en la misma medida."),
+    ),
+    fuentes_extra=(
+        ("Precio y dividendos desde 1992", "Yahoo Finance (chart API), validado contra el precio "
+         "crudo del proveedor diario (2,513 días, error 0.0000%), 43 cierres NYSE publicados por "
+         "el emisor (1996-2024) y los rangos trimestrales de 1992 a 1995."),
+        ("FFO, AFFO y la operación 1992-2025", "10-K, prospectos 424B e informes anuales de 1992 a "
+         "2008; comunicados de resultados (8-K Ex-99.1) de 2009 a 2025, uno por uno; ver "
+         "data/estudios/NNN/anuales_primarios.csv."),
+        ("Estados financieros 2008-2026", "XBRL de la SEC (companyfacts) y 8-K trimestrales."),
+        ("Tasas", "Treasury a 10 años (FRED), Udibono, CETES y tipo de cambio FIX (Banxico)."),
+        ("Historia corporativa", "10-K, 8-K y proxies de la SEC; nnnreit.com («About Us»); Nareit."),
+    ),
+    notas={
+        "mxn": "El tipo de cambio de la base empieza en noviembre de 1993; incluye la devaluación "
+               "de 1994-95.",
+        "ffo_derivado": (
+            "Buena parte de la diferencia de 2011 a 2021 son los dividendos preferentes: en XBRL la "
+            "utilidad del "
+            "accionista común de NNN aparece igual a la utilidad neta, sin restarlos. En 2020, por "
+            "ejemplo, la fórmula da 0.10 dólares por acción de más, lo mismo que pagó de "
+            "preferentes por acción. NNN redimió sus preferentes en 2021 —el capital preferente "
+            "pasa de 345 millones a cero— y desde 2022 la fórmula cuadra. El EBITDAre no resta "
+            "preferentes, pero el estudio lo calcula solo desde que la fórmula cuadra, por "
+            "consistencia."
+        ),
+        "dividendos": (
+            "Los 68 dividendos trimestrales de 1992 a 2008 y los dividendos anuales de 2009 a 2025 "
+            "coinciden uno por uno con los que reporta el emisor; no hizo falta corregir ninguno."
+        ),
+        "apalancamiento": (
+            "El emisor publica su deuda neta ÷ EBITDAre desde 2011: entre 4.0x (2016) y 5.6x (2025), "
+            "con una base que cambia entre el último trimestre anualizado y los últimos cuatro. "
+            "Desde 2022 la cifra derivada aquí queda a una décima de la reportada."
+        ),
+    },
+)
+
+HISTORIAS: dict[str, HistoriaEmisor] = {"O": HISTORIA_O, "NNN": HISTORIA_NNN}

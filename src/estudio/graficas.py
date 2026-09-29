@@ -75,7 +75,9 @@ def _base(fig: go.Figure, t: Tema, *, alto: int = 360, eje_y: str = "", formato_
     fig.update_layout(
         height=alto, paper_bgcolor=t.fondo, plot_bgcolor=t.fondo,
         font={"color": t.texto, "family": t.texto_fuente, "size": 12},
-        margin={"t": 24, "b": 36, "l": 56, "r": 90}, showlegend=leyenda,
+        # El margen derecho es de las etiquetas finales: si ya se ensanchó para que
+        # quepan («Yield NNN 5.9%» es más largo que «Yield O 5.9%»), no se encoge.
+        margin={"t": 24, "b": 36, "l": 56, "r": max(90, fig.layout.margin.r or 0)}, showlegend=leyenda,
         legend={"orientation": "h", "y": 1.08, "x": 0, "font": {"color": t.texto_2, "size": 11}},
         hovermode="x unified",
         hoverlabel={"bgcolor": "#1F2630" if t.nombre == "oscuro" else "#FFFFFF",
@@ -129,6 +131,10 @@ def _etiquetas_finales(fig: go.Figure, t: Tema, items: list[tuple], *, log: bool
     for (x, _, texto, color), y, dy in zip(vivos, pos, desplazamiento, strict=True):
         fig.add_annotation(x=x, y=y, text=texto, showarrow=False, xanchor="left", xshift=6,
                            yshift=dy, font={"color": color, "size": 11, "family": t.mono})
+    # Que la etiqueta más larga quepa: ~6.8 px por carácter en la mono de 11 pt, más
+    # el desplazamiento. Sin esto «Dividendo 2.36» se cortaba en «Dividendo 2.3».
+    necesario = int(14 + 6.8 * max(len(txt) for _, _, txt, _ in vivos))
+    fig.update_layout(margin={"r": max(necesario, fig.layout.margin.r or 0)})
 
 
 def _rango_x(fig: go.Figure, x0, x1) -> None:
@@ -193,8 +199,11 @@ def eras(e, t: Tema = OSCURO) -> go.Figure:
                       yaxis={"autorange": "reversed"}, margin={"l": 210, "r": 60, "t": 40, "b": 30})
     fig.update_xaxes(tickformat=".0%", zeroline=True, zerolinecolor=t.texto_2)
     # Espacio para la etiqueta del total a la derecha del rombo más alejado.
+    # Proporcional al rango: con un total de +40.7% (NNN, 2009-2013) un margen fijo de
+    # 10 puntos dejaba la etiqueta cortada en el borde.
     extremos = [*df["negocio"], *df["revaluacion"], *df["total"]]
-    fig.update_xaxes(range=[min(extremos) - 0.04, max(extremos) + 0.10])
+    rango = (max(extremos) - min(extremos)) or 0.1
+    fig.update_xaxes(range=[min(extremos) - 0.06 * rango, max(extremos) + 0.24 * rango])
     return fig
 
 
@@ -213,9 +222,9 @@ def por_accion(e, t: Tema = OSCURO) -> go.Figure:
     )
     items = []
     for col, nombre, color, trazo in series:
-        if col not in a:
+        s = a[col].dropna() if col in a else pd.Series(dtype=float)
+        if s.empty:
             continue
-        s = a[col].dropna()
         fig.add_scatter(x=s.index, y=s, name=nombre, mode="lines+markers",
                         line={"color": color, "width": 2, "dash": trazo}, marker={"size": 5},
                         hovertemplate=f"{nombre}: %{{y:$.2f}}<extra></extra>")
@@ -243,11 +252,11 @@ def escala_contra_accion(e, t: Tema = OSCURO) -> go.Figure:
         fig.add_scatter(x=s.index, y=s, name=nombre, mode="lines", line={"color": color, "width": 2},
                         hovertemplate=f"{nombre}: %{{y:,.0f}}<extra></extra>")
         x, y = _ultimo(s)
-        items.append((x, y, f"{nombre.split()[0]} ×{y / 100:,.1f}", color))
+        items.append((x, y, f"{nombre.split()[0]} ×{y / 100:,.{0 if y >= 10_000 else 1}f}", color))
     _etiquetas_finales(fig, t, items, log=True)
     fig = _base(fig, t, eje_y=f"índice, {base} = 100 (escala log)", log_y=True)
-    fig.update_yaxes(tickvals=[100, 200, 500, 1000, 2000, 5000],
-                     ticktext=["100", "200", "500", "1,000", "2,000", "5,000"])
+    fig.update_yaxes(tickvals=[100, 200, 500, 1000, 2000, 5000, 10_000, 20_000],
+                     ticktext=["100", "200", "500", "1,000", "2,000", "5,000", "10,000", "20,000"])
     fig.update_xaxes(dtick=4)
     _rango_x(fig, base - 0.5, max(x for x, *_ in items) + 0.5)
     return fig
@@ -265,15 +274,17 @@ def spread_de_inversion(e, t: Tema = OSCURO) -> go.Figure:
     for col, nombre, color, trazo in series:
         if col not in si:
             continue
-        s = si[col].dropna()
-        fig.add_scatter(x=s.index, y=s, name=nombre, mode="lines+markers",
+        # Todos los años del rango, con hueco donde no hay dato: una línea recta de
+        # 2006 a 2013 dibujaría siete años que el emisor no reportó.
+        s = si[col].reindex(range(int(si.index.min()), int(si.index.max()) + 1))
+        fig.add_scatter(x=s.index, y=s, name=nombre, mode="lines+markers", connectgaps=False,
                         line={"color": color, "width": 2, "dash": trazo}, marker={"size": 6},
                         hovertemplate=f"{nombre}: %{{y:.2%}}<extra></extra>")
         x, y = _ultimo(s)
         items.append((x, y, nombre.split(" (")[0], color))
     _etiquetas_finales(fig, t, items, separacion=0.10)
     fig = _base(fig, t, eje_y="yield anual", formato_y=".1%")
-    fig.update_layout(margin={"r": 120})
+    fig.update_layout(margin={"r": max(120, fig.layout.margin.r or 0)})
     _rango_x(fig, si.index.min() - 0.5, si.index.max() + 0.5)
     return fig
 
@@ -318,10 +329,10 @@ def yield_contra_bono(e, t: Tema = OSCURO) -> go.Figure:
     fig = go.Figure()
     fig.add_scatter(x=s.index, y=s["ust10"], name="Treasury 10 años", line={"color": t.contexto, "width": 1.6},
                     hovertemplate="Treasury: %{y:.2%}<extra></extra>")
-    fig.add_scatter(x=s.index, y=s["yield_ttm"], name="Yield de O", line={"color": t.principal, "width": 1.8},
-                    hovertemplate="Yield O: %{y:.2%}<extra></extra>")
+    fig.add_scatter(x=s.index, y=s["yield_ttm"], name=f"Yield de {e.ticker}", line={"color": t.principal, "width": 1.8},
+                    hovertemplate=f"Yield {e.ticker}: %{{y:.2%}}<extra></extra>")
     items = []
-    for col, nombre, color in (("yield_ttm", "Yield O", t.principal), ("ust10", "Treasury", t.contexto)):
+    for col, nombre, color in (("yield_ttm", f"Yield {e.ticker}", t.principal), ("ust10", "Treasury", t.contexto)):
         x, y = _ultimo(s[col])
         items.append((x, y, f"{nombre} {y:.1%}", color))
     _etiquetas_finales(fig, t, items)
@@ -344,7 +355,7 @@ def spread(e, t: Tema = OSCURO) -> go.Figure:
                        font={"color": t.texto_2, "size": 10, "family": t.mono})
     x, y = _ultimo(s)
     _etiquetas_finales(fig, t, [(x, y, f"hoy {y:.1%}", t.principal)])
-    fig = _base(fig, t, alto=280, eje_y="yield de O − Treasury", formato_y=".1%")
+    fig = _base(fig, t, alto=280, eje_y=f"yield de {e.ticker} − Treasury", formato_y=".1%")
     _rango_x(fig, s.index[0], s.index[-1])
     return fig
 
@@ -371,11 +382,15 @@ def entradas(e, t: Tema = OSCURO) -> go.Figure:
                         line={"color": t.texto, "width": 1.5, "dash": "dot"},
                         marker={"size": 10, "symbol": "diamond", "color": t.texto},
                         hovertemplate="Mediana del quintil: %{y:.1%}<extra></extra>")
-    for _, fila in pd.concat([e.entradas.mejores.head(2), e.entradas.peores.head(2)]).iterrows():
-        if pd.notna(fila["p_ffo"]):
-            fig.add_annotation(x=fila["p_ffo"], y=fila["rt_5a"], text=mes(fila.name),
-                               showarrow=True, arrowhead=0, arrowcolor=t.texto_2, ax=24, ay=-18,
-                               font={"size": 10, "color": t.texto_2, "family": t.mono})
+    # Los dos mejores y los dos peores, con la flecha hacia lados opuestos: en NNN los dos
+    # mejores meses (dic-1999 y feb-2009) caen casi en el mismo punto, y con la misma
+    # flecha sus etiquetas se leían «dic-1feb-2009».
+    for grupo, (arriba, abajo) in ((e.entradas.mejores, (-22, 26)), (e.entradas.peores, (-20, 24))):
+        for (_, fila), (ax, ay) in zip(grupo.head(2).iterrows(), ((30, arriba), (-34, abajo)), strict=False):
+            if pd.notna(fila["p_ffo"]):
+                fig.add_annotation(x=fila["p_ffo"], y=fila["rt_5a"], text=mes(fila.name),
+                                   showarrow=True, arrowhead=0, arrowcolor=t.texto_2, ax=ax, ay=ay,
+                                   font={"size": 10, "color": t.texto_2, "family": t.mono})
     fig = _base(fig, t, alto=420, eje_y="retorno anual en los 5 años siguientes", formato_y=".0%", leyenda=True)
     fig.update_layout(hovermode="closest")
     fig.update_xaxes(title_text="P/FFO el día de la compra", ticksuffix="x")

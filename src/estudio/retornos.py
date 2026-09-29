@@ -15,8 +15,8 @@ Tres preguntas, tres herramientas
    cada dólar de dividendo. Las dos primeras las produce el negocio; la tercera,
    el humor del mercado. Distinguirlas es la diferencia entre «el REIT fue buena
    inversión» y «tuve suerte con la fecha».
-3. **Retorno por fecha de entrada**: para cada fin de mes desde 1995, qué tan
-   caro estaba —con lo que se sabía ESE día (P1)— y cuánto rindió después.
+3. **Retorno por fecha de entrada**: para cada fin de mes con yield conocido, qué
+   tan caro estaba —con lo que se sabía ESE día (P1)— y cuánto rindió después.
 
 Lo que este módulo NO afirma
 ----------------------------
@@ -183,8 +183,9 @@ def descomponer(
     def anual(x: float) -> float:
         return float(x ** (1 / n) - 1) if n > 0 and x > 0 else float("nan")
 
-    # El dividendo ANUALIZADO (mensualidad vigente × 12) en los dos extremos, no el
-    # TTM: al IPO todavía no hay doce pagos, y un TTM rezaga los aumentos un año.
+    # El dividendo ANUALIZADO (último pago regular × pagos al año) en los dos
+    # extremos, no el TTM: al IPO todavía no hay un año de pagos, y un TTM rezaga los
+    # aumentos un año.
     # Lo que importa es que los dos extremos se midan igual.
     ya = ra["dividendo_anualizado"] / ra["precio_base"]
     yb = rb["dividendo_anualizado"] / rb["precio_base"]
