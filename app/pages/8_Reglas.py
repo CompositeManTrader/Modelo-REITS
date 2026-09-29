@@ -127,6 +127,17 @@ if ventas.empty:
 else:
     mostrar_tabla(ventas)
 
+st.subheader("¿La tesis rota llega a tiempo?")
+st.markdown(
+    "Cada vez que la Puerta 3 empezó a disparar —contando por reporte, como el modelo, y por "
+    "trimestre de calendario—: qué había hecho el papel y qué hizo después."
+)
+eventos = vistas_reglas.eventos(r)
+if eventos.empty:
+    st.markdown("La Puerta 3 nunca disparó.")
+else:
+    mostrar_tabla(eventos)
+
 st.subheader("Qué criterio movió al semáforo")
 mostrar_tabla(vistas_reglas.criterios(r))
 

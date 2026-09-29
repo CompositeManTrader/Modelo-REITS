@@ -533,6 +533,12 @@ def flujo_conocido(
     todo = pd.concat([anual_pub, fy_pub, ttm]).sort_index(kind="stable")
     periodo = pd.concat([anual_periodo, fy_periodo, ttm.attrs.get("periodo", pd.Series(dtype="datetime64[ns]"))])
     periodo = periodo.sort_index(kind="stable")
+    # Todas las cifras con su periodo, ANTES de quitar duplicados: cuando dos años se
+    # publican el mismo día (NNN dio el AFFO de 2009 y el de 2010 juntos, el
+    # 17-feb-2011), la serie se queda con el más reciente, pero el crecimiento
+    # necesita también el anterior.
+    completo = pd.DataFrame({"valor": todo.values, "periodo": pd.to_datetime(periodo.values)},
+                            index=todo.index)
     # Si dos cosas se publicaron el mismo día (el FY y el TTM del 4T), gana la
     # última en llegar a la concatenación: el TTM, que es el que se sigue usando.
     quedan = ~todo.index.duplicated(keep="last") & (todo.index <= pd.Timestamp(asof))
@@ -546,6 +552,7 @@ def flujo_conocido(
     # de fines de 2013 —ya con el aumento de 15% por la compra de ARCT—, O salía con
     # un payout de 106% que nunca tuvo.
     todo.attrs["periodo"] = periodo
+    todo.attrs["versiones"] = completo[completo.index <= pd.Timestamp(asof)]
     return todo
 
 

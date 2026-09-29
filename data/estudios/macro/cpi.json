@@ -1,0 +1,10 @@
+{
+  "serie": "CPIAUCSL",
+  "fuente": "FRED, Reserva Federal de St. Louis: Consumer Price Index for All Urban Consumers: All Items (https://fred.stlouisfed.org/series/CPIAUCSL)",
+  "unidad": "índice 1982-84 = 100",
+  "rezago_de_publicacion_dias": 45,
+  "descargado_en": "2026-09-29T04:41:01+00:00",
+  "desde": "1947-01-01",
+  "hasta": "2026-08-01",
+  "n": 955
+}

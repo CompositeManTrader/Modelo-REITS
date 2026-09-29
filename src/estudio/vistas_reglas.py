@@ -28,6 +28,8 @@ COLUMNAS: dict[str, tuple[str, ...]] = {
         "rendimiento_12m_mejor", "ventanas_independientes",
     ),
     "criterios": ("puerta", "criterio", "meses", "fraccion_del_tiempo"),
+    "eventos": ("conteo", "senal", "disparador", "rendimiento_papel_12m_antes", "caida_desde_maximo_24m",
+                "rendimiento_papel_1_anio_despues", "rendimiento_papel_3_anios_despues"),
     "sensibilidad": ("fraccion_comprar_menos", "tir_usd", "ventaja_tir_bps", "multiplo_de_lo_aportado"),
     "comparativo": (
         "emisor", "desde", "tir_modelo", "tir_sin_reglas", "ventaja_tir_bps", "ventas",
@@ -99,6 +101,19 @@ def criterios(r: ResultadoReglas) -> pd.DataFrame:
     return _con(c.rename(columns={"fraccion": "fraccion_del_tiempo"}), "criterios")
 
 
+def eventos(r: ResultadoReglas) -> pd.DataFrame:
+    ev = r.eventos
+    if ev.empty:
+        return pd.DataFrame(columns=COLUMNAS["eventos"])
+    return _con(pd.DataFrame({
+        "conteo": ev["conteo"], "senal": [mes(f) for f in ev["fecha"]], "disparador": ev["disparadores"],
+        "rendimiento_papel_12m_antes": ev["papel_12m_antes"],
+        "caida_desde_maximo_24m": ev["caida_desde_maximo_24m"],
+        "rendimiento_papel_1_anio_despues": ev["papel_1a_despues"],
+        "rendimiento_papel_3_anios_despues": ev["papel_3a_despues"],
+    }), "eventos")
+
+
 def sensibilidad(r: ResultadoReglas) -> pd.DataFrame:
     s = r.sensibilidad
     return _con(pd.DataFrame({
@@ -128,4 +143,4 @@ def comparativo(resultados: list[ResultadoReglas]) -> pd.DataFrame:
 
 
 VISTAS = {"variantes": variantes, "ventas": ventas, "por_decision": por_decision,
-          "criterios": criterios, "sensibilidad": sensibilidad}
+          "criterios": criterios, "sensibilidad": sensibilidad, "eventos": eventos}

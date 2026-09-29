@@ -940,6 +940,8 @@ _PALABRAS_ACENTUADAS = {
     "ultimo": "último", "ultima": "última", "unico": "único", "unica": "única",
     "numero": "número", "metrica": "métrica", "interes": "interés",
     "historico": "histórico", "historica": "histórica", "proximo": "próximo",
+    "metodo": "método", "multiplo": "múltiplo", "senal": "señal", "anio": "año",
+    "anios": "años", "despues": "después", "mas": "más",
 }
 # Las que ninguna regla acierta: una sigla que no se capitaliza como palabra, un
 # prefijo técnico que no se lee, y el sufijo con el que este proyecto marca los

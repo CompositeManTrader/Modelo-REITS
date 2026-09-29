@@ -88,9 +88,9 @@ def riqueza(r: ResultadoReglas, t: Tema = OSCURO) -> go.Figure:
     items = []
     estilos = {
         Variante.MODELO: (t.principal, 2.2, "solid"),
+        Variante.MODELO_12M: (t.principal, 1.4, "dash"),
         Variante.BENCHMARK: (t.contexto, 2.0, "solid"),
-        Variante.SOLO_VALUACION: (t.contexto_2, 1.2, "dot"),
-        Variante.SOLO_TESIS: (t.contexto_2, 1.2, "dash"),
+        Variante.SOLO_VALUACION_12M: (t.contexto_2, 1.2, "dot"),
     }
     for v, (color, ancho, trazo) in estilos.items():
         s = r.variantes[v].diaria["riqueza"].resample("ME").last().dropna()

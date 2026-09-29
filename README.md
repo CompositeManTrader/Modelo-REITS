@@ -464,6 +464,57 @@ qué hacer con la aportación y los dividendos netos del mes:
 - **Veredicto**: con 30 años y una señal lenta hay decenas de cambios de postura, no
   cientos. El dictamen pasa por P7 y P8 y sale INCONCLUSO: muestra cómo se hubiera
   comportado el modelo, no prueba que funcione.
+- **Reinversión en 12 meses** (regla escrita antes de correrla): ningún dólar espera más
+  de 12 meses en la reserva con la tesis en pie, y lo vendido vuelve al papel en 12
+  partes iguales cuando la Puerta 3 deja de disparar. Se reporta como variante aparte
+  del modelo completo y de «solo compras».
+- **La revisión con lupa** encontró y corrigió tres errores de datos que vendían o
+  frenaban de más: el crecimiento comparaba periodos que no eran consecutivos, dos años
+  publicados el mismo día perdían el primero, y el apalancamiento de WPC de 2012 no
+  estaba anualizado. El motor cuadra al centavo contra escenarios hechos a mano y el
+  Treasury contra FRED.
+- **¿La tesis rota llega a tiempo?** Cada vez que la Puerta 3 empezó a disparar se mide
+  qué había hecho el papel antes y qué hizo después. El papel ya venía abajo de su máximo
+  de dos años (la mediana, entre 6% y 21% según el emisor) y subió en los 12 meses
+  siguientes en 15 de los 18 casos: la señal confirma un deterioro que el mercado ya
+  descontó. Por eso vender por tesis
+  rota cuesta más de lo que protege, y por eso el modelo sale mediocre.
+
+## Métodos de valuación en el tiempo
+
+La página **Valuación en el tiempo**, `docs/estudios/metodos_de_valuacion.pdf` y el libro
+`docs/estudios/valuacion_trimestral.xlsx` contestan: ¿qué manera de medir «caro o barato»
+le hubiera servido al que compra O, NNN o WPC, y para qué?
+
+```bash
+python scripts/estudio.py macro     # baja y versiona T-bill, bonos Baa (Moody's) e inflación (CPI) de FRED
+python scripts/estudio.py metodos   # PDF y Excel de todos los emisores con estudio
+```
+
+Siete métodos, cada uno construido para que más alto sea más barato y comparado contra
+**la historia propia del emisor** (P4, P5): múltiplo P/FFO (P/AFFO en WPC), prima sobre el
+Treasury (la Puerta 2), prima sobre la tasa real, prima sobre bonos Baa, yield de
+dividendo, dividendo sobre el Treasury y múltiplo contra su mediana de 5 años; más el
+**consenso**, el promedio de los siete percentiles. Cada fin de mes con lo publicado a
+esa fecha (el CPI, 45 días después de su mes) y el retorno total neto de los 1, 3 y 5
+años siguientes. Lo que salió:
+
+- **Sí predicen**: los siete tienen correlación positiva con el retorno de los 5 años
+  siguientes en los tres emisores; con el consenso, «barato» rindió ~20% al año después
+  y «caro» ~8%.
+- **Esperar no paga**: aun cuando decía caro, el papel le ganó al T-bill en la mayoría de
+  los casos. Comprar menos cuando está caro queda cerca de cero o abajo contra aportar
+  siempre, con cualquier método. Es la misma razón por la que el semáforo sale mediocre.
+- **Escoger a cuál de los tres sí paga**: mandar toda la aportación del mes al emisor con
+  el percentil más alto contra su propia historia —sin guardar efectivo ni vender— le
+  ganó a partes iguales con los ocho métodos. Controles: el espejo (todo al más caro)
+  pierde, 200 sorteos con las mismas rachas casi nunca lo igualan, y gana en cada mitad.
+- **INCONCLUSO** para P7 (decenas de cambios, no cien), con sesgo de supervivencia
+  declarado: la regla solo debe repartir entre emisores que pasan la Puerta 1.
+
+El Excel trae una hoja por emisor con cada trimestre: insumos en azul (precio, flujo,
+dividendo, tasas), múltiplos, yields y primas como fórmulas vivas, los ocho percentiles
+y la señal del consenso, que se mueve con los umbrales de la hoja Léeme.
 
 ## El semáforo: tres puertas, por separado
 

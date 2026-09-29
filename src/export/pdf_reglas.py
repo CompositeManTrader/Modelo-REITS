@@ -164,6 +164,13 @@ def _emisor(r: ResultadoReglas, fig: Figuras) -> str:
         + tabla(filas_var, ["Variante", "TIR USD", "TIR MXN", "vs sin reglas (pb)", "Múltiplo", "En el papel",
                             "Caída máx.", "Ventas", "Impuestos (miles USD)"], alinear="lrrrrrrrr")
         + "<div class='bloque'><h3>Las ventas por tesis rota</h3>" + ventas + "</div>"
+        + "<div class='bloque'><h3>¿La tesis rota llega a tiempo?</h3>"
+        + (tabla([[_e(f["conteo"]), g.mes(f["fecha"]), _e(f["disparadores"]), pct(f["papel_12m_antes"]),
+                   pct(f["caida_desde_maximo_24m"]), pct(f["papel_1a_despues"]), pct(f["papel_3a_despues"])]
+                  for _, f in r.eventos.iterrows()],
+                 ["Conteo", "Señal", "Disparador", "Papel 12 meses antes", "Desde su máximo de 2 años",
+                  "Papel 1 año después", "3 años después"], alinear="lllrrrr")
+           if not r.eventos.empty else "<p>La Puerta 3 nunca disparó.</p>") + "</div>"
         + "<div class='bloque'><h3>Qué criterio movió al semáforo</h3>"
         + (tabla(filas_c, ["Puerta", "Criterio", "Meses", "Del tiempo"], alinear="llrr") if filas_c else
            "<p>Ningún criterio reprobó ni disparó.</p>") + "</div>"
@@ -191,7 +198,10 @@ def _metodologia(resultados: list[ResultadoReglas]) -> str:
         + "<h3>Variantes</h3><p class='chico'><b>Modelo completo</b>: la tabla de decisiones. <b>Solo compras</b>: "
         "las mismas compras, pero nunca vende (VENDER se vuelve NO COMPRAR). <b>Solo tesis rota</b>: aportación "
         "fija; vende todo cuando dispara la Puerta 3 y vuelve a invertir todo en cuanto deja de disparar. "
-        "<b>Sin reglas</b>: aportación fija al mismo papel, reinvirtiendo dividendos —el benchmark (P6)—.</p>"
+        "<b>… reinversión en 12 meses</b>: ningún dólar espera más de 12 meses en la reserva con la tesis en "
+        "pie; lo vendido vuelve en 12 partes iguales cuando la Puerta 3 deja de disparar (regla escrita antes de "
+        "correrla). <b>Sin reglas</b>: aportación fija al mismo papel, reinvirtiendo dividendos —el benchmark "
+        "(P6)—.</p>"
         "<p class='chico'>La diferencia se mide en TIR money-weighted (P9), vendiendo todo al final y pagando el "
         "impuesto. El retorno activo se regresa contra el del papel para quitar el efecto de estar más o menos "
         "invertido en un activo que sube (P8), con errores estándar Newey-West. Los cambios de postura se "

@@ -5,8 +5,10 @@
     python scripts/estudio.py resumen O     # imprime las cifras del estudio
     python scripts/estudio.py pdf O         # genera el entregable en PDF
     python scripts/estudio.py tbill         # baja y versiona el T-bill a 3 meses (reserva del backtest)
+    python scripts/estudio.py macro         # T-bill, bonos Baa e inflación de FRED (métodos de valuación)
     python scripts/estudio.py reglas O      # backtest de las reglas de decisión de un emisor
     python scripts/estudio.py reglas-pdf    # entregable del backtest de todos los emisores con estudio
+    python scripts/estudio.py metodos       # métodos de valuación en el tiempo: PDF y Excel trimestral
 
 ``mercado`` y ``tbill`` son lo único que toca la red. Se niega a guardar si la serie no cuadra
 contra el proveedor diario y las anclas NYSE: una historia larga que no coincide
@@ -127,6 +129,17 @@ def cmd_tbill() -> int:
     return 0
 
 
+def cmd_macro() -> int:
+    from src.estudio import macro
+
+    for nombre in macro.SERIES:
+        destino = macro.guardar(nombre, macro.descargar(nombre))
+        s = macro.cargar(nombre)
+        print(f"{nombre}: {len(s):,} datos, {s.index.min():%Y-%m-%d} a {s.index.max():%Y-%m-%d} → "
+              f"{destino.relative_to(RAIZ)}")
+    return 0
+
+
 def cmd_reglas(ticker: str) -> int:
     from src.estudio import reglas
 
@@ -146,6 +159,21 @@ def cmd_reglas_pdf() -> int:
     return 0
 
 
+def cmd_metodos() -> int:
+    from src.estudio import metodos
+    from src.export import excel_metodos
+    from src.export.pdf_metodos import generar_pdf
+
+    r = metodos.estudiar({t: _armar(t) for t in mercado.con_estudio()})
+    for c in metodos.conclusiones(r):
+        print(f"\n{c.titulo}\n  {c.texto}")
+    carpeta = RAIZ / "docs" / "estudios"
+    for destino in (generar_pdf(r, carpeta / "metodos_de_valuacion.pdf"),
+                    excel_metodos.exportar(r, carpeta / "valuacion_trimestral.xlsx")):
+        print(f"\n{destino.relative_to(RAIZ)} ({destino.stat().st_size / 1024:,.0f} KB)")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="comando", required=True)
@@ -153,12 +181,18 @@ def main() -> int:
         s = sub.add_parser(nombre)
         s.add_argument("ticker")
     sub.add_parser("tbill")
+    sub.add_parser("macro")
     sub.add_parser("reglas-pdf")
+    sub.add_parser("metodos")
     args = p.parse_args()
     if args.comando == "tbill":
         return cmd_tbill()
+    if args.comando == "macro":
+        return cmd_macro()
     if args.comando == "reglas-pdf":
         return cmd_reglas_pdf()
+    if args.comando == "metodos":
+        return cmd_metodos()
     ticker = args.ticker.upper()
     if args.comando == "mercado":
         return cmd_mercado(ticker)

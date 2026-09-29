@@ -341,3 +341,74 @@ def test_anual_corta_por_fecha_aunque_le_pasen_todas_las_cifras(repo_sembrado):
     t = fund.anual(repo_sembrado, "O", asof=D(2015, 6, 30), historia=h,
                    primarios=fund.cargar_primarios("O", h.eventos))
     assert t.loc[t.index >= 2015, "cap_rate_adquisicion"].isna().all()
+
+
+# --------------------------------------------------------------------------------------
+# Reinversión en 12 meses y revisión con lupa
+# --------------------------------------------------------------------------------------
+
+
+def test_con_plazo_lo_que_espera_se_compra_a_los_12_meses():
+    """«Comprar menos» manda la mitad a la reserva; a los 12 meses esa mitad se compra."""
+    e, sen = _escenario([10] * 30, ["COMPRAR MENOS"] * 14)
+    s = reglas.simular(e, sen, pd.Series(dtype=float), variante=Variante.SOLO_VALUACION_12M, parametros=SIN_FRICCION)
+    assert s.ejecuciones["comprado"].tolist() == pytest.approx([500] * 12 + [1_000, 1_000])
+    sin_plazo = reglas.simular(e, sen, pd.Series(dtype=float), variante=Variante.SOLO_VALUACION, parametros=SIN_FRICCION)
+    assert sin_plazo.ejecuciones["comprado"].tolist() == pytest.approx([500] * 14)
+
+
+def test_con_plazo_lo_vendido_vuelve_en_doce_partes():
+    e, sen = _escenario([10] * 34, ["SIN SEÑAL", "VENDER"] + ["NO COMPRAR"] * 14)
+    s = reglas.simular(e, sen, pd.Series(dtype=float), variante=Variante.MODELO_12M, parametros=SIN_FRICCION)
+    comprado = s.ejecuciones["comprado"].tolist()
+    # Mes 1 compra 1,000; mes 2 vende todo y guarda su aportación: 2,000 en la reserva. Desde el
+    # mes 3 se reinvierten en 12 partes de 166.67, y cada aportación de NO COMPRAR espera 12 meses.
+    assert comprado[0] == pytest.approx(1_000) and comprado[1] == 0
+    assert comprado[2:14] == pytest.approx([2_000 / 12] * 12)
+    assert comprado[14] == pytest.approx(1_000)   # la aportación del mes 3, doce meses después
+
+
+def test_el_crecimiento_compara_periodo_contra_periodo():
+    """Publicado el 30-mar un año y el 27-mar el siguiente: comparar contra «lo sabido hace
+    365 días» mezclaba años no consecutivos."""
+    flujo = pd.Series([1.51, 1.45, 1.41], index=pd.to_datetime(["2000-03-30", "2001-03-30", "2002-03-27"]))
+    flujo.attrs["versiones"] = pd.DataFrame(
+        {"valor": [1.51, 1.45, 1.41], "periodo": pd.to_datetime(["1999-12-31", "2000-12-31", "2001-12-31"])},
+        index=flujo.index)
+    e = SimpleNamespace(flujos={"ffo_por_accion": flujo})
+    c = reglas.crecimiento_por_periodo(e, "ffo_por_accion", pd.DatetimeIndex(["2002-03-28"]))
+    assert c.iloc[0] == pytest.approx(1.41 / 1.45 - 1)
+
+
+def test_dos_anios_publicados_el_mismo_dia_no_se_pierden():
+    """NNN dio el AFFO de 2009 y el de 2010 el mismo día: el crecimiento necesita los dos."""
+    flujo = pd.Series([1.59], index=pd.to_datetime(["2011-02-17"]))
+    flujo.attrs["versiones"] = pd.DataFrame(
+        {"valor": [1.73, 1.59], "periodo": pd.to_datetime(["2009-12-31", "2010-12-31"])},
+        index=pd.to_datetime(["2011-02-17", "2011-02-17"]))
+    e = SimpleNamespace(flujos={"affo_por_accion": flujo})
+    c = reglas.crecimiento_por_periodo(e, "affo_por_accion", pd.DatetimeIndex(["2011-03-31"]))
+    assert c.iloc[0] == pytest.approx(1.59 / 1.73 - 1)
+
+
+def test_el_apalancamiento_no_anualizado_de_wpc_no_cuenta():
+    from src.estudio import fundamentales as fund
+
+    p = fund.cargar_primarios("WPC", ())
+    if p.empty:
+        pytest.skip("No hay cifras primarias de WPC.")
+    del_2012 = p[p["anio"] == 2012]
+    assert "deuda_neta_ebitdare_proforma" not in set(del_2012["concepto"])
+    assert "deuda_neta_ebitda_no_anualizada" in set(del_2012["concepto"])
+
+
+def test_los_eventos_de_tesis_rota_miden_antes_y_despues(estudio_o):
+    r = reglas.backtest(estudio_o, calificaciones=pd.DataFrame())
+    assert list(r.eventos.columns) == ["emisor", "conteo", "fecha", "disparadores", "papel_12m_antes",
+                                       "caida_desde_maximo_24m", "papel_1a_despues", "papel_3a_despues"]
+    assert set(r.eventos["conteo"]) <= {"por reporte", "por calendario"}
+    assert (r.eventos["caida_desde_maximo_24m"] <= 0).all()
+    # Cifras, no texto: sin eventos por reporte, concatenar un marco vacío las volvía «object»
+    # y la pantalla dibujaba −0.28 en vez de −28%.
+    for c in ("papel_12m_antes", "caida_desde_maximo_24m", "papel_1a_despues", "papel_3a_despues"):
+        assert pd.api.types.is_float_dtype(r.eventos[c]), c

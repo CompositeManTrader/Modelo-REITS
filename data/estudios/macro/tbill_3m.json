@@ -2,7 +2,8 @@
   "serie": "DTB3",
   "fuente": "FRED, Reserva Federal de St. Louis: 3-Month Treasury Bill Secondary Market Rate, Discount Basis (https://fred.stlouisfed.org/series/DTB3)",
   "unidad": "porcentaje anual, base descuento",
-  "descargado_en": "2026-09-29T03:09:18+00:00",
+  "rezago_de_publicacion_dias": 1,
+  "descargado_en": "2026-09-29T04:41:00+00:00",
   "desde": "1954-01-04",
   "hasta": "2026-09-25",
   "n": 18175

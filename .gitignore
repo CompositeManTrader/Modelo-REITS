@@ -27,5 +27,7 @@ diseno/*.html
 # Salidas locales
 *.xlsx
 !tests/fixtures/*.xlsx
+# Los entregables de los estudios sí se versionan, como sus PDF.
+!docs/estudios/*.xlsx
 .DS_Store
 .streamlit/secrets.toml

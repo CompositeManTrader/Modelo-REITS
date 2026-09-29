@@ -27,6 +27,18 @@ percentiles 70 y 30, dos trimestres seguidos— y se fijaron para la pantalla, a
 este backtest. Lo único nuevo es la mitad de COMPRAR MENOS, y por eso la sensibilidad
 se reporta completa (0%, 50% y 100%), sin escoger la que mejor salió.
 
+Regla de reinversión en 12 meses (probada aparte, escrita antes de correrla)
+===========================================================================
+Ningún dólar espera más de 12 meses en la reserva mientras la tesis esté en pie:
+
+1. Lo vendido por tesis rota —y todo lo que llegó a la reserva mientras la Puerta 3
+   disparaba— vuelve al papel en 12 partes iguales, una por mes, a partir del primer
+   mes en que la Puerta 3 deja de disparar, esté caro o barato.
+2. Lo que COMPRAR MENOS y NO COMPRAR mandan a la reserva (y sus intereses) se compra a
+   más tardar 12 meses después.
+3. Si la Puerta 3 vuelve a disparar, todo se detiene; COMPRAR sigue llevándose la
+   reserva completa en cuanto aparece.
+
 Lo que el backtest NO puede hacer
 =================================
 Con 30 años y una señal lenta hay decenas de decisiones independientes por emisor, no
@@ -57,8 +69,6 @@ Adaptaciones a la historia larga, declaradas
 
 from __future__ import annotations
 
-import datetime as dt
-import json
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from pathlib import Path
@@ -73,6 +83,7 @@ from src.config import (
     TASA_CEDULAR_GANANCIAS_SIC,
     UMBRALES,
 )
+from src.estudio import macro
 from src.estudio.mercado import dividendo_ttm
 from src.modelo.senal import Accion, Luz, evaluar_semaforo, percentil_expandible
 from src.portafolio.metricas import tir
@@ -87,8 +98,6 @@ from src.simulacion.backtest import (
     neutralizar_beta,
 )
 
-DIR_MACRO = DIR_ESTUDIOS / "macro"
-ARCHIVO_TBILL = "tbill_3m.csv.gz"
 ARCHIVO_CALIFICACIONES = "calificaciones.csv"
 
 
@@ -119,7 +128,9 @@ class Variante(StrEnum):
     """El modelo completo, sus dos mitades por separado y el benchmark del mismo activo."""
 
     MODELO = "Modelo completo"
+    MODELO_12M = "Modelo, reinversión en 12 meses"
     SOLO_VALUACION = "Solo compras (nunca vende)"
+    SOLO_VALUACION_12M = "Solo compras, reinversión en 12 meses"
     SOLO_TESIS = "Solo tesis rota (compra fija)"
     BENCHMARK = "Aportación fija, sin reglas"
 
@@ -142,6 +153,9 @@ class Parametros:
     # La persistencia de la Puerta 3 se cuenta en reportes nuevos (ver ``senales``).
     # False la cuenta por trimestre de calendario: solo para mostrar la diferencia.
     persistencia_por_reporte: bool = True
+    # Meses máximos que un dólar espera en la reserva con la tesis en pie (ver el
+    # docstring del módulo). Lo usan solo las variantes «reinversión en 12 meses».
+    reinversion_meses: int = 12
 
 
 PARAMETROS = Parametros()
@@ -167,6 +181,14 @@ NOTAS_DE_METODO: tuple[str, ...] = (
     "la cifra es anual y un solo año malo aparecía en dos cierres de trimestre; (3) la variante "
     "«solo tesis rota» nunca recompraba lo vendido: ahora vuelve a invertir todo en cuanto la "
     "Puerta 3 deja de disparar.",
+    "Revisión con lupa, después de la segunda corrida: (4) el crecimiento compara el periodo contra "
+    "el mismo periodo un año antes; antes comparaba «lo sabido hoy» contra «lo sabido hace 365 días», "
+    "y cuando la fecha de publicación se movía unos días comparaba, por ejemplo, 2001 contra 1999; (5) "
+    "cuando dos años se publicaron el mismo día, el anterior se perdía y el crecimiento no se podía "
+    "medir; (6) la deuda neta ÷ EBITDA de WPC de 2012 (6.7x) no se usa: la nota del mismo suplemento "
+    "dice que el EBITDA junta 9 meses sin CPA:15 contra la deuda de fin de año que ya la incluye. El "
+    "motor se concilió al centavo contra precio, dividendos, intereses, comisiones e impuestos, y el "
+    "Treasury contra FRED día por día.",
     "Impuestos de un residente mexicano vía SIC: 20% al dividendo (10% de retención con W-8BEN y "
     "10% de ISR adicional), 10% cedular a la ganancia al vender, medida en dólares, y 20% a los "
     "intereses de la reserva —el proyecto no modela ese ISR; 20% es conservador en contra del "
@@ -184,36 +206,16 @@ NOTAS_DE_METODO: tuple[str, ...] = (
 
 def descargar_tbill() -> pd.DataFrame:
     """El T-bill a 3 meses de FRED (DTB3), en porcentaje anual. Toca la red."""
-    from src.ingesta.tasas import descargar_fred
-
-    return descargar_fred("DTB3").rename(columns={"fecha_dato": "fecha", "valor": "tasa"})
+    return macro.descargar("tbill_3m")
 
 
 def guardar_tbill(df: pd.DataFrame, raiz: Path | None = None) -> Path:
-    destino = (raiz or DIR_MACRO)
-    destino.mkdir(parents=True, exist_ok=True)
-    df = df.dropna().sort_values("fecha")
-    df.to_csv(destino / ARCHIVO_TBILL, index=False, compression="gzip")
-    (destino / "tbill_3m.json").write_text(json.dumps({
-        "serie": "DTB3",
-        "fuente": "FRED, Reserva Federal de St. Louis: 3-Month Treasury Bill Secondary Market Rate, "
-                  "Discount Basis (https://fred.stlouisfed.org/series/DTB3)",
-        "unidad": "porcentaje anual, base descuento",
-        "descargado_en": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
-        "desde": str(pd.Timestamp(df["fecha"].min()).date()),
-        "hasta": str(pd.Timestamp(df["fecha"].max()).date()),
-        "n": int(len(df)),
-    }, ensure_ascii=False, indent=2), encoding="utf-8")
-    return destino / ARCHIVO_TBILL
+    return macro.guardar("tbill_3m", df, raiz)
 
 
 def cargar_tbill(raiz: Path | None = None) -> pd.Series:
     """Tasa anual en fracción, por día hábil."""
-    ruta = (raiz or DIR_MACRO) / ARCHIVO_TBILL
-    if not ruta.exists():
-        return pd.Series(dtype=float, name="tbill")
-    d = pd.read_csv(ruta, parse_dates=["fecha"])
-    return (d.set_index("fecha")["tasa"].astype(float) / 100).rename("tbill")
+    return (macro.cargar("tbill_3m", raiz) / 100).rename("tbill")
 
 
 def cargar_calificaciones(ticker: str, raiz: Path | None = None) -> pd.DataFrame:
@@ -268,14 +270,34 @@ def fines_de_mes(sesiones: pd.DatetimeIndex) -> pd.DatetimeIndex:
     return pd.DatetimeIndex(s.groupby(sesiones.to_period("M")).last().values)
 
 
-def _hace_un_anio(serie: pd.Series, fechas: pd.DatetimeIndex) -> pd.Series:
-    atras = fechas - pd.DateOffset(years=1)
-    s = serie.dropna()
-    if s.empty:
-        return pd.Series(np.nan, index=fechas)
-    valores = s.reindex(s.index.union(atras)).ffill().reindex(atras)
-    valores.index = fechas
-    return valores
+def crecimiento_por_periodo(e, concepto: str, fechas: pd.DatetimeIndex) -> pd.Series:
+    """Crecimiento de la última cifra conocida contra la del MISMO periodo un año antes.
+
+    Comparar «lo que se sabía hoy» contra «lo que se sabía hace 365 días» falla en
+    cuanto la fecha de publicación se mueve unos días: NNN publicó el FFO de 2000 el
+    30-mar-2001 y el de 2001 el 27-mar-2002, así que el 28-mar-2002 «hace un año» todavía
+    era el FFO de 1999, y la resta comparaba 2001 contra 1999 (−7.1% en vez de −2.7%).
+    Aquí se compara periodo contra periodo: el año contra el año anterior, el TTM de un
+    trimestre contra el TTM del mismo trimestre un año antes, con lo conocido a la fecha.
+    """
+    flujo = e.flujos.get(concepto)
+    salida = pd.Series(np.nan, index=fechas, dtype=float)
+    if flujo is None or flujo.empty:
+        return salida
+    tabla = flujo.attrs.get("versiones")
+    if tabla is None or tabla.empty:
+        return salida
+    tabla = tabla.sort_index(kind="stable")
+    for f in fechas:
+        conocido = tabla[tabla.index <= f]
+        if conocido.empty:
+            continue
+        actual = conocido.iloc[-1]
+        objetivo = actual["periodo"] - pd.DateOffset(years=1)
+        previo = conocido[(conocido["periodo"] - objetivo).abs() <= pd.Timedelta(days=7)]
+        if not previo.empty and previo["valor"].iloc[-1] > 0:
+            salida.loc[f] = actual["valor"] / previo["valor"].iloc[-1] - 1
+    return salida
 
 
 def _anual_vigente(
@@ -331,9 +353,10 @@ def senales(e, *, calificaciones: pd.DataFrame | None = None,
     div_affo = _dividendo_del_periodo(e, "affo_por_accion", fechas)
     div_ffo = _dividendo_del_periodo(e, "ffo_por_accion", fechas)
     m["payout"] = div_affo.where(affo_m.notna(), div_ffo) / flujo
-    crec_affo = affo_m / _hace_un_anio(affo, fechas) - 1
-    crec_ffo = ffo_m / _hace_un_anio(ffo, fechas) - 1
-    m["crecimiento"] = crec_affo.where(affo_m.notna(), crec_ffo)
+    crec_affo = crecimiento_por_periodo(e, "affo_por_accion", fechas)
+    crec_ffo = crecimiento_por_periodo(e, "ffo_por_accion", fechas)
+    # El AFFO donde ya existe con su año anterior; si no, el FFO.
+    m["crecimiento"] = crec_affo.where(crec_affo.notna(), crec_ffo)
 
     # Anuales: deuda neta ÷ EBITDA, costo de la deuda, cap rate de compra.
     fin_mas_rezago = pd.Series({a: pd.Timestamp(int(a), 12, 31) + pd.Timedelta(days=parametros.rezago_anual_dias)
@@ -481,7 +504,7 @@ class Simulacion:
 def _decision_de_variante(d: Decision, variante: Variante) -> Decision:
     if variante is Variante.BENCHMARK:
         return Decision.SIN_SENAL
-    if variante is Variante.SOLO_VALUACION:
+    if variante in (Variante.SOLO_VALUACION, Variante.SOLO_VALUACION_12M):
         return Decision.NO_COMPRAR if d is Decision.VENDER else d
     if variante is Variante.SOLO_TESIS:
         return Decision.VENDER if d is Decision.VENDER else Decision.SIN_SENAL
@@ -527,6 +550,12 @@ def simular(
             ejec[sesiones[i]] = (f, Decision(d))
 
     p = parametros
+    con_plazo = variante in (Variante.MODELO_12M, Variante.SOLO_VALUACION_12M)
+    plazo = pd.DateOffset(months=p.reinversion_meses)
+    espera: list[list] = []          # [fecha en que entró a la reserva, monto]
+    calendario = {"restante": 0.0, "meses": 0}   # lo vendido, en partes iguales
+    en_tesis_rota = False
+    interes_del_mes = 0.0
     acciones = costo = reserva = nuevo = 0.0
     imp = {"dividendos": 0.0, "intereses": 0.0, "ventas": 0.0, "liquidacion": 0.0}
     comisiones = 0.0
@@ -540,6 +569,7 @@ def simular(
             interes = reserva * float(tasa.loc[anterior]) * dias / 365
             imp["intereses"] += interes * p.impuesto_intereses
             reserva += interes * (1 - p.impuesto_intereses)
+            interes_del_mes += interes * (1 - p.impuesto_intereses)
         if acciones > 0 and s in div_por_sesion.index:
             bruto = acciones * float(div_por_sesion.loc[s])
             imp["dividendos"] += bruto * p.impuesto_dividendo
@@ -581,6 +611,32 @@ def simular(
                 monto = nuevo * p.fraccion_comprar_menos
             else:
                 monto = 0.0
+            if con_plazo:
+                if d is Decision.VENDER:
+                    # Con la tesis rota no se compra nada; al restablecerse, todo lo que
+                    # haya en la reserva entra al calendario de 12 partes.
+                    en_tesis_rota = True
+                    espera, calendario = [], {"restante": 0.0, "meses": 0}
+                elif d is Decision.COMPRAR:
+                    espera, calendario = [], {"restante": 0.0, "meses": 0}
+                else:
+                    if en_tesis_rota:
+                        en_tesis_rota = False
+                        calendario = {"restante": reserva - nuevo, "meses": p.reinversion_meses}
+                        espera = []
+                    if interes_del_mes > 0:
+                        espera.append([s, interes_del_mes])
+                    if nuevo > monto:
+                        espera.append([s, nuevo - monto])
+                    vencido = sum(x[1] for x in espera if x[0] <= s - plazo)
+                    espera = [x for x in espera if x[0] > s - plazo]
+                    cuota = 0.0
+                    if calendario["meses"] > 0:
+                        cuota = calendario["restante"] / calendario["meses"]
+                        calendario = {"restante": calendario["restante"] - cuota,
+                                      "meses": calendario["meses"] - 1}
+                    monto += vencido + cuota
+            interes_del_mes = 0.0
             monto = min(monto, reserva)
             if monto > 0:
                 com = monto * p.comision
@@ -704,6 +760,8 @@ class ResultadoReglas:
     sensibilidad: pd.DataFrame
     decision_hoy: pd.Series
     ventas_por_calendario: int = 0   # las que habría con la persistencia contada por trimestre
+    # Cada vez que la Puerta 3 empezó a disparar, y qué hizo el papel antes y después.
+    eventos: pd.DataFrame = field(default_factory=pd.DataFrame)
     precio: pd.Series = field(default_factory=lambda: pd.Series(dtype=float))   # por acción de hoy
     nombre: str = ""
     parametros: Parametros = field(default_factory=Parametros)
@@ -748,6 +806,32 @@ def _ventas_con_desenlace(e, sim: Simulacion, tbill: pd.Series, parametros: Para
             fila["papel_mientras_fuera"] = float(rt.loc[r0] / rt.loc[f] - 1)
         filas.append(fila)
     return pd.DataFrame(filas)
+
+
+def eventos_de_tesis_rota(e, sen: Senales, conteo: str) -> pd.DataFrame:
+    """Cada vez que la Puerta 3 empieza a disparar: qué había hecho el papel y qué hizo después.
+
+    Es la prueba directa de si «vender por tesis rota» llega a tiempo. Si en la mayoría
+    de los casos el papel ya había caído y en el año siguiente sube, la señal no anticipa
+    el deterioro: lo confirma cuando el mercado ya lo descontó.
+    """
+    rt, px = e.tabla["rt_usd_neto"], e.tabla["precio_base"]
+    m = sen.mensual
+    v = m["decision"] == Decision.VENDER.value
+    filas = []
+    for f in m.index[v & ~v.shift(1, fill_value=False)]:
+        fila = {"emisor": e.ticker, "conteo": conteo, "fecha": f, "disparadores": m.loc[f, "disparadores"],
+                "papel_12m_antes": float(rt.asof(f) / rt.asof(f - pd.DateOffset(years=1)) - 1),
+                "caida_desde_maximo_24m": float(px.asof(f) / px.loc[f - pd.DateOffset(years=2):f].max() - 1)}
+        for anios in (1, 3):
+            g = f + pd.DateOffset(years=anios)
+            fila[f"papel_{anios}a_despues"] = float(rt.asof(g) / rt.asof(f) - 1) if g <= rt.index[-1] else np.nan
+        filas.append(fila)
+    cifras = ["papel_12m_antes", "caida_desde_maximo_24m", "papel_1a_despues", "papel_3a_despues"]
+    # Sin eventos el marco sale vacío y de tipo «object»; al concatenarlo con uno que sí
+    # tiene, las cifras quedaban como texto y la pantalla las dibujaba sin escalar.
+    return pd.DataFrame(filas, columns=["emisor", "conteo", "fecha", "disparadores", *cifras]).astype(
+        dict.fromkeys(cifras, float))
 
 
 def _por_decision(e, sen: Senales) -> pd.DataFrame:
@@ -838,8 +922,10 @@ def backtest(
         sensibilidad.append({"fraccion_comprar_menos": fr, "tir_usd": s.tir_usd,
                              "ventaja_tir_usd": (s.tir_usd or np.nan) - (bench.tir_usd or np.nan),
                              "multiplo": s.valor_final_neto / s.aportado})
-    por_calendario = simular(e, senales(e, calificaciones=cal, parametros=replace(
-        parametros, persistencia_por_reporte=False)), tbill, variante=Variante.SOLO_TESIS, parametros=parametros)
+    sen_calendario = senales(e, calificaciones=cal, parametros=replace(parametros, persistencia_por_reporte=False))
+    por_calendario = simular(e, sen_calendario, tbill, variante=Variante.SOLO_TESIS, parametros=parametros)
+    eventos = pd.concat([eventos_de_tesis_rota(e, sen, "por reporte"),
+                         eventos_de_tesis_rota(e, sen_calendario, "por calendario")], ignore_index=True)
     m = sen.mensual
     tiempo = m["decision"].value_counts().rename("meses").to_frame()
     tiempo["fraccion"] = tiempo["meses"] / len(m)
@@ -862,6 +948,7 @@ def backtest(
         sensibilidad=pd.DataFrame(sensibilidad),
         decision_hoy=m.iloc[-1],
         ventas_por_calendario=int(len(por_calendario.ventas)),
+        eventos=eventos,
         precio=e.tabla["precio_base"],
         nombre=e.narrativa.nombre if getattr(e, "narrativa", None) else e.ticker,
         parametros=parametros,
@@ -896,6 +983,14 @@ def conclusiones(r: ResultadoReglas) -> list[Conclusion]:
         "impuestos y comisiones y vendiendo todo al final.",
         "favorable" if ventaja > 0.001 else ("desfavorable" if ventaja < -0.001 else "neutral"),
     ))
+    m12 = t.loc[Variante.MODELO_12M.value]
+    v12 = t.loc[Variante.SOLO_VALUACION_12M.value]
+    c.append(Conclusion(
+        "Con la reinversión en 12 meses",
+        f"Si nada espera más de 12 meses en la reserva, el modelo da {_pb(m12['ventaja_tir_usd'])} contra "
+        f"aportar sin reglas, y sin vender nunca {_pb(v12['ventaja_tir_usd'])}.",
+        "favorable" if max(m12["ventaja_tir_usd"], v12["ventaja_tir_usd"]) > 0.001 else "neutral",
+    ))
     c.append(Conclusion(
         "De dónde sale la diferencia",
         f"Las reglas de compra solas —comprar más barato, menos caro, nunca vender— dan "
@@ -925,6 +1020,19 @@ def conclusiones(r: ResultadoReglas) -> list[Conclusion]:
                     "nuevo sigue la tabla." if sin_regreso or len(v) else ""))
         tono = "desfavorable" if tes["ventaja_tir_usd"] < 0 else "favorable"
     c.append(Conclusion("Las ventas por tesis rota", texto, tono))
+    ev = r.eventos
+    if not ev.empty:
+        con = ev.dropna(subset=["papel_1a_despues"])
+        subio = int((con["papel_1a_despues"] > 0).sum())
+        c.append(Conclusion(
+            "¿La tesis rota llega a tiempo?",
+            f"La Puerta 3 empezó a disparar {len(ev)} veces contando por reporte y por calendario. "
+            f"Para entonces el papel ya estaba {abs(ev['caida_desde_maximo_24m'].median()):.0%} abajo de su "
+            f"máximo de dos años (mediana), y en el año siguiente subió en {subio} de {len(con)} casos "
+            f"(mediana {con['papel_1a_despues'].median():+.0%}). La señal confirma con datos contables lo "
+            "que el precio ya descontó: vende tarde.",
+            "desfavorable" if len(con) and subio > len(con) / 2 else "neutral",
+        ))
     neu = r.neutralizacion
     c.append(Conclusion(
         "Qué tanto se le puede creer",
