@@ -516,6 +516,45 @@ El Excel trae una hoja por emisor con cada trimestre: insumos en azul (precio, f
 dividendo, tasas), múltiplos, yields y primas como fórmulas vivas, los ocho percentiles
 y la señal del consenso, que se mueve con los umbrales de la hoja Léeme.
 
+### Modelos de valor: DDM, DCF y NAV
+
+`src/estudio/intrinsecos.py` pone a la misma prueba los modelos que estiman cuánto
+**vale** la acción. El diseño —supuestos, umbrales e hipótesis— se fijó en su propio
+commit antes de correr, y la prueba 54 lo congela:
+
+| Modelo | Cómo |
+|---|---|
+| DDM | Gordon sobre el dividendo vigente; g = crecimiento del dividendo de 5 años, entre 0% y 4% |
+| DCF | AFFO por acción 5 años a su crecimiento de 5 años (0% a 8%) y 2% perpetuo después |
+| Crecimiento implícito | El que justifica el precio contra el que el emisor entregó en 5 años |
+| NAV aproximado | NOI del último trimestre × 4 ÷ cap rate de las compras del propio emisor − deuda neta − preferentes |
+
+La tasa es la de la aplicación, Treasury + 3% (net lease), con 2% y 4% de sensibilidad.
+Cada modelo se prueba con su señal **absoluta** (barato si vale 15% más que el precio) y
+**contra su propia historia**, en el backtest de aportación y en la asignación entre
+emisores con los mismos controles.
+
+El NAV sale de los estados XBRL versionados (`data/emisoras/`) con la fecha de
+publicación de cada cifra, y NOI, balance y acciones del **mismo** trimestre. Para que
+fuera point-in-time hubo que hacer dos cosas que el módulo de estados no hace: derivar
+los trimestres (Q4 = año − 9 meses) con las versiones conocidas en cada fecha, y usar
+listas fijas de etiquetas en vez de elegirlas con toda la historia a la vista; con la
+elección global, el NAV de 2012 cambiaba según lo que NNN publicó después. Se valida
+contra el apalancamiento que reportó cada emisor (O y NNN a menos de 10% en los años
+recientes, WPC desde 2019); el de WPC antes de 2019 no se usa.
+
+Lo que salió, y se había escrito antes de correr:
+
+- **En absoluto, el DDM y el DCF casi siempre dicen comprar** (62–100% de los meses, aun
+  con 4% de prima): con el crecimiento que entregaron estos emisores, Gordon queda arriba
+  del precio. Una regla que casi siempre compra es aportar sin reglas.
+- **Contra su historia, no superan a los métodos simples**: el DDM predice menos que el
+  yield de dividendo solo; el DCF y el crecimiento implícito no predicen.
+- **El NAV** es el que más correlación muestra, con dos ventanas de 5 años: no alcanza
+  para concluir. Para servir necesita el NOI del suplemento y más años.
+- **Ninguno pasa los controles de la asignación**; el consenso de los siete sigue siendo
+  la regla recomendada.
+
 ## El semáforo: tres puertas, por separado
 
 No es una caja negra. Cada puerta responde una pregunta distinta y se muestra sola.

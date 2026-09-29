@@ -97,3 +97,30 @@ def azar(r: ResultadoMetodos, clave: str = "consenso", t: Tema = OSCURO) -> go.F
 
 FIGURAS = {"mapa": mapa, "barato_caro": barato_caro, "dispersion": dispersion,
            "asignacion": asignacion, "azar": azar}
+
+
+def valores(ri, ticker: str, t: Tema = OSCURO) -> go.Figure:
+    """El precio contra lo que decía valer cada modelo, cada fin de mes."""
+    p = ri.paneles[ticker]
+    fig = go.Figure()
+    items = []
+    series = (("precio", "Precio", t.texto, 1.6, "solid"), ("nav", "NAV aproximado", t.principal, 2.2, "solid"),
+              ("valor_ddm", "DDM", t.contexto, 1.4, "dot"), ("valor_dcf", "DCF", t.contexto_2, 1.4, "dash"))
+    for columna, nombre, color, ancho, trazo in series:
+        s = p[columna].dropna()
+        s = s[s > 0]
+        if s.empty:
+            continue
+        fig.add_scatter(x=s.index, y=s, name=nombre, line={"color": color, "width": ancho, "dash": trazo},
+                        hovertemplate=f"{nombre}: %{{y:$,.2f}}<extra></extra>")
+        items.append((s.index[-1], float(s.iloc[-1]), nombre.split(" ")[0], color))
+    _etiquetas_finales(fig, t, items, log=True)
+    fig = _base(fig, t, alto=360, eje_y="dólares por acción (escala log)", log_y=True, leyenda=True)
+    fig.update_layout(legend={"y": 1.14})
+    fig.update_xaxes(type="date")
+    inicio = p["valor_ddm"].first_valid_index() or p.index[0]
+    _rango_x(fig, inicio, p.index[-1])
+    return fig
+
+
+FIGURAS["valores"] = valores

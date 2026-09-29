@@ -214,16 +214,19 @@ def _spearman(x: pd.Series, y: pd.Series) -> float:
     return float(stats.spearmanr(d.iloc[:, 0], d.iloc[:, 1]).statistic)
 
 
-def evaluar(p: pd.DataFrame) -> pd.DataFrame:
+def evaluar(p: pd.DataFrame, metodos: tuple[Metodo, ...] = METODOS, *, valor: str = "p_",
+            senal: str = "s_") -> pd.DataFrame:
     """Por método: correlación con el retorno siguiente y el retorno cuando decía barato o caro.
 
     Sobre fines de trimestre, para no contar tres veces casi el mismo mes. Aun así las
-    ventanas de 5 años se enciman: las independientes son ~trimestres ÷ 20.
+    ventanas de 5 años se enciman: las independientes son ~trimestres ÷ 20. ``valor`` y
+    ``senal`` son los prefijos de columna: el percentil y su señal, o —en los modelos de
+    valor— el valor contra el precio y su señal absoluta.
     """
     q = trimestral(p)
     filas = []
-    for m in METODOS:
-        pc, s = q[f"p_{m.clave}"], q[f"s_{m.clave}"]
+    for m in metodos:
+        pc, s = q[f"{valor}{m.clave}"], q[f"{senal}{m.clave}"]
         fila = {"metodo": m.nombre, "clave": m.clave,
                 "trimestres": int(pc.notna().sum())}
         for anios in (1, 3, 5):
@@ -244,19 +247,23 @@ def evaluar(p: pd.DataFrame) -> pd.DataFrame:
         mitad = len(con5) // 2
         fila["rho_5a_primera_mitad"] = _spearman(con5.iloc[:mitad, 0], con5.iloc[:mitad, 1])
         fila["rho_5a_segunda_mitad"] = _spearman(con5.iloc[mitad:, 0], con5.iloc[mitad:, 1])
+        con_senal = s[s != "sin dato"]
+        for nivel in ("barato", "medio", "caro"):
+            fila[f"fraccion_{nivel}"] = float((con_senal == nivel).mean()) if len(con_senal) else np.nan
         filas.append(fila)
     return pd.DataFrame(filas).set_index("clave")
 
 
-def evaluar_juntos(paneles: dict[str, pd.DataFrame]) -> pd.DataFrame:
+def evaluar_juntos(paneles: dict[str, pd.DataFrame], metodos: tuple[Metodo, ...] = METODOS, *,
+                   valor: str = "p_", senal: str = "s_") -> pd.DataFrame:
     """Los tres emisores juntos. Vale porque cada percentil es contra la historia propia (P4)."""
     todos = pd.concat([trimestral(p).assign(emisor=t) for t, p in paneles.items()])
     filas = []
-    for m in METODOS:
-        pc, s, r5 = todos[f"p_{m.clave}"], todos[f"s_{m.clave}"], todos["adelante_5a"]
+    for m in metodos:
+        pc, s, r5 = todos[f"{valor}{m.clave}"], todos[f"{senal}{m.clave}"], todos["adelante_5a"]
         emisores_a_favor = sum(
             1 for t, p in paneles.items()
-            if _spearman(trimestral(p)[f"p_{m.clave}"], trimestral(p)["adelante_5a"]) > 0
+            if _spearman(trimestral(p)[f"{valor}{m.clave}"], trimestral(p)["adelante_5a"]) > 0
         )
         filas.append({
             "metodo": m.nombre, "clave": m.clave,
@@ -277,8 +284,19 @@ def evaluar_juntos(paneles: dict[str, pd.DataFrame]) -> pd.DataFrame:
 # --------------------------------------------------------------------------------------
 
 
-def senales_de_metodo(p: pd.DataFrame, clave: str, ticker: str) -> rg.Senales:
-    """Las decisiones de un método solo, sin puertas de calidad ni de deterioro."""
+DECISION_DE_SENAL = {"barato": rg.Decision.COMPRAR.value, "medio": rg.Decision.COMPRAR_MENOS.value,
+                     "caro": rg.Decision.NO_COMPRAR.value, "sin dato": rg.Decision.SIN_SENAL.value}
+
+
+def senales_de_metodo(p: pd.DataFrame, clave: str, ticker: str, *, senal: str | None = None) -> rg.Senales:
+    """Las decisiones de un método solo, sin puertas de calidad ni de deterioro.
+
+    Por omisión, del percentil; con ``senal`` (p. ej. ``"a_"``), de esa columna de señal.
+    """
+    if senal is not None:
+        decision = p[f"{senal}{clave}"].map(DECISION_DE_SENAL).fillna(rg.Decision.SIN_SENAL.value).to_numpy()
+        return rg.Senales(ticker, pd.DataFrame({"decision": decision, "disparadores": ""}, index=p.index),
+                          pd.DataFrame())
     pc = p[f"p_{clave}"]
     decision = np.where(pc.isna(), rg.Decision.SIN_SENAL.value,
                         np.where(pc >= BARATO, rg.Decision.COMPRAR.value,
@@ -287,17 +305,19 @@ def senales_de_metodo(p: pd.DataFrame, clave: str, ticker: str) -> rg.Senales:
     return rg.Senales(ticker, m, pd.DataFrame())
 
 
-def backtest_metodos(e, p: pd.DataFrame, tbill: pd.Series | None = None) -> pd.DataFrame:
+def backtest_metodos(e, p: pd.DataFrame, tbill: pd.Series | None = None,
+                     metodos: tuple[Metodo, ...] = METODOS, *, senal: str | None = None,
+                     parametros: rg.Parametros = rg.PARAMETROS) -> pd.DataFrame:
     """Cada método con la regla que mejor se portó en el backtest del semáforo: comprar,
     comprar menos o no comprar, nunca vender, y nada espera más de 12 meses."""
     tbill = rg.cargar_tbill() if tbill is None else tbill
     sen0 = rg.Senales(e.ticker, pd.DataFrame({"decision": rg.Decision.SIN_SENAL.value, "disparadores": ""},
                                               index=p.index), pd.DataFrame())
-    bench = rg.simular(e, sen0, tbill, variante=rg.Variante.BENCHMARK)
+    bench = rg.simular(e, sen0, tbill, variante=rg.Variante.BENCHMARK, parametros=parametros)
     filas = []
-    for m in METODOS:
-        sen = senales_de_metodo(p, m.clave, e.ticker)
-        s = rg.simular(e, sen, tbill, variante=rg.Variante.SOLO_VALUACION_12M)
+    for m in metodos:
+        sen = senales_de_metodo(p, m.clave, e.ticker, senal=senal)
+        s = rg.simular(e, sen, tbill, variante=rg.Variante.SOLO_VALUACION_12M, parametros=parametros)
         cambios = contar_apuestas(s.ejecuciones["intensidad"].fillna(1.0), 1.0)
         filas.append({
             "metodo": m.nombre, "clave": m.clave,
@@ -428,9 +448,9 @@ def correr(m: Mercado, meses: np.ndarray, eleccion: np.ndarray, *, fin: int | No
                    pd.Series(riqueza, index=m.sesiones[ses]))
 
 
-def percentiles_en(m: Mercado, paneles: dict[str, pd.DataFrame], clave: str) -> np.ndarray:
-    """Meses × emisores: el percentil de cada uno a cada fin de mes común."""
-    return np.column_stack([paneles[t][f"p_{clave}"].reindex(m.fines).to_numpy(float) for t in m.tickers])
+def percentiles_en(m: Mercado, paneles: dict[str, pd.DataFrame], clave: str, prefijo: str = "p_") -> np.ndarray:
+    """Meses × emisores: el percentil de cada uno (o la columna ``prefijo``) a cada fin de mes común."""
+    return np.column_stack([paneles[t][f"{prefijo}{clave}"].reindex(m.fines).to_numpy(float) for t in m.tickers])
 
 
 @dataclass
@@ -476,7 +496,8 @@ def _al_azar(rachas: np.ndarray, k: int, rng: np.random.Generator) -> np.ndarray
 
 
 def asignar(m: Mercado, paneles: dict[str, pd.DataFrame], clave: str, *, n_azar: int = 200,
-            semilla: int = 7, parametros: rg.Parametros = rg.PARAMETROS) -> Asignacion:
+            semilla: int = 7, parametros: rg.Parametros = rg.PARAMETROS, prefijo: str = "p_",
+            nombre: str | None = None) -> Asignacion:
     """Toda la aportación del mes al emisor más barato CONTRA SU PROPIA HISTORIA (P4).
 
     Tres controles: partes iguales (el benchmark), el espejo —al más caro— que debería
@@ -487,7 +508,7 @@ def asignar(m: Mercado, paneles: dict[str, pd.DataFrame], clave: str, *, n_azar:
     cada mes reparte solo el dinero entre los tres y es demasiado fácil de vencer.
     Además se corre por separado en cada mitad del periodo.
     """
-    pc = percentiles_en(m, paneles, clave)
+    pc = percentiles_en(m, paneles, clave, prefijo)
     meses = np.nonzero(~np.isnan(pc).any(axis=1))[0]
     if len(meses) < 24:
         raise ValueError(f"{clave}: menos de dos años con percentil en los tres emisores")
@@ -506,16 +527,16 @@ def asignar(m: Mercado, paneles: dict[str, pd.DataFrame], clave: str, *, n_azar:
                      - (b.tir_usd or np.nan) for _ in range(n_azar)])
     mitades = []
     corte = len(meses) // 2
-    for nombre, sel in (("primera mitad", slice(0, corte)), ("segunda mitad", slice(corte, None))):
+    for mitad, sel in (("primera mitad", slice(0, corte)), ("segunda mitad", slice(corte, None))):
         ms = meses[sel]
-        fin = int(m.ejecucion[meses[corte]]) if nombre == "primera mitad" else None
+        fin = int(m.ejecucion[meses[corte]]) if mitad == "primera mitad" else None
         rm = correr(m, ms, barato[sel], fin=fin, parametros=parametros)
         bm = correr(m, ms, iguales[sel], fin=fin, propio=True, parametros=parametros)
-        etiqueta = f"{nombre} ({m.fines[ms[0]]:%Y-%m} a {m.fines[ms[-1]]:%Y-%m})"
+        etiqueta = f"{mitad} ({m.fines[ms[0]]:%Y-%m} a {m.fines[ms[-1]]:%Y-%m})"
         mitades.append((etiqueta, (rm.tir_usd or np.nan) - (bm.tir_usd or np.nan)))
     hoy = pc[-1]
     return Asignacion(
-        metodo=NOMBRE[clave], clave=clave,
+        metodo=nombre or NOMBRE[clave], clave=clave,
         desde=m.sesiones[m.ejecucion[meses[0]]], hasta=m.sesiones[-1],
         tir_usd=r.tir_usd, tir_partes_iguales=b.tir_usd, tir_el_mas_caro=c.tir_usd,
         multiplo=r.valor_neto / r.aportado, multiplo_partes_iguales=b.valor_neto / b.aportado,
@@ -552,6 +573,7 @@ class ResultadoMetodos:
     asignaciones: list[Asignacion]
     nombres: dict[str, str]
     hasta: pd.Timestamp
+    intrinsecos: object = None      # ``intrinsecos.ResultadoIntrinsecos``
 
     def hoy(self) -> pd.DataFrame:
         """Qué dice cada método hoy para cada emisor."""
@@ -568,18 +590,23 @@ class ResultadoMetodos:
         return tabla_asignaciones(self.asignaciones)
 
 
-def estudiar(estudios: dict, *, n_azar: int = 200) -> ResultadoMetodos:
+def estudiar(estudios: dict, *, n_azar: int = 200, intrinsecos: bool = True) -> ResultadoMetodos:
     baa, cpi, tbill = macro.cargar("baa"), macro.cargar("cpi"), rg.cargar_tbill()
     paneles = {t: panel(e, baa=baa, cpi=cpi, tbill=tbill) for t, e in estudios.items()}
     evaluaciones = {t: evaluar(p) for t, p in paneles.items()}
     backtests = {t: backtest_metodos(e, paneles[t], tbill) for t, e in estudios.items()}
     m = mercado_comun(estudios)
-    return ResultadoMetodos(
+    r = ResultadoMetodos(
         paneles=paneles, evaluaciones=evaluaciones, juntos=evaluar_juntos(paneles), backtests=backtests,
         asignaciones=[asignar(m, paneles, x.clave, n_azar=n_azar) for x in METODOS],
         nombres={t: (e.narrativa.nombre if e.narrativa else t) for t, e in estudios.items()},
         hasta=max(e.tabla.index[-1] for e in estudios.values()),
     )
+    if intrinsecos:
+        from src.estudio import intrinsecos as it
+
+        r.intrinsecos = it.estudiar(estudios, paneles, n_azar=n_azar, tbill=tbill)
+    return r
 
 
 # --------------------------------------------------------------------------------------

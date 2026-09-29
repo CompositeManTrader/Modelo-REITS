@@ -18,9 +18,12 @@ from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
+from src.estudio.intrinsecos import INTRINSECOS, SUPUESTOS
+from src.estudio.intrinsecos import NOTAS_DE_METODO as NOTAS_INTRINSECOS
 from src.estudio.metodos import BARATO, CARO, METODOS, NOTAS_DE_METODO, ResultadoMetodos, trimestral
 from src.export.excel import (
     FMT_BPS,
+    FMT_MILES,
     FMT_MONEDA,
     FMT_PCT,
     FMT_PCT1,
@@ -36,6 +39,24 @@ from src.export.excel import (
 LEEME = "Léeme"
 UMBRAL_BARATO = f"'{LEEME}'!$B$6"
 UMBRAL_CARO = f"'{LEEME}'!$B$7"
+
+# Supuestos de los modelos de valor: en la hoja Léeme, columna E, filas 6 en adelante.
+SUPUESTOS_EXCEL = (
+    ("Prima de riesgo sobre el Treasury", SUPUESTOS.prima, FMT_PCT),
+    ("Crecimiento del dividendo: mínimo", SUPUESTOS.g_dividendo[0], FMT_PCT),
+    ("Crecimiento del dividendo: máximo", SUPUESTOS.g_dividendo[1], FMT_PCT),
+    ("Crecimiento del flujo, 5 años: mínimo", SUPUESTOS.g_flujo[0], FMT_PCT),
+    ("Crecimiento del flujo, 5 años: máximo", SUPUESTOS.g_flujo[1], FMT_PCT),
+    ("Crecimiento perpetuo después", SUPUESTOS.g_terminal, FMT_PCT),
+    ("r − g mínimo", SUPUESTOS.margen_r_menos_g, FMT_PCT),
+    ("Crecimiento entregado: mínimo", SUPUESTOS.g_entregado[0], FMT_PCT),
+    ("Crecimiento entregado: máximo", SUPUESTOS.g_entregado[1], FMT_PCT),
+    ("Margen de la señal absoluta de valor", SUPUESTOS.umbral_valor, FMT_PCT),
+    ("Margen de la señal absoluta de crecimiento", SUPUESTOS.umbral_crecimiento, FMT_PCT),
+)
+FILA_SUPUESTOS = 10
+S_ = {clave: f"'{LEEME}'!$B${FILA_SUPUESTOS + i}" for i, clave in enumerate(
+    ("prima", "gd_min", "gd_max", "gf_min", "gf_max", "g_term", "margen", "ge_min", "ge_max", "u_valor", "u_crec"))}
 
 # (encabezado, columna del panel o None si es fórmula, formato)
 INSUMOS = (
@@ -90,13 +111,20 @@ def _hoja_leeme(wb: Workbook, r: ResultadoMetodos) -> None:
     escribir_input(ws, "B6", BARATO, FMT_PCT1)
     escribir_etiqueta(ws, "A7", "Caro abajo del percentil")
     escribir_input(ws, "B7", CARO, FMT_PCT1)
-    escribir_etiqueta(ws, "A9", "Los métodos", seccion=True)
-    for i, m in enumerate(METODOS, start=10):
+    escribir_etiqueta(ws, f"A{FILA_SUPUESTOS - 1}", "Supuestos de los modelos de valor (hojas «… valor»)",
+                      seccion=True)
+    for i, (etiqueta, valor, formato) in enumerate(SUPUESTOS_EXCEL, start=FILA_SUPUESTOS):
+        escribir_etiqueta(ws, f"A{i}", etiqueta)
+        escribir_input(ws, f"B{i}", valor, formato)
+    inicio = FILA_SUPUESTOS + len(SUPUESTOS_EXCEL) + 1
+    escribir_etiqueta(ws, f"A{inicio}", "Los métodos", seccion=True)
+    todos = METODOS + INTRINSECOS
+    for i, m in enumerate(todos, start=inicio + 1):
         ws.cell(row=i, column=1, value=m.nombre).font = FUENTE_SECCION
         ws.cell(row=i, column=2, value=m.descripcion)
-    fila = 10 + len(METODOS) + 1
+    fila = inicio + 1 + len(todos) + 1
     escribir_etiqueta(ws, f"A{fila}", "Cómo se calculó", seccion=True)
-    for i, nota in enumerate(NOTAS_DE_METODO, start=fila + 1):
+    for i, nota in enumerate(NOTAS_DE_METODO + NOTAS_INTRINSECOS, start=fila + 1):
         ws.cell(row=i, column=1, value="•")
         ws.cell(row=i, column=2, value=nota)
     ws.column_dimensions["A"].width = 38
@@ -219,6 +247,92 @@ def _hoja_evaluacion(wb: Workbook, r: ResultadoMetodos) -> None:
         ws.column_dimensions[get_column_letter(j)].width = 15
 
 
+# Hoja «<emisor> valor»: A trimestre, B fecha, C–M insumos, N en adelante fórmulas.
+INSUMOS_VALOR = (
+    ("Precio", "precio", FMT_MONEDA),
+    ("Dividendo anualizado", "dividendo", FMT_MONEDA),
+    ("Flujo por acción, 12 meses", "flujo", FMT_MONEDA),
+    ("Treasury 10 años", "treasury_10a", FMT_PCT),
+    ("Crecimiento del dividendo, 5 años", "g_dividendo_5a", FMT_PCT),
+    ("Crecimiento del flujo, 5 años (sin acotar)", "g_flujo_sin_acotar", FMT_PCT),
+    ("NOI anualizado (USD)", "noi_anualizado", FMT_MILES),
+    ("Deuda neta (USD)", "deuda_neta", FMT_MILES),
+    ("Preferentes (USD)", "preferentes", FMT_MILES),
+    ("Acciones", "acciones", FMT_MILES),
+    ("Cap rate de compras", "cap_rate", FMT_PCT),
+)
+
+
+def _formulas_valor(f: int) -> tuple[tuple[str, str, str], ...]:
+    """Las fórmulas del renglón ``f``: las mismas cuentas que ``estudio.intrinsecos``."""
+    s = S_
+    x = f"((1+Q{f})/(1+N{f}))"
+    return (
+        ("Tasa de descuento r", f"=IF(F{f}=\"\",\"\",F{f}+{s['prima']})", FMT_PCT),
+        ("g del DDM", f"=IF(OR(G{f}=\"\",N{f}=\"\"),\"\",MIN(MAX(G{f},{s['gd_min']}),{s['gd_max']},N{f}-{s['margen']}))",
+         FMT_PCT),
+        ("Valor DDM", f"=IF(OR(D{f}=\"\",O{f}=\"\"),\"\",IFERROR(IF(D{f}<=0,\"\",D{f}*(1+O{f})/(N{f}-O{f})),\"\"))",
+         FMT_MONEDA),
+        ("g de los 5 años del DCF", f"=IF(H{f}=\"\",\"\",MIN(MAX(H{f},{s['gf_min']}),{s['gf_max']}))", FMT_PCT),
+        ("g perpetuo del DCF", f"=IF(N{f}=\"\",\"\",MIN({s['g_term']},N{f}-{s['margen']}))", FMT_PCT),
+        ("Valor DCF", f"=IF(OR(E{f}=\"\",Q{f}=\"\"),\"\",IFERROR(IF(E{f}<=0,\"\",E{f}*({x}+{x}^2+{x}^3+{x}^4+{x}^5)"
+                      f"+E{f}*(1+Q{f})^5*(1+R{f})/((N{f}-R{f})*(1+N{f})^5)),\"\"))",
+         FMT_MONEDA),
+        ("g implícito en el precio", f"=IF(OR(E{f}=\"\",N{f}=\"\"),\"\",IFERROR((C{f}*N{f}-E{f})/(C{f}+E{f}),\"\"))",
+         FMT_PCT),
+        ("Entregado − implícito",
+         f"=IF(OR(H{f}=\"\",T{f}=\"\"),\"\",IFERROR(MIN(MAX(H{f},{s['ge_min']}),{s['ge_max']})-T{f},\"\"))", FMT_PCT),
+        ("NAV por acción", f"=IF(OR(I{f}=\"\",M{f}=\"\",L{f}=\"\"),\"\",IFERROR((I{f}/M{f}-J{f}-K{f})/L{f},\"\"))",
+         FMT_MONEDA),
+        ("DDM ÷ precio − 1", f"=IFERROR(P{f}/C{f}-1,\"\")", FMT_PCT1),
+        ("DCF ÷ precio − 1", f"=IFERROR(S{f}/C{f}-1,\"\")", FMT_PCT1),
+        ("NAV ÷ precio − 1", f"=IFERROR(V{f}/C{f}-1,\"\")", FMT_PCT1),
+        ("Señal DDM", _senal_abs(f"W{f}", s["u_valor"]), None),
+        ("Señal DCF", _senal_abs(f"X{f}", s["u_valor"]), None),
+        ("Señal crecimiento", _senal_abs(f"U{f}", s["u_crec"]), None),
+        ("Señal NAV", _senal_abs(f"Y{f}", s["u_valor"]), None),
+    )
+
+
+def _senal_abs(celda: str, umbral: str) -> str:
+    return (f'=IF(OR({celda}="",ISTEXT({celda})),"sin dato",IF({celda}>={umbral},"barato",'
+            f'IF({celda}<=-{umbral},"caro","medio")))')
+
+
+def _hoja_valor(wb: Workbook, r: ResultadoMetodos, ticker: str) -> None:
+    ri = r.intrinsecos
+    ws = wb.create_sheet(f"{ticker} valor"[:31])
+    p = trimestral(ri.paneles[ticker]).dropna(subset=["precio"])
+    p = p[p["r"].notna()].copy()
+    p["g_flujo_sin_acotar"] = p["g_flujo_5a_bruto"]
+    formulas = _formulas_valor(2)
+    encabezados = (["Trimestre", "Fecha"] + [h for h, _, _ in INSUMOS_VALOR] + [h for h, _, _ in formulas]
+                   + [f"Percentil: {m.nombre}" for m in INTRINSECOS])
+    _encabezados(ws, encabezados)
+    nav_ok = p["nav"].notna()
+    for i, (f, fila) in enumerate(p.iterrows(), start=2):
+        _valor(ws, i, 1, f"{f.year}-T{(f.month - 1) // 3 + 1}")
+        _valor(ws, i, 2, f.date(), "dd-mm-yyyy")
+        for j, (_, clave, formato) in enumerate(INSUMOS_VALOR, start=3):
+            v = fila[clave]
+            # Los insumos del NAV solo donde el estudio lo usa (WPC desde 2019, meses sin hueco).
+            if clave in ("noi_anualizado", "deuda_neta", "preferentes", "acciones", "cap_rate") and not nav_ok[f]:
+                continue
+            if pd.notna(v):
+                escribir_input(ws, f"{get_column_letter(j)}{i}", float(v), formato)
+        for j, (_, formula, formato) in enumerate(_formulas_valor(i), start=3 + len(INSUMOS_VALOR)):
+            c = ws.cell(row=i, column=j, value=formula)
+            c.font = FUENTE_FORMULA
+            if formato:
+                c.number_format = formato
+        inicio = 3 + len(INSUMOS_VALOR) + len(formulas)
+        for j, m in enumerate(INTRINSECOS, start=inicio):
+            _valor(ws, i, j, fila[f"p_{m.clave}"], "0%")
+    ws.freeze_panes = "C2"
+    for j in range(1, len(encabezados) + 1):
+        ws.column_dimensions[get_column_letter(j)].width = 14
+
+
 def exportar(r: ResultadoMetodos, ruta: Path | str) -> Path:
     ruta = Path(ruta)
     ruta.parent.mkdir(parents=True, exist_ok=True)
@@ -229,5 +343,8 @@ def exportar(r: ResultadoMetodos, ruta: Path | str) -> Path:
     _hoja_evaluacion(wb, r)
     for t in r.paneles:
         _hoja_emisor(wb, r, t)
+    if r.intrinsecos is not None:
+        for t in r.paneles:
+            _hoja_valor(wb, r, t)
     wb.save(ruta)
     return ruta

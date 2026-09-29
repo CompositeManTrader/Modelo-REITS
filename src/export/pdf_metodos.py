@@ -74,7 +74,8 @@ def _portada(r: ResultadoMetodos) -> str:
         <h1>¿Caro o barato? Siete maneras de medirlo, trimestre por trimestre</h1>
         <p style='font-size:12.5pt;max-width:150mm'>Qué decía cada método en cada trimestre con lo que se
         sabía ese día, qué rindió el papel después, y para qué sirve saberlo: para esperar, no; para
-        escoger a cuál de los tres REITs va la aportación del mes, sí.</p>
+        escoger a cuál de los tres REITs va la aportación del mes, sí. Al final, los modelos de valor
+        —DDM, DCF y NAV— puestos a la misma prueba.</p>
         {tabla(filas, ["Método", "Correlación con los 5 años siguientes", "5 años si decía barato",
                        "5 años si decía caro", "A cuál de los tres (pb/año)", "Hoy iría a"], alinear="lrrrrl")}
       </div>
@@ -178,9 +179,80 @@ def _emisor(r: ResultadoMetodos, t: str, fig: Figuras) -> str:
                             "Medio", "Caro", "5 años, 1ª mitad", "2ª mitad"], alinear="lrrrrrrrrr"))
 
 
+def _tabla_vista(df: pd.DataFrame, encabezados: list[str], formatos: list) -> str:
+    """Una vista como tabla del PDF: ``formatos`` es una función por columna (o None: texto)."""
+    filas = [[(f(v) if f else _e(str(v))) for v, f in zip(fila, formatos, strict=True)]
+             for fila in df.itertuples(index=False)]
+    alinear = "".join("l" if f is None else "r" for f in formatos)
+    return tabla(filas, encabezados, alinear=alinear)
+
+
+def _intrinsecos(r: ResultadoMetodos, fig: Figuras) -> str:
+    ri = r.intrinsecos
+    if ri is None:
+        return ""
+    from src.estudio import intrinsecos as it
+    from src.estudio import vistas_intrinsecos as vi
+
+    bloques = []
+    for c in it.conclusiones(ri, r):
+        glifo, color = GLIFO.get(c.tono, GLIFO["neutral"])
+        bloques.append(f"<div class='conclusion' style='border-left-color:{color}'>"
+                       f"<b><span style='color:{color}'>{glifo}</span> {_e(c.titulo)}</b><p>{_e(c.texto)}</p></div>")
+    usd = lambda v: "—" if pd.isna(v) else f"${v:,.2f}"  # noqa: E731
+    p0, p1 = (lambda v: pct(v, 0)), (lambda v: pct(v, 1))
+    rho = _rho
+    pb = lambda v: "—" if pd.isna(v) else f"{v:+,.0f}"  # noqa: E731
+    h = vi.hoy(ri)
+    ev = vi.evaluacion(ri)
+    se = vi.sensibilidad(ri)
+    asig = vi.asignacion(ri)
+    val = vi.validacion(ri)
+    emisores = "".join(
+        f"<div class='bloque'><h3>{_e(r.nombres[t])} ({_e(t)})</h3>"
+        + fig(gm.valores, ri, t, pie="Precio contra el NAV aproximado, el DDM y el DCF, cada fin de mes.")
+        + _tabla_vista(vi.backtest(ri, t), ["Modelo", "TIR contra su historia", "TIR con señal absoluta",
+                                            "Sin reglas", "Diferencia (pb/año)", "Absoluta (pb/año)"],
+                       [None, p1, p1, p1, pb, pb]) + "</div>"
+        for t in ri.paneles)
+    return (
+        "<h2 class='salto'>Modelos de valor: DDM, DCF y NAV</h2>"
+        "<p>Los siete métodos miden caro o barato contra la historia propia. Estos cuatro estiman cuánto "
+        "<b>vale</b> la acción y lo comparan contra el precio. Se prueban con su señal absoluta —comprar si "
+        "vale 15% más que el precio— y contra su propia historia, igual que los otros. Las reglas y las "
+        "hipótesis se fijaron en un commit antes de correr nada.</p>"
+        + _tabla_vista(vi.modelos(), ["Modelo", "Cómo se calcula"], [None, None])
+        + "".join(bloques)
+        + "<div class='bloque'><h3>Qué dicen hoy</h3>"
+        + _tabla_vista(h, ["Emisor", "Modelo", "Precio", "Valor por acción", "Valor ÷ precio − 1",
+                           "Señal absoluta", "Percentil", "Contra su historia"],
+                       [None, None, usd, usd, p0, None, p0, None]) + "</div>"
+        + "<div class='bloque'><h3>¿Predicen?</h3>"
+        + _tabla_vista(ev, ["Modelo", "Señal", "Correlación 1 año", "5 años", "5 años si barato", "Si caro",
+                            "Brecha", "Meses barato", "Meses caro", "Emisores a favor", "Ventanas"],
+                       [None, None, rho, rho, p1, p1, p1, p0, p0, None, lambda v: num(v, 0)]) + "</div>"
+        + "<div class='bloque'><h3>Sensibilidad a la prima de riesgo</h3>"
+        + _tabla_vista(se, ["Emisor", "Modelo", "Barato con 2%", "Con 3%", "Con 4%", "pb/año con 2%", "Con 3%",
+                            "Con 4%"], [None, None, p0, p0, p0, pb, pb, pb]) + "</div>"
+        + "<div class='bloque'><h3>A cuál de los tres, con los modelos de valor</h3>"
+        + _tabla_vista(asig, ["Modelo", "Señal", "Desde", "TIR", "Partes iguales", "Ventaja (pb)", "Al más caro",
+                              "1ª mitad", "2ª mitad", "Azar que la iguala", "Meses en cada uno"],
+                       [None, None, None, p1, p1, pb, pb, pb, pb, p1, None]) + "</div>"
+        + emisores
+        + "<div class='bloque'><h3>Validación del NAV</h3>"
+        + _tabla_vista(val, ["Emisor", "Año", "Deuda neta ÷ EBITDA armada", "Reportada", "Diferencia", "Se usa"],
+                       [None, lambda v: str(int(v)), lambda v: f"{v:.2f}x", lambda v: f"{v:.1f}x", p0, None])
+        + "</div>"
+    )
+
+
 def _metodologia() -> str:
+    from src.estudio import intrinsecos as it
+
     notas = "".join(f"<li>{_codigo(_e(n))}</li>" for n in metodos.NOTAS_DE_METODO)
+    notas_valor = "".join(f"<li>{_codigo(_e(n))}</li>" for n in it.NOTAS_DE_METODO)
     return ("<h2 class='salto'>Metodología</h2>" f"<ul class='chico'>{notas}</ul>"
+            f"<h3>Modelos de valor</h3><ul class='chico'>{notas_valor}</ul>"
             "<p class='chico gris'>Los valores de cada trimestre de cada emisor, con los ocho percentiles, "
             "están en <span class='cifra'>docs/estudios/valuacion_trimestral.xlsx</span>. Toda métrica de "
             "desempeño va con su conteo de apuestas efectivas; debajo de 100 el veredicto es INCONCLUSO.</p>")
@@ -191,7 +263,8 @@ def html_de_metodos(r: ResultadoMetodos, *, fuentes_css: str | None = None) -> s
 
     fig = Figuras()
     cuerpo = (_portada(r) + _conclusiones(r) + _metodos_y_hoy(r) + _predicen(r, fig) + _esperar(r)
-              + _asignacion(r, fig) + "".join(_emisor(r, t, fig) for t in r.paneles) + _metodologia())
+              + _asignacion(r, fig) + "".join(_emisor(r, t, fig) for t in r.paneles) + _intrinsecos(r, fig)
+              + _metodologia())
     css = _css(css_de_fuentes() if fuentes_css is None else fuentes_css)
     return (
         "<!doctype html><html lang='es'><head><meta charset='utf-8'>"
