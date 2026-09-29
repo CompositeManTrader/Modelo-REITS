@@ -115,3 +115,140 @@ def test_los_dividendos_se_suman_en_su_ventana():
     f = pd.DatetimeIndex(["2020-12-31", "2021-06-30"])
     assert sel._suma_dividendos(div, f, -12, 0).tolist() == [3.0, 4.0]   # el de junio de 2020 ya salió
     assert sel._suma_dividendos(div, f, 0, 12).tolist() == [4.0, 0.0]
+
+
+def test_un_dividendo_con_fecha_ex_en_el_cierre_cuenta_en_ese_mes():
+    """La ventana es (t − 12, t]: el pago con fecha ex el mismo día del cierre ya se conocía."""
+    div = pd.DataFrame({"fecha_ex": pd.to_datetime(["2020-12-31", "2021-12-31"]), "monto": [1.0, 2.0]})
+    f = pd.DatetimeIndex(["2020-12-31", "2021-12-31"])
+    assert sel._suma_dividendos(div, f, -12, 0).tolist() == [1.0, 2.0]
+    assert sel._suma_dividendos(div, f, 0, 12).tolist() == [2.0, 0.0]
+
+
+def test_un_dividendo_especial_se_reconoce_contra_los_cuatro_anteriores():
+    fechas = pd.date_range("2015-03-15", periods=8, freq="QE")
+    div = pd.DataFrame({"ticker": "T", "fecha_ex": fechas, "monto": [1.0, 1.0, 1.0, 1.0, 5.0, 1.0, 1.05, 2.5]})
+    limpios, n = sel.sin_dividendos_especiales(div)
+    # El de 5.0 es más del doble de la mediana de los cuatro anteriores (1.0); 2.5 también (mediana 1.0).
+    assert n == 2
+    assert limpios["monto"].tolist() == [1.0, 1.0, 1.0, 1.0, 1.0, 1.05]
+    # Con menos de tres pagos previos no hay contra qué comparar: el primero nunca es especial.
+    assert sel.sin_dividendos_especiales(div.head(3).assign(monto=[1.0, 9.0, 1.0]))[1] == 0
+
+
+# --------------------------------------------------------------------------------------
+# Sobre los datos versionados: 40 emisores, los de historia más larga
+# --------------------------------------------------------------------------------------
+
+
+def _sub_universo(n: int = 40) -> dict[str, pd.DataFrame]:
+    from src.estudio import universo
+
+    u = universo.cargar()
+    cuantos = u["precios"].groupby("ticker").size().sort_values(ascending=False)
+    capital = set(u["lista"].loc[u["lista"]["es_reit_de_capital"].astype(str) == "True", "ticker"])
+    tickers = [t for t in cuantos.index if t in capital][:n]
+    return {k: v[v["ticker"].isin([*tickers, universo.REFERENCIA])] for k, v in u.items()}
+
+
+@pytest.fixture(scope="module")
+def r_universo():
+    from src.estudio import universo
+
+    if not universo.hay_universo():
+        pytest.skip("No está versionado el universo de REITs.")
+    return sel.estudiar(_sub_universo(), diseno=sel.Diseno(sorteos=5))
+
+
+def test_las_vistas_del_universo_ponen_cada_fraccion_en_porcentaje(r_universo):
+    from comun import familia_de_columna
+
+    from src.estudio import vistas_seleccion as vs
+
+    problemas = []
+    for nombre, construir in vs.VISTAS.items():
+        tabla = construir(r_universo)
+        assert len(tabla), nombre
+        if list(tabla.columns) != list(vs.COLUMNAS[nombre]):
+            problemas.append(f"{nombre}: columnas {list(tabla.columns)}")
+        for columna in tabla.columns:
+            serie = pd.to_numeric(tabla[columna], errors="coerce").dropna()
+            if serie.empty or tabla[columna].dtype == object or pd.api.types.is_integer_dtype(tabla[columna]):
+                continue
+            if columna.startswith("correlacion") or columna.startswith("t_"):
+                if familia_de_columna(columna, serie) != "numero":
+                    problemas.append(f"{nombre}.{columna}: una correlación o una t no es porcentaje")
+                continue
+            if serie.abs().max() < 1 and familia_de_columna(columna, serie) != "porcentaje":
+                problemas.append(f"{nombre}.{columna}: fracción en «{familia_de_columna(columna, serie)}»")
+    # Cada cifra en su escala: una volatilidad anual de REITs, una caída máxima y una razón que
+    # compara contra la mediana del sector (centrada en 1x, no en cero).
+    g = vs.grupos(r_universo)
+    assert g["volatilidad"].dropna().between(0.05, 0.6).all()
+    assert g["caida_maxima"].dropna().between(-1, 0).all()
+    assert 0.8 < vs.hoy(r_universo)["razon_contra_sector"].median() < 1.25
+    # Lo que no es fracción tampoco puede caer en porcentaje.
+    assert familia_de_columna("razon_contra_sector") == "veces"
+    assert familia_de_columna("monto_aportado") == "moneda"
+    assert not problemas, "\n".join(problemas)
+
+
+def test_las_conclusiones_del_universo_estan_completas(r_universo):
+    import re
+
+    c = sel.conclusiones(r_universo)
+    assert [x.titulo for x in c][1:] == [
+        "Los baratos concentran las trampas", "Quitar a los que ya recortaron ayuda poco",
+        "Aportando cada mes sin vender nunca, cambia la foto, pero es donde más pesa el sesgo",
+        "Qué tanto se le puede creer", "Lo que se escribió antes de correr", "Qué hacer con esto"]
+    assert c[0].titulo.startswith("En el universo")
+    for x in c:
+        # Una cifra faltante se escribe «—» o «nan» donde iba un número.
+        assert not re.search(r"\bnan\b|—(?: puntos|%| al año)|de — a", x.texto), x.texto
+    # El veredicto de cada hipótesis está escrito, una por una.
+    assert all(f"({i})" in c[5].texto for i in range(1, 6))
+
+
+def test_las_senales_no_ven_el_futuro():
+    """P1: cortar los datos en una fecha no cambia ninguna señal ni la elegibilidad hasta esa fecha."""
+    from src.estudio import macro, universo
+
+    if not universo.hay_universo():
+        pytest.skip("No está versionado el universo de REITs.")
+    u = _sub_universo(35)
+    ust10 = macro.cargar("ust10")
+    corte = pd.Timestamp("2012-12-31")
+    cortado = {"lista": u["lista"], "precios": u["precios"][u["precios"]["fecha"] <= corte],
+               "dividendos": u["dividendos"][u["dividendos"]["fecha_ex"] <= corte],
+               "splits": u["splits"][u["splits"]["fecha"] <= corte]}
+    columnas = ["elegible", "yield", "historia", "sector", "ddm", "recorto_antes"]
+    completo = sel.panel(u, ust10).set_index(["fecha", "ticker"]).sort_index()
+    parcial = sel.panel(cortado, ust10[ust10.index <= corte]).set_index(["fecha", "ticker"]).sort_index()
+    a = completo.loc[completo.index.get_level_values("fecha") <= corte, columnas]
+    b = parcial.loc[a.index, columnas]
+    assert a["elegible"].sum() > 1_000
+    pd.testing.assert_frame_equal(a, b)
+
+
+def test_el_pdf_del_universo_se_arma(r_universo):
+    from src.export.pdf_seleccion import html_de_seleccion
+
+    h = html_de_seleccion(r_universo, fuentes_css="")
+    for seccion in ("Lo que se encontró", "Las tres señales", "¿Predicen?", "¿Cuántos baratos eran trampa?",
+                    "Aportando cada mes", "¿Aguanta?", "Qué dice hoy cada REIT", "Hipótesis escritas antes de correr"):
+        assert seccion in h, seccion
+    import re
+
+    texto = re.sub(r"<[^>]+>", " ", re.sub(r"<(script|style)>.*?</\1>", "", h, flags=re.S))
+    assert "Yield contra su propia historia" in texto
+    assert not re.search(r"\bnan\b", texto, re.I)
+
+
+def test_un_mes_cuenta_solo_con_el_minimo_de_elegibles(r_universo):
+    """Antes de 1998 había muy pocos para formar terciles: esos meses no cuentan."""
+    x = r_universo.panel
+    por_mes = x[x["elegible"]].groupby("fecha").size()
+    assert por_mes.min() >= sel.DISENO.minimo_de_elegibles
+    # Y sí había meses con menos, que quedaron fuera.
+    crudo = x[(x["meses_de_historia"] >= 60) & (x["dividendo_12m"] > 0) & (x["precio"] >= 1)].groupby("fecha").size()
+    assert (crudo.between(1, sel.DISENO.minimo_de_elegibles - 1)).any()

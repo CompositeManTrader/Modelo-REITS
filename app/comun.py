@@ -865,7 +865,7 @@ _COLUMNAS_PORCENTAJE = (
     "yield", "payout", "percentil", "premio", "descuento", "crecimiento", "tasa",
     "rendimiento", "ocupacion", "cap_rate", "rate", "prima", "inflacion", "ltv",
     "peso", "fraccion", "spread", "dilucion", "error", "diferencia_relativa",
-    "pct", "caida", "tir", "plusvalia", "brecha", "probabilidad", "cagr",
+    "pct", "caida", "tir", "plusvalia", "brecha", "probabilidad", "cagr", "volatilidad",
     # La atribución del retorno reparte el resultado en componentes que son
     # fracciones. Sin declararlo, la columna caía en "número" y no se escalaba,
     # y la pantalla dibujaba 0.08% donde el emisor creció 7.6%.

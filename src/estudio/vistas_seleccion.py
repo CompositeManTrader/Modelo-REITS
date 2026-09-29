@@ -18,12 +18,16 @@ COLUMNAS: dict[str, tuple[str, ...]] = {
     "correlacion": ("senal", "meses", "correlacion_promedio", "fraccion_de_meses_positiva", "t_newey_west"),
     "trampas": ("senal", "variante", "grupo", "observaciones", "fraccion_que_recorto", "fraccion_que_se_desplomo",
                 "rendimiento_12m_mediana"),
-    "aportacion": ("cartera", "tir", "brecha_contra_todos_bps", "aportado", "valor_final"),
+    "aportacion": ("cartera", "tir", "brecha_contra_todos_bps", "monto_aportado", "valor_final"),
     "mitades": ("senal", "mitad", "desde", "hasta", "correlacion", "brecha_barato_contra_todos",
                 "brecha_barato_menos_caro"),
     "sectores": ("industria", "emisores", "correlacion_historia", "correlacion_ddm", "meses"),
+    "plazos": ("senal", "horizonte_anios", "rendimiento_barato", "rendimiento_medio", "rendimiento_caro",
+               "rendimiento_todos", "brecha_barato_contra_todos"),
+    "robustez": ("senal", "muestra", "brecha_barato_contra_todos", "brecha_barato_menos_caro", "correlacion",
+                 "fraccion_que_recorto_barato", "fraccion_que_recorto_todos", "fraccion_que_recorto_caro"),
     "hoy": ("ticker", "nombre", "industria", "precio", "yield_dividendo", "percentil_historia",
-            "yield_contra_sector", "descuento_ddm", "grupo_historia", "grupo_sector", "grupo_ddm",
+            "razon_contra_sector", "descuento_ddm", "grupo_historia", "grupo_sector", "grupo_ddm",
             "recorto_en_12m"),
 }
 
@@ -77,7 +81,7 @@ def aportacion(r: ResultadoSeleccion) -> pd.DataFrame:
     return _con(pd.DataFrame({
         "cartera": a["cartera"], "tir": a["tir"],
         "brecha_contra_todos_bps": [round(float(x) * 1e4) if pd.notna(x) else np.nan for x in a["contra_todos"]],
-        "aportado": a["aportado"], "valor_final": a["valor"]}), "aportacion")
+        "monto_aportado": a["aportado"], "valor_final": a["valor"]}), "aportacion")
 
 
 def mitades(r: ResultadoSeleccion) -> pd.DataFrame:
@@ -99,17 +103,48 @@ def sectores(r: ResultadoSeleccion) -> pd.DataFrame:
     return _con(d.sort_values("emisores", ascending=False), "sectores")
 
 
+def plazos(r: ResultadoSeleccion) -> pd.DataFrame:
+    """Exploratorio: la mediana del retorno anualizado de cada tercil a 1, 3 y 5 años."""
+    p = r.plazos
+    return _con(pd.DataFrame({
+        "senal": [SENALES[s] for s in p["senal"]], "horizonte_anios": (p["horizonte_meses"] // 12).astype(int),
+        "rendimiento_barato": p["barato"], "rendimiento_medio": p["medio"], "rendimiento_caro": p["caro"],
+        "rendimiento_todos": p["todos"], "brecha_barato_contra_todos": p["barato"] - p["todos"]}), "plazos")
+
+
+def robustez(r: ResultadoSeleccion) -> pd.DataFrame:
+    """Las cifras centrales con todos los dividendos y sin los que parecen especiales."""
+    filas = []
+    for s in SENALES:
+        c, t = r.carteras[(s, False)].resumen, r.trampas[(s, False)]
+        filas.append({"senal": SENALES[s], "muestra": "todos los dividendos",
+                      "brecha_barato_contra_todos": c.loc["barato", "contra_todos"],
+                      "brecha_barato_menos_caro": c.loc["barato menos caro", "retorno_anual"],
+                      "correlacion": round(float(r.resumen_correlacion.loc[s, "promedio"]), 3),
+                      "fraccion_que_recorto_barato": t.loc["barato", "recorto_despues"],
+                      "fraccion_que_recorto_todos": t.loc["todos", "recorto_despues"],
+                      "fraccion_que_recorto_caro": t.loc["caro", "recorto_despues"]})
+        e = r.sin_especiales.loc[s]
+        filas.append({"senal": SENALES[s], "muestra": f"sin {r.especiales} especiales",
+                      "brecha_barato_contra_todos": e["barato_contra_todos"],
+                      "brecha_barato_menos_caro": e["barato_menos_caro"], "correlacion": round(float(e["correlacion"]), 3),
+                      "fraccion_que_recorto_barato": e["recorte_barato"],
+                      "fraccion_que_recorto_todos": e["recorte_todos"],
+                      "fraccion_que_recorto_caro": e["recorte_caro"]})
+    return _con(pd.DataFrame(filas), "robustez")
+
+
 def hoy(r: ResultadoSeleccion) -> pd.DataFrame:
     h = r.hoy()
     nombres = r.universo.set_index("ticker")["nombre"]
     return _con(pd.DataFrame({
         "ticker": h["ticker"], "nombre": h["ticker"].map(nombres).fillna(""), "industria": h["industria"],
         "precio": h["precio"], "yield_dividendo": h["yield"], "percentil_historia": h["historia"],
-        "yield_contra_sector": h["sector"].round(2), "descuento_ddm": h["ddm"],
+        "razon_contra_sector": h["sector"].round(2), "descuento_ddm": h["ddm"],
         "grupo_historia": h["grupo_historia"].fillna("—"), "grupo_sector": h["grupo_sector"].fillna("—"),
         "grupo_ddm": h["grupo_ddm"].fillna("—"),
         "recorto_en_12m": np.where(h["recorto_antes"].astype(bool), "sí", "no")}), "hoy")
 
 
 VISTAS = {"grupos": grupos, "correlacion": correlacion, "trampas": trampas, "aportacion": aportacion,
-          "mitades": mitades, "sectores": sectores, "hoy": hoy}
+          "mitades": mitades, "sectores": sectores, "plazos": plazos, "robustez": robustez, "hoy": hoy}

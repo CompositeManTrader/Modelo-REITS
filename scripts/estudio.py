@@ -10,6 +10,7 @@
     python scripts/estudio.py reglas-pdf    # entregable del backtest de todos los emisores con estudio
     python scripts/estudio.py metodos       # métodos de valuación en el tiempo: PDF y Excel trimestral
     python scripts/estudio.py universo      # baja y versiona la lista, precios y dividendos del universo de REITs
+    python scripts/estudio.py seleccion     # la prueba del universo: ¿la valuación sabe escoger REITs? (PDF)
 
 ``mercado`` y ``tbill`` son lo único que toca la red. Se niega a guardar si la serie no cuadra
 contra el proveedor diario y las anclas NYSE: una historia larga que no coincide
@@ -194,6 +195,18 @@ def cmd_metodos() -> int:
     return 0
 
 
+def cmd_seleccion() -> int:
+    from src.estudio import seleccion
+    from src.export.pdf_seleccion import generar_pdf
+
+    r = seleccion.estudiar()
+    for c in seleccion.conclusiones(r):
+        print(f"\n{c.titulo}\n  {c.texto}")
+    destino = generar_pdf(r, RAIZ / "docs" / "estudios" / "universo_de_reits.pdf")
+    print(f"\n{destino.relative_to(RAIZ)} ({destino.stat().st_size / 1024:,.0f} KB)")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="comando", required=True)
@@ -205,6 +218,7 @@ def main() -> int:
     sub.add_parser("reglas-pdf")
     sub.add_parser("metodos")
     sub.add_parser("universo")
+    sub.add_parser("seleccion")
     args = p.parse_args()
     if args.comando == "tbill":
         return cmd_tbill()
@@ -216,6 +230,8 @@ def main() -> int:
         return cmd_metodos()
     if args.comando == "universo":
         return cmd_universo()
+    if args.comando == "seleccion":
+        return cmd_seleccion()
     ticker = args.ticker.upper()
     if args.comando == "mercado":
         return cmd_mercado(ticker)

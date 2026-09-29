@@ -147,18 +147,19 @@ GRUPOS = ("barato", "medio", "caro")
 
 def _suma_dividendos(div: pd.DataFrame, fechas: pd.DatetimeIndex, desde_meses: int, hasta_meses: int) -> pd.Series:
     """Por fecha t: la suma de dividendos con fecha ex en (t + desde, t + hasta] meses."""
+    fechas = pd.DatetimeIndex(fechas)
     if div.empty:
         return pd.Series(0.0, index=fechas)
-    acumulado = div.set_index("fecha_ex")["monto"].sort_index().cumsum()
+    d = div.sort_values("fecha_ex")
+    ex = d["fecha_ex"].to_numpy("datetime64[ns]")
+    acumulado = np.concatenate([[0.0], d["monto"].to_numpy(float).cumsum()])
 
-    def hasta(f: pd.Timestamp) -> float:
-        x = acumulado[acumulado.index <= f]
-        return float(x.iloc[-1]) if len(x) else 0.0
+    def hasta(meses: int) -> np.ndarray:
+        # Lo pagado con fecha ex hasta t + meses, inclusive.
+        return acumulado[np.searchsorted(ex, (fechas + pd.DateOffset(months=meses)).to_numpy("datetime64[ns]"),
+                                         side="right")]
 
-    salida = []
-    for f in fechas:
-        salida.append(hasta(f + pd.DateOffset(months=hasta_meses)) - hasta(f + pd.DateOffset(months=desde_meses)))
-    return pd.Series(salida, index=fechas)
+    return pd.Series(hasta(hasta_meses) - hasta(desde_meses), index=fechas)
 
 
 def panel(u: dict[str, pd.DataFrame], ust10: pd.Series, diseno: Diseno = DISENO) -> pd.DataFrame:
@@ -446,6 +447,9 @@ class ResultadoSeleccion:
     referencia: dict
     universo: pd.DataFrame          # la lista, con cuántos meses elegibles tuvo cada uno
     hasta: pd.Timestamp
+    sin_especiales: pd.DataFrame = None   # robustez: sin los dividendos que parecen especiales
+    plazos: pd.DataFrame = None           # exploratorio: mediana a 1, 3 y 5 años por tercil
+    especiales: int = 0
 
     def hoy(self) -> pd.DataFrame:
         """Cada REIT elegible en el último mes: su yield, sus tres señales y su tercil."""
@@ -492,6 +496,52 @@ def _por_sector(x: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(filas)
 
 
+def sin_dividendos_especiales(dividendos: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    """Quita los pagos de más del doble de la mediana de los cuatro anteriores del mismo emisor.
+
+    Yahoo no marca los dividendos especiales; inflan el yield de 12 meses y al año siguiente
+    parecen un recorte. Es una revisión de robustez, no parte del diseño.
+    """
+    d = dividendos.sort_values(["ticker", "fecha_ex"]).copy()
+    mediana = d.groupby("ticker")["monto"].transform(lambda x: x.shift(1).rolling(4, min_periods=3).median())
+    especial = d["monto"] > 2 * mediana
+    return d[~especial].reset_index(drop=True), int(especial.sum())
+
+
+def _resumen_senales(x: pd.DataFrame, diseno: Diseno) -> pd.DataFrame:
+    filas = []
+    for s in SENALES:
+        c = carteras(x, s, diseno=diseno)
+        t = trampas(x, s)
+        filas.append({"senal": s, "barato_contra_todos": float(c.resumen.loc["barato", "contra_todos"]),
+                      "barato_menos_caro": float(c.resumen.loc["barato menos caro", "retorno_anual"]),
+                      "correlacion": float(correlacion(x, s, diseno).mean()),
+                      "recorte_barato": float(t.loc["barato", "recorto_despues"]),
+                      "recorte_todos": float(t.loc["todos", "recorto_despues"]),
+                      "recorte_caro": float(t.loc["caro", "recorto_despues"])})
+    return pd.DataFrame(filas).set_index("senal")
+
+
+def plazos(x: pd.DataFrame, horizontes: tuple[int, ...] = (12, 36, 60)) -> pd.DataFrame:
+    """Exploratorio: la mediana del retorno anualizado de 1, 3 y 5 años de cada tercil."""
+    ajustado = (1 + x.pivot(index="fecha", columns="ticker", values="retorno").fillna(0)).cumprod()
+    filas = []
+    for h in horizontes:
+        adelante = (ajustado.shift(-h) / ajustado - 1).stack().rename("adelante").reset_index()
+        xx = x[["fecha", "ticker"]].merge(adelante, on=["fecha", "ticker"], how="left")["adelante"].to_numpy()
+        limite = (x["fecha"] <= ajustado.index[-1] - pd.DateOffset(months=h)).to_numpy()
+        for s in SENALES:
+            g = grupos(x, s).to_numpy()
+            ok = pd.notna(g) & ~np.isnan(xx) & limite
+            fila = {"horizonte_meses": h, "senal": s}
+            for nombre in (*GRUPOS, "todos"):
+                sel = ok & ((g == nombre) if nombre != "todos" else True)
+                v = np.median(xx[sel]) if sel.any() else np.nan
+                fila[nombre] = (1 + v) ** (12 / h) - 1 if pd.notna(v) else np.nan
+            filas.append(fila)
+    return pd.DataFrame(filas)
+
+
 def estudiar(u: dict[str, pd.DataFrame] | None = None, ust10: pd.Series | None = None,
              diseno: Diseno = DISENO, *, con_sorteos: bool = True) -> ResultadoSeleccion:
     from src.estudio import macro
@@ -513,6 +563,8 @@ def estudiar(u: dict[str, pd.DataFrame] | None = None, ust10: pd.Series | None =
     lista = u["lista"].copy()
     meses_eleg = x[x["elegible"]].groupby("ticker").size()
     lista["meses_elegible"] = lista["ticker"].map(meses_eleg).fillna(0).astype(int)
+    limpios, especiales = sin_dividendos_especiales(u["dividendos"])
+    x_limpio = panel({**u, "dividendos": limpios}, ust10, diseno)
     return ResultadoSeleccion(
         panel=x, carteras=carteras_, correlaciones=cor, resumen_correlacion=_resumen_correlacion(cor, diseno),
         trampas=tramp, aportaciones=aport,
@@ -520,4 +572,148 @@ def estudiar(u: dict[str, pd.DataFrame] | None = None, ust10: pd.Series | None =
         mitades=_mitades(x, cor, carteras_, diseno), por_sector=_por_sector(x),
         referencia=referencia(u, carteras_[("historia", False)].mensual["todos"]),
         universo=lista, hasta=x["fecha"].max(),
+        sin_especiales=_resumen_senales(x_limpio, diseno), plazos=plazos(x), especiales=especiales,
     )
+
+
+# --------------------------------------------------------------------------------------
+# Conclusiones en texto
+# --------------------------------------------------------------------------------------
+
+
+def _robustez(r: ResultadoSeleccion) -> str:
+    e = r.sin_especiales
+    if e is None or e.empty:
+        return ""
+    sigue = all(e.loc[s, "recorte_barato"] > e.loc[s, "recorte_todos"] for s in SENALES)
+    return (f" Sin los {r.especiales} dividendos que parecen especiales —inflan el yield y al año siguiente "
+            f"parecen recorte— los baratos por su historia recortan {_p(e.loc['historia', 'recorte_barato'])} "
+            f"contra {_p(e.loc['historia', 'recorte_todos'])} de todos y quedan {_pt(e.loc['historia', 'barato_contra_todos'])} "
+            f"contra el universo: " + ("la conclusión no cambia." if sigue else "la diferencia se reduce."))
+
+
+def _largo_plazo(r: ResultadoSeleccion) -> str:
+    p = r.plazos
+    if p is None or p.empty:
+        return ""
+    cinco = p[p["horizonte_meses"] == p["horizonte_meses"].max()].set_index("senal")
+    mejor = max(SENALES, key=lambda s: cinco.loc[s, "barato"] - cinco.loc[s, "todos"])
+    x = cinco.loc[mejor]
+    return (f"A {int(x['horizonte_meses']) // 12} años la mediana de los baratos por {_nombre(mejor)} fue "
+            f"{_p(x['barato'], 1)} al año contra {_p(x['todos'], 1)} de todos: los que sobrevivieron se recuperan. ")
+
+
+def _pt(x) -> str:
+    return "—" if x is None or pd.isna(x) else f"{x * 100:+.1f} puntos"
+
+
+def _p(x, d: int = 0) -> str:
+    return "—" if x is None or pd.isna(x) else f"{x:.{d}%}"
+
+
+def _nombre(s: str) -> str:
+    """El nombre de la señal dentro de una frase: minúscula inicial, salvo las siglas."""
+    n = SENALES[s]
+    return n if n.startswith("DDM") else n[0].lower() + n[1:]
+
+
+def conclusiones(r: ResultadoSeleccion) -> list:
+    from src.estudio.reglas import Conclusion
+
+    c = []
+    base = {s: r.carteras[(s, False)].resumen for s in SENALES}
+    filtrado = {s: r.carteras[(s, True)].resumen for s in SENALES}
+    contra = {s: float(base[s].loc["barato", "contra_todos"]) for s in SENALES}
+    t_contra = {s: float(base[s].loc["barato", "t_contra_todos"]) for s in SENALES}
+    cor = r.resumen_correlacion
+    ganan = [s for s in SENALES if contra[s] > 0]
+    n_emisores = int((r.universo["meses_elegible"] > 0).sum())
+    desde = r.carteras[("historia", False)].mensual.index.min()
+    c.append(Conclusion(
+        "En el universo, «barato» no le gana a comprar todos" if not ganan else
+        "En el universo, la valuación le gana a comprar todos solo con algunas señales",
+        f"Con {n_emisores} REITs y cada mes desde {desde:%Y}, el tercil barato de cada señal contra comprar "
+        f"todos por partes iguales: " + "; ".join(
+            f"{_nombre(s)}, {_pt(contra[s])} al año (t de {t_contra[s]:+.1f})" for s in SENALES)
+        + ". La correlación con los 12 meses siguientes es "
+        + ", ".join(f"{cor.loc[s, 'promedio']:+.3f}" for s in SENALES)
+        + ": prácticamente cero. El método que funcionó con O, NNN y WPC —el yield contra su propia historia— "
+        + ("aquí no escoge mejor que comprar todos." if contra["historia"] <= 0 else "aquí también ayuda."),
+        "desfavorable" if not ganan else "neutral"))
+
+    tr = {s: r.trampas[(s, False)] for s in SENALES}
+    c.append(Conclusion(
+        "Los baratos concentran las trampas",
+        "Qué fracción recortó su dividendo en los 12 meses siguientes, barato contra caro: "
+        + "; ".join(f"{_nombre(s)}, {_p(tr[s].loc['barato', 'recorto_despues'])} contra "
+                    f"{_p(tr[s].loc['caro', 'recorto_despues'])}" for s in SENALES)
+        + f" (todos: {_p(tr['historia'].loc['todos', 'recorto_despues'])}). También se desploman más: "
+        + f"{_p(tr['historia'].loc['barato', 'se_desplomo'])} de los baratos por su historia cayó 30% o más en un "
+        + f"año, contra {_p(tr['historia'].loc['caro', 'se_desplomo'])} de los caros. En O, NNN y WPC un yield alto "
+        + "era una oportunidad pasajera; en el universo, muchas veces es el aviso de un recorte."
+        + _robustez(r),
+        "desfavorable"))
+
+    mejora = {s: float(filtrado[s].loc["barato", "contra_todos"]) - contra[s] for s in SENALES}
+    c.append(Conclusion(
+        "Quitar a los que ya recortaron ayuda poco",
+        "Fuera los que recortaron el dividendo en los 12 meses previos, el tercil barato mejora "
+        + "; ".join(f"{_pt(mejora[s])} con {_nombre(s)}" for s in SENALES)
+        + ", y aun así " + ("ninguno le gana a comprar todos." if all(
+            float(filtrado[s].loc["barato", "contra_todos"]) <= 0 for s in SENALES) else
+            "solo algunos le ganan a comprar todos.")
+        + " Un recorte pasado no es la única señal de un negocio en problemas: faltan el payout, la deuda y el "
+        "crecimiento del flujo, que aquí no hay para todos.",
+        "neutral"))
+
+    a = r.aportaciones.set_index("cartera")
+    todos = a.iloc[0]
+    mejores = a.iloc[1:].sort_values("contra_todos", ascending=False)
+    top = mejores.iloc[0]
+    c.append(Conclusion(
+        "Aportando cada mes sin vender nunca, cambia la foto, pero es donde más pesa el sesgo",
+        f"Si la aportación mensual va a los baratos y nunca se vende, la TIR va de "
+        f"{_pt(float(mejores['contra_todos'].min()))} a {_pt(float(mejores['contra_todos'].max()))} al año contra "
+        f"repartirla entre todos ({_p(todos['tir'], 2)}); la mejor, «{top.name}», {_p(top['tir'], 2)}. "
+        + _largo_plazo(r)
+        + "Pero mantenerlos años es justo lo que no se puede medir aquí: los baratos que quebraron o fueron "
+        "absorbidos no están en la muestra. Esa cifra es un techo.",
+        "neutral"))
+
+    ref = r.referencia
+    sobre = (ref["universo"] - ref["vnq"]) if ref.get("desde") is not None else np.nan
+    c.append(Conclusion(
+        "Qué tanto se le puede creer",
+        f"El universo de pesos iguales rindió {_p(ref['universo'], 1)} al año desde {ref['desde']:%Y} y VNQ, que sí "
+        f"tuvo a los que desaparecieron, {_p(ref['vnq'], 1)}: {_pt(sobre)} de diferencia, que es sobre todo sesgo de "
+        f"supervivencia (y algo de pesos iguales contra capitalización). Las mitades del periodo apuntan al mismo "
+        f"lado. Ninguna brecha llega a una t de 2. Los sorteos del diseño resultaron un control débil: al "
+        f"repartir de nuevo cada mes, sus grupos se diversifican solos y su dispersión es mucho menor que la de "
+        f"grupos reales, que duran meses; la significancia que cuenta es la t de Newey-West.",
+        "neutral"))
+
+    h1 = contra["historia"] > 0 and cor.loc["historia", "promedio"] > 0
+    h2 = tr["sector"].loc["barato", "recorto_despues"] > tr["sector"].loc["todos", "recorto_despues"]
+    h3 = (tr["ddm"].loc["barato", "recorto_despues"] > tr["ddm"].loc["todos", "recorto_despues"]
+          and contra["ddm"] <= max(contra["historia"], 0))
+    h4 = mejora["sector"] > mejora["historia"] and mejora["ddm"] > mejora["historia"]
+    h5 = ref["universo"] > ref["vnq"]
+    si = lambda b: "se cumplió" if b else "no se cumplió"  # noqa: E731
+    c.append(Conclusion(
+        "Lo que se escribió antes de correr",
+        f"(1) El yield contra su propia historia predice en el universo: {si(h1)}. (2) El yield contra su sector "
+        f"tiene más trampas: {si(h2)}. (3) El DDM se porta como el yield contra su sector: {si(h3)}. (4) El filtro "
+        f"ayuda más a las señales 2 y 3: {si(h4)}. (5) El universo le gana a VNQ por el sesgo de supervivencia: "
+        f"{si(h5)}. La primera era la importante, y falló: lo que funcionó con tres REITs de calidad no se "
+        f"generaliza.",
+        "neutral"))
+
+    c.append(Conclusion(
+        "Qué hacer con esto",
+        "La valuación sirve para escoger entre REITs que ya pasaron un filtro de calidad, como O, NNN y WPC; no "
+        "para escoger en todo el mercado. Un yield alto contra su historia o contra su sector, sin revisar el "
+        "payout, la deuda y el crecimiento del flujo, es tan seguido una trampa como una oportunidad. La regla "
+        "de aportar siempre y mandar el dinero del mes al más barato de tus REITs de calidad sigue en pie; lo que "
+        "esta prueba agrega es no ampliar esa lista con un REIT solo porque su yield se ve alto.",
+        "neutral"))
+    return c

@@ -555,6 +555,49 @@ Lo que salió, y se había escrito antes de correr:
 - **Ninguno pasa los controles de la asignación**; el consenso de los siete sigue siendo
   la regla recomendada.
 
+## ¿La valuación sabe escoger REITs? La prueba del universo
+
+Lo anterior se probó con tres emisores de calidad escogidos hoy. La página **Universo de
+REITs** y `docs/estudios/universo_de_reits.pdf` hacen la pregunta con todos los REITs de
+capital que cotizan hoy en Estados Unidos: ¿«barato» le gana a comprar todos, o escoge
+trampas?
+
+```bash
+python scripts/estudio.py universo    # baja y versiona lista, precios y dividendos (Nasdaq, stockanalysis, Yahoo)
+python scripts/estudio.py seleccion   # corre la prueba e imprime el PDF
+```
+
+`src/estudio/universo.py` arma la lista (147 REITs de capital; sin hipotecarios,
+preferentes ni notas) y la versiona en `data/estudios/universo/` con su manifiesto.
+`src/estudio/seleccion.py` trae el diseño completo en su docstring, fijado en un commit
+antes de correr; la prueba 55 lo congela. Cada fin de mes, terciles de tres señales entre
+los elegibles —yield contra su propia historia, yield contra la mediana de su sector y DDM
+entre emisores—, carteras de pesos iguales con 12 cohortes encimadas contra comprar todos
+por partes iguales, t de Newey-West, qué fracción de cada tercil recortó su dividendo o se
+desplomó, y la aportación mensual sin vender. **Sesgo declarado**: no están los que
+quebraron o fueron comprados; ninguna fuente disponible trae su precio.
+
+Lo que salió (1999–2026, 128 REITs con al menos cinco años de historia):
+
+- **«Barato» no le gana a comprar todos** con ninguna señal (−1.4, −1.2 y −0.6 puntos al
+  año; ninguna t llega a 2) y la correlación con los 12 meses siguientes es prácticamente
+  cero. Lo que funcionó con O, NNN y WPC no se generaliza.
+- **Los baratos concentran las trampas**: 23% de los baratos por su historia recortó el
+  dividendo al año siguiente, contra 5% de los caros y 12% de todos. En el universo, un
+  yield alto muchas veces es el aviso de un recorte. Sin los 178 dividendos que parecen
+  especiales, la conclusión no cambia.
+- **Quitar a los que ya recortaron ayuda poco**: sin payout, deuda ni crecimiento del flujo
+  para todos, un recorte pasado no alcanza como filtro de calidad.
+- **Aportando sin vender nunca**, los baratos por DDM terminan +1.0 puntos al año arriba de
+  todos: es la cifra más expuesta al sesgo, un techo.
+- El universo de pesos iguales le ganó a VNQ 1.1 puntos al año desde 2004: sesgo de
+  supervivencia medible. De las cinco hipótesis se cumplieron cuatro; falló la importante,
+  que la señal que funcionó con tres REITs de calidad funcionara en todo el mercado.
+
+La lección: la valuación sirve para escoger **entre** REITs que ya pasaron un filtro de
+calidad —la Puerta 1—, no para escoger en todo el mercado. La regla de aportar siempre y
+mandar el dinero del mes al más barato de los REITs de calidad sigue en pie.
+
 ## El semáforo: tres puertas, por separado
 
 No es una caja negra. Cada puerta responde una pregunta distinta y se muestra sola.
