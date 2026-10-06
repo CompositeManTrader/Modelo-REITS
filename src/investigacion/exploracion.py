@@ -39,10 +39,11 @@ def _fin_de_mes(x: pd.Series) -> pd.Series:
     return x.groupby(x.index + pd.offsets.MonthEnd(0)).last()
 
 
-def sector(muestra: Muestra | str = Muestra.DESARROLLO, *, motivo: str = "") -> pd.DataFrame:
+def sector(muestra: Muestra | str = Muestra.DESARROLLO, *, motivo: str = "", ruta_bitacora=None) -> pd.DataFrame:
     """El índice de REITs de capital y el efectivo, mes por mes."""
     n = datos.cargar_sector()["nareit"]
-    n = muestras.recortar(n[n["indice"] == INDICE], muestra, columna="fecha", motivo=motivo)
+    n = muestras.recortar(n[n["indice"] == INDICE], muestra, columna="fecha", motivo=motivo,
+                          ruta_bitacora=ruta_bitacora)
     x = n.set_index("fecha")[["retorno_total", "retorno_precio", "retorno_ingreso", "indice_total", "indice_precio",
                               "yield_dividendo"]].sort_index()
     macro = datos.cargar_macro()
