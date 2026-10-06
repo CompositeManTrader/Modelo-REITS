@@ -140,6 +140,14 @@ def test_el_detector_solo_usa_el_pasado():
     assert p1[ultimos & (x["payout"] > 1.2)].mean() > p1[ultimos & (x["payout"] < 0.9)].mean()
 
 
+def test_el_detector_aguanta_una_variable_que_todavia_no_tiene_historia():
+    x = f6.senales(_panel(40, fechas=pd.date_range("2010-03-31", periods=16, freq="QE")))
+    x["recorte_siguiente"] = np.where(x["recorte_siguiente"].notna(), (x.index % 7 == 0).astype(float), np.nan)
+    x["crecimiento_ffo"] = np.nan
+    p = f6.riesgo_de_recorte(x)
+    assert p.notna().any() and np.isfinite(p.dropna()).all()
+
+
 def test_el_filtro_pide_todo():
     base = {"mejora": 0.01, "mejora_con_rezago": 0.005, "mejora_doble_costo": 0.004, "exceso_2012_2013": 0.01,
             "exceso_2013_2015": 0.02, "ic_medio": 0.05}

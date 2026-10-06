@@ -455,16 +455,21 @@ def riesgo_de_recorte(x: pd.DataFrame, d: Diseno6 = DISENO6, *, entrenar_con: pd
 
 
 def _escala(datos: pd.DataFrame) -> dict:
-    """Recorte al 1% y 99%, mediana para los faltantes, media y desviación: todo del pasado."""
+    """Recorte al 1% y 99%, mediana para los faltantes, media y desviación: todo del pasado.
+
+    Una variable que en el pasado todavía no tiene ningún dato (el crecimiento del FFO en los
+    primeros trimestres) no tiene mediana: queda en cero, neutral después de estandarizar.
+    """
     bajo, alto, mediana = datos.quantile(0.01), datos.quantile(0.99), datos.median()
-    lleno = datos.clip(lower=bajo, upper=alto, axis=1).fillna(mediana)
-    return {"bajo": bajo, "alto": alto, "mediana": mediana, "media": lleno.mean(),
-            "desv": lleno.std().replace(0, 1)}
+    lleno = datos.clip(lower=bajo, upper=alto, axis=1).fillna(mediana).fillna(0.0)
+    desv = lleno.std().replace(0, 1).fillna(1.0)
+    return {"bajo": bajo, "alto": alto, "mediana": mediana, "media": lleno.mean().fillna(0.0), "desv": desv}
 
 
 def _preparar(t: pd.DataFrame, e: dict) -> np.ndarray:
-    z = t[list(VARIABLES_DE_RECORTE)].astype(float).clip(lower=e["bajo"], upper=e["alto"], axis=1).fillna(e["mediana"])
-    return ((z - e["media"]) / e["desv"]).to_numpy()
+    z = t[list(VARIABLES_DE_RECORTE)].astype(float).clip(lower=e["bajo"], upper=e["alto"], axis=1)
+    z = z.fillna(e["mediana"]).fillna(0.0)
+    return ((z - e["media"]) / e["desv"]).fillna(0.0).to_numpy()
 
 
 def despues_del_recorte(x: pd.DataFrame, adelante: pd.DataFrame, universo_12m: pd.Series) -> pd.Series:
