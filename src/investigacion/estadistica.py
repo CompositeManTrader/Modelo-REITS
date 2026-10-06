@@ -63,11 +63,15 @@ def clark_west(real: np.ndarray, pronostico: np.ndarray, promedio: np.ndarray, *
     return t, float(1 - stats.norm.cdf(t)) if np.isfinite(t) else np.nan
 
 
-def pronostico_expandible(senal: pd.Series, objetivo: pd.Series, *, minimo: int, horizonte: int) -> pd.DataFrame:
+def pronostico_expandible(senal: pd.Series, objetivo: pd.Series, *, minimo: int, horizonte: int,
+                          signo: int | None = None) -> pd.DataFrame:
     """Regresión del retorno siguiente contra la señal, estimada cada mes solo con el pasado.
 
     En el mes ``t`` se usan los pares (señal ``s``, retorno de ``s+1 … s+h``) cuyo retorno ya
     terminó: ``s + h ≤ t``. Devuelve el pronóstico de la señal y el del promedio histórico.
+
+    Con ``signo`` (restricción de Campbell y Thompson, 2008): si la pendiente estimada tiene
+    el signo contrario al que dice la teoría, el pronóstico es el promedio histórico.
     """
     s = senal.astype(float)
     y = objetivo.astype(float)
@@ -84,7 +88,7 @@ def pronostico_expandible(senal: pd.Series, objetivo: pd.Series, *, minimo: int,
             continue
         prom[t] = ys[ok].mean()
         b, a = np.polyfit(xs[ok], ys[ok], 1)
-        pron[t] = a + b * sv[t]
+        pron[t] = prom[t] if (signo is not None and b * signo < 0) else a + b * sv[t]
     return pd.DataFrame({"pronostico": pron, "promedio": prom, "real": yv}, index=fechas)
 
 

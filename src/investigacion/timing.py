@@ -76,7 +76,8 @@ def predictibilidad(s: pd.Series, x: pd.DataFrame, horizontes=(1, 3, 12), minimo
     filas = []
     for h in horizontes:
         exceso = _adelante(x["retorno_total"], h) - _adelante(x["efectivo"], h)
-        p = estadistica.pronostico_expandible(s, exceso, minimo=minimo, horizonte=h)
+        # Las señales están orientadas (más alto = mejor): la pendiente teórica es positiva.
+        p = estadistica.pronostico_expandible(s, exceso, minimo=minimo, horizonte=h, signo=+1)
         if desde is not None:
             p = p.loc[desde:]
         t, valor_p = estadistica.clark_west(p["real"], p["pronostico"], p["promedio"], rezago=h)

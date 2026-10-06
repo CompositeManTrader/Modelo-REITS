@@ -97,6 +97,13 @@ def indicadores(x: pd.DataFrame) -> pd.DataFrame:
     d["momentum_12m"] = (1 + x["retorno_total"]).rolling(12).apply(np.prod, raw=True) - 1
     d["caida_desde_maximo"] = x["indice_total"] / x["indice_total"].cummax() - 1
     d["cambio_treasury_12m"] = d["treasury_10a"] - d["treasury_10a"].shift(12)
+    d["spread_default"] = (c("BAA") - c("AAA")) / 100
+    efectivo_12m = (1 + x["efectivo"]).rolling(12).apply(np.prod, raw=True) - 1
+    d["momentum_exceso_12m"] = d["momentum_12m"] - efectivo_12m
+    fr = datos.cargar_factores()
+    if fr:
+        b = fr["french"].pivot(index="fecha", columns="factor", values="valor")
+        d["bolsa_mes"] = (b["Mkt-RF"] + b["RF"]).reindex(f)
     d["cambio_credito_12m"] = d["spread_credito"] - d["spread_credito"].shift(12)
     d["spread_real"] = y - d["tasa_real"]
     return d

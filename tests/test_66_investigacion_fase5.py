@@ -14,9 +14,8 @@ def _sintetico(n: int = 300):
     x = pd.DataFrame({"retorno_precio": rng.normal(0.006, 0.04, n), "retorno_ingreso": np.full(n, 0.005),
                       "efectivo": np.full(n, 0.003)}, index=idx)
     x["retorno_total"] = x["retorno_precio"] + x["retorno_ingreso"]
-    columnas = {"yield_reit", "spread_10a", "spread_real", "spread_baa", "spread_credito", "cambio_credito_12m",
-                "cambio_treasury_12m", "curva", "fed_cambio_12m", "nfci", "credito_inmuebles",
-                "desempleo_cambio_12m", "tendencia_10m", "momentum_12m"}
+    columnas = {"yield_reit", "spread_10a", "spread_real", "spread_baa", "spread_default", "cambio_credito_12m",
+                "nfci", "credito_inmuebles", "bolsa_mes", "tendencia_10m", "momentum_exceso_12m"}
     ind = pd.DataFrame({c: rng.normal(size=n) for c in sorted(columnas)}, index=idx)
     return x, ind
 

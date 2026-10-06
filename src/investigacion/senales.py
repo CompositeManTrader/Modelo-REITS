@@ -30,27 +30,46 @@ def _col(nombre: str, signo: float = 1.0):
 
 
 CATALOGO: tuple[Senal, ...] = (
-    # Valuación: el yield de los REITs contra su historia y contra las alternativas.
-    Senal("yield de los REITs", "valuacion", _col("yield_reit"), "Yield de dividendo del índice"),
-    Senal("yield contra el Treasury", "valuacion", _col("spread_10a"), "Yield menos Treasury a 10 años"),
+    # Valuación (literatura T2 y T3): el yield de los REITs contra su historia y sus alternativas.
+    Senal("yield de los REITs", "valuacion", _col("yield_reit"), "Yield de dividendo del índice",
+          "Chiang (2015); Liu y Mei (1992). En contra: Ghysels et al. (2013)"),
+    Senal("yield contra el Treasury", "valuacion", _col("spread_10a"), "Yield menos Treasury a 10 años",
+          "Nareit, Case (2017a)"),
     Senal("yield contra la tasa real", "valuacion", _col("spread_real"),
-          "Yield menos (Treasury a 10 años menos inflación de 12 meses)"),
-    Senal("yield contra bonos Baa", "valuacion", _col("spread_baa"), "Yield menos bonos corporativos Baa"),
-    # Crédito y tasas.
-    Senal("spread de crédito", "credito", _col("spread_credito", -1), "Baa menos Treasury a 10 años (más ancho, peor)"),
+          "Yield menos (Treasury a 10 años menos inflación de 12 meses)", "Nareit, Case (2017a), variante real"),
+    Senal("yield contra bonos Baa", "valuacion", _col("spread_baa"), "Yield menos bonos corporativos Baa",
+          "Nareit, Case (2018)"),
+    # Crédito (literatura T4 y T5).
+    Senal("spread de default", "credito", _col("spread_default"), "Bonos Baa menos Aaa (más ancho, más prima)",
+          "Leow y Lindenthal (2024)"),
     Senal("cambio del spread de crédito", "credito", _col("cambio_credito_12m", -1),
-          "Cambio de 12 meses del spread Baa (si se abre, peor)"),
-    Senal("cambio del Treasury", "tasas", _col("cambio_treasury_12m", -1), "Cambio de 12 meses del Treasury a 10 años"),
-    Senal("pendiente de la curva", "tasas", _col("curva"), "Treasury a 10 años menos el de 1 año"),
-    Senal("cambio de la tasa de la Fed", "tasas", _col("fed_cambio_12m", -1), "Cambio de 12 meses de los fondos federales"),
-    Senal("condiciones financieras", "credito", _col("nfci", -1), "Índice de condiciones financieras de Chicago (NFCI)"),
+          "Cambio de 12 meses del spread Baa contra el Treasury (si se abre, peor)",
+          "Leow y Lindenthal (2024); Swanson, Theis y Casey (2002)"),
+    Senal("condiciones financieras", "credito", _col("nfci", -1),
+          "Índice de condiciones financieras de la Fed de Chicago (más estrés, peor)",
+          "Leow y Lindenthal (2024), volatilidad y crédito"),
     Senal("crédito bancario a inmuebles", "credito", _col("credito_inmuebles", -1),
-          "Bancos que endurecen el crédito a inmuebles comerciales (SLOOS); desde 1990"),
-    Senal("cambio del desempleo", "macro", _col("desempleo_cambio_12m", -1), "Cambio de 12 meses de la tasa de desempleo"),
-    # Tendencia.
-    Senal("tendencia de 10 meses", "tendencia", _col("tendencia_10m"), "Precio contra su promedio de 10 meses"),
-    Senal("momentum de 12 meses", "tendencia", _col("momentum_12m"), "Retorno total de los últimos 12 meses"),
+          "Bancos que endurecen el crédito a inmuebles comerciales (SLOOS); desde 1990",
+          "Ling, Naranjo y Scheick (2016)"),
+    # Bolsa del mes (literatura T6): el único predictor con R² fuera de muestra positivo en Ghysels et al.
+    Senal("bolsa del mes", "bolsa", _col("bolsa_mes"), "Retorno total de la bolsa de EE. UU. en el mes",
+          "Ghysels, Plazzi, Torous y Valkanov (2013)"),
+    # Tendencia (literatura T1 y T1b).
+    Senal("tendencia de 10 meses", "tendencia", _col("tendencia_10m"), "Precio contra su promedio de 10 meses",
+          "Faber (2007); Glabadanidis (2014). En contra: Zakamulin (2014)"),
+    Senal("momentum contra el efectivo", "tendencia", _col("momentum_exceso_12m"),
+          "Retorno total de 12 meses menos el del T-bill", "Moskowitz, Ooi y Pedersen (2012); Moss et al. (2015)"),
 )
+
+# Descartadas ANTES de correr porque la literatura ya las contradice o no tienen respaldo;
+# no son intentos de la bitácora (ver el pre-registro).
+DESCARTADAS = {
+    "cambio del Treasury": "Nareit, Pierzak (2026): REITs positivos en 77% de los periodos de alza y 79% de baja",
+    "pendiente de la curva": "Ghysels et al. (2013): R² fuera de muestra de −0.49% mensual",
+    "cambio de la tasa de la Fed": "Solo cuatro ciclos y la última alza se conoce después (Pierzak 2023)",
+    "cambio del desempleo": "Sin respaldo en la literatura revisada",
+    "spread de crédito (nivel, con signo negativo)": "Sustituida por el spread de default con el signo de la literatura",
+}
 
 TENDENCIA = {"tendencia", }
 
