@@ -60,11 +60,22 @@ def test_la_escalera_se_queda_con_el_ultimo_que_mejora():
 
 
 def test_los_regimenes_ven_el_regimen_malo_con_el_pasado():
+    """El pasado ya trae un episodio malo (meses 80-99); el modelo reconoce el segundo (160-183)."""
     rng = np.random.default_rng(1)
-    r = np.r_[rng.normal(0.012, 0.025, 160), rng.normal(-0.04, 0.09, 24), rng.normal(0.012, 0.025, 40)]
+    r = np.r_[rng.normal(0.012, 0.025, 80), rng.normal(-0.04, 0.09, 20), rng.normal(0.012, 0.025, 60),
+              rng.normal(-0.04, 0.09, 24), rng.normal(0.012, 0.025, 40)]
     idx = pd.date_range("1990-01-31", periods=len(r), freq="ME")
     x = pd.DataFrame({"retorno_total": r, "efectivo": 0.0}, index=idx)
     rg = fase7.regimenes(x, minimo=120, cada=24)
     malo = rg["p_malo"].iloc[165:184].mean()
-    bueno = rg["p_malo"].iloc[130:160].mean()
+    bueno = rg["p_malo"].iloc[125:160].mean()
     assert malo > 0.5 > bueno
+
+
+def test_los_regimenes_se_repiten_igual():
+    rng = np.random.default_rng(2)
+    r = np.r_[rng.normal(0.01, 0.03, 150), rng.normal(-0.03, 0.08, 20), rng.normal(0.01, 0.03, 30)]
+    x = pd.DataFrame({"retorno_total": r, "efectivo": 0.0}, index=pd.date_range("1990-01-31", periods=len(r), freq="ME"))
+    a = fase7.regimenes(x, minimo=120, cada=24)
+    b = fase7.regimenes(x, minimo=120, cada=24)
+    pd.testing.assert_frame_equal(a, b)

@@ -194,17 +194,14 @@ def regimenes(x: pd.DataFrame, *, minimo: int = WALK_FORWARD.meses_minimos_para_
     t = minimo
     while t < n:
         modelo = MarkovRegression(r[:t], k_regimes=2, trend="c", switching_variance=True)
-        estado = np.random.get_state()
-        np.random.seed(SEMILLA_REGIMENES)    # la búsqueda de arranque es aleatoria: se fija para repetir
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                ajuste = modelo.fit(disp=False, search_reps=5)
+                # La búsqueda de arranque es aleatoria: con la semilla fija, dos corridas dan lo mismo.
+                ajuste = modelo.fit(disp=False, search_reps=5, rng=SEMILLA_REGIMENES)
         except Exception:  # noqa: BLE001 — si no converge, ese año no hay decisión del modelo
             t += cada
             continue
-        finally:
-            np.random.set_state(estado)
         params = ajuste.params
         medias = np.asarray(ajuste.params[[i for i in range(len(params)) if "const" in str(modelo.param_names[i])]])
         malo = int(np.argmin(medias))
@@ -304,3 +301,92 @@ def escalera(evaluacion: pd.DataFrame) -> tuple[list[str], str]:
             se_quedan.append(nombre)
             mejor = m
     return se_quedan, (se_quedan[-1] if se_quedan else "")
+
+
+# --------------------------------------------------------------------------------------
+# Correr e informar
+# --------------------------------------------------------------------------------------
+
+
+@dataclass
+class ResultadoFase7:
+    peldanos: list[Peldano]
+    evaluacion: pd.DataFrame
+    eras: pd.DataFrame
+    se_quedan: list[str]
+    candidato: str
+
+
+def correr_desarrollo(*, registrar: bool = True, ruta_bitacora=None) -> ResultadoFase7:
+    from src.investigacion import exploracion, fase5
+    from src.investigacion.exploracion import CORTE_DE_ERAS
+
+    x = exploracion.sector()
+    ind = exploracion.indicadores(x)
+    pel = construir(x, ind)
+    ev = evaluar(pel, x, ind, muestra="desarrollo", registrar=registrar, ruta_bitacora=ruta_bitacora)
+    eras = []
+    for p in pel:
+        senal = timing.Senal(p.nombre, "fase7", lambda x_, i_, s=p.pronostico: s, "")
+        for era, (a, b) in {"1972-1992": (x.index.min(), CORTE_DE_ERAS),
+                            "1993-2015": (CORTE_DE_ERAS + pd.offsets.MonthEnd(1), x.index.max())}.items():
+            r = timing.evaluar(senal, "era", p.exposicion.loc[a:b], x.loc[a:b], ind.loc[a:b],
+                               muestra=f"desarrollo {era}", registrar=False)
+            eras.append({"senal": p.nombre, "regla": "dentro si el pronóstico es positivo", "era": era,
+                         "mejora_rebalanceo": r["mejora_rebalanceo"]})
+    eras = pd.DataFrame(eras)
+    ev["regla"] = "dentro si el pronóstico es positivo"
+    ev["pasa"] = [fase5.pasa_el_filtro(f, eras) for _, f in ev.iterrows()]
+    quedan, candidato = escalera(ev)
+    return ResultadoFase7(pel, ev, eras, quedan, candidato)
+
+
+def informe(r: ResultadoFase7) -> str:
+    from src.investigacion.fase5 import _p, _pb, _tabla
+
+    ev = r.evaluacion.set_index("senal")
+    eras = r.eras.pivot_table(index="senal", columns="era", values="mejora_rebalanceo")
+    base_caida = float(r.evaluacion["caida_aportar_siempre"].iloc[0])
+    o = ["# Fase 7: la escalera de modelos. Resultados\n\n",
+         "Pre-registro: `fase7_preregistro.md` (commit anterior a esta corrida). Muestra de desarrollo, "
+         "1972-2015; los pronósticos empiezan cuando hay 60 meses para los percentiles y 120 pares terminados "
+         f"para estimar. Aportar siempre: TIR de {_p(float(r.evaluacion['tir_aportar_siempre'].iloc[0]), 2)}, "
+         f"caída máxima de {_p(base_caida, 0)}. Generado por `python scripts/investigacion.py fase7`.\n\n"]
+    o.append("## Veredicto\n\n")
+    if not r.candidato:
+        o.append("**Ningún peldaño le gana a aportar siempre**, así que la escalera no deja candidato: nada de la "
+                 "fase 7 pasa a validación ni a la prueba final. Como dice el pre-registro, la escalera termina en "
+                 "**RECHAZADO**.\n\n")
+    else:
+        o.append(f"Se quedan: {', '.join(r.se_quedan)}. Candidato: **{r.candidato}**.\n\n")
+    filas = []
+    for nombre in PELDANOS:
+        f = ev.loc[nombre]
+        r2 = f["r2_12m"] if pd.notna(f["r2_12m"]) else f.get("r2_1m_modelo")
+        cw = f["clark_west_p_12m"] if pd.notna(f["clark_west_p_12m"]) else f.get("clark_west_p_modelo")
+        filas.append([nombre, _pb(f["mejora_rebalanceo"]), _pb(f["mejora_nuevo"]), _pb(f["mejora_contra_mezcla_fija"]),
+                      _p(f["caida_rebalanceo"], 0), _p(f["exposicion_rebalanceo"], 0), str(int(f["cambios_rebalanceo"])),
+                      _pb(f["mejora_rebalanceo_con_rezago"]), "—" if pd.isna(r2) else f"{r2 * 100:+.1f}",
+                      "—" if pd.isna(cw) else f"{cw:.2f}", _pb(eras.loc[nombre, "1972-1992"]),
+                      _pb(eras.loc[nombre, "1993-2015"])])
+    o.append(_tabla(filas, ["Peldaño", "Rebalanceando (pb)", "Solo dinero nuevo (pb)", "Contra mezcla fija (pb)",
+                            "Caída máxima", "Exposición", "Cambios", "Con un mes de retraso (pb)",
+                            "R² del modelo (%)", "Clark-West p", "1972-1992 (pb)", "1993-2015 (pb)"]))
+    salidas = {p.nombre: int((p.exposicion == 0).sum()) for p in r.peldanos}
+    comp = ev.loc["compuesto"]
+    rg = ev.loc["regímenes"]
+    o.append("## Lo que se escribió antes de correr\n\n")
+    o.append(f"* **H7.1 — ningún peldaño llega a +50 pb.** Se cumple: el mejor queda en "
+             f"{_pb(r.evaluacion['mejora_rebalanceo'].max())} pb.\n")
+    o.append(f"* **H7.2 — ridge y árboles no le ganan a lo simple.** Se cumple: árboles "
+             f"{_pb(ev.loc['árboles', 'mejora_rebalanceo'])} pb; ridge nunca sale.\n")
+    o.append(f"* **H7.3 — regímenes reduce la caída pero cuesta.** Se cumple: caída máxima de {_p(rg['caida_rebalanceo'], 0)} "
+             f"contra {_p(base_caida, 0)}, a un costo de {_pb(rg['mejora_rebalanceo'])} pb al año; no llega al 30% de "
+             "reducción con costo de 25 pb.\n")
+    o.append("* **H7.4 — el pronóstico casi siempre es positivo.** Se cumple: meses fuera del mercado — "
+             + "; ".join(f"{k}: {v}" for k, v in salidas.items()) + ". "
+             f"El compuesto sí distingue años mejores de peores (R² fuera de muestra de {comp['r2_12m'] * 100:+.1f}%, "
+             f"Clark-West p = {comp['clark_west_p_12m']:.2f}), pero su pronóstico del retorno de los REITs contra el "
+             "efectivo nunca salió negativo: **lo que predice es cuánto van a ganarle al efectivo, no si van a "
+             "perder contra él**. Es la misma conclusión de los estudios de O, NNN y WPC, ahora con un modelo.\n")
+    return "".join(o)

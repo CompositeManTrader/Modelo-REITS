@@ -139,3 +139,18 @@ momento,fase,familia,prueba,muestra,parametros,metrica,valor,commit
 2026-10-06T04:51:28+00:00,5,tendencia,momentum contra el efectivo | signo,desarrollo,{},mejora_rebalanceo,0.000227,4f3303e
 2026-10-06T04:51:28+00:00,5,combinada,caro y con tendencia negativa | fuera si caro y a la baja,desarrollo,{},mejora_rebalanceo,-0.001146,4f3303e
 2026-10-06T04:51:29+00:00,5,combinada,compuesto de cuatro familias | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-2.9e-05,4f3303e
+2026-10-06T14:53:31+00:00,5,fase7,mejor señal sola | dentro si el pronóstico es positivo,desarrollo,{},mejora_rebalanceo,-0.003452,0164e38
+2026-10-06T14:53:31+00:00,5,fase7,compuesto | dentro si el pronóstico es positivo,desarrollo,{},mejora_rebalanceo,-0.0,0164e38
+2026-10-06T14:53:31+00:00,5,fase7,ridge | dentro si el pronóstico es positivo,desarrollo,{},mejora_rebalanceo,-0.0,0164e38
+2026-10-06T14:53:31+00:00,5,fase7,árboles | dentro si el pronóstico es positivo,desarrollo,{},mejora_rebalanceo,-0.039323,0164e38
+2026-10-06T14:53:32+00:00,5,fase7,regímenes | dentro si el pronóstico es positivo,desarrollo,{},mejora_rebalanceo,-0.021148,0164e38
+2026-10-06T14:54:23+00:00,5,fase7,mejor señal sola | dentro si el pronóstico es positivo,desarrollo,{},mejora_rebalanceo,-0.003452,0164e38
+2026-10-06T14:54:24+00:00,5,fase7,compuesto | dentro si el pronóstico es positivo,desarrollo,{},mejora_rebalanceo,-0.0,0164e38
+2026-10-06T14:54:24+00:00,5,fase7,ridge | dentro si el pronóstico es positivo,desarrollo,{},mejora_rebalanceo,-0.0,0164e38
+2026-10-06T14:54:24+00:00,5,fase7,árboles | dentro si el pronóstico es positivo,desarrollo,{},mejora_rebalanceo,-0.039323,0164e38
+2026-10-06T14:54:24+00:00,5,fase7,regímenes | dentro si el pronóstico es positivo,desarrollo,{},mejora_rebalanceo,-0.021766,0164e38
+2026-10-06T14:55:38+00:00,5,fase7,mejor señal sola | dentro si el pronóstico es positivo,desarrollo,{},mejora_rebalanceo,-0.003452,0164e38
+2026-10-06T14:55:38+00:00,5,fase7,compuesto | dentro si el pronóstico es positivo,desarrollo,{},mejora_rebalanceo,-0.0,0164e38
+2026-10-06T14:55:38+00:00,5,fase7,ridge | dentro si el pronóstico es positivo,desarrollo,{},mejora_rebalanceo,-0.0,0164e38
+2026-10-06T14:55:39+00:00,5,fase7,árboles | dentro si el pronóstico es positivo,desarrollo,{},mejora_rebalanceo,-0.039323,0164e38
+2026-10-06T14:55:39+00:00,5,fase7,regímenes | dentro si el pronóstico es positivo,desarrollo,{},mejora_rebalanceo,-0.021699,0164e38

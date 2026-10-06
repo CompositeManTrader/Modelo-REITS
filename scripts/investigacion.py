@@ -7,6 +7,7 @@
     python scripts/investigacion.py sellar     # mercados de la prueba final: se bajan y se sellan
     python scripts/investigacion.py exploracion  # fase 3: informe de la muestra de desarrollo
     python scripts/investigacion.py fase5      # fase 5: el catálogo pre-registrado de señales de entrada
+    python scripts/investigacion.py fase7      # fase 7: la escalera de modelos
 
 Solo estos comandos tocan la red. La página de Nareit pide un navegador real: Chromium
 necesita las autoridades del sistema en su almacén de certificados. En un contenedor
@@ -92,11 +93,21 @@ def cmd_fase5() -> int:
     return 0
 
 
+def cmd_fase7() -> int:
+    from src.investigacion import fase7
+
+    r = fase7.correr_desarrollo()
+    destino = RAIZ / "docs" / "investigacion" / "fase7_resultados.md"
+    destino.write_text(fase7.informe(r), encoding="utf-8")
+    print(f"{destino.relative_to(RAIZ)}: candidato {r.candidato or 'ninguno'}")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("comando", choices=["sector", "macro", "factores", "sellar", "exploracion", "fase5"])
+    p.add_argument("comando", choices=["sector", "macro", "factores", "sellar", "exploracion", "fase5", "fase7"])
     return {"sector": cmd_sector, "macro": cmd_macro, "factores": cmd_factores, "sellar": cmd_sellar,
-            "exploracion": cmd_exploracion, "fase5": cmd_fase5}[p.parse_args().comando]()
+            "exploracion": cmd_exploracion, "fase5": cmd_fase5, "fase7": cmd_fase7}[p.parse_args().comando]()
 
 
 if __name__ == "__main__":
