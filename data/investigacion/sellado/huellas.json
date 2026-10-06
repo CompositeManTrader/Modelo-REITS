@@ -39,6 +39,11 @@
     "renglones": 1708,
     "sha256": "9b3a432061b46d25a1461d0503885a3ad837cc7d0ea5d57adc60ab74b417bdf3"
   },
+  "emisores_eeuu": {
+    "fuente": "SEC: 13F, XBRL y submissions; emisores sellados de la fase 6",
+    "renglones": 5268,
+    "sha256": "14a454b87dad0a50f2be82e3aba8938fc356589b84bcc586176bc83ea548866c"
+  },
   "europa_continental_dividendos": {
     "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
     "renglones": 373,

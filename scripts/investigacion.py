@@ -5,8 +5,10 @@
     python scripts/investigacion.py macro      # series de FRED, con su rezago de publicación
     python scripts/investigacion.py factores   # factores de Kenneth French y datos de Shiller
     python scripts/investigacion.py sellar     # mercados de la prueba final: se bajan y se sellan
+    python scripts/investigacion.py emisores   # fase 6: todos los REITs de EE. UU. con la SEC (pide SEC_USER_AGENT)
     python scripts/investigacion.py exploracion  # fase 3: informe de la muestra de desarrollo
     python scripts/investigacion.py fase5      # fase 5: el catálogo pre-registrado de señales de entrada
+    python scripts/investigacion.py fase6      # fase 6: en cuáles REITs (abre la validación y, si toca, los sellados)
     python scripts/investigacion.py fase7      # fase 7: la escalera de modelos
     python scripts/investigacion.py fase8      # fase 8: la prueba final (abre los mercados sellados)
     python scripts/investigacion.py pdf        # el informe en PDF, con los resultados guardados
@@ -72,6 +74,53 @@ def cmd_sellar() -> int:
     return 0
 
 
+def cmd_emisores() -> int:
+    """Universo, precios de los 13F y estados de XBRL. La identificación ante la SEC viene de la
+    variable de entorno SEC_USER_AGENT y no se escribe en ningún archivo."""
+    import datetime as dt
+
+    import pandas as pd
+    import requests
+
+    from src.config import SEC_USER_AGENT
+    from src.ingesta.edgar import ClienteEdgar
+    from src.investigacion import emisores, sec
+
+    cliente = ClienteEdgar(SEC_USER_AGENT)
+    sesion = requests.Session()
+    sesion.headers["User-Agent"] = SEC_USER_AGENT
+    d = emisores.bajar(cliente, sesion)
+    tickers = cliente.obtener_json("https://www.sec.gov/files/company_tickers.json")
+    etiquetas = emisores.etiquetas_actuales({v["ticker"]: str(v["cik_str"]).zfill(10) for v in tickers.values()})
+    manual = pd.read_csv(emisores.DIR_EMISORES / "clasificacion_manual.csv", dtype={"cik": str})
+    panel, ficha = emisores.armar(d["resumen"], d["fts"], d["agregado"], d["series"], d["dividendos"], etiquetas,
+                                  manual)
+    yahoo = pd.read_csv(RAIZ / "data" / "estudios" / "universo" / "precios_mensuales.csv.gz", parse_dates=["fecha"])
+    manifiesto = {
+        "descargado_en": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
+        "fuentes": {
+            "universo": "EDGAR: empresas con SIC 6798 y búsqueda de texto completo de 10-K de 2009 a 2026 "
+                        f"({', '.join(sec.FRASES_REIT)})",
+            "cusip": "Portadas de los 13G y 13D presentados sobre cada emisor (dígito verificador)",
+            "precios": "Formulario 13F: conjuntos estructurados de la SEC desde 2013 y 13F en texto de "
+                       f"{len(emisores.GESTORES_13F_TEXTO)} administradores de 2009 a 2013",
+            "estados": "XBRL companyfacts de la SEC, primera versión publicada de cada periodo",
+            "etiquetas_de_clase": "Estudio del universo (stockanalysis) para los que cotizan hoy; "
+                                  "clasificacion_manual.csv para los dudosos",
+        },
+        "emisores": {"candidatos": int(len(ficha)), "con_precio": int(ficha["con_precio"].sum()),
+                     "clase_final": ficha["clase_final"].value_counts().to_dict()},
+        "trimestres": [f"{panel['fecha'].min():%Y-%m-%d}", f"{panel['fecha'].max():%Y-%m-%d}"],
+        "validacion_contra_yahoo": emisores.validar_contra_yahoo(panel, ficha, etiquetas, yahoo),
+        "validacion_ffo": emisores.validar_ffo(d["series"]),
+    }
+    destino = emisores.guardar(panel, ficha, manifiesto)
+    print(f"{destino.relative_to(RAIZ)}: {manifiesto['emisores']}")
+    print(manifiesto["validacion_contra_yahoo"])
+    print(manifiesto["validacion_ffo"])
+    return 0
+
+
 def cmd_exploracion() -> int:
     from src.investigacion import exploracion, resultados
 
@@ -96,6 +145,22 @@ def cmd_fase5() -> int:
     destino.write_text(texto, encoding="utf-8")
     resultados.guardar_fase5(r)
     print(f"{destino.relative_to(RAIZ)}: {int(r.desarrollo['pasa'].sum())} reglas pasan el filtro")
+    return 0
+
+
+def cmd_fase6() -> int:
+    from src.investigacion import emisores, fase6, resultados
+
+    panel, _ = emisores.cargar()
+    r = fase6.correr(panel)
+    resultados.guardar_fase6(r)
+    destino = RAIZ / "docs" / "investigacion" / "fase6_resultados.md"
+    destino.write_text(fase6.informe(r), encoding="utf-8")
+    print(destino.relative_to(RAIZ))
+    print(f"desarrollo: {int(r.desarrollo['pasa'].sum())} de {len(r.desarrollo)} pasan; candidatas {r.candidatas}")
+    print(f"validación: {r.validacion[['regla', 'mejora', 'pasa']].to_dict('records')}")
+    print(f"detector: {r.recortes}")
+    print(f"veredicto: {r.veredicto}")
     return 0
 
 
@@ -136,9 +201,11 @@ def cmd_pdf() -> int:
 
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("comando", choices=["sector", "macro", "factores", "sellar", "exploracion", "fase5", "fase7", "fase8", "pdf"])
+    p.add_argument("comando", choices=["sector", "macro", "factores", "sellar", "emisores", "exploracion", "fase5",
+                                       "fase6", "fase7", "fase8", "pdf"])
     return {"sector": cmd_sector, "macro": cmd_macro, "factores": cmd_factores, "sellar": cmd_sellar,
-            "exploracion": cmd_exploracion, "fase5": cmd_fase5, "fase7": cmd_fase7,
+            "emisores": cmd_emisores,
+            "exploracion": cmd_exploracion, "fase5": cmd_fase5, "fase6": cmd_fase6, "fase7": cmd_fase7,
             "fase8": cmd_fase8, "pdf": cmd_pdf}[p.parse_args().comando]()
 
 

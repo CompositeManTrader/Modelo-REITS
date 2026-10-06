@@ -1,0 +1,54 @@
+{
+  "descargado_en": "2026-10-06T17:45:37+00:00",
+  "fuentes": {
+    "universo": "EDGAR: empresas con SIC 6798 y búsqueda de texto completo de 10-K de 2009 a 2026 (\"qualify as a REIT\", \"qualified as a REIT\", \"elected to be taxed as a REIT\", \"taxed as a REIT\", \"qualify as a real estate investment trust\", \"taxed as a real estate investment trust\")",
+    "cusip": "Portadas de los 13G y 13D presentados sobre cada emisor (dígito verificador)",
+    "precios": "Formulario 13F: conjuntos estructurados de la SEC desde 2013 y 13F en texto de 32 administradores de 2009 a 2013",
+    "estados": "XBRL companyfacts de la SEC, primera versión publicada de cada periodo",
+    "etiquetas_de_clase": "Estudio del universo (stockanalysis) para los que cotizan hoy; clasificacion_manual.csv para los dudosos"
+  },
+  "emisores": {
+    "candidatos": 621,
+    "con_precio": 389,
+    "clase_final": {
+      "capital": 303,
+      "otro": 99,
+      "hipotecario": 42
+    }
+  },
+  "trimestres": [
+    "2008-12-31",
+    "2026-06-30"
+  ],
+  "validacion_contra_yahoo": {
+    "trimestres": 5529,
+    "emisores": 101,
+    "correlacion": 0.8861,
+    "diferencia_mediana_absoluta": 0.00036,
+    "fraccion_a_mas_de_2_puntos": 0.0324,
+    "fraccion_a_mas_de_10_puntos": 0.0094,
+    "diferencia_media_anual": -0.00461,
+    "diferencia_mediana_absoluta_anual": 0.00113
+  },
+  "validacion_ffo": {
+    "O": {
+      "periodos": 19,
+      "error_mediano": 0.0012,
+      "error_absoluto_maximo": 0.0243
+    },
+    "NNN": {
+      "periodos": 19,
+      "error_mediano": 0.0007,
+      "error_absoluto_maximo": 0.0011
+    },
+    "WPC": {
+      "periodos": 14,
+      "error_mediano": -0.0041,
+      "error_absoluto_maximo": 0.0351
+    }
+  },
+  "renglones_abiertos": 11791,
+  "renglones_sellados": 5268,
+  "emisores_abiertos": 266,
+  "emisores_sellados": 202
+}

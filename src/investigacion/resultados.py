@@ -62,12 +62,23 @@ def guardar_fase8(r, *, raiz: Path | None = None) -> None:
           d / "resumen.json")
 
 
+def guardar_fase6(r, *, raiz: Path | None = None) -> None:
+    d = (raiz or DIR_RESULTADOS) / "fase6"
+    _csv(r.desarrollo, d / "desarrollo.csv")
+    _csv(r.validacion, d / "validacion.csv")
+    if len(r.final):
+        _csv(r.final, d / "final.csv")
+    _json({"pbo": r.pbo, "sharpe_deflactado": r.sharpe_deflactado, "mejor": r.mejor, "intentos": r.intentos,
+           "candidatas": r.candidatas, "detector": r.recortes, "despues_del_recorte": r.despues_del_recorte,
+           "veredicto": r.veredicto}, d / "resumen.json")
+
+
 def cargar(raiz: Path | None = None) -> dict:
     """Todo lo guardado; una fase que falta, simplemente no está en el diccionario."""
     base = raiz or DIR_RESULTADOS
     salida: dict = {}
     fechas = {"desde", "hasta", "maximo", "minimo", "recuperado", "fecha"}
-    for fase in ("fase3", "fase5", "fase7", "fase8"):
+    for fase in ("fase3", "fase5", "fase6", "fase7", "fase8"):
         d = base / fase
         if not d.exists():
             continue
