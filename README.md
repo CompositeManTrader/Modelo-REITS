@@ -598,6 +598,37 @@ La lección: la valuación sirve para escoger **entre** REITs que ya pasaron un 
 calidad —la Puerta 1—, no para escoger en todo el mercado. La regla de aportar siempre y
 mandar el dinero del mes al más barato de los REITs de calidad sigue en pie.
 
+## Investigación: ¿cuándo entrar a los REITs?
+
+Una investigación pre-registrada, en fases, con su propio plan, datos y bitácora de cada
+prueba (`docs/investigacion/`, `src/investigacion/`, `data/investigacion/`):
+
+```bash
+python scripts/investigacion.py sector       # Nareit desde 1972 y los fondos que lo validan
+python scripts/investigacion.py macro        # 29 series de FRED con su rezago de publicación
+python scripts/investigacion.py factores     # Kenneth French y Shiller
+python scripts/investigacion.py sellar       # mercados de la prueba final, sellados sin mirarlos
+python scripts/investigacion.py exploracion  # fase 3
+python scripts/investigacion.py fase5        # señales de entrada pre-registradas
+python scripts/investigacion.py fase7        # escalera de modelos
+python scripts/investigacion.py fase8        # prueba final (abre los mercados sellados)
+```
+
+Cómo se evita encontrar patrones que solo existen en los datos con que se buscaron: los datos
+se partieron antes de verlos —desarrollo hasta 2015, validación desde 2016, y una prueba final
+con ocho mercados de otros países sellados con su huella digital— y el código no deja abrir
+lo que el diseño todavía no permite; cada hipótesis, señal y criterio se guardó en un commit
+antes de correrla; cada prueba queda en una bitácora cuyo conteo usan el Sharpe deflactado y
+la probabilidad de sobreajuste.
+
+**Resultado (`docs/investigacion/RESUMEN.md`): no se encontró una manera eficiente de decidir
+cuándo estar en REITs y cuándo en efectivo.** Ninguna de 22 reglas ni de 5 modelos (hasta
+árboles y regímenes de Markov) le ganó a aportar siempre de forma robusta con impuestos del
+SIC y comisiones. Decidiendo solo el dinero nuevo, ni un oráculo pasa de +79 pb al año. La
+protección por tendencia reduce las caídas un tercio, pero en la prueba final costó 127 pb al
+año en ocho mercados y 490 pb en EE. UU. desde 2016. Pendiente: la parte de en cuáles REITs,
+que necesita los estados financieros del universo desde la SEC.
+
 ## El semáforo: tres puertas, por separado
 
 No es una caja negra. Cada puerta responde una pregunta distinta y se muestra sola.
