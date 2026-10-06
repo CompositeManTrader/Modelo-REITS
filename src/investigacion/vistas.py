@@ -28,6 +28,9 @@ COLUMNAS: dict[str, tuple[str, ...]] = {
     "prueba_final": ("mercado", "serie", "periodo", "tir_aportando_siempre", "tendencia_contra_aportar_bps",
                      "caida_aportando_siempre", "caida_con_tendencia", "reduccion_de_caida_pct", "exposicion_pct",
                      "con_un_mes_de_retraso_bps", "cumple"),
+    "seleccion": ("regla", "hipotesis", "desarrollo_bps", "con_un_trimestre_de_retraso_bps", "exceso_bruto_pct",
+                  "recortes_regla_pct", "recortes_universo_pct", "escogidos", "pasa_desarrollo", "validacion_bps",
+                  "prueba_final_bps"),
 }
 
 
@@ -130,5 +133,34 @@ def prueba_final(res: dict) -> pd.DataFrame:
     return _con(d, "prueba_final")
 
 
+def seleccion(res: dict) -> pd.DataFrame:
+    """Las reglas de la fase 6: desarrollo, y lo que siguió en validación y en los sellados."""
+    from src.investigacion.fase6 import DETECTOR, NOMBRES
+
+    f6 = res["fase6"]
+    d = f6["desarrollo"].sort_values("mejora", ascending=False)
+    v = f6["validacion"].set_index("regla")["mejora"]
+    fin = f6["final"].set_index("regla")["mejora"] if "final" in f6 else pd.Series(dtype=float)
+    det = f6["validacion"][f6["validacion"]["regla"] == DETECTOR]
+    filas = pd.DataFrame({
+        "regla": d["regla"].map(lambda r: NOMBRES.get(r, r)), "hipotesis": d["hipotesis"],
+        "desarrollo_bps": _bps(d["mejora"]), "con_un_trimestre_de_retraso_bps": _bps(d["mejora_con_rezago"]),
+        "exceso_bruto_pct": d["exceso_anual"].to_numpy(), "recortes_regla_pct": d["recortes"].to_numpy(),
+        "recortes_universo_pct": d["recortes_todos"].to_numpy(), "escogidos": d["escogidos_promedio"].round().astype(int),
+        "pasa_desarrollo": np.where(d["pasa"].astype(bool), "sí", "no"),
+        "validacion_bps": _bps(d["regla"].map(v)), "prueba_final_bps": _bps(d["regla"].map(fin))})
+    if len(det):
+        f = det.iloc[0]
+        filas = pd.concat([filas, pd.DataFrame([{
+            "regla": NOMBRES[DETECTOR], "hipotesis": "D1", "desarrollo_bps": pd.NA, "con_un_trimestre_de_retraso_bps": pd.NA,
+            "exceso_bruto_pct": np.nan, "recortes_regla_pct": f["recortes"], "recortes_universo_pct": f["recortes_todos"],
+            "escogidos": int(round(f["escogidos_promedio"])), "pasa_desarrollo": "—",
+            "validacion_bps": int(round(f["mejora"] * 1e4)), "prueba_final_bps": pd.NA}])], ignore_index=True)
+        for c in ("desarrollo_bps", "con_un_trimestre_de_retraso_bps", "validacion_bps", "prueba_final_bps"):
+            filas[c] = filas[c].astype("Int64")
+    return _con(filas, "seleccion")
+
+
 VISTAS = {"fases": fases, "descomposicion": descomposicion, "caidas": caidas, "frecuencia": frecuencia,
-          "techo": techo, "reglas": reglas, "escalera": escalera, "prueba_final": prueba_final}
+          "techo": techo, "reglas": reglas, "escalera": escalera, "prueba_final": prueba_final,
+          "seleccion": seleccion}

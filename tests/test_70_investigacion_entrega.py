@@ -57,16 +57,21 @@ def test_las_vistas_ponen_cada_fraccion_en_porcentaje(res):
 @requiere
 def test_las_conclusiones_estan_completas_y_cuadran_con_los_resultados(res):
     c = conclusiones.conclusiones(res)
+    seleccion = (["Tampoco hay una regla para escoger en cuáles", "Lo barato es trampa, aun entre los de calidad"]
+                 if "fase6" in res else [])
     assert [x.titulo for x in c] == [
         "No hay una señal que diga cuándo entrar", "Esperar no paga",
         "Decidiendo solo el dinero nuevo, el timing casi no puede valer nada",
-        "La protección contra caídas existe, pero se paga", "Qué hacer", "Qué tanto se le puede creer"]
+        "La protección contra caídas existe, pero se paga", *seleccion, "Qué hacer", "Qué tanto se le puede creer"]
     for x in c:
         assert not re.search(r"\bnan\b|—(?: pb|%)", x.texto), x.texto
     # La cifra de la prueba final que dice el texto es la que está guardada.
     costo = round(-res["fase8"]["resumen"]["conjunto"]["mejora"] * 1e4)
     assert f"costó {costo:,d} pb al año" in c[3].texto
-    assert str(bitacora.intentos()) in c[5].texto
+    assert str(bitacora.intentos()) in c[-1].texto
+    if "fase6" in res:
+        final = round(res["fase6"]["final"]["mejora"].iloc[0] * 1e4)
+        assert f"ganó {final:+,d} pb al año" in c[4].texto
 
 
 @requiere
@@ -83,7 +88,7 @@ def test_el_pdf_trae_todas_sus_secciones(res):
     h = html_de_investigacion(res, fuentes_css="")
     texto = re.sub(r"<[^>]+>", " ", re.sub(r"<(script|style)>.*?</\1>", "", h, flags=re.S))
     for seccion in ("Lo que se encontró", "Cómo se hizo", "1. El techo", "2. Las señales de entrada",
-                    "3. La escalera de modelos", "4. La prueba final", "Lo que falta"):
+                    "3. La escalera de modelos", "4. La prueba final", "5. En cuáles REITs", "Lo que queda"):
         assert seccion in texto, seccion
     assert not re.search(r"\bnan\b", texto, re.I)
     assert res["fase8"]["resumen"]["veredicto"] in texto
@@ -92,7 +97,7 @@ def test_el_pdf_trae_todas_sus_secciones(res):
 def test_la_pagina_no_abre_la_prueba_final():
     """La pantalla solo lee resultados: abrir los sellados queda en la bitácora y no debe pasar al visitarla."""
     codigo = (RAIZ / "app" / "pages" / "11_Investigacion.py").read_text(encoding="utf-8")
-    for prohibido in ("abrir_sellado", "fase8.correr", "Muestra.VALIDACION", "sellar_mercados"):
+    for prohibido in ("abrir_sellado", "fase8.correr", "fase6.correr", "Muestra.VALIDACION", "sellar_mercados"):
         assert prohibido not in codigo, prohibido
     assert "resultados.cargar" in codigo
 

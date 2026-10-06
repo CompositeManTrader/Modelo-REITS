@@ -1,4 +1,4 @@
-"""¿Cuándo entrar a los REITs? La investigación pre-registrada (``docs/investigacion/``).
+"""¿Cuándo entrar a los REITs y en cuáles? La investigación pre-registrada (``docs/investigacion/``).
 
 Lee los resultados guardados en ``data/investigacion/resultados``: no recalcula ni abre los
 mercados sellados de la prueba final, que se abren una sola vez desde
@@ -28,11 +28,11 @@ PDF = RAIZ / "docs" / "investigacion" / "investigacion_cuando_entrar.pdf"
 configurar("Investigación", "🔬")
 inyectar_estilos()
 encabezado("Investigación")
-st.title("¿Cuándo entrar a los REITs?")
+st.title("¿Cuándo entrar a los REITs y en cuáles?")
 
 if not resultados.hay_resultados():
     st.error("No están guardados los resultados. Corre `python scripts/investigacion.py exploracion`, `fase5`, "
-             "`fase7` y `fase8`.")
+             "`fase7`, `fase8` y, con la identificación ante la SEC, `emisores` y `fase6`.")
     st.stop()
 
 
@@ -102,6 +102,19 @@ grafica("tendencia_eeuu")
 st.caption("El índice de REITs de EE. UU. desde 1972; en gris, los meses en que la tendencia estaba en efectivo.")
 mostrar_tabla(vistas.prueba_final(res), fijar_primera=True)
 
+if "fase6" in res:
+    st.header("5. En cuáles REITs")
+    st.markdown("Todos los REITs de capital de EE. UU. desde 2011, **incluidos los que quebraron o fueron comprados** "
+                "(precios de los formularios 13F de la SEC y estados financieros de XBRL conocidos a su fecha). Cada "
+                "trimestre, cada regla escoge a un tercio de los elegibles y la aportación va a ellos, sin vender "
+                "nunca, contra repartirla entre todos. Un tercio de los emisores se selló sin mirarlo para la prueba "
+                "final.")
+    grafica("seleccion")
+    st.caption("Cada regla en desarrollo (2011-2015) y las que siguieron, en validación (2016-2026) y en los emisores "
+               "sellados. La línea roja es el criterio de +50 pb. «Recortes»: fracción que recortó el dividendo o "
+               "quebró en el año siguiente.")
+    mostrar_tabla(vistas.seleccion(res), fijar_primera=True)
+
 with st.expander("Cómo se hizo"):
     st.markdown(
         "* **Plan y reglas del juego** (`docs/investigacion/PLAN.md`): objetivo, muestras y criterios de éxito, "
@@ -112,7 +125,9 @@ with st.expander("Cómo se hizo"):
         "Sharpe deflactado y la probabilidad de sobreajuste usan ese conteo.\n"
         "* **La literatura** (`docs/investigacion/literatura.md`): 99 fuentes con la evidencia a favor y en contra.\n"
         "* **Los resultados de cada fase**: `docs/investigacion/fase3_exploracion.md`, `fase5_resultados.md`, "
-        "`fase7_resultados.md` y `fase8_resultados.md`."
+        "`fase7_resultados.md`, `fase8_resultados.md` y `fase6_resultados.md` (con la corrección declarada).\n"
+        "* **Los datos de la SEC** (`data/investigacion/emisores/`): el universo, el panel y su validación contra "
+        "Yahoo y contra el FFO publicado; los emisores sellados, con su huella digital."
     )
 
 descargo()

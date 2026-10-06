@@ -1,4 +1,4 @@
-"""La investigación sobre cuándo entrar a los REITs, en PDF.
+"""La investigación sobre cuándo entrar a los REITs y en cuáles, en PDF.
 
 Mismo papel, tipografía y tablas que los otros estudios (``pdf_estudio``). Las cifras salen
 de los resultados guardados (``investigacion.resultados``), las conclusiones de
@@ -28,7 +28,7 @@ from src.export.pdf_metodos import Figuras, _tabla_vista
 from src.investigacion import conclusiones, vistas
 from src.investigacion import graficas as gi
 
-TITULO = "¿Cuándo entrar a los REITs?"
+TITULO = "¿Cuándo entrar a los REITs y en cuáles?"
 
 
 def _pb(v) -> str:
@@ -66,10 +66,12 @@ def _portada(res: dict) -> str:
       <div style='flex-grow:1;display:flex;flex-direction:column;justify-content:center'>
         <div class='rotulo'>Investigación pre-registrada · REITs de EE. UU. desde 1972 y ocho mercados más</div>
         <h1>{_e(TITULO)}</h1>
-        <p style='font-size:12.5pt;max-width:150mm'>La pregunta: ¿existe una manera eficiente de saber cuándo
-        estar en REITs y cuándo en efectivo? La respuesta, después de 22 reglas, 5 modelos y una prueba final en
-        ocho mercados que nunca se habían visto: <b>no se encontró</b>. Aportar siempre le ganó a todo lo que se
-        probó, con los impuestos y las comisiones de un inversionista mexicano por el SIC.</p>
+        <p style='font-size:12.5pt;max-width:150mm'>Las preguntas: ¿existe una manera eficiente de saber cuándo
+        estar en REITs y cuándo en efectivo, y en cuáles REITs poner el dinero? La respuesta, después de 22 reglas
+        de entrada, 5 modelos, 16 reglas de selección con todos los REITs de EE. UU. desde 2011 —incluidos los que
+        desaparecieron— y pruebas finales con datos que nunca se habían visto: <b>no se encontró</b>. Aportar
+        siempre y repartir entre todos le ganó a todo lo que se probó, con los impuestos y las comisiones de un
+        inversionista mexicano por el SIC.</p>
         {tabla(filas, ["Fase", "Qué", "Detalle", "Resultado"], alinear="llll")}
       </div>
       <div class='gris chico'>Generado el {dt.date.today():%d-%m-%Y}. Herramienta de análisis, no asesoría de
@@ -190,16 +192,36 @@ def _prueba_final(res: dict, fig: Figuras) -> str:
               "de los REITs que cotizan hoy.</p>")
 
 
+def _seleccion(res: dict, fig: Figuras) -> str:
+    if "fase6" not in res:
+        return ""
+    r = res["fase6"]["resumen"]
+    return (f"<h2 class='salto'>5. En cuáles REITs (fase 6) — {_e(r['veredicto'])}</h2>"
+            "<p>Todos los REITs de capital de EE. UU., los que siguen y los que quebraron o fueron comprados: 621 "
+            "candidatos de la SEC, precios trimestrales de los formularios 13F y estados financieros de XBRL "
+            "conocidos a su fecha. Un tercio de los emisores se selló sin mirarlo para la prueba final. Cada "
+            "trimestre, cada regla escoge a un tercio de los elegibles y la aportación va a ellos, sin vender nunca, "
+            "contra repartirla entre todos.</p>"
+            + fig(gi.seleccion, res, pie="Cada regla en desarrollo (2011-2015) y las que siguieron, en validación "
+                  "(2016-2026) y en los emisores sellados. La línea roja es el criterio de +50 pb.")
+            + _tabla_vista(vistas.seleccion(res), ["Regla", "Hip.", "Desarrollo (pb)", "Con retraso (pb)",
+                                                    "Exceso bruto", "Recortes (regla)", "Recortes (todos)",
+                                                    "Escogidos", "Pasa", "Validación (pb)", "Prueba final (pb)"],
+                           [None, None, _pb, _pb, _p1, _p0, _p0, None, None, _pb, _pb])
+            + f"<p class='chico gris'>Detector de recortes: AUC fuera de muestra {r['detector']['auc']:.2f}. La "
+              "primera corrida tuvo dos errores de programación (exceso bruto en periodos distintos y aportación en "
+              "efectivo cuando la regla no escoge a nadie); se corrigieron, se declaran en "
+              "docs/investigacion/fase6_resultados.md y el veredicto no cambió. Los sellados se abrieron una vez.</p>")
+
+
 def _pendiente() -> str:
-    return ("<h2 class='salto'>Lo que falta</h2>"
-            "<p><b>En cuáles REITs (fase 6).</b> Es la pregunta donde la literatura sí encuentra señales con "
-            "evidencia media —calidad del balance, menor riesgo de quiebra, momentum— y donde los estudios de este "
-            "proyecto ya vieron que la valuación sirve para escoger entre REITs de calidad. Necesita los estados "
-            "financieros de todo el universo, incluidos los que desaparecieron, que la SEC entrega con la "
-            "identificación del inversionista.</p>"
+    return ("<h2 class='salto'>Lo que queda</h2>"
+            "<p><b>Seguimiento en vivo.</b> El plan lo pedía para la regla que resultara; como ninguna pasó, no hay "
+            "regla que vigilar. Lo que sí conviene revisar cada año es que nada de esto cambie: la bitácora y los "
+            "comandos permiten repetir cada fase con datos nuevos.</p>"
             "<p class='chico gris'>Código: src/investigacion/. Datos y bitácora: data/investigacion/. Documentos de "
             "cada fase: docs/investigacion/. Para regenerar: python scripts/investigacion.py exploracion, fase5, "
-            "fase7, fase8 y pdf.</p>")
+            "fase7, fase8, emisores, fase6 y pdf.</p>")
 
 
 def html_de_investigacion(res: dict, *, fuentes_css: str | None = None) -> str:
@@ -207,7 +229,7 @@ def html_de_investigacion(res: dict, *, fuentes_css: str | None = None) -> str:
 
     fig = Figuras()     # llama a cada gráfica con el tema claro del impreso
     cuerpo = (_portada(res) + _conclusiones(res) + _metodo() + _techo(res, fig) + _senales(res, fig)
-              + _escalera(res, fig) + _prueba_final(res, fig) + _pendiente())
+              + _escalera(res, fig) + _prueba_final(res, fig) + _seleccion(res, fig) + _pendiente())
     css = _css(css_de_fuentes() if fuentes_css is None else fuentes_css)
     return ("<!doctype html><html lang='es'><head><meta charset='utf-8'>"
             f"<title>{_e(TITULO)}</title><style>{css}</style>"

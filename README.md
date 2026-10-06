@@ -598,7 +598,7 @@ La lección: la valuación sirve para escoger **entre** REITs que ya pasaron un 
 calidad —la Puerta 1—, no para escoger en todo el mercado. La regla de aportar siempre y
 mandar el dinero del mes al más barato de los REITs de calidad sigue en pie.
 
-## Investigación: ¿cuándo entrar a los REITs?
+## Investigación: ¿cuándo entrar a los REITs y en cuáles?
 
 Una investigación pre-registrada, en fases, con su propio plan, datos y bitácora de cada
 prueba (`docs/investigacion/`, `src/investigacion/`, `data/investigacion/`):
@@ -612,6 +612,8 @@ python scripts/investigacion.py exploracion  # fase 3
 python scripts/investigacion.py fase5        # señales de entrada pre-registradas
 python scripts/investigacion.py fase7        # escalera de modelos
 python scripts/investigacion.py fase8        # prueba final (abre los mercados sellados)
+python scripts/investigacion.py emisores     # todos los REITs de EE. UU. con la SEC (pide SEC_USER_AGENT)
+python scripts/investigacion.py fase6        # en cuáles REITs (abre los emisores sellados una vez)
 python scripts/investigacion.py pdf          # docs/investigacion/investigacion_cuando_entrar.pdf
 ```
 
@@ -631,8 +633,15 @@ cuándo estar en REITs y cuándo en efectivo.** Ninguna de 22 reglas ni de 5 mod
 árboles y regímenes de Markov) le ganó a aportar siempre de forma robusta con impuestos del
 SIC y comisiones. Decidiendo solo el dinero nuevo, ni un oráculo pasa de +79 pb al año. La
 protección por tendencia reduce las caídas un tercio, pero en la prueba final costó 127 pb al
-año en ocho mercados y 490 pb en EE. UU. desde 2016. Pendiente: la parte de en cuáles REITs,
-que necesita los estados financieros del universo desde la SEC.
+año en ocho mercados y 490 pb en EE. UU. desde 2016.
+
+**En cuáles REITs (fase 6): tampoco se encontró una regla que le gane a repartir entre todos.**
+Con todos los REITs de capital de EE. UU. desde 2011, incluidos los que quebraron o fueron
+comprados (precios de los 13F y estados financieros XBRL de la SEC), ninguna de 16 reglas de
+selección pasó: la única que llegó a la prueba final, momentum, ganó +38 pb al año en los
+emisores sellados, debajo del criterio de +50. El yield alto y lo «barato» concentran los
+recortes de dividendo; un detector de recortes acierta (AUC 0.75), pero esquivarlos no paga
+porque los que recortan rebotan el año siguiente.
 
 ## El semáforo: tres puertas, por separado
 
