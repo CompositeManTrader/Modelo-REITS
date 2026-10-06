@@ -39,6 +39,11 @@ reduce las caídas, pero fuera de la muestra en que se escogió cuesta de 1 a 5 
 
 * **Fase 6 (en cuáles REITs)**: necesita los estados financieros del universo completo, que
   la SEC solo entrega con un `SEC_USER_AGENT` configurado por el inversionista.
-* **Fase 9 (entrega)**: página, PDF y seguimiento. Con un resultado negativo en la pregunta 1,
-  la entrega es el informe de la investigación; la regla de seguimiento en vivo aplica solo si
-  la fase 6 encuentra algo.
+* **Seguimiento en vivo**: aplica solo si la fase 6 encuentra algo; con un resultado negativo
+  en la pregunta 1 no hay regla de entrada que vigilar.
+
+## La entrega (fase 9)
+
+La página **Investigación** de la aplicación y el informe
+`investigacion_cuando_entrar.pdf`, generados con los resultados guardados en
+`data/investigacion/resultados/`.

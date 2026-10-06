@@ -262,6 +262,12 @@ def techo(x: pd.DataFrame) -> Techo:
 # El informe de la fase 3
 # --------------------------------------------------------------------------------------
 
+# Los indicadores que se exploraron en la fase 3. Los que se agregaron después (fase 4) no
+# entran a este informe, para que volver a generarlo dé el mismo documento.
+INDICADORES_FASE3 = ("yield_reit", "treasury_10a", "spread_10a", "baa", "spread_baa", "inflacion_12m", "tasa_real",
+                     "spread_credito", "curva", "fed_cambio_12m", "desempleo_cambio_12m", "nfci", "credito_inmuebles",
+                     "tendencia_10m", "momentum_12m")
+
 CONDICIONES = {
     "yield del REIT abajo del Treasury a 10 años": lambda i: i["spread_10a"] < 0,
     "yield en el 10% más bajo de su propia historia": lambda i: i["percentil_yield"] < 0.10,
@@ -291,7 +297,7 @@ def informe(x: pd.DataFrame | None = None, *, registrar: bool = True) -> str:
     te = techo(x)
     an0, an6 = anatomia(x, ind, cd, 0), anatomia(x, ind, cd, 6)
     if registrar:
-        for col in ind.columns:
+        for col in INDICADORES_FASE3:
             bitacora.registrar(fase="3", familia="exploracion", prueba=f"anatomia de caidas: {col}",
                                muestra="desarrollo", parametros={"meses_antes": [0, 6]})
         for nombre in CONDICIONES:
@@ -325,8 +331,7 @@ def informe(x: pd.DataFrame | None = None, *, registrar: bool = True) -> str:
     o.append("### Qué decía cada indicador en el máximo y seis meses antes\n\nPercentil contra su propia "
              "historia hasta ese día (0% = el valor más bajo visto hasta entonces). La caída de 1972 no tiene "
              "historia previa suficiente.\n")
-    nombres = {"percentil_yield": None, "caida_desde_maximo": None}
-    cols = [c for c in ind.columns if c not in nombres]
+    cols = list(INDICADORES_FASE3)
     enc = ["Indicador"] + [f"{m:%m-%Y} ({k})" for m in cd["maximo"].iloc[1:] for k in ("máximo", "6 meses antes")]
     filas = []
     for col in cols:

@@ -84,6 +84,7 @@ class ResultadoFase8:
     conjunto: dict
     veredicto: str
     apuestas: int
+    serie_eeuu: pd.DataFrame = None     # el índice de EE. UU. y la exposición de la tendencia, 1972 en adelante
 
 
 def correr(*, ruta_bitacora=None, raiz=None) -> ResultadoFase8:
@@ -124,9 +125,12 @@ def correr(*, ruta_bitacora=None, raiz=None) -> ResultadoFase8:
     gana_dev_y_val = validacion["mejora"] > 0
     from src.investigacion.diseno import veredicto
 
+    serie = pd.DataFrame({"fecha": completo.index, "indice_precio": completo["indice_precio"].to_numpy(),
+                          "indice_total": completo["indice_total"].to_numpy(),
+                          "exposicion": exposicion_tendencia(completo["indice_precio"]).to_numpy()})
     return ResultadoFase8(validacion, d, conjunto,
                           veredicto(le_gana_en_desarrollo_y_validacion=gana_dev_y_val, cumple_todo_en_la_final=todo),
-                          apuestas)
+                          apuestas, serie)
 
 
 def _desde(completo: pd.DataFrame, desde: pd.Timestamp, nombre: str) -> dict:

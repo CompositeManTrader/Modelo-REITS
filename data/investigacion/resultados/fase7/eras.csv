@@ -1,0 +1,11 @@
+senal,regla,era,mejora_rebalanceo
+mejor señal sola,dentro si el pronóstico es positivo,1972-1992,1.110223025e-16
+mejor señal sola,dentro si el pronóstico es positivo,1993-2015,2.581589837e-05
+compuesto,dentro si el pronóstico es positivo,1972-1992,1.110223025e-16
+compuesto,dentro si el pronóstico es positivo,1993-2015,-1.942890293e-16
+ridge,dentro si el pronóstico es positivo,1972-1992,1.110223025e-16
+ridge,dentro si el pronóstico es positivo,1993-2015,-1.942890293e-16
+árboles,dentro si el pronóstico es positivo,1972-1992,-0.01766098206
+árboles,dentro si el pronóstico es positivo,1993-2015,-0.04936696016
+regímenes,dentro si el pronóstico es positivo,1972-1992,-0.02598414766
+regímenes,dentro si el pronóstico es positivo,1993-2015,-0.01770585017

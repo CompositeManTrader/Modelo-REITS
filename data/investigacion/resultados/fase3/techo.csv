@@ -1,0 +1,10 @@
+regla,modo,tir,contra_aportar_siempre_bps,caida_maxima,exposicion_promedio,cambios
+aportar siempre,nunca vende,0.1065330866,0,-0.6894232228,1,0
+oráculo del mes siguiente,nunca vende,0.1094649286,29,-0.6842130662,0.9900205942,228
+oráculo del mes siguiente,rebalancea,0.279439026,1729,0,0.5882352941,228
+oráculo de los 12 meses siguientes,nunca vende,0.1123688704,58,-0.6647899021,0.9505096841,32
+oráculo de los 12 meses siguientes,rebalancea,0.1444630037,379,-0.346367786,0.7324478178,32
+fuera en cada caída de 20% o más (del máximo al mínimo),nunca vende,0.1144035233,79,-0.653528638,0.9617344724,8
+fuera en cada caída de 20% o más (del máximo al mínimo),rebalancea,0.1654421701,589,-0.1831754437,0.8311195446,8
+anti-oráculo de 12 meses,nunca vende,0.08772318266,-188,-0.6873559317,0.8830418342,32
+anti-oráculo de 12 meses,rebalancea,-0.01924779099,-1258,-0.6357681054,0.2675521822,32

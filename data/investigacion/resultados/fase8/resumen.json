@@ -1,0 +1,31 @@
+{
+  "validacion": {
+    "mercado": "EE. UU. (validación, 2016 en adelante)",
+    "desde": "2016-01-31 00:00:00",
+    "hasta": "2026-09-30 00:00:00",
+    "meses": 129,
+    "tir_aportar_siempre": 0.043887065095022854,
+    "tir_regla": -0.005152289719240952,
+    "mejora": -0.0490393548142638,
+    "caida_aportar_siempre": -0.32281114298045666,
+    "caida_regla": -0.20344362177148456,
+    "reduccion_de_caida": 0.36977509545325304,
+    "exposicion": 0.578125,
+    "cambios": 33,
+    "mejora_con_rezago": -0.037084914670238216,
+    "caida_con_rezago": -0.24531695152069743,
+    "mejora_doble_costo": -0.058521318373134186
+  },
+  "conjunto": {
+    "mejora": -0.012698453275915296,
+    "reduccion_de_caida": 0.3173451866271974,
+    "mejora_con_rezago": -0.02482112364258175,
+    "mejora_doble_costo": -0.018012065217498728,
+    "mercados": 8,
+    "fraccion_protege": 0.125,
+    "fraccion_protege_con_rezago": 0.0,
+    "fraccion_protege_doble_costo": 0.125
+  },
+  "veredicto": "RECHAZADO",
+  "apuestas": 312
+}

@@ -9,6 +9,7 @@
     python scripts/investigacion.py fase5      # fase 5: el catálogo pre-registrado de señales de entrada
     python scripts/investigacion.py fase7      # fase 7: la escalera de modelos
     python scripts/investigacion.py fase8      # fase 8: la prueba final (abre los mercados sellados)
+    python scripts/investigacion.py pdf        # el informe en PDF, con los resultados guardados
 
 Solo estos comandos tocan la red. La página de Nareit pide un navegador real: Chromium
 necesita las autoridades del sistema en su almacén de certificados. En un contenedor
@@ -72,10 +73,11 @@ def cmd_sellar() -> int:
 
 
 def cmd_exploracion() -> int:
-    from src.investigacion import exploracion
+    from src.investigacion import exploracion, resultados
 
     destino = RAIZ / "docs" / "investigacion" / "fase3_exploracion.md"
     destino.write_text(exploracion.informe(), encoding="utf-8")
+    resultados.guardar_fase3(exploracion.sector())
     print(f"{destino.relative_to(RAIZ)}")
     return 0
 
@@ -88,8 +90,11 @@ def cmd_fase5() -> int:
     if not r.candidatas.empty:
         v = fase5.correr_validacion(r.candidatas, motivo="candidatas de la fase 5 según el pre-registro")
         texto += "\n## Validación (2016 en adelante)\n" + fase5.tabla_desarrollo(v.assign(pasa=True))
+    from src.investigacion import resultados
+
     destino = RAIZ / "docs" / "investigacion" / "fase5_resultados.md"
     destino.write_text(texto, encoding="utf-8")
+    resultados.guardar_fase5(r)
     print(f"{destino.relative_to(RAIZ)}: {int(r.desarrollo['pasa'].sum())} reglas pasan el filtro")
     return 0
 
@@ -98,8 +103,11 @@ def cmd_fase7() -> int:
     from src.investigacion import fase7
 
     r = fase7.correr_desarrollo()
+    from src.investigacion import resultados
+
     destino = RAIZ / "docs" / "investigacion" / "fase7_resultados.md"
     destino.write_text(fase7.informe(r), encoding="utf-8")
+    resultados.guardar_fase7(r)
     print(f"{destino.relative_to(RAIZ)}: candidato {r.candidato or 'ninguno'}")
     return 0
 
@@ -108,18 +116,30 @@ def cmd_fase8() -> int:
     from src.investigacion import fase8
 
     r = fase8.correr()
+    from src.investigacion import resultados
+
     destino = RAIZ / "docs" / "investigacion" / "fase8_resultados.md"
     destino.write_text(fase8.informe(r), encoding="utf-8")
+    resultados.guardar_fase8(r)
     print(f"{destino.relative_to(RAIZ)}: {r.veredicto}")
+    return 0
+
+
+def cmd_pdf() -> int:
+    from src.export.pdf_investigacion import generar_pdf
+    from src.investigacion import resultados
+
+    destino = generar_pdf(resultados.cargar(), RAIZ / "docs" / "investigacion" / "investigacion_cuando_entrar.pdf")
+    print(f"{destino.relative_to(RAIZ)} ({destino.stat().st_size / 1024:,.0f} KB)")
     return 0
 
 
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("comando", choices=["sector", "macro", "factores", "sellar", "exploracion", "fase5", "fase7", "fase8"])
+    p.add_argument("comando", choices=["sector", "macro", "factores", "sellar", "exploracion", "fase5", "fase7", "fase8", "pdf"])
     return {"sector": cmd_sector, "macro": cmd_macro, "factores": cmd_factores, "sellar": cmd_sellar,
             "exploracion": cmd_exploracion, "fase5": cmd_fase5, "fase7": cmd_fase7,
-            "fase8": cmd_fase8}[p.parse_args().comando]()
+            "fase8": cmd_fase8, "pdf": cmd_pdf}[p.parse_args().comando]()
 
 
 if __name__ == "__main__":

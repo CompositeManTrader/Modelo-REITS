@@ -612,7 +612,12 @@ python scripts/investigacion.py exploracion  # fase 3
 python scripts/investigacion.py fase5        # señales de entrada pre-registradas
 python scripts/investigacion.py fase7        # escalera de modelos
 python scripts/investigacion.py fase8        # prueba final (abre los mercados sellados)
+python scripts/investigacion.py pdf          # docs/investigacion/investigacion_cuando_entrar.pdf
 ```
+
+La página **Investigación** y el PDF leen los resultados guardados en
+`data/investigacion/resultados/`: no recalculan ni vuelven a abrir la prueba final, que se
+abre una sola vez y deja constancia en la bitácora.
 
 Cómo se evita encontrar patrones que solo existen en los datos con que se buscaron: los datos
 se partieron antes de verlos —desarrollo hasta 2015, validación desde 2016, y una prueba final
