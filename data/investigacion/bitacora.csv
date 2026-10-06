@@ -1,0 +1,31 @@
+momento,fase,familia,prueba,muestra,parametros,metrica,valor,commit
+2026-10-06T04:34:26+00:00,3,exploracion,anatomia de caidas: yield_reit,desarrollo,"{""meses_antes"": [0, 6]}",,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,anatomia de caidas: percentil_yield,desarrollo,"{""meses_antes"": [0, 6]}",,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,anatomia de caidas: treasury_10a,desarrollo,"{""meses_antes"": [0, 6]}",,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,anatomia de caidas: spread_10a,desarrollo,"{""meses_antes"": [0, 6]}",,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,anatomia de caidas: baa,desarrollo,"{""meses_antes"": [0, 6]}",,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,anatomia de caidas: spread_baa,desarrollo,"{""meses_antes"": [0, 6]}",,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,anatomia de caidas: inflacion_12m,desarrollo,"{""meses_antes"": [0, 6]}",,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,anatomia de caidas: tasa_real,desarrollo,"{""meses_antes"": [0, 6]}",,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,anatomia de caidas: spread_credito,desarrollo,"{""meses_antes"": [0, 6]}",,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,anatomia de caidas: curva,desarrollo,"{""meses_antes"": [0, 6]}",,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,anatomia de caidas: fed_cambio_12m,desarrollo,"{""meses_antes"": [0, 6]}",,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,anatomia de caidas: desempleo_cambio_12m,desarrollo,"{""meses_antes"": [0, 6]}",,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,anatomia de caidas: nfci,desarrollo,"{""meses_antes"": [0, 6]}",,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,anatomia de caidas: credito_inmuebles,desarrollo,"{""meses_antes"": [0, 6]}",,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,anatomia de caidas: tendencia_10m,desarrollo,"{""meses_antes"": [0, 6]}",,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,anatomia de caidas: momentum_12m,desarrollo,"{""meses_antes"": [0, 6]}",,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,anatomia de caidas: caida_desde_maximo,desarrollo,"{""meses_antes"": [0, 6]}",,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,frecuencia: yield del REIT abajo del Treasury a 10 años,desarrollo,{},,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,frecuencia: yield en el 10% más bajo de su propia historia,desarrollo,{},,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,frecuencia: precio abajo de su promedio de 10 meses,desarrollo,{},,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion,frecuencia: retorno de los últimos 12 meses negativo,desarrollo,{},,,8944322
+2026-10-06T04:34:26+00:00,3,exploracion-oraculo,aportar siempre (nunca vende),desarrollo,{},tir,0.106533,8944322
+2026-10-06T04:34:26+00:00,3,exploracion-oraculo,oráculo del mes siguiente (nunca vende),desarrollo,{},tir,0.109465,8944322
+2026-10-06T04:34:26+00:00,3,exploracion-oraculo,oráculo del mes siguiente (rebalancea),desarrollo,{},tir,0.279439,8944322
+2026-10-06T04:34:26+00:00,3,exploracion-oraculo,oráculo de los 12 meses siguientes (nunca vende),desarrollo,{},tir,0.112369,8944322
+2026-10-06T04:34:26+00:00,3,exploracion-oraculo,oráculo de los 12 meses siguientes (rebalancea),desarrollo,{},tir,0.144463,8944322
+2026-10-06T04:34:26+00:00,3,exploracion-oraculo,fuera en cada caída de 20% o más (del máximo al mínimo) (nunca vende),desarrollo,{},tir,0.114404,8944322
+2026-10-06T04:34:26+00:00,3,exploracion-oraculo,fuera en cada caída de 20% o más (del máximo al mínimo) (rebalancea),desarrollo,{},tir,0.165442,8944322
+2026-10-06T04:34:26+00:00,3,exploracion-oraculo,anti-oráculo de 12 meses (nunca vende),desarrollo,{},tir,0.087723,8944322
+2026-10-06T04:34:26+00:00,3,exploracion-oraculo,anti-oráculo de 12 meses (rebalancea),desarrollo,{},tir,-0.019248,8944322

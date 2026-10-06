@@ -5,6 +5,7 @@
     python scripts/investigacion.py macro      # series de FRED, con su rezago de publicación
     python scripts/investigacion.py factores   # factores de Kenneth French y datos de Shiller
     python scripts/investigacion.py sellar     # mercados de la prueba final: se bajan y se sellan
+    python scripts/investigacion.py exploracion  # fase 3: informe de la muestra de desarrollo
 
 Solo estos comandos tocan la red. La página de Nareit pide un navegador real: Chromium
 necesita las autoridades del sistema en su almacén de certificados. En un contenedor
@@ -67,11 +68,20 @@ def cmd_sellar() -> int:
     return 0
 
 
+def cmd_exploracion() -> int:
+    from src.investigacion import exploracion
+
+    destino = RAIZ / "docs" / "investigacion" / "fase3_exploracion.md"
+    destino.write_text(exploracion.informe(), encoding="utf-8")
+    print(f"{destino.relative_to(RAIZ)}")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("comando", choices=["sector", "macro", "factores", "sellar"])
-    return {"sector": cmd_sector, "macro": cmd_macro, "factores": cmd_factores,
-            "sellar": cmd_sellar}[p.parse_args().comando]()
+    p.add_argument("comando", choices=["sector", "macro", "factores", "sellar", "exploracion"])
+    return {"sector": cmd_sector, "macro": cmd_macro, "factores": cmd_factores, "sellar": cmd_sellar,
+            "exploracion": cmd_exploracion}[p.parse_args().comando]()
 
 
 if __name__ == "__main__":
