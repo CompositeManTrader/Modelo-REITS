@@ -1,0 +1,231 @@
+{
+  "descargado_en": "2026-10-06T04:22:45+00:00",
+  "fuente": "FRED, Federal Reserve Bank of St. Louis (fredgraph.csv)",
+  "series": {
+    "AAA": {
+      "descripcion": "Bonos corporativos Aaa de Moody's, promedio mensual",
+      "rezago_dias": 1,
+      "se_revisa": false,
+      "desde": "1919-01-01",
+      "hasta": "2026-09-01",
+      "datos": 1293
+    },
+    "BAA": {
+      "descripcion": "Bonos corporativos Baa de Moody's, promedio mensual",
+      "rezago_dias": 1,
+      "se_revisa": false,
+      "desde": "1919-01-01",
+      "hasta": "2026-09-01",
+      "datos": 1293
+    },
+    "COMREPUSQ159N": {
+      "descripcion": "Precios de inmuebles comerciales (BIS), trimestral",
+      "rezago_dias": 90,
+      "se_revisa": true,
+      "desde": "2005-01-01",
+      "hasta": "2026-01-01",
+      "datos": 85
+    },
+    "CPIAUCSL": {
+      "descripcion": "Índice de precios al consumidor",
+      "rezago_dias": 45,
+      "se_revisa": true,
+      "desde": "1947-01-01",
+      "hasta": "2026-08-01",
+      "datos": 955
+    },
+    "CPILFESL": {
+      "descripcion": "Índice de precios al consumidor, subyacente",
+      "rezago_dias": 45,
+      "se_revisa": true,
+      "desde": "1957-01-01",
+      "hasta": "2026-08-01",
+      "datos": 835
+    },
+    "CSUSHPINSA": {
+      "descripcion": "Precios de casas Case-Shiller",
+      "rezago_dias": 60,
+      "se_revisa": true,
+      "desde": "1987-01-01",
+      "hasta": "2026-07-01",
+      "datos": 475
+    },
+    "DFII10": {
+      "descripcion": "Treasury a 10 años indexado a inflación (TIPS), diario",
+      "rezago_dias": 1,
+      "se_revisa": false,
+      "desde": "2003-01-02",
+      "hasta": "2026-10-02",
+      "datos": 5943
+    },
+    "DGS10": {
+      "descripcion": "Treasury a 10 años, diario",
+      "rezago_dias": 1,
+      "se_revisa": false,
+      "desde": "1962-01-02",
+      "hasta": "2026-10-02",
+      "datos": 16174
+    },
+    "DGS2": {
+      "descripcion": "Treasury a 2 años, diario",
+      "rezago_dias": 1,
+      "se_revisa": false,
+      "desde": "1976-06-01",
+      "hasta": "2026-10-02",
+      "datos": 12582
+    },
+    "DRTSCREL": {
+      "descripcion": "Bancos que endurecen el crédito a inmuebles comerciales (SLOOS), 1990-2013",
+      "rezago_dias": 40,
+      "se_revisa": false,
+      "desde": "1990-07-01",
+      "hasta": "2013-07-01",
+      "datos": 93
+    },
+    "DTB3": {
+      "descripcion": "T-bill a 3 meses, diario",
+      "rezago_dias": 1,
+      "se_revisa": false,
+      "desde": "1954-01-04",
+      "hasta": "2026-10-02",
+      "datos": 18180
+    },
+    "FEDFUNDS": {
+      "descripcion": "Tasa de fondos federales, promedio mensual",
+      "rezago_dias": 1,
+      "se_revisa": false,
+      "desde": "1954-07-01",
+      "hasta": "2026-09-01",
+      "datos": 867
+    },
+    "GS1": {
+      "descripcion": "Treasury a 1 año, promedio mensual",
+      "rezago_dias": 1,
+      "se_revisa": false,
+      "desde": "1953-04-01",
+      "hasta": "2026-09-01",
+      "datos": 882
+    },
+    "GS10": {
+      "descripcion": "Treasury a 10 años, promedio mensual",
+      "rezago_dias": 1,
+      "se_revisa": false,
+      "desde": "1953-04-01",
+      "hasta": "2026-09-01",
+      "datos": 882
+    },
+    "INDPRO": {
+      "descripcion": "Producción industrial",
+      "rezago_dias": 20,
+      "se_revisa": true,
+      "desde": "1919-01-01",
+      "hasta": "2026-08-01",
+      "datos": 1292
+    },
+    "MORTGAGE30US": {
+      "descripcion": "Hipoteca a 30 años, semanal",
+      "rezago_dias": 1,
+      "se_revisa": false,
+      "desde": "1971-04-02",
+      "hasta": "2026-10-01",
+      "datos": 2897
+    },
+    "NFCI": {
+      "descripcion": "Índice de condiciones financieras de la Fed de Chicago, semanal",
+      "rezago_dias": 7,
+      "se_revisa": true,
+      "desde": "1971-01-08",
+      "hasta": "2026-09-25",
+      "datos": 2908
+    },
+    "PAYEMS": {
+      "descripcion": "Empleo no agrícola",
+      "rezago_dias": 10,
+      "se_revisa": true,
+      "desde": "1939-01-01",
+      "hasta": "2026-09-01",
+      "datos": 1053
+    },
+    "RRVRUSQ156N": {
+      "descripcion": "Vacancia de vivienda en renta, trimestral",
+      "rezago_dias": 30,
+      "se_revisa": true,
+      "desde": "1956-01-01",
+      "hasta": "2026-04-01",
+      "datos": 282
+    },
+    "SUBLPDRCSC": {
+      "descripcion": "Bancos que endurecen el crédito a construcción y terrenos (SLOOS), desde 2013",
+      "rezago_dias": 40,
+      "se_revisa": false,
+      "desde": "2013-10-01",
+      "hasta": "2026-07-01",
+      "datos": 52
+    },
+    "SUBLPDRCSM": {
+      "descripcion": "Bancos que endurecen el crédito multifamiliar (SLOOS), desde 2013",
+      "rezago_dias": 40,
+      "se_revisa": false,
+      "desde": "2013-10-01",
+      "hasta": "2026-07-01",
+      "datos": 52
+    },
+    "SUBLPDRCSN": {
+      "descripcion": "Bancos que endurecen el crédito a inmuebles no residenciales (SLOOS), desde 2013",
+      "rezago_dias": 40,
+      "se_revisa": false,
+      "desde": "2013-10-01",
+      "hasta": "2026-07-01",
+      "datos": 52
+    },
+    "T10YIE": {
+      "descripcion": "Inflación implícita a 10 años, diario",
+      "rezago_dias": 1,
+      "se_revisa": false,
+      "desde": "2003-01-02",
+      "hasta": "2026-10-05",
+      "datos": 5944
+    },
+    "TB3MS": {
+      "descripcion": "T-bill a 3 meses, promedio mensual",
+      "rezago_dias": 1,
+      "se_revisa": false,
+      "desde": "1934-01-01",
+      "hasta": "2026-09-01",
+      "datos": 1113
+    },
+    "UMCSENT": {
+      "descripcion": "Confianza del consumidor (Universidad de Michigan)",
+      "rezago_dias": 1,
+      "se_revisa": true,
+      "desde": "1952-11-01",
+      "hasta": "2026-08-01",
+      "datos": 676
+    },
+    "UNRATE": {
+      "descripcion": "Tasa de desempleo",
+      "rezago_dias": 10,
+      "se_revisa": true,
+      "desde": "1948-01-01",
+      "hasta": "2026-09-01",
+      "datos": 944
+    },
+    "USREC": {
+      "descripcion": "Recesiones del NBER (solo descriptivo, nunca señal)",
+      "rezago_dias": 365,
+      "se_revisa": true,
+      "desde": "1854-12-01",
+      "hasta": "2026-09-01",
+      "datos": 2062
+    },
+    "VIXCLS": {
+      "descripcion": "VIX, diario",
+      "rezago_dias": 1,
+      "se_revisa": false,
+      "desde": "1990-01-02",
+      "hasta": "2026-10-02",
+      "datos": 9287
+    }
+  },
+  "fallas": []
+}

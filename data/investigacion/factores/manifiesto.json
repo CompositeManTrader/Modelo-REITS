@@ -1,0 +1,21 @@
+{
+  "descargado_en": "2026-10-06T04:23:14+00:00",
+  "fuentes": {
+    "french": "Kenneth R. French Data Library: F-F_Research_Data_Factors (mercado, tamaño, valor y tasa libre de riesgo (desde 1926)); F-F_Momentum_Factor (momentum (desde 1927)); F-F_Research_Data_5_Factors_2x3 (cinco factores: agrega rentabilidad e inversión (desde 1963))",
+    "shiller": "http://www.econ.yale.edu/~shiller/data/ie_data.xls"
+  },
+  "factores": [
+    "CMA",
+    "HML",
+    "Mkt-RF",
+    "Mom",
+    "RF",
+    "RMW",
+    "SMB"
+  ],
+  "french_desde": "1926-07",
+  "french_hasta": "2026-08",
+  "shiller_desde": "1871-01",
+  "shiller_hasta": "2023-09",
+  "nota": "Los datos de Shiller de los meses recientes son preliminares: él los revisa."
+}

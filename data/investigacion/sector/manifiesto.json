@@ -1,0 +1,135 @@
+{
+  "descargado_en": "2026-10-06T04:22:45+00:00",
+  "fuentes": {
+    "nareit": "FTSE Nareit U.S. Real Estate Index Series, https://www.reit.com/sites/default/files/returns/MonthlyHistoricalReturns.xls",
+    "fondos": "Yahoo Finance, chart v8: cierre y cierre ajustado de fin de mes"
+  },
+  "indices": [
+    "all_equity",
+    "compuesto",
+    "equity",
+    "hipotecarios",
+    "real_estate_50",
+    "todos"
+  ],
+  "fondos": [
+    "CSRSX",
+    "FRESX",
+    "IYR",
+    "VGSIX",
+    "VNQ"
+  ],
+  "coherencia_interna": {
+    "all_equity": {
+      "indice_total": 4.914278459722254e-07,
+      "indice_precio": 7.020356320497356e-06,
+      "suma": 5.4999999989265025e-08,
+      "yield_fuera_de_rango": 0,
+      "meses_faltantes": 0,
+      "desde": "1971-12",
+      "hasta": "2026-09"
+    },
+    "compuesto": {
+      "indice_total": 5.011324330594924e-05,
+      "indice_precio": 0.0013729768083031724,
+      "suma": 6.800000001278006e-08,
+      "yield_fuera_de_rango": 0,
+      "meses_faltantes": 0,
+      "desde": "1971-12",
+      "hasta": "2026-09"
+    },
+    "equity": {
+      "indice_total": 4.971488960503478e-07,
+      "indice_precio": 7.020356320497356e-06,
+      "suma": 5.4999999989265025e-08,
+      "yield_fuera_de_rango": 0,
+      "meses_faltantes": 0,
+      "desde": "1971-12",
+      "hasta": "2026-09"
+    },
+    "hipotecarios": {
+      "indice_total": 5.08222406447878e-06,
+      "indice_precio": 4.757207299477262e-05,
+      "suma": 1.0000000000287557e-07,
+      "yield_fuera_de_rango": 0,
+      "meses_faltantes": 0,
+      "desde": "1971-12",
+      "hasta": "2026-09"
+    },
+    "real_estate_50": {
+      "indice_total": 1.2961712994030705e-05,
+      "indice_precio": 7.797067947401537e-06,
+      "suma": 6.300000002495282e-08,
+      "yield_fuera_de_rango": 0,
+      "meses_faltantes": 0,
+      "desde": "1999-12",
+      "hasta": "2026-09"
+    },
+    "todos": {
+      "indice_total": 1.2476143725903555e-06,
+      "indice_precio": 0.0013729768083031724,
+      "suma": 2.4399999999213245e-07,
+      "yield_fuera_de_rango": 0,
+      "meses_faltantes": 0,
+      "desde": "1971-12",
+      "hasta": "2026-09"
+    }
+  },
+  "contra_fondos": [
+    {
+      "fondo": "CSRSX",
+      "desde": "1991-08-31T00:00:00.000",
+      "hasta": "2026-09-30T00:00:00.000",
+      "meses": 422,
+      "correlacion": 0.9859285538,
+      "rendimiento_indice": 0.0972741668,
+      "rendimiento_fondo": 0.1058965803,
+      "diferencia_anual": 0.0086224135,
+      "error_de_seguimiento": 0.0310252288
+    },
+    {
+      "fondo": "FRESX",
+      "desde": "1986-12-31T00:00:00.000",
+      "hasta": "2026-09-30T00:00:00.000",
+      "meses": 478,
+      "correlacion": 0.9854609407,
+      "rendimiento_indice": 0.0914646095,
+      "rendimiento_fondo": 0.0904749235,
+      "diferencia_anual": -0.000989686,
+      "error_de_seguimiento": 0.0311466801
+    },
+    {
+      "fondo": "IYR",
+      "desde": "2000-07-31T00:00:00.000",
+      "hasta": "2026-09-30T00:00:00.000",
+      "meses": 315,
+      "correlacion": 0.9953469266,
+      "rendimiento_indice": 0.0929153268,
+      "rendimiento_fondo": 0.079403933,
+      "diferencia_anual": -0.0135113938,
+      "error_de_seguimiento": 0.0196148304
+    },
+    {
+      "fondo": "VGSIX",
+      "desde": "1996-06-30T00:00:00.000",
+      "hasta": "2026-09-30T00:00:00.000",
+      "meses": 364,
+      "correlacion": 0.9976012514,
+      "rendimiento_indice": 0.0912884069,
+      "rendimiento_fondo": 0.0871301588,
+      "diferencia_anual": -0.0041582481,
+      "error_de_seguimiento": 0.0138349218
+    },
+    {
+      "fondo": "VNQ",
+      "desde": "2004-10-31T00:00:00.000",
+      "hasta": "2026-09-30T00:00:00.000",
+      "meses": 264,
+      "correlacion": 0.9977324166,
+      "rendimiento_indice": 0.0757137663,
+      "rendimiento_fondo": 0.0718322389,
+      "diferencia_anual": -0.0038815274,
+      "error_de_seguimiento": 0.0146324786
+    }
+  ]
+}

@@ -1,0 +1,162 @@
+{
+  "australia_dividendos": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 736,
+    "sha256": "37d752ea50d5187b3a3a0e458e2e23df3ff131f699a9b9c207029071f80fc2d7"
+  },
+  "australia_precios": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 3985,
+    "sha256": "7e77647be1549c07bb0cc37bc0666483e4e2f585601ef0022a01389a621dbc44"
+  },
+  "australia_splits": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 15,
+    "sha256": "d4af9350921229f09ac5c3e11ed6ab2213e72f967dcfaec9da66939dc3673ebc"
+  },
+  "australia_tasas": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 1390,
+    "sha256": "4930a5cb5e4e04041528b07f5d1cb579f12ad4e473127dcfd842e60de2e3ad97"
+  },
+  "canada_dividendos": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 2616,
+    "sha256": "66e86042878c25531dbbba7f8439fbbae35e0ca7907718021712084dccd0d21b"
+  },
+  "canada_precios": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 2758,
+    "sha256": "5b502529a0915bf26721c45183e669054f512109a7184936aa8ece9e464c6bb6"
+  },
+  "canada_splits": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 6,
+    "sha256": "b7969dcc489cd861d8ea305dd48321bb2a28cfd477a82060d2b85fea5e702ba0"
+  },
+  "canada_tasas": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 1708,
+    "sha256": "9b3a432061b46d25a1461d0503885a3ad837cc7d0ea5d57adc60ab74b417bdf3"
+  },
+  "europa_continental_dividendos": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 373,
+    "sha256": "992a09f605ef76d90a91df43c30821b049c8fd8e8ce5410e5313d4dd5698bb6b"
+  },
+  "europa_continental_precios": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 2945,
+    "sha256": "d5cd066d72ac20d86ed7d2cc9ef1f89264c423ef13ed64a3f979ee8b3abefd23"
+  },
+  "europa_continental_splits": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 6,
+    "sha256": "5d56f9920a3848d8e28e965992153421bcbb9d44bbb5045116578594d8b842b2"
+  },
+  "europa_continental_tasas": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 1058,
+    "sha256": "22083eed8233de6130ecfe38350a959c6e70cf7f25f36f6cc6a5b00167f82c41"
+  },
+  "hong_kong_dividendos": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 259,
+    "sha256": "fff727e45ed4bd3cf5a886a991e5f9497f4febb6f51f20adc4daf2ad4375b503"
+  },
+  "hong_kong_precios": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 1666,
+    "sha256": "c314c2e26f751a0d65e3067daa9fead39b30897bd1d62181c58c497bb6a370cc"
+  },
+  "hong_kong_splits": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 2,
+    "sha256": "b5a3ea41a26af2703c0e6fba71d9bdaa49384775485f5a22d82ddd4e4577c954"
+  },
+  "hong_kong_tasas": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 1995,
+    "sha256": "7a39b4e5140a38f9aaee40bb5949fd273ceaa50822aea4aca41b9ddc40222310"
+  },
+  "japon_dividendos": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 560,
+    "sha256": "42a0ec3f1a3858f00ec00ab8e30d53d910fc2723ad339c9cba908f83d25d1d55"
+  },
+  "japon_precios": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 2975,
+    "sha256": "76b52acddcd1927fe6879640b4aa537c9bccc5b07cba0600320a000b38728a67"
+  },
+  "japon_splits": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 16,
+    "sha256": "1366f296ae8b41bbaf1a089e27d5926ed3cd676dfdb52d959dfbe7b3c6d2d1be"
+  },
+  "japon_tasas": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 744,
+    "sha256": "43d0e64fd84bfaa135af6c150a7ff7734fa2fbeb0c665d60be84367c47680b07"
+  },
+  "mexico_fibras_dividendos": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 508,
+    "sha256": "118379504b88fdba21eac1dfecf02845ffcb4e7fb9c66ee6e7603d46a2262958"
+  },
+  "mexico_fibras_precios": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 1631,
+    "sha256": "ffe7a2daf8580d340db7d4cf331d537c2e2feb636f6a9d09ac10d1c71df83f6b"
+  },
+  "mexico_fibras_splits": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 3,
+    "sha256": "fe910a9065d6158b66bb6409948efe634ed320e4f50d0d2bdd1fd7177852a837"
+  },
+  "mexico_fibras_tasas": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 592,
+    "sha256": "3d88315bddd1e3451b7f398e57402c230c9d38dc060f807d23d9b6564212dbdf"
+  },
+  "reino_unido_dividendos": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 757,
+    "sha256": "dfeb22b3c56bd111b63d74720ea9c220977c6a2a8f1a8744fc265f84e0ddc720"
+  },
+  "reino_unido_precios": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 4240,
+    "sha256": "e9aaf37827d2cd610801460eae7a28f8bfbb186a4d76e720e959f2863b6f8c12"
+  },
+  "reino_unido_splits": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 16,
+    "sha256": "a7171054c9ce7d4650b58d98aa79183d8e338395f44415ec10290ff9fab0d6eb"
+  },
+  "reino_unido_tasas": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 1629,
+    "sha256": "b9a034b1cef2f39ee4a2d32fa8d0950e278b5f345608bc7b8c03f55495870590"
+  },
+  "singapur_dividendos": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 612,
+    "sha256": "6165f4c970a6ecb229ab4261e3e6a20a0bd8422c0163178f8652debe3288ec2f"
+  },
+  "singapur_precios": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 2151,
+    "sha256": "e21c9e99740c6b74b412abb5a5b9511faaacc30b5277e4bbdbf8dcf70dc07881"
+  },
+  "singapur_splits": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 0,
+    "sha256": "7bf69a710b1f97f4b67a9772a0e2506cdba4e6377439e69e5a071a5ad5b8a0ed"
+  },
+  "singapur_tasas": {
+    "fuente": "Yahoo Finance chart v8 (precios y dividendos) y FRED/OCDE (tasas)",
+    "renglones": 1995,
+    "sha256": "bc0d91ec36767028d056617c156df5e2e123abed2fc7a460d1d92988b779a99a"
+  }
+}
