@@ -149,17 +149,37 @@ def cmd_fase5() -> int:
 
 
 def cmd_fase6() -> int:
-    from src.investigacion import emisores, fase6, resultados
+    """La fase 6 en el orden del pre-registro. Los sellados se abren una sola vez: si la bitácora ya
+    tiene el modelo congelado de esta fase, se repiten desarrollo y validación y la prueba final se
+    toma de lo guardado, sin volver a abrirlos."""
+    import json
+
+    import pandas as pd
+
+    from src.investigacion import bitacora, emisores, fase6, resultados
 
     panel, _ = emisores.cargar()
-    r = fase6.correr(panel)
+    ya_abierta = any(m.startswith(fase6.MODELO_FINAL) for m in bitacora.modelos_congelados())
+    r = fase6.correr(panel, abrir_final=not ya_abierta)
+    base = resultados.DIR_RESULTADOS / "fase6"
+    primera = None
+    if ya_abierta:
+        r.final = pd.read_csv(base / "final.csv")
+        r.veredicto = json.loads((base / "resumen.json").read_text(encoding="utf-8"))["veredicto"]
+    if (base / "primera_corrida").exists():
+        p = base / "primera_corrida"
+        res = json.loads((p / "resumen.json").read_text(encoding="utf-8"))
+        renombre = {"exceso_2013_2015": "exceso_2014_2015", "exceso_2015_2020": "exceso_2016_2020",
+                    "exceso_2020_2026": "exceso_2021_2026"}
+        primera = fase6.ResultadoFase6(pd.read_csv(p / "desarrollo.csv").rename(columns=renombre), res["candidatas"],
+                                       res["pbo"], res["sharpe_deflactado"], res["mejor"], res["intentos"])
     resultados.guardar_fase6(r)
     destino = RAIZ / "docs" / "investigacion" / "fase6_resultados.md"
-    destino.write_text(fase6.informe(r), encoding="utf-8")
+    texto = fase6.informe_completo(r, primera) if primera is not None else fase6.informe(r)
+    destino.write_text(texto, encoding="utf-8")
     print(destino.relative_to(RAIZ))
     print(f"desarrollo: {int(r.desarrollo['pasa'].sum())} de {len(r.desarrollo)} pasan; candidatas {r.candidatas}")
     print(f"validación: {r.validacion[['regla', 'mejora', 'pasa']].to_dict('records')}")
-    print(f"detector: {r.recortes}")
     print(f"veredicto: {r.veredicto}")
     return 0
 

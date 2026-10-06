@@ -321,3 +321,62 @@ momento,fase,familia,prueba,muestra,parametros,metrica,valor,commit
 2026-10-06T15:04:37+00:00,3,exploracion-oraculo,fuera en cada caída de 20% o más (del máximo al mínimo) (rebalancea),desarrollo,{},tir,0.165442,8705ee1
 2026-10-06T15:04:37+00:00,3,exploracion-oraculo,anti-oráculo de 12 meses (nunca vende),desarrollo,{},tir,0.087723,8705ee1
 2026-10-06T15:04:37+00:00,3,exploracion-oraculo,anti-oráculo de 12 meses (rebalancea),desarrollo,{},tir,-0.019248,8705ee1
+2026-10-06T17:47:28+00:00,6,seleccion,momentum,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,0.008459,6705fe4
+2026-10-06T17:47:30+00:00,6,seleccion,apalancamiento,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.013617,6705fe4
+2026-10-06T17:47:31+00:00,6,seleccion,distancia_al_default,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.005053,6705fe4
+2026-10-06T17:47:32+00:00,6,seleccion,volatilidad,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.003418,6705fe4
+2026-10-06T17:47:34+00:00,6,seleccion,rendimiento_de_la_empresa,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.017242,6705fe4
+2026-10-06T17:47:35+00:00,6,seleccion,rendimiento_ffo,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.016653,6705fe4
+2026-10-06T17:47:36+00:00,6,seleccion,rendimiento_del_dividendo,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.008603,6705fe4
+2026-10-06T17:47:38+00:00,6,seleccion,crecimiento_de_activos,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.000648,6705fe4
+2026-10-06T17:47:39+00:00,6,seleccion,rentabilidad,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.011844,6705fe4
+2026-10-06T17:47:40+00:00,6,seleccion,tamano,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,0.006006,6705fe4
+2026-10-06T17:47:41+00:00,6,seleccion,yield_contra_su_historia,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,0.012381,6705fe4
+2026-10-06T17:47:42+00:00,6,seleccion,crecimiento_del_dividendo,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.016841,6705fe4
+2026-10-06T17:47:44+00:00,6,seleccion,payout,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.009849,6705fe4
+2026-10-06T17:47:45+00:00,6,seleccion,calidad,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,0.000868,6705fe4
+2026-10-06T17:47:46+00:00,6,seleccion,calidad y barato,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.034721,6705fe4
+2026-10-06T17:47:47+00:00,6,seleccion,calidad y barato contra su historia,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,0.007908,6705fe4
+2026-10-06T17:47:47+00:00,validacion,apertura,abrir validacion,validacion,"{""motivo"": ""fase 6: candidatas del filtro de desarrollo y el detector de recortes, según el pre-registro""}",,,6705fe4
+2026-10-06T17:48:37+00:00,6,seleccion,momentum,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,0.008459,c0e5154
+2026-10-06T17:48:39+00:00,6,seleccion,apalancamiento,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.013617,c0e5154
+2026-10-06T17:48:40+00:00,6,seleccion,distancia_al_default,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.005053,c0e5154
+2026-10-06T17:48:41+00:00,6,seleccion,volatilidad,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.003418,c0e5154
+2026-10-06T17:48:43+00:00,6,seleccion,rendimiento_de_la_empresa,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.017242,c0e5154
+2026-10-06T17:48:44+00:00,6,seleccion,rendimiento_ffo,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.016653,c0e5154
+2026-10-06T17:48:45+00:00,6,seleccion,rendimiento_del_dividendo,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.008603,c0e5154
+2026-10-06T17:48:47+00:00,6,seleccion,crecimiento_de_activos,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.000648,c0e5154
+2026-10-06T17:48:48+00:00,6,seleccion,rentabilidad,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.011844,c0e5154
+2026-10-06T17:48:49+00:00,6,seleccion,tamano,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,0.006006,c0e5154
+2026-10-06T17:48:50+00:00,6,seleccion,yield_contra_su_historia,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,0.012381,c0e5154
+2026-10-06T17:48:51+00:00,6,seleccion,crecimiento_del_dividendo,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.016841,c0e5154
+2026-10-06T17:48:53+00:00,6,seleccion,payout,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.009849,c0e5154
+2026-10-06T17:48:54+00:00,6,seleccion,calidad,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,0.000868,c0e5154
+2026-10-06T17:48:55+00:00,6,seleccion,calidad y barato,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.034721,c0e5154
+2026-10-06T17:48:56+00:00,6,seleccion,calidad y barato contra su historia,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,0.007908,c0e5154
+2026-10-06T17:48:56+00:00,validacion,apertura,abrir validacion,validacion,"{""motivo"": ""fase 6: candidatas del filtro de desarrollo y el detector de recortes, según el pre-registro""}",,,c0e5154
+2026-10-06T17:49:03+00:00,6,seleccion,momentum,validacion,"{""desde"": ""2015-12-31"", ""hasta"": ""2026-06-30""}",mejora_aportacion,0.005713,c0e5154
+2026-10-06T17:49:07+00:00,6,seleccion,sin riesgo de recorte,validacion,"{""desde"": ""2015-12-31"", ""hasta"": ""2026-06-30""}",mejora_aportacion,-0.001835,c0e5154
+2026-10-06T17:49:08+00:00,congelado,congelado,seleccion-fase6: momentum,final,"{""diseno"": ""Diseno6(capitalizacion_minima=250000000.0, precio_minimo=5.0, tenedores_texto=10, tenedores_estructurado=20, ultimo_trimestre_texto=Timestamp('2013-03-31 00:00:00'), elegibles_minimos=30, horizonte=4, grupos=3, payout_maximo=0.9, caida_de_recorte=0.1, quintil_excluido=0.2, retorno_de_quiebra=-0.3, desplome=-0.3, aportacion_trimestral=3000.0, trimestres_de_volatilidad=12, minimo_de_volatilidad=8, trimestres_de_historia_yield=20, minimo_de_historia_yield=12, trimestres_de_crecimiento_del_dividendo=12, minimo_para_estimar_recortes=8, riesgo_excluido=0.2, auc_minima=0.7, bloques_pbo=8, maximo_a_validacion=3, rezago_nw=4)"", ""regla"": ""momentum""}",,,c0e5154
+2026-10-06T17:49:08+00:00,final,apertura,abrir emisores_eeuu,final,"{""modelo"": ""seleccion-fase6: momentum""}",,,c0e5154
+2026-10-06T17:49:11+00:00,6,seleccion,momentum,final,"{""desde"": ""2013-03-31"", ""hasta"": ""2026-06-30""}",mejora_aportacion,0.00382,c0e5154
+2026-10-06T17:51:54+00:00,6,seleccion,momentum,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,0.008557,c0e5154
+2026-10-06T17:51:56+00:00,6,seleccion,apalancamiento,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.013617,c0e5154
+2026-10-06T17:51:57+00:00,6,seleccion,distancia_al_default,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,0.005876,c0e5154
+2026-10-06T17:51:59+00:00,6,seleccion,volatilidad,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.003418,c0e5154
+2026-10-06T17:52:00+00:00,6,seleccion,rendimiento_de_la_empresa,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.017242,c0e5154
+2026-10-06T17:52:02+00:00,6,seleccion,rendimiento_ffo,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.016653,c0e5154
+2026-10-06T17:52:03+00:00,6,seleccion,rendimiento_del_dividendo,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.008603,c0e5154
+2026-10-06T17:52:04+00:00,6,seleccion,crecimiento_de_activos,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.000648,c0e5154
+2026-10-06T17:52:06+00:00,6,seleccion,rentabilidad,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.011844,c0e5154
+2026-10-06T17:52:07+00:00,6,seleccion,tamano,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,0.006006,c0e5154
+2026-10-06T17:52:08+00:00,6,seleccion,yield_contra_su_historia,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,0.021358,c0e5154
+2026-10-06T17:52:10+00:00,6,seleccion,crecimiento_del_dividendo,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,0.02068,c0e5154
+2026-10-06T17:52:11+00:00,6,seleccion,payout,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.009849,c0e5154
+2026-10-06T17:52:13+00:00,6,seleccion,calidad,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,0.006776,c0e5154
+2026-10-06T17:52:14+00:00,6,seleccion,calidad y barato,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,-0.021139,c0e5154
+2026-10-06T17:52:16+00:00,6,seleccion,calidad y barato contra su historia,desarrollo,"{""desde"": ""2011-03-31"", ""hasta"": ""2015-12-31""}",mejora_aportacion,0.019415,c0e5154
+2026-10-06T17:52:16+00:00,validacion,apertura,abrir validacion,validacion,"{""motivo"": ""fase 6: candidatas del filtro de desarrollo y el detector de recortes, según el pre-registro""}",,,c0e5154
+2026-10-06T17:52:22+00:00,6,seleccion,yield_contra_su_historia,validacion,"{""desde"": ""2015-12-31"", ""hasta"": ""2026-06-30""}",mejora_aportacion,-0.00282,c0e5154
+2026-10-06T17:52:26+00:00,6,seleccion,momentum,validacion,"{""desde"": ""2015-12-31"", ""hasta"": ""2026-06-30""}",mejora_aportacion,0.005713,c0e5154
+2026-10-06T17:52:31+00:00,6,seleccion,sin riesgo de recorte,validacion,"{""desde"": ""2015-12-31"", ""hasta"": ""2026-06-30""}",mejora_aportacion,-0.001835,c0e5154

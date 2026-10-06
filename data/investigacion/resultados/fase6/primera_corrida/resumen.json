@@ -1,0 +1,43 @@
+{
+  "pbo": 0.04285714285714286,
+  "sharpe_deflactado": 0.4502517320516337,
+  "mejor": "momentum",
+  "intentos": 16,
+  "candidatas": [
+    "momentum"
+  ],
+  "detector": {
+    "pronosticos": 3521,
+    "recortes": 508,
+    "auc": 0.749384556684812,
+    "brier": 0.10287459190958491,
+    "brier_base": 0.12509593756473433,
+    "habilidad_brier": 0.17763443072362262,
+    "auc_por_variable": {
+      "payout": 0.6190812473290037,
+      "apalancamiento": 0.6698691803377745,
+      "distancia_al_default": 0.6885924912600699,
+      "momentum": 0.6006983751139017,
+      "yield_relativo": 0.7288998330071005,
+      "tamano": 0.575792301601198,
+      "volatilidad": 0.6668269964305531,
+      "recorte_previo": 0.5807923926153775,
+      "crecimiento_ffo": 0.6069213840489903
+    }
+  },
+  "despues_del_recorte": {
+    "desarrollo": {
+      "recortes": 30,
+      "exceso_12m_promedio": -0.00776328902814374,
+      "exceso_12m_mediano": 0.0032573377887116957,
+      "t_newey_west": 0.8365954531885194
+    },
+    "validacion": {
+      "recortes": 126,
+      "exceso_12m_promedio": 0.07656523581130939,
+      "exceso_12m_mediano": 0.06328441336685936,
+      "t_newey_west": 1.3116694977282743
+    }
+  },
+  "veredicto": "RECHAZADO"
+}

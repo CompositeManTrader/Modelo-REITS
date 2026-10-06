@@ -298,19 +298,24 @@ def _tir(flujos: np.ndarray) -> float:
 
 def simular(sel: pd.DataFrame, x: pd.DataFrame, *, desde: pd.Timestamp, hasta: pd.Timestamp,
             d: Diseno6 = DISENO6, rezago: int = 0, multiplicador_de_costos: float = 1.0,
-            rotar_cada: int | None = None) -> Simulacion:
+            rotar_cada: int | None = None, respaldo: pd.DataFrame | None = None) -> Simulacion:
     """El inversionista: 3,000 dólares por trimestre a los escogidos, por partes iguales.
 
     Sin vender nunca (``rotar_cada=None``): los dividendos pagan 20% y se reinvierten con la
     siguiente aportación; si un emisor sale (compra o quiebra), lo que se recibe paga 10% sobre
     la ganancia (con pérdidas acumuladas) y se reinvierte. Con ``rotar_cada=4``, cada año se
     venden los que ya no están escogidos. Al final se vende todo y se paga el 10%.
+
+    Un trimestre en que la regla no escoge a nadie (su señal todavía no tiene historia), la
+    aportación va a ``respaldo``, todos los elegibles: guardarla en efectivo metería un timing
+    que esta fase no mide (corrección del 6 de octubre, declarada en los resultados).
     """
     imp_div, imp_gan = OBJETIVO.impuesto_dividendo, OBJETIVO.impuesto_ganancia
     comision = OBJETIVO.comision * multiplicador_de_costos
     R = x.dropna(subset=["retorno"]).set_index(["fecha", "cik"])[["retorno", "dividendo", "salida"]]
     R = R[~R.index.duplicated()]
     escogidos = sel.groupby("fecha")["cik"].apply(list)
+    todos = respaldo.groupby("fecha")["cik"].apply(list) if respaldo is not None else pd.Series(dtype=object)
     fechas = [f for f in sorted(x["fecha"].unique()) if desde <= f <= hasta]
     valor: dict[str, float] = {}
     base: dict[str, float] = {}
@@ -346,6 +351,8 @@ def simular(sel: pd.DataFrame, x: pd.DataFrame, *, desde: pd.Timestamp, hasta: p
         indice.append(nivel)
         fuente = fechas[k - rezago] if k - rezago >= 0 else None
         hoy = list(escogidos.get(fuente, [])) if fuente is not None else []
+        if not hoy and fuente is not None and respaldo is not None:
+            hoy = list(todos.get(fuente, []))
         if rotar_cada and k % rotar_cada == 0 and hoy:
             for cik in [c for c in valor if c not in hoy]:
                 efectivo += vender(cik) * (1 - comision)
@@ -507,15 +514,16 @@ def evaluar(regla: str, x: pd.DataFrame, *, desde: pd.Timestamp, hasta: pd.Times
     R = matriz_de_retornos(x[x["fecha"] <= hasta])
     gr, gu = retorno_de_grupo(sel, R, d), retorno_de_grupo(sel_todos, R, d)
     ventana = (gr.index > desde) & (gr.index <= hasta)
-    exceso = (gr - gu)[ventana].dropna()
+    # Regla y universo, en los mismos trimestres: los que la regla ya tiene cartera.
+    comun = ventana & gr.notna().to_numpy() & gu.notna().to_numpy()
+    exceso = (gr - gu)[comun]
+    kw = {"desde": desde, "hasta": hasta, "d": d, "respaldo": sel_todos}
     sims = {
-        "base": (simular(sel, x, desde=desde, hasta=hasta, d=d), simular(sel_todos, x, desde=desde, hasta=hasta, d=d)),
-        "rezago": (simular(sel, x, desde=desde, hasta=hasta, d=d, rezago=1),
-                   simular(sel_todos, x, desde=desde, hasta=hasta, d=d, rezago=1)),
-        "doble_costo": (simular(sel, x, desde=desde, hasta=hasta, d=d, multiplicador_de_costos=2.0),
-                        simular(sel_todos, x, desde=desde, hasta=hasta, d=d, multiplicador_de_costos=2.0)),
-        "rotando": (simular(sel, x, desde=desde, hasta=hasta, d=d, rotar_cada=d.horizonte),
-                    simular(sel_todos, x, desde=desde, hasta=hasta, d=d)),
+        "base": (simular(sel, x, **kw), simular(sel_todos, x, **kw)),
+        "rezago": (simular(sel, x, rezago=1, **kw), simular(sel_todos, x, rezago=1, **kw)),
+        "doble_costo": (simular(sel, x, multiplicador_de_costos=2.0, **kw),
+                        simular(sel_todos, x, multiplicador_de_costos=2.0, **kw)),
+        "rotando": (simular(sel, x, rotar_cada=d.horizonte, **kw), simular(sel_todos, x, **kw)),
     }
     adelante = _adelante(R, d)
     trampa = e.loc[m].merge(adelante.stack().rename("r12").reset_index(), on=["fecha", "cik"], how="left")
@@ -531,7 +539,7 @@ def evaluar(regla: str, x: pd.DataFrame, *, desde: pd.Timestamp, hasta: pd.Times
         "mejora_doble_costo": sims["doble_costo"][0].tir - sims["doble_costo"][1].tir,
         "mejora_rotando": sims["rotando"][0].tir - sims["rotando"][1].tir,
         "caida_maxima": sims["base"][0].caida_maxima, "caida_maxima_todos": sims["base"][1].caida_maxima,
-        "exceso_anual": _anual(gr[ventana]) - _anual(gu[ventana]),
+        "exceso_anual": _anual(gr[comun]) - _anual(gu[comun]),
         "t_newey_west": estadistica.newey_west_t(exceso.to_numpy(), d.rezago_nw) if len(exceso) > 8 else np.nan,
         "recortes": float(e.loc[m, "recorte_siguiente"].mean()),
         "recortes_todos": float(e["recorte_siguiente"].mean()),
@@ -548,8 +556,8 @@ def evaluar(regla: str, x: pd.DataFrame, *, desde: pd.Timestamp, hasta: pd.Times
     cortes = (desde, *mitades, hasta)
     for i in range(len(cortes) - 1):
         a, b = cortes[i], cortes[i + 1]
-        tramo = (gr.index > a) & (gr.index <= b)
-        salida[f"exceso_{a:%Y}_{b:%Y}"] = _anual(gr[tramo]) - _anual(gu[tramo])
+        tramo = comun & (gr.index > a) & (gr.index <= b)
+        salida[f"exceso_{(a + pd.Timedelta(days=1)):%Y}_{b:%Y}"] = _anual(gr[tramo]) - _anual(gu[tramo])
     salida["_exceso_trimestral"] = exceso
     if registrar:
         bitacora.registrar(fase="6", familia="seleccion", prueba=regla, muestra=muestra,
@@ -745,9 +753,14 @@ def pasa_la_validacion_el_detector(f: dict, detector: dict, d: Diseno6 = DISENO6
     return pasa_la_validacion(f) and np.isfinite(detector.get("auc", np.nan)) and detector["auc"] >= d.auc_minima
 
 
-def correr(panel: pd.DataFrame, *, d: Diseno6 = DISENO6, ruta_bitacora=None, raiz_sellado=None) -> ResultadoFase6:
+def correr(panel: pd.DataFrame, *, d: Diseno6 = DISENO6, ruta_bitacora=None, raiz_sellado=None,
+           abrir_final: bool = True) -> ResultadoFase6:
     """La fase completa en el orden del pre-registro: desarrollo, filtro, validación y, solo si
-    una regla la pasa, la prueba final con los sellados."""
+    una regla la pasa, la prueba final con los sellados.
+
+    ``abrir_final=False`` repite desarrollo y validación sin tocar a los sellados (que se abren
+    una sola vez): es lo que se usó para la corrida corregida.
+    """
     from src.investigacion.muestras import Muestra, recortar
 
     desarrollo = recortar(panel, Muestra.DESARROLLO, columna="fecha")
@@ -763,6 +776,9 @@ def correr(panel: pd.DataFrame, *, d: Diseno6 = DISENO6, ruta_bitacora=None, rai
     r.despues_del_recorte = {"desarrollo": r.despues_del_recorte, "validacion": d3}
     if not any(pasa):
         r.veredicto = "RECHAZADO"
+        return r
+    if not abrir_final:
+        r.veredicto = "SIN PRUEBA FINAL"
         return r
     elegida = str(tabla[tabla["pasa"]].sort_values("mejora", ascending=False)["regla"].iloc[0])
     f, veredicto = correr_final(panel, elegida, d=d, pbo=r.pbo, dsr=r.sharpe_deflactado, ruta_bitacora=ruta_bitacora,
@@ -785,6 +801,9 @@ NOMBRES = {
     "payout": "Payout bajo", "calidad": "Calidad", "calidad y barato": "Calidad y barato (FFO)",
     "calidad y barato contra su historia": "Calidad y barato contra su historia", DETECTOR: "Sin riesgo de recorte",
 }
+
+
+ETIQUETA_MUESTRA = {"desarrollo": "Desarrollo", "validacion": "Validación", "final": "Prueba final"}
 
 
 def _p(v, d: int = 1) -> str:
@@ -853,7 +872,7 @@ def informe(r: ResultadoFase6) -> str:
         o.append("## ¿Vender después de un recorte? (D3)\n\n")
         for muestra, v in d3.items():
             if v.get("recortes"):
-                o.append(f"* {muestra.capitalize()}: {v['recortes']} recortes nuevos; en los 12 meses siguientes "
+                o.append(f"* {ETIQUETA_MUESTRA.get(muestra, muestra)}: {v['recortes']} recortes nuevos; en los 12 meses siguientes "
                          f"rindieron {_p(v['exceso_12m_promedio'])} contra el universo en promedio (mediana "
                          f"{_p(v['exceso_12m_mediano'])}, t = {v['t_newey_west']:+.2f}).\n")
         o.append("\n")
@@ -863,3 +882,103 @@ def informe(r: ResultadoFase6) -> str:
     o.append("## Todas las reglas, en desarrollo\n")
     o.append(tabla_de_reglas(d))
     return "".join(o)
+
+
+def _fila(t: pd.DataFrame, regla: str) -> pd.Series:
+    return t.set_index("regla").loc[regla]
+
+
+def hipotesis(r: ResultadoFase6) -> str:
+    """Lo que se escribió antes de correr, contra lo que salió (con la corrida corregida)."""
+    d, v = r.desarrollo, r.validacion
+    mom_d, mom_v = _fila(d, "momentum"), _fila(v, "momentum")
+    fin = r.final.iloc[0] if len(r.final) else None
+    q, qb = _fila(d, "calidad"), _fila(d, "calidad y barato")
+    s7 = _fila(d, "rendimiento_del_dividendo")
+    apal, dd = _fila(d, "apalancamiento"), _fila(d, "distancia_al_default")
+    det = r.recortes or {}
+    sin = _fila(v, DETECTOR)
+    d3 = (r.despues_del_recorte or {}).get("validacion", {})
+    s12 = _fila(d, "yield_contra_su_historia")
+    s12v = _fila(v, "yield_contra_su_historia") if "yield_contra_su_historia" in set(v["regla"]) else None
+    lineas = [
+        ("H0 — nada le gana a aportar a todos por +50 pb de forma robusta",
+         "Se cumple. Solo momentum pasó la validación, y en los emisores sellados ganó "
+         + (f"{_pb(fin['mejora'])} pb al año (el umbral es +50) con un exceso bruto de {_p(fin['exceso_anual'])}"
+            if fin is not None else "—") + f"; su Sharpe deflactado en desarrollo fue {r.sharpe_deflactado:.2f} (umbral 0.95)."),
+        ("H1 — momentum: exceso pequeño e inestable",
+         f"Se cumple. {_pb(mom_d['mejora'])} pb en desarrollo (exceso bruto {_p(mom_d['exceso_anual'])}, t = "
+         f"{mom_d['t_newey_west']:+.1f}), {_pb(mom_v['mejora'])} pb en validación (exceso {_p(mom_v['exceso_anual'])}, "
+         f"t = {mom_v['t_newey_west']:+.1f}: {_p(mom_v['exceso_2016_2020'])} en 2016-2020 y "
+         f"{_p(mom_v['exceso_2021_2026'])} en 2021-2026)"
+         + (f" y {_pb(fin['mejora'])} pb en los sellados." if fin is not None else ".")),
+        ("H2 — el valor solo, sin exceso; con calidad, positivo",
+         f"La primera parte se cumple: rendimiento FFO {_pb(_fila(d, 'rendimiento_ffo')['mejora'])} pb y cap rate "
+         f"{_pb(_fila(d, 'rendimiento_de_la_empresa')['mejora'])} pb. La segunda no: «barato entre los de calidad» fue "
+         f"la peor de las 16 ({_pb(qb['mejora'])} pb, exceso bruto {_p(qb['exceso_anual'])}, t = {qb['t_newey_west']:+.1f})."),
+        ("H3 — el yield alto es una trampa",
+         f"Se cumple: {_pb(s7['mejora'])} pb y {_p(s7['recortes'], 0)} de recortes en el año siguiente contra "
+         f"{_p(s7['recortes_todos'], 0)} del universo."),
+        ("H4 — poca deuda y lejos del default: menos trampas, poco retorno",
+         f"Se cumple en lo defensivo: recortes de {_p(apal['recortes'], 0)} y {_p(dd['recortes'], 0)} contra "
+         f"{_p(apal['recortes_todos'], 0)}; en retorno, apalancamiento bajo perdió ({_pb(apal['mejora'])} pb, t = "
+         f"{apal['t_newey_west']:+.1f}) y distancia al default quedó en {_pb(dd['mejora'])} pb."),
+        ("H5 — calidad: menos recortes, exceso cercano a cero",
+         f"Se cumple: {_p(q['recortes'], 0)} de recortes contra {_p(q['recortes_todos'], 0)}; {_pb(q['mejora'])} pb de TIR "
+         f"y exceso bruto de {_p(q['exceso_anual'])}."),
+        ("H6 — la prueba clave: barato entre los de calidad contra todos los de calidad",
+         f"Rechazada en desarrollo: {_pb(qb['mejora'])} pb contra {_pb(q['mejora'])} pb de toda la calidad. Ser barato "
+         "por FFO, aun entre REITs sanos, no pagó; no llegó a validación."),
+        ("H7 — barato contra su propia historia",
+         f"Pasó desarrollo solo ({_pb(s12['mejora'])} pb, con una docena de emisores y desde 2013) y falló en validación"
+         + (f" ({_pb(s12v['mejora'])} pb, exceso {_p(s12v['exceso_anual'])})." if s12v is not None else ".")
+         + " Entre los de calidad tampoco pasó el filtro."),
+        ("H8 — el detector predice, pero apenas mueve la TIR",
+         f"Se cumple: AUC fuera de muestra de {det.get('auc', float('nan')):.2f} (umbral 0.70) y habilidad de Brier "
+         f"de {det.get('habilidad_brier', float('nan')) * 100:+.0f}%; sacar al quintil de más riesgo bajó los recortes de "
+         f"{_p(sin['recortes_todos'], 0)} a {_p(sin['recortes'], 0)} pero costó {_pb(-sin['mejora'])[1:]} pb al año."),
+        ("H9 — vender después de un recorte no ayuda",
+         f"Se cumple: en validación, los que acababan de recortar rindieron {_p(d3.get('exceso_12m_promedio'))} más "
+         f"que el universo en los 12 meses siguientes (mediana {_p(d3.get('exceso_12m_mediano'))}, t = "
+         f"{d3.get('t_newey_west', float('nan')):+.1f})."),
+    ]
+    return ("## Lo que se escribió antes de correr\n\n" + "".join(f"* **{h}.** {t}\n" for h, t in lineas) + "\n")
+
+
+def correcciones(primera: ResultadoFase6, corregida: ResultadoFase6) -> str:
+    """Qué cambió entre la corrida pre-registrada y la corregida, y por qué no cambia el veredicto."""
+    a = primera.desarrollo.set_index("regla")
+    b = corregida.desarrollo.set_index("regla")
+    cambian = [k for k in b.index if abs(a.loc[k, "mejora"] - b.loc[k, "mejora"]) >= 5e-4]
+    filas = [[NOMBRES.get(k, k), _pb(a.loc[k, "mejora"]), _pb(b.loc[k, "mejora"]), _p(a.loc[k, "exceso_anual"]),
+              _p(b.loc[k, "exceso_anual"]), "sí" if a.loc[k, "pasa"] else "no", "sí" if b.loc[k, "pasa"] else "no"]
+             for k in cambian]
+    return (
+        "## Correcciones después de la primera corrida (declaradas)\n\n"
+        "La primera corrida, con el código del pre-registro, tenía dos errores de programación que se encontraron al "
+        "revisar sus números, después de verlos:\n\n"
+        "1. **El exceso bruto comparaba periodos distintos**: la regla en los trimestres en que ya tenía cartera y el "
+        "universo en todos. Ahora los dos se miden en los mismos trimestres.\n"
+        "2. **Sin escogidos, la aportación se quedaba en efectivo al 0%.** Las señales que necesitan años de historia "
+        "(el yield contra su historia, el crecimiento del dividendo) no escogen a nadie antes de 2013, y el simulador "
+        "guardaba ese dinero: un timing accidental que esta fase no mide. Ahora va a todos los elegibles, que es lo que "
+        "dice el pre-registro («a los escogidos… contra lo mismo a todos»).\n\n"
+        "La primera corrida se guardó completa en `data/investigacion/resultados/fase6/primera_corrida/`. Las reglas "
+        "que cambiaron:\n"
+        + _md(filas, ["Regla", "Mejora antes (pb)", "Mejora corregida (pb)", "Exceso antes", "Exceso corregido",
+                      "Pasaba", "Pasa"])
+        + f"Con la corrección pasan el desarrollo {', '.join(NOMBRES.get(c, c) for c in corregida.candidatas)}; en la "
+        f"primera corrida solo {', '.join(NOMBRES.get(c, c) for c in primera.candidatas)}. En validación, «yield contra "
+        "su historia» pierde y momentum vuelve a pasar con las mismas cifras: el veredicto no cambia.\n\n"
+        "**La prueba final se corrió una sola vez**, en la primera corrida, con momentum congelado. Ninguno de los dos "
+        "errores la toca: momentum tuvo escogidos en todos los trimestres y su veredicto se decide por la TIR. Los "
+        "sellados no se volvieron a abrir. La bitácora registra las tres aperturas de la validación (la primera se cayó "
+        "antes de calcular nada por un faltante en el detector, corregido en su propio commit).\n\n"
+    )
+
+
+def informe_completo(corregida: ResultadoFase6, primera: ResultadoFase6) -> str:
+    """El informe con la corrida corregida, la prueba final (única) y la nota de las correcciones."""
+    texto = informe(corregida)
+    cuerpo, desarrollo = texto.split("## Validación", 1)
+    return cuerpo + hipotesis(corregida) + "## Validación" + desarrollo + correcciones(primera, corregida)

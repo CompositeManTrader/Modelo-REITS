@@ -113,6 +113,18 @@ def test_simular_cobra_impuestos_y_comision():
     assert s.tir < (1.02**4 - 1) * 0.85
 
 
+def test_sin_escogidos_la_aportacion_va_a_todos_y_no_al_efectivo():
+    x = f6.senales(_panel(40))
+    e = x[f6.elegibles(x)]
+    todos = e[["fecha", "cik"]]
+    tarde = todos[todos["fecha"] >= FECHAS[12]]          # la regla no escoge a nadie la primera mitad
+    a = f6.simular(tarde, x, desde=FECHAS[0], hasta=FECHAS[-1], respaldo=todos)
+    b = f6.simular(todos, x, desde=FECHAS[0], hasta=FECHAS[-1], respaldo=todos)
+    assert a.tir == pytest.approx(b.tir)
+    sin_respaldo = f6.simular(tarde, x, desde=FECHAS[0], hasta=FECHAS[-1])
+    assert sin_respaldo.tir < a.tir                     # en efectivo al 0% rinde menos en un mercado que sube
+
+
 def test_auc():
     assert f6.auc(np.array([0, 0, 1, 1]), np.array([0.1, 0.2, 0.8, 0.9])) == pytest.approx(1.0)
     assert f6.auc(np.array([0, 0, 1, 1]), np.array([0.9, 0.8, 0.2, 0.1])) == pytest.approx(0.0)
