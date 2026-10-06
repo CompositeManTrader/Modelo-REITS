@@ -7,3 +7,7 @@ odfpy>=1.4
 # Solo para generar el PDF del estudio (`scripts/estudio.py pdf`). La aplicación en
 # la nube no lo necesita: ofrece el PDF ya generado y versionado.
 playwright>=1.40
+# La investigación (src/investigacion): el archivo de Nareit es .xls y la escalera de
+# modelos de la fase 7 usa árboles de scikit-learn.
+xlrd>=2.0
+scikit-learn>=1.4
