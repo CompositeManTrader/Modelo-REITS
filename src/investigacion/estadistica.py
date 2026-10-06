@@ -87,6 +87,10 @@ def pronostico_expandible(senal: pd.Series, objetivo: pd.Series, *, minimo: int,
         if ok.sum() < minimo or np.isnan(sv[t]):
             continue
         prom[t] = ys[ok].mean()
+        if np.unique(xs[ok]).size < 3:
+            # Una señal que casi no varía no tiene pendiente que estimar: el pronóstico es el promedio.
+            pron[t] = prom[t]
+            continue
         b, a = np.polyfit(xs[ok], ys[ok], 1)
         pron[t] = prom[t] if (signo is not None and b * signo < 0) else a + b * sv[t]
     return pd.DataFrame({"pronostico": pron, "promedio": prom, "real": yv}, index=fechas)

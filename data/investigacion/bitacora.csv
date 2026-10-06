@@ -29,3 +29,113 @@ momento,fase,familia,prueba,muestra,parametros,metrica,valor,commit
 2026-10-06T04:34:26+00:00,3,exploracion-oraculo,fuera en cada caída de 20% o más (del máximo al mínimo) (rebalancea),desarrollo,{},tir,0.165442,8944322
 2026-10-06T04:34:26+00:00,3,exploracion-oraculo,anti-oráculo de 12 meses (nunca vende),desarrollo,{},tir,0.087723,8944322
 2026-10-06T04:34:26+00:00,3,exploracion-oraculo,anti-oráculo de 12 meses (rebalancea),desarrollo,{},tir,-0.019248,8944322
+2026-10-06T04:47:45+00:00,5,valuacion,yield de los REITs | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.048999,4f3303e
+2026-10-06T04:47:46+00:00,5,valuacion,yield de los REITs | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.024719,4f3303e
+2026-10-06T04:47:46+00:00,5,valuacion,yield contra el Treasury | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.004268,4f3303e
+2026-10-06T04:47:47+00:00,5,valuacion,yield contra el Treasury | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.013665,4f3303e
+2026-10-06T04:47:47+00:00,5,valuacion,yield contra la tasa real | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.022468,4f3303e
+2026-10-06T04:47:48+00:00,5,valuacion,yield contra la tasa real | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.023895,4f3303e
+2026-10-06T04:47:49+00:00,5,valuacion,yield contra bonos Baa | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.009287,4f3303e
+2026-10-06T04:47:49+00:00,5,valuacion,yield contra bonos Baa | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.01497,4f3303e
+2026-10-06T04:47:50+00:00,5,credito,spread de default | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.025406,4f3303e
+2026-10-06T04:47:50+00:00,5,credito,spread de default | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.019911,4f3303e
+2026-10-06T04:47:51+00:00,5,credito,cambio del spread de crédito | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.011742,4f3303e
+2026-10-06T04:47:51+00:00,5,credito,cambio del spread de crédito | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.011862,4f3303e
+2026-10-06T04:47:52+00:00,5,credito,condiciones financieras | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,0.009227,4f3303e
+2026-10-06T04:47:52+00:00,5,credito,condiciones financieras | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.00505,4f3303e
+2026-10-06T04:47:53+00:00,5,credito,crédito bancario a inmuebles | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.001509,4f3303e
+2026-10-06T04:47:53+00:00,5,credito,crédito bancario a inmuebles | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.005882,4f3303e
+2026-10-06T04:47:54+00:00,5,bolsa,bolsa del mes | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.011865,4f3303e
+2026-10-06T04:47:54+00:00,5,bolsa,bolsa del mes | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.010396,4f3303e
+2026-10-06T04:47:55+00:00,5,tendencia,tendencia de 10 meses | signo,desarrollo,{},mejora_rebalanceo,0.001503,4f3303e
+2026-10-06T04:47:56+00:00,5,tendencia,momentum contra el efectivo | signo,desarrollo,{},mejora_rebalanceo,0.000227,4f3303e
+2026-10-06T04:47:56+00:00,5,combinada,caro y con tendencia negativa | fuera si caro y a la baja,desarrollo,{},mejora_rebalanceo,-0.001146,4f3303e
+2026-10-06T04:47:57+00:00,5,combinada,compuesto de cuatro familias | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-2.9e-05,4f3303e
+2026-10-06T04:49:01+00:00,5,valuacion,yield de los REITs | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.048999,4f3303e
+2026-10-06T04:49:01+00:00,5,valuacion,yield de los REITs | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.024719,4f3303e
+2026-10-06T04:49:02+00:00,5,valuacion,yield contra el Treasury | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.004268,4f3303e
+2026-10-06T04:49:02+00:00,5,valuacion,yield contra el Treasury | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.013665,4f3303e
+2026-10-06T04:49:03+00:00,5,valuacion,yield contra la tasa real | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.022468,4f3303e
+2026-10-06T04:49:03+00:00,5,valuacion,yield contra la tasa real | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.023895,4f3303e
+2026-10-06T04:49:04+00:00,5,valuacion,yield contra bonos Baa | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.009287,4f3303e
+2026-10-06T04:49:04+00:00,5,valuacion,yield contra bonos Baa | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.01497,4f3303e
+2026-10-06T04:49:05+00:00,5,credito,spread de default | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.025406,4f3303e
+2026-10-06T04:49:05+00:00,5,credito,spread de default | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.019911,4f3303e
+2026-10-06T04:49:06+00:00,5,credito,cambio del spread de crédito | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.011742,4f3303e
+2026-10-06T04:49:07+00:00,5,credito,cambio del spread de crédito | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.011862,4f3303e
+2026-10-06T04:49:07+00:00,5,credito,condiciones financieras | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,0.009227,4f3303e
+2026-10-06T04:49:08+00:00,5,credito,condiciones financieras | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.00505,4f3303e
+2026-10-06T04:49:08+00:00,5,credito,crédito bancario a inmuebles | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.001509,4f3303e
+2026-10-06T04:49:09+00:00,5,credito,crédito bancario a inmuebles | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.005882,4f3303e
+2026-10-06T04:49:09+00:00,5,bolsa,bolsa del mes | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.011865,4f3303e
+2026-10-06T04:49:10+00:00,5,bolsa,bolsa del mes | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.010396,4f3303e
+2026-10-06T04:49:10+00:00,5,tendencia,tendencia de 10 meses | signo,desarrollo,{},mejora_rebalanceo,0.001503,4f3303e
+2026-10-06T04:49:11+00:00,5,tendencia,momentum contra el efectivo | signo,desarrollo,{},mejora_rebalanceo,0.000227,4f3303e
+2026-10-06T04:49:11+00:00,5,combinada,caro y con tendencia negativa | fuera si caro y a la baja,desarrollo,{},mejora_rebalanceo,-0.001146,4f3303e
+2026-10-06T04:49:12+00:00,5,combinada,compuesto de cuatro familias | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-2.9e-05,4f3303e
+2026-10-06T04:49:59+00:00,5,valuacion,yield de los REITs | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.048999,4f3303e
+2026-10-06T04:49:59+00:00,5,valuacion,yield de los REITs | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.024719,4f3303e
+2026-10-06T04:50:00+00:00,5,valuacion,yield contra el Treasury | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.004268,4f3303e
+2026-10-06T04:50:00+00:00,5,valuacion,yield contra el Treasury | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.013665,4f3303e
+2026-10-06T04:50:01+00:00,5,valuacion,yield contra la tasa real | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.022468,4f3303e
+2026-10-06T04:50:02+00:00,5,valuacion,yield contra la tasa real | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.023895,4f3303e
+2026-10-06T04:50:02+00:00,5,valuacion,yield contra bonos Baa | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.009287,4f3303e
+2026-10-06T04:50:03+00:00,5,valuacion,yield contra bonos Baa | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.01497,4f3303e
+2026-10-06T04:50:03+00:00,5,credito,spread de default | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.025406,4f3303e
+2026-10-06T04:50:04+00:00,5,credito,spread de default | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.019911,4f3303e
+2026-10-06T04:50:05+00:00,5,credito,cambio del spread de crédito | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.011742,4f3303e
+2026-10-06T04:50:05+00:00,5,credito,cambio del spread de crédito | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.011862,4f3303e
+2026-10-06T04:50:06+00:00,5,credito,condiciones financieras | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,0.009227,4f3303e
+2026-10-06T04:50:06+00:00,5,credito,condiciones financieras | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.00505,4f3303e
+2026-10-06T04:50:07+00:00,5,credito,crédito bancario a inmuebles | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.001509,4f3303e
+2026-10-06T04:50:07+00:00,5,credito,crédito bancario a inmuebles | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.005882,4f3303e
+2026-10-06T04:50:08+00:00,5,bolsa,bolsa del mes | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.011865,4f3303e
+2026-10-06T04:50:09+00:00,5,bolsa,bolsa del mes | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.010396,4f3303e
+2026-10-06T04:50:09+00:00,5,tendencia,tendencia de 10 meses | signo,desarrollo,{},mejora_rebalanceo,0.001503,4f3303e
+2026-10-06T04:50:10+00:00,5,tendencia,momentum contra el efectivo | signo,desarrollo,{},mejora_rebalanceo,0.000227,4f3303e
+2026-10-06T04:50:10+00:00,5,combinada,caro y con tendencia negativa | fuera si caro y a la baja,desarrollo,{},mejora_rebalanceo,-0.001146,4f3303e
+2026-10-06T04:50:11+00:00,5,combinada,compuesto de cuatro familias | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-2.9e-05,4f3303e
+2026-10-06T04:50:43+00:00,5,valuacion,yield de los REITs | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.048999,4f3303e
+2026-10-06T04:50:44+00:00,5,valuacion,yield de los REITs | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.024719,4f3303e
+2026-10-06T04:50:44+00:00,5,valuacion,yield contra el Treasury | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.004268,4f3303e
+2026-10-06T04:50:45+00:00,5,valuacion,yield contra el Treasury | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.013665,4f3303e
+2026-10-06T04:50:46+00:00,5,valuacion,yield contra la tasa real | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.022468,4f3303e
+2026-10-06T04:50:46+00:00,5,valuacion,yield contra la tasa real | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.023895,4f3303e
+2026-10-06T04:50:47+00:00,5,valuacion,yield contra bonos Baa | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.009287,4f3303e
+2026-10-06T04:50:47+00:00,5,valuacion,yield contra bonos Baa | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.01497,4f3303e
+2026-10-06T04:50:48+00:00,5,credito,spread de default | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.025406,4f3303e
+2026-10-06T04:50:48+00:00,5,credito,spread de default | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.019911,4f3303e
+2026-10-06T04:50:49+00:00,5,credito,cambio del spread de crédito | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.011742,4f3303e
+2026-10-06T04:50:50+00:00,5,credito,cambio del spread de crédito | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.011862,4f3303e
+2026-10-06T04:50:50+00:00,5,credito,condiciones financieras | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,0.009227,4f3303e
+2026-10-06T04:50:51+00:00,5,credito,condiciones financieras | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.00505,4f3303e
+2026-10-06T04:50:51+00:00,5,credito,crédito bancario a inmuebles | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.001509,4f3303e
+2026-10-06T04:50:52+00:00,5,credito,crédito bancario a inmuebles | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.005882,4f3303e
+2026-10-06T04:50:52+00:00,5,bolsa,bolsa del mes | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.011865,4f3303e
+2026-10-06T04:50:53+00:00,5,bolsa,bolsa del mes | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.010396,4f3303e
+2026-10-06T04:50:53+00:00,5,tendencia,tendencia de 10 meses | signo,desarrollo,{},mejora_rebalanceo,0.001503,4f3303e
+2026-10-06T04:50:54+00:00,5,tendencia,momentum contra el efectivo | signo,desarrollo,{},mejora_rebalanceo,0.000227,4f3303e
+2026-10-06T04:50:54+00:00,5,combinada,caro y con tendencia negativa | fuera si caro y a la baja,desarrollo,{},mejora_rebalanceo,-0.001146,4f3303e
+2026-10-06T04:50:55+00:00,5,combinada,compuesto de cuatro familias | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-2.9e-05,4f3303e
+2026-10-06T04:51:17+00:00,5,valuacion,yield de los REITs | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.048999,4f3303e
+2026-10-06T04:51:17+00:00,5,valuacion,yield de los REITs | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.024719,4f3303e
+2026-10-06T04:51:18+00:00,5,valuacion,yield contra el Treasury | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.004268,4f3303e
+2026-10-06T04:51:18+00:00,5,valuacion,yield contra el Treasury | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.013665,4f3303e
+2026-10-06T04:51:19+00:00,5,valuacion,yield contra la tasa real | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.022468,4f3303e
+2026-10-06T04:51:20+00:00,5,valuacion,yield contra la tasa real | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.023895,4f3303e
+2026-10-06T04:51:20+00:00,5,valuacion,yield contra bonos Baa | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.009287,4f3303e
+2026-10-06T04:51:21+00:00,5,valuacion,yield contra bonos Baa | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.01497,4f3303e
+2026-10-06T04:51:21+00:00,5,credito,spread de default | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.025406,4f3303e
+2026-10-06T04:51:22+00:00,5,credito,spread de default | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.019911,4f3303e
+2026-10-06T04:51:22+00:00,5,credito,cambio del spread de crédito | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.011742,4f3303e
+2026-10-06T04:51:23+00:00,5,credito,cambio del spread de crédito | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.011862,4f3303e
+2026-10-06T04:51:24+00:00,5,credito,condiciones financieras | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,0.009227,4f3303e
+2026-10-06T04:51:24+00:00,5,credito,condiciones financieras | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.00505,4f3303e
+2026-10-06T04:51:25+00:00,5,credito,crédito bancario a inmuebles | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.001509,4f3303e
+2026-10-06T04:51:25+00:00,5,credito,crédito bancario a inmuebles | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.005882,4f3303e
+2026-10-06T04:51:26+00:00,5,bolsa,bolsa del mes | fuera en el quintil peor (20%),desarrollo,{},mejora_rebalanceo,-0.011865,4f3303e
+2026-10-06T04:51:27+00:00,5,bolsa,bolsa del mes | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-0.010396,4f3303e
+2026-10-06T04:51:27+00:00,5,tendencia,tendencia de 10 meses | signo,desarrollo,{},mejora_rebalanceo,0.001503,4f3303e
+2026-10-06T04:51:28+00:00,5,tendencia,momentum contra el efectivo | signo,desarrollo,{},mejora_rebalanceo,0.000227,4f3303e
+2026-10-06T04:51:28+00:00,5,combinada,caro y con tendencia negativa | fuera si caro y a la baja,desarrollo,{},mejora_rebalanceo,-0.001146,4f3303e
+2026-10-06T04:51:29+00:00,5,combinada,compuesto de cuatro familias | continua con piso de 50%,desarrollo,{},mejora_rebalanceo,-2.9e-05,4f3303e

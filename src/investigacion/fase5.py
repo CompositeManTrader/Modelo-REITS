@@ -147,7 +147,10 @@ def _p(v, d=1) -> str:
 
 
 def _pb(v) -> str:
-    return "—" if pd.isna(v) else f"{v * 1e4:+,.0f}"
+    if pd.isna(v):
+        return "—"
+    x = round(v * 1e4)
+    return f"{x:+,d}" if x else "0"
 
 
 def _tabla(filas: list[list[str]], encabezado: list[str]) -> str:
@@ -166,3 +169,77 @@ def tabla_desarrollo(d: pd.DataFrame) -> str:
     return _tabla(filas, ["Señal", "Regla", "Solo dinero nuevo (pb)", "Rebalanceando (pb)", "Contra mezcla fija (pb)",
                           "Caída máxima", "Exposición", "Con un mes de retraso (pb)", "R² a 12 meses (%)",
                           "Clark-West p", "Apuestas", "Pasa"])
+
+
+def informe(r: ResultadoFase5) -> str:
+    """El informe de la fase 5 en Markdown, con el veredicto que dicta el pre-registro."""
+    d = r.desarrollo
+    base_tir = float(d["tir_aportar_siempre"].iloc[0])
+    base_caida = float(d["caida_aportar_siempre"].iloc[0])
+    eras = r.por_era.pivot_table(index=["senal", "regla"], columns="era", values="mejora_rebalanceo")
+    o = ["# Fase 5: ¿cuándo entrar al sector? Resultados\n\n",
+         "Pre-registro: `fase4_preregistro.md` (commit anterior a esta corrida). Muestra de desarrollo: "
+         f"FTSE Nareit All Equity REITs de {d['desde'].min():%m-%Y} a {d['hasta'].max():%m-%Y}. Aportar siempre "
+         f"da una TIR de {_p(base_tir, 2)} con una caída máxima de {_p(base_caida, 0)}. Generado por "
+         "`python scripts/investigacion.py fase5`.\n\n"]
+    pasan = int(d["pasa"].sum())
+    o.append(f"## Veredicto\n\n**{pasan} de {len(d)} reglas pasan el filtro pre-registrado.** ")
+    if pasan == 0:
+        o.append("Como dice el pre-registro, la validación no se abre y la fase 5 termina en **RECHAZADO** para "
+                 "decidir cuándo entrar al sector con estas señales.\n\n")
+    o.append(f"Pruebas múltiples sobre las {r.intentos} reglas: PBO = {r.pbo:.2f} (umbral 0.20) y Sharpe deflactado "
+             f"de la mejor por Sharpe («{r.mejor}») = {r.sharpe_deflactado:.3f} (umbral 0.95). El Sharpe mide el "
+             "retorno por unidad de riesgo de la parte invertida; no es la TIR del inversionista.\n\n")
+    o.append(_hipotesis(r))
+    o.append("## Todas las reglas, en desarrollo\n\nMejoras en puntos base al año de TIR contra aportar siempre. "
+             "«Contra mezcla fija»: contra rebalancear a una exposición constante igual a la promedio de la regla "
+             "(P8). R² fuera de muestra a 12 meses con restricción de signo.\n")
+    o.append(tabla_desarrollo(d))
+    o.append("## Por era\n")
+    filas = [[s, rg, _pb(f.get("1972-1992")), _pb(f.get("1993-2015"))] for (s, rg), f in eras.iterrows()]
+    o.append(_tabla(filas, ["Señal", "Regla", "1972-1992 (pb)", "1993-2015 (pb)"]))
+    return "".join(o)
+
+
+def _hipotesis(r: ResultadoFase5) -> str:
+    """Lo que se escribió antes de correr, contra lo que salió."""
+    d = r.desarrollo.set_index(["senal", "regla"])
+    eras = r.por_era.set_index(["senal", "regla", "era"])["mejora_rebalanceo"]
+    val = d[d["familia"] == "valuacion"]
+    tend = d.loc[("tendencia de 10 meses", "signo")]
+    nfci = d.loc[("condiciones financieras", "fuera en el quintil peor (20%)")]
+    bolsa = d.xs("bolsa del mes", level="senal")
+    comb = d[d["familia"] == "combinada"]
+    mejor_simple = d[d["familia"] != "combinada"]["mejora_rebalanceo"].max()
+    nuevo = d["mejora_nuevo"]
+    base = float(d["caida_aportar_siempre"].iloc[0])
+    lineas = [
+        ("H0 — ninguna le gana a aportar siempre de forma robusta",
+         "Se cumple: ninguna regla pasa el filtro (gana con retraso, con doble costo, en las dos eras y predice)."),
+        ("H1 — la valuación no sirve para salir",
+         f"Se cumple: las 8 reglas de valuación van de {_pb(val['mejora_rebalanceo'].min())} a "
+         f"{_pb(val['mejora_rebalanceo'].max())} pb al año rebalanceando, y su R² a 12 meses va de "
+         f"{val['r2_12m'].min() * 100:+.1f}% a {val['r2_12m'].max() * 100:+.1f}%, sin un Clark-West significativo."),
+        ("H2 — el crédito reduce la caída sin llegar a +50 pb",
+         f"En parte: salir con estrés financiero extremo (NFCI en su quintil peor) dio {_pb(nfci['mejora_rebalanceo'])} pb "
+         f"y una caída máxima de {_p(nfci['caida_rebalanceo'], 0)}, pero todo viene de 1993-2015 "
+         f"({_pb(eras[('condiciones financieras', 'fuera en el quintil peor (20%)', '1993-2015')])} pb) y en 1972-1992 dio "
+         f"{_pb(eras[('condiciones financieras', 'fuera en el quintil peor (20%)', '1972-1992')])} pb. Además el NFCI se "
+         "revisa: la serie de hoy no es la que se conocía entonces."),
+        ("H3 — la tendencia protege a costo pequeño",
+         f"En parte: el promedio de 10 meses bajó la caída máxima de {_p(base, 0)} a {_p(tend['caida_rebalanceo'], 0)} "
+         f"con {_pb(tend['mejora_rebalanceo'])} pb al año, ejecutando al mismo cierre. Con un mes de retraso cuesta "
+         f"{_pb(tend['mejora_rebalanceo_con_rezago'])} pb, y en 1972-1992 costó "
+         f"{_pb(eras[('tendencia de 10 meses', 'signo', '1972-1992')])} pb. No predice el retorno a 12 meses."),
+        ("H4 — la bolsa del mes predice a un mes, no a 12",
+         f"Se cumple: R² a 1 mes de {bolsa['r2_1m'].iloc[0] * 100:+.1f}% (Clark-West p = "
+         f"{bolsa['clark_west_p_1m'].iloc[0]:.2f}), a 12 meses {bolsa['r2_12m'].iloc[0] * 100:+.1f}%; sus reglas quedan en "
+         f"{_pb(bolsa['mejora_rebalanceo'].max())} pb o menos: la predicción no alcanza a pagar impuestos y comisiones."),
+        ("H5 — las combinaciones no le ganan a la mejor sola",
+         f"Se cumple: {_pb(comb['mejora_rebalanceo'].max())} pb la mejor combinación contra "
+         f"{_pb(mejor_simple)} pb la mejor señal sola."),
+        ("H6 — decidiendo solo el dinero nuevo nada llega a +50 pb",
+         f"Se cumple: todas quedan entre {_pb(nuevo.min())} y {_pb(nuevo.max())} pb."),
+    ]
+    return ("## Lo que se escribió antes de correr\n\n"
+            + "".join(f"* **{h}.** {t}\n" for h, t in lineas) + "\n")

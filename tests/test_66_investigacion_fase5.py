@@ -48,3 +48,9 @@ def test_el_filtro_pide_todo_a_la_vez():
     assert not fase5.pasa_el_filtro(base, eras.assign(mejora_rebalanceo=[0.01, -0.001]))
     assert not fase5.pasa_el_filtro(con(r2_12m=-0.01, clark_west_p_12m=0.2), eras)
     assert fase5.pasa_el_filtro(con(r2_12m=-0.01, clark_west_p_12m=0.05), eras)
+
+
+def test_los_puntos_base_no_dicen_menos_cero():
+    assert fase5._pb(-0.00001) == "0"
+    assert fase5._pb(0.0092) == "+92"
+    assert fase5._pb(-0.049) == "-490"

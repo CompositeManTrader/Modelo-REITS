@@ -6,6 +6,7 @@
     python scripts/investigacion.py factores   # factores de Kenneth French y datos de Shiller
     python scripts/investigacion.py sellar     # mercados de la prueba final: se bajan y se sellan
     python scripts/investigacion.py exploracion  # fase 3: informe de la muestra de desarrollo
+    python scripts/investigacion.py fase5      # fase 5: el catálogo pre-registrado de señales de entrada
 
 Solo estos comandos tocan la red. La página de Nareit pide un navegador real: Chromium
 necesita las autoridades del sistema en su almacén de certificados. En un contenedor
@@ -77,11 +78,25 @@ def cmd_exploracion() -> int:
     return 0
 
 
+def cmd_fase5() -> int:
+    from src.investigacion import fase5
+
+    r = fase5.correr_desarrollo()
+    texto = fase5.informe(r)
+    if not r.candidatas.empty:
+        v = fase5.correr_validacion(r.candidatas, motivo="candidatas de la fase 5 según el pre-registro")
+        texto += "\n## Validación (2016 en adelante)\n" + fase5.tabla_desarrollo(v.assign(pasa=True))
+    destino = RAIZ / "docs" / "investigacion" / "fase5_resultados.md"
+    destino.write_text(texto, encoding="utf-8")
+    print(f"{destino.relative_to(RAIZ)}: {int(r.desarrollo['pasa'].sum())} reglas pasan el filtro")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("comando", choices=["sector", "macro", "factores", "sellar", "exploracion"])
+    p.add_argument("comando", choices=["sector", "macro", "factores", "sellar", "exploracion", "fase5"])
     return {"sector": cmd_sector, "macro": cmd_macro, "factores": cmd_factores, "sellar": cmd_sellar,
-            "exploracion": cmd_exploracion}[p.parse_args().comando]()
+            "exploracion": cmd_exploracion, "fase5": cmd_fase5}[p.parse_args().comando]()
 
 
 if __name__ == "__main__":

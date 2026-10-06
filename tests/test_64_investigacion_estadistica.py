@@ -74,3 +74,11 @@ def test_pbo_distingue_ruido_de_habilidad():
 def test_apuestas_efectivas():
     assert es.apuestas_efectivas(528, 12) == 44
     assert es.apuestas_efectivas(528, 12, cambios=30) == 30
+
+
+def test_una_senal_constante_pronostica_el_promedio():
+    idx = pd.date_range("1990-01-31", periods=100, freq="ME")
+    s = pd.Series(1.0, index=idx)
+    y = pd.Series(np.random.default_rng(0).normal(size=100), index=idx)
+    p = es.pronostico_expandible(s, y, minimo=36, horizonte=1).dropna()
+    assert (p["pronostico"] == p["promedio"]).all()
