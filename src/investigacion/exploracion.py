@@ -86,10 +86,19 @@ def indicadores(x: pd.DataFrame) -> pd.DataFrame:
     d["fed_cambio_12m"] = (c("FEDFUNDS") - c("FEDFUNDS").shift(12)) / 100
     d["desempleo_cambio_12m"] = (c("UNRATE") - c("UNRATE").shift(12)) / 100
     d["nfci"] = c("NFCI")
-    d["credito_inmuebles"] = c("DRTSCREL") / 100
+    # La encuesta de crédito de la Fed: la serie agregada termina en 2013 y se parte en tres
+    # (construcción, no residencial y multifamiliar); desde entonces, su promedio.
+    sucesoras = pd.concat([c(s) for s in ("SUBLPDRCSC", "SUBLPDRCSN", "SUBLPDRCSM")], axis=1).mean(axis=1)
+    agregada = c("DRTSCREL")
+    ultima = macro.loc[macro["serie"] == "DRTSCREL", "fecha"].max()
+    d["credito_inmuebles"] = (agregada.where(f <= ultima + pd.offsets.QuarterEnd(0) + pd.Timedelta(days=40))
+                              .fillna(sucesoras.where(f > ultima + pd.offsets.QuarterEnd(0)))) / 100
     d["tendencia_10m"] = tendencia
     d["momentum_12m"] = (1 + x["retorno_total"]).rolling(12).apply(np.prod, raw=True) - 1
     d["caida_desde_maximo"] = x["indice_total"] / x["indice_total"].cummax() - 1
+    d["cambio_treasury_12m"] = d["treasury_10a"] - d["treasury_10a"].shift(12)
+    d["cambio_credito_12m"] = d["spread_credito"] - d["spread_credito"].shift(12)
+    d["spread_real"] = y - d["tasa_real"]
     return d
 
 

@@ -66,12 +66,19 @@ def exposicion_continua(s: pd.Series, *, minimo: int = 60, piso: float = 0.0) ->
 # --------------------------------------------------------------------------------------
 
 
-def predictibilidad(s: pd.Series, x: pd.DataFrame, horizontes=(1, 3, 12), minimo: int = 120) -> pd.DataFrame:
-    """R² fuera de muestra y Clark-West del retorno en exceso siguiente contra la señal."""
+def predictibilidad(s: pd.Series, x: pd.DataFrame, horizontes=(1, 3, 12), minimo: int = 120,
+                    desde: pd.Timestamp | None = None) -> pd.DataFrame:
+    """R² fuera de muestra y Clark-West del retorno en exceso siguiente contra la señal.
+
+    El pronóstico de cada mes se estima con toda la historia anterior; ``desde`` solo limita
+    los meses que se califican (la validación califica 2016 en adelante).
+    """
     filas = []
     for h in horizontes:
         exceso = _adelante(x["retorno_total"], h) - _adelante(x["efectivo"], h)
         p = estadistica.pronostico_expandible(s, exceso, minimo=minimo, horizonte=h)
+        if desde is not None:
+            p = p.loc[desde:]
         t, valor_p = estadistica.clark_west(p["real"], p["pronostico"], p["promedio"], rezago=h)
         filas.append({"horizonte_meses": h, "r2_fuera_de_muestra":
                       estadistica.r2_fuera_de_muestra(p["real"], p["pronostico"], p["promedio"]),
@@ -81,9 +88,16 @@ def predictibilidad(s: pd.Series, x: pd.DataFrame, horizontes=(1, 3, 12), minimo
 
 
 def evaluar(senal: Senal, regla: str, exposicion: pd.Series, x: pd.DataFrame, ind: pd.DataFrame, *,
-            muestra: str, parametros: dict | None = None, registrar: bool = True,
+            muestra: str, parametros: dict | None = None, registrar: bool = True, desde: pd.Timestamp | None = None,
             ruta_bitacora=None) -> dict:
-    """Todas las métricas de una regla de exposición sobre el sector ``x``."""
+    """Todas las métricas de una regla de exposición sobre el sector ``x``.
+
+    Con ``desde``, la simulación empieza ese mes (la señal ya trae su historia) y la
+    predictibilidad se califica desde ahí con pronósticos estimados con todo lo anterior.
+    """
+    completo = x
+    if desde is not None:
+        x = x.loc[desde:]
     m = mercado(x)
     e = exposicion.reindex(x.index).to_numpy(dtype=float)
     base = benchmark(m)
@@ -108,8 +122,8 @@ def evaluar(senal: Senal, regla: str, exposicion: pd.Series, x: pd.DataFrame, in
             caro = simular(m, e, modo=modo, multiplicador_de_costos=2.0)
             salida["mejora_rebalanceo_doble_costo"] = caro.tir - base.tir
             salida["apuestas_efectivas"] = estadistica.apuestas_efectivas(len(x), 12, r.cambios)
-    s = senal.calcular(x, ind).reindex(x.index)
-    pr = predictibilidad(s, x).set_index("horizonte_meses")
+    s = senal.calcular(completo, ind).reindex(completo.index)
+    pr = predictibilidad(s, completo, desde=desde).set_index("horizonte_meses")
     for h, f in pr.iterrows():
         salida[f"r2_{h}m"] = f["r2_fuera_de_muestra"]
         salida[f"clark_west_p_{h}m"] = f["clark_west_p"]
