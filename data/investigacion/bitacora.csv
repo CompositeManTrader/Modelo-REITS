@@ -154,3 +154,54 @@ momento,fase,familia,prueba,muestra,parametros,metrica,valor,commit
 2026-10-06T14:55:38+00:00,5,fase7,ridge | dentro si el pronóstico es positivo,desarrollo,{},mejora_rebalanceo,-0.0,0164e38
 2026-10-06T14:55:39+00:00,5,fase7,árboles | dentro si el pronóstico es positivo,desarrollo,{},mejora_rebalanceo,-0.039323,0164e38
 2026-10-06T14:55:39+00:00,5,fase7,regímenes | dentro si el pronóstico es positivo,desarrollo,{},mejora_rebalanceo,-0.021699,0164e38
+2026-10-06T14:57:55+00:00,congelado,congelado,proteccion-tendencia-10m,final,"{""modo"": ""rebalancea toda la riqueza cada mes (aportando 1,000 al mes)"", ""origen"": ""escogida después de ver la fase 5 en desarrollo (declarado en fase7_preregistro.md)"", ""parametros_estimados"": ""ninguno"", ""regla"": ""dentro si el precio de fin de mes está arriba de su promedio de 10 meses; si no, en efectivo""}",,,2e9baca
+2026-10-06T14:57:55+00:00,validacion,apertura,abrir validacion,validacion,"{""motivo"": ""fase 8: protección por tendencia congelada""}",,,2e9baca
+2026-10-06T14:57:55+00:00,final,apertura,abrir japon_precios,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:55+00:00,final,apertura,abrir japon_dividendos,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:55+00:00,final,apertura,abrir japon_tasas,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:55+00:00,final,apertura,abrir australia_precios,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:55+00:00,final,apertura,abrir australia_dividendos,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:55+00:00,final,apertura,abrir australia_tasas,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:56+00:00,final,apertura,abrir singapur_precios,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:56+00:00,final,apertura,abrir singapur_dividendos,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:56+00:00,final,apertura,abrir singapur_tasas,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:56+00:00,final,apertura,abrir hong_kong_precios,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:56+00:00,final,apertura,abrir hong_kong_dividendos,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:56+00:00,final,apertura,abrir hong_kong_tasas,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:57+00:00,final,apertura,abrir reino_unido_precios,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:57+00:00,final,apertura,abrir reino_unido_dividendos,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:57+00:00,final,apertura,abrir reino_unido_tasas,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:57+00:00,final,apertura,abrir europa_continental_precios,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:57+00:00,final,apertura,abrir europa_continental_dividendos,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:57+00:00,final,apertura,abrir europa_continental_tasas,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:57+00:00,final,apertura,abrir canada_precios,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:57+00:00,final,apertura,abrir canada_dividendos,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:57+00:00,final,apertura,abrir canada_tasas,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:57+00:00,final,apertura,abrir mexico_fibras_precios,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:57+00:00,final,apertura,abrir mexico_fibras_dividendos,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:57:57+00:00,final,apertura,abrir mexico_fibras_tasas,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:25+00:00,validacion,apertura,abrir validacion,validacion,"{""motivo"": ""fase 8: protección por tendencia congelada""}",,,2e9baca
+2026-10-06T14:58:25+00:00,final,apertura,abrir japon_precios,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:25+00:00,final,apertura,abrir japon_dividendos,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:25+00:00,final,apertura,abrir japon_tasas,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:25+00:00,final,apertura,abrir australia_precios,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:25+00:00,final,apertura,abrir australia_dividendos,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:25+00:00,final,apertura,abrir australia_tasas,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:25+00:00,final,apertura,abrir singapur_precios,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:25+00:00,final,apertura,abrir singapur_dividendos,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:25+00:00,final,apertura,abrir singapur_tasas,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:26+00:00,final,apertura,abrir hong_kong_precios,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:26+00:00,final,apertura,abrir hong_kong_dividendos,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:26+00:00,final,apertura,abrir hong_kong_tasas,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:27+00:00,final,apertura,abrir reino_unido_precios,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:27+00:00,final,apertura,abrir reino_unido_dividendos,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:27+00:00,final,apertura,abrir reino_unido_tasas,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:27+00:00,final,apertura,abrir europa_continental_precios,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:27+00:00,final,apertura,abrir europa_continental_dividendos,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:27+00:00,final,apertura,abrir europa_continental_tasas,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:27+00:00,final,apertura,abrir canada_precios,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:27+00:00,final,apertura,abrir canada_dividendos,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:27+00:00,final,apertura,abrir canada_tasas,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:27+00:00,final,apertura,abrir mexico_fibras_precios,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:27+00:00,final,apertura,abrir mexico_fibras_dividendos,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca
+2026-10-06T14:58:27+00:00,final,apertura,abrir mexico_fibras_tasas,final,"{""modelo"": ""proteccion-tendencia-10m""}",,,2e9baca

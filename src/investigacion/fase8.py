@@ -146,3 +146,44 @@ def _desde(completo: pd.DataFrame, desde: pd.Timestamp, nombre: str) -> dict:
             "mejora_con_rezago": rezago.tir - base.tir, "caida_con_rezago": rezago.caida_maxima,
             "mejora_doble_costo": caro.tir - base.tir}
 
+
+
+NOMBRES = {"japon": "Japón", "australia": "Australia", "singapur": "Singapur", "hong_kong": "Hong Kong",
+           "reino_unido": "Reino Unido", "europa_continental": "Europa continental", "canada": "Canadá",
+           "mexico_fibras": "FIBRAs (México)"}
+
+
+def informe(r: ResultadoFase8) -> str:
+    from src.investigacion.fase5 import _p, _pb, _tabla
+
+    v, c = r.validacion, r.conjunto
+    o = ["# Fase 8: la prueba final. Resultados\n\n",
+         "Modelo congelado en la bitácora antes de abrir nada: **protección por tendencia** (dentro si el precio "
+         "está arriba de su promedio de 10 meses; si no, en efectivo), escogido después de ver la fase 5 en "
+         "desarrollo, como declara `fase7_preregistro.md`. La escalera de la fase 7 no dejó candidato. Cada "
+         "mercado en su moneda y con su tasa corta como efectivo; misma contabilidad que la fase 0 (aportación "
+         "mensual, impuestos del SIC, comisiones). Generado por `python scripts/investigacion.py fase8`.\n\n",
+         f"## Veredicto: **{r.veredicto}**\n\n"]
+    o.append(f"El criterio de protección pide al menos 30% menos de caída máxima con un costo de a lo más 25 pb al "
+             f"año. En el conjunto de los {c['mercados']} mercados la caída bajó {_p(c['reduccion_de_caida'], 0)} en "
+             f"promedio, pero la TIR quedó {_pb(c['mejora'])} pb al año contra aportar siempre; solo "
+             f"{c['fraccion_protege']:.0%} de los mercados cumplió el criterio, y con un mes de retraso, "
+             f"{c['fraccion_protege_con_rezago']:.0%}. En la validación de EE. UU. (2016 en adelante) la caída bajó "
+             f"de {_p(v['caida_aportar_siempre'], 0)} a {_p(v['caida_regla'], 0)}, a un costo de {_pb(v['mejora'])} pb "
+             "al año. **La tendencia sí reduce las caídas, pero fuera de la muestra en la que se escogió cuesta "
+             "mucho más de lo que el criterio tolera**: sale tarde, después de la caída, y vuelve tarde, después "
+             "del rebote; y cada salida paga impuesto sobre la ganancia.\n\n")
+    filas = [[v["mercado"], f"{v['desde']:%m-%Y} a {v['hasta']:%m-%Y}", _p(v["tir_aportar_siempre"], 2), _pb(v["mejora"]),
+              _p(v["caida_aportar_siempre"], 0), _p(v["caida_regla"], 0), _p(v["reduccion_de_caida"], 0),
+              _p(v["exposicion"], 0), _pb(v["mejora_con_rezago"]), "—"]]
+    for _, f in r.mercados.iterrows():
+        filas.append([f"{NOMBRES.get(f['mercado'], f['mercado'])} ({f['serie']})", f"{f['desde']:%m-%Y} a {f['hasta']:%m-%Y}",
+                      _p(f["tir_aportar_siempre"], 2), _pb(f["mejora"]), _p(f["caida_aportar_siempre"], 0),
+                      _p(f["caida_regla"], 0), _p(f["reduccion_de_caida"], 0), _p(f["exposicion"], 0),
+                      _pb(f["mejora_con_rezago"]), "sí" if f["protege"] else "no"])
+    o.append(_tabla(filas, ["Mercado", "Periodo", "TIR aportando siempre", "Tendencia contra aportar (pb/año)",
+                            "Caída aportando siempre", "Caída con tendencia", "Reducción de caída", "Exposición",
+                            "Con un mes de retraso (pb)", "Cumple protección"]))
+    o.append(f"Apuestas efectivas (cambios de postura sumados): {r.apuestas}. Las canastas de Singapur, Hong Kong y "
+             "las FIBRAs son de los REITs que cotizan hoy (sesgo de supervivencia, declarado en la fase 0).\n")
+    return "".join(o)
