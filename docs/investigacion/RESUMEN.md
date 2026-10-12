@@ -52,8 +52,10 @@ emisores sellados: debajo del criterio. Lo «barato» resultó trampa, aun entre
 ## Qué tan sólido es
 
 Cada hipótesis se guardó en un commit antes de correrla, los datos se partieron antes de verlos
-y las pruebas finales (ocho mercados y un tercio de los emisores de EE. UU.) se abrieron una
-sola vez. En la fase 6, la primera corrida tuvo dos errores de programación que se corrigieron
+y las pruebas finales (ocho mercados y un tercio de los emisores de EE. UU.) se evaluaron con un
+solo modelo congelado, sin cambiarlo. La bitácora registra cada lectura: los ocho mercados se
+leyeron tres veces con el modelo de la fase 8 (al regenerar su informe) y los emisores sellados,
+una vez. En la fase 6, la primera corrida tuvo dos errores de programación que se corrigieron
 y se declaran en su informe; el veredicto no cambió. Límites: la selección empieza en 2011
 (antes casi no hay XBRL) y las escisiones no se ven en los 13F.
 

@@ -10,6 +10,8 @@ import pandas as pd
 from src.estudio.reglas import Conclusion
 from src.investigacion import bitacora
 
+FAMILIA_SENSIBILIDAD = "sensibilidad-fiscal"     # ``sensibilidad.FAMILIA``; no son intentos de búsqueda
+
 
 def _pb(v: float) -> str:
     x = round(v * 1e4)
@@ -39,7 +41,7 @@ def conclusiones(res: dict) -> list[Conclusion]:
     from src.investigacion.graficas import NOMBRES_MERCADO
 
     protege = [NOMBRES_MERCADO.get(m, m) for m in mercados[mercados["protege"]]["mercado"]]
-    intentos = bitacora.intentos()
+    intentos = bitacora.intentos(excluir=(FAMILIA_SENSIBILIDAD,))
     comp = ev7.loc["compuesto"]
     return [
         Conclusion(
@@ -77,19 +79,22 @@ def conclusiones(res: dict) -> list[Conclusion]:
             "de a lo más 25 pb). En 1972-2015, donde se escogió, sí parecía gratis.",
             "desfavorable"),
         *_seleccion(res),
+        *_broker(res),
         Conclusion(
             "Qué hacer",
             "Aportar siempre, completo, sin guardar efectivo esperando el momento, y repartido entre muchos REITs de "
             "capital (o un fondo amplio): ninguna regla para escoger a cuáles le ganó a repartir entre todos. No "
             "perseguir el yield alto ni lo «barato»: concentran los recortes. No vender después de un recorte: los "
             "que recortan rindieron más que el resto el año siguiente. Si una caída grande es intolerable, la "
-            "manera de reducirla es tener menos en REITs desde el principio, no intentar salir a tiempo.",
+            "manera de reducirla es tener menos en REITs desde el principio, no intentar salir a tiempo."
+            + _que_hacer_broker(res),
             "favorable"),
         Conclusion(
             "Qué tanto se le puede creer",
             "Cada hipótesis, señal y criterio se guardó en un commit antes de correrla; los datos se partieron antes "
             "de verlos (desarrollo hasta 2015, validación desde 2016) y los ocho mercados de la prueba final se "
-            f"sellaron sin mirarlos. La bitácora registra {intentos} configuraciones probadas. Límites: de 1972 a 2015 "
+            f"sellaron sin mirarlos. La bitácora registra {intentos} configuraciones probadas{_reevaluaciones(res)}. "
+            "Límites: de 1972 a 2015 "
             f"hubo solo {len(f3['caidas'])} caídas de 20% o más; las canastas de Singapur, Hong Kong y las FIBRAs son "
             "de los REITs que cotizan hoy; el índice de condiciones financieras se revisa después de publicarse. En la "
             "selección (fase 6), el desarrollo empieza en 2011 porque antes casi no hay estados financieros en XBRL, "
@@ -134,6 +139,65 @@ def _seleccion(res: dict) -> list[Conclusion]:
     ]
 
 
+def _broker(res: dict) -> list[Conclusion]:
+    """La sensibilidad fiscal, si ya corrió: las mismas reglas con un broker de EE. UU."""
+    if "sensibilidad_broker" not in res:
+        return []
+    s = res["sensibilidad_broker"]
+    b = s["bases"].iloc[0]
+    perf = s["perfiles"].set_index("perfil")
+    d5 = s["fase5_desarrollo"]
+    pasan = d5[d5["perfil"] != "sic"].groupby("perfil")["pasa"].sum()
+    w5 = d5.pivot_table(index=["senal", "regla"], columns="perfil", values="mejora_rebalanceo")
+    mejor = w5["broker_35"].idxmax()
+    partes = [f"{int(pasan.max())} de {len(w5)} reglas de entrada pasan el filtro (la mejor, "
+              f"«{mejor[0]}», sube de {_pb(w5.loc[mejor, 'sic'])} a {_pb(w5.loc[mejor, 'broker_35'])} al año, pero no "
+              "predice)"]
+    cambia = bool(pasan.max() > 0)
+    if "fase8_conjunto" in s:
+        c = s["fase8_conjunto"].set_index("perfil")
+        partes.append(f"la protección por tendencia cuesta {_costo(c.loc['broker_35', 'mejora'])} al año en los ocho "
+                      f"mercados (contra {_costo(c.loc['sic', 'mejora'])} con el SIC)")
+        cambia |= bool((c["veredicto"] != c.loc["sic", "veredicto"]).any())
+    if "fase6_final" in s:
+        f = s["fase6_final"].set_index("perfil")
+        partes.append(f"momentum gana {_pb(f.loc['broker_35', 'mejora'])} en los emisores sellados (con el SIC, "
+                      f"{_pb(f.loc['sic', 'mejora'])}), y el criterio pide +50 pb")
+        cambia |= bool((f["veredicto"] != f.loc["sic", "veredicto"]).any())
+    if "estudios_asignacion" in s:
+        a = s["estudios_asignacion"].set_index(["perfil", "clave"])["ventaja"]
+        partes.append(f"en O, NNN y WPC, mandar la aportación al más barato con el consenso de los métodos gana "
+                      f"{_pb(a.loc[('broker_35', 'consenso')])} al año (con el SIC, {_pb(a.loc[('sic', 'consenso')])})")
+    titulo = ("Con un broker de EE. UU., la conclusión no cambia" if not cambia
+              else "Con un broker de EE. UU., algo cambia, pero solo después de verlo")
+    return [Conclusion(
+        titulo,
+        "Comprando directo con un broker de EE. UU. y no por el SIC, el dividendo de un REIT paga la tasa marginal "
+        f"más 9 puntos —{_p(perf.loc['broker_30', 'tasa_dividendo'])} con marginal de 30% y "
+        f"{_p(perf.loc['broker_35', 'tasa_dividendo'])} con 35%, contra {_p(perf.loc['sic', 'tasa_dividendo'])} por "
+        "el SIC—, los intereses del efectivo la marginal, la ganancia sigue en 10% y no hay comisión. Aportar "
+        f"siempre rinde {_costo(b['broker_30'] - b['sic'])} a {_costo(b['broker_35'] - b['sic'])} menos al año "
+        "(1972-2015). Con las mismas reglas, sin escoger nada nuevo: " + "; ".join(partes) + ". Las reglas que "
+        "salen del mercado mejoran un poco, porque estar fuera evita un dividendo más gravado, pero ninguna llega "
+        "al criterio. Las tasas deben confirmarse con un contador; el impuesto sucesorio de EE. UU. (arriba de 60 "
+        "mil dólares) queda fuera del modelo.",
+        "neutral")]
+
+
+def _que_hacer_broker(res: dict) -> str:
+    if "sensibilidad_broker" not in res:
+        return ""
+    return (" Con un broker de EE. UU. el consejo es el mismo: el dividendo paga casi el doble de impuesto que por el "
+            "SIC, así que perseguir el yield alto cuesta todavía más.")
+
+
+def _reevaluaciones(res: dict) -> str:
+    if "sensibilidad_broker" not in res:
+        return ""
+    n = bitacora.intentos(FAMILIA_SENSIBILIDAD)
+    return f", más {n} reevaluaciones de las mismas reglas con los impuestos de un broker de EE. UU." if n else ""
+
+
 def _fila_fase6(res: dict) -> tuple[str, str, str, str]:
     if "fase6" not in res:
         return ("6", "En cuáles REITs", "Requiere los estados financieros del universo", "Pendiente")
@@ -158,4 +222,13 @@ def fases(res: dict) -> pd.DataFrame:
         ("7", "Escalera de modelos", f"Candidato: {f7['resumen']['candidato'] or 'ninguno'}", "RECHAZADO"),
         ("8", "Prueba final", "Protección por tendencia en EE. UU. 2016+ y ocho mercados", f8["resumen"]["veredicto"]),
         _fila_fase6(res),
+        *_fila_broker(res),
     ], columns=["fase", "que", "detalle", "resultado"])
+
+
+def _fila_broker(res: dict) -> list[tuple[str, str, str, str]]:
+    if "sensibilidad_broker" not in res:
+        return []
+    igual = _broker(res)[0].titulo.endswith("no cambia")
+    return [("S", "Con un broker de EE. UU.", "Las mismas reglas con dividendo al 39% o 44%, intereses a la "
+             "marginal, ganancia al 10% y sin comisión", "Sin cambio" if igual else "Cambia (posterior)")]

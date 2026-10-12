@@ -53,7 +53,9 @@ st.markdown(
     "repositorio **antes** de correrla; los datos se partieron antes de verlos —desarrollo hasta 2015, validación "
     "desde 2016— y ocho mercados de otros países se sellaron sin mirarlos para una prueba final que se abre una "
     "sola vez. Todo con la contabilidad de un inversionista mexicano que aporta cada mes por el SIC: 20% al "
-    "dividendo, 10% a la ganancia, 0.25% de comisión."
+    "dividendo, 10% a la ganancia, 0.25% de comisión"
+    + (". La sección 6 repite las mismas reglas comprando directo con un broker de EE. UU." if
+       "sensibilidad_broker" in res else ".")
 )
 if PDF.exists():
     st.download_button("Descargar el informe en PDF", PDF.read_bytes(), file_name=PDF.name, mime="application/pdf")
@@ -115,6 +117,23 @@ if "fase6" in res:
                "quebró en el año siguiente.")
     mostrar_tabla(vistas.seleccion(res), fijar_primera=True)
 
+if "sensibilidad_broker" in res:
+    st.header("6. Si compras con un broker de EE. UU.")
+    st.markdown("Todo lo anterior supone que se compra por el SIC. Comprando directo con un broker de EE. UU. cambian "
+                "los impuestos, así que se repitieron **las mismas reglas y los mismos modelos congelados** con ese "
+                "perfil, sin escoger nada nuevo: lo que solo pasara con el broker se marcaría como posterior. La tasa "
+                "marginal no se conoce; se corren 30% y 35%.")
+    mostrar_tabla(vistas.perfiles_fiscales(res))
+    grafica("sensibilidad")
+    st.caption("Cada prueba que decide una conclusión, con el SIC y con el broker. La línea roja es el criterio de "
+               "+50 pb. «E» son los estudios de O, NNN y WPC.")
+    mostrar_tabla(vistas.sensibilidad(res), fijar_primera=True)
+    with st.expander("Lo que el broker le cuesta a quien aporta siempre"):
+        mostrar_tabla(vistas.bases_fiscales(res))
+        st.caption("Dividendo: Art. 142 fr. V LISR, con crédito por el 10% que retiene EE. UU. con el W-8BEN. "
+                   "Ganancia: Art. 129 LISR y Criterio 37/ISR/N del SAT. Confírmalo con tu contador; el impuesto "
+                   "sucesorio de EE. UU. (arriba de 60 mil dólares) queda fuera del modelo.")
+
 with st.expander("Cómo se hizo"):
     st.markdown(
         "* **Plan y reglas del juego** (`docs/investigacion/PLAN.md`): objetivo, muestras y criterios de éxito, "
@@ -126,6 +145,8 @@ with st.expander("Cómo se hizo"):
         "* **La literatura** (`docs/investigacion/literatura.md`): 99 fuentes con la evidencia a favor y en contra.\n"
         "* **Los resultados de cada fase**: `docs/investigacion/fase3_exploracion.md`, `fase5_resultados.md`, "
         "`fase7_resultados.md`, `fase8_resultados.md` y `fase6_resultados.md` (con la corrección declarada).\n"
+        "* **La sensibilidad fiscal** (`docs/investigacion/sensibilidad_broker.md`): las mismas reglas con los "
+        "impuestos de un broker de EE. UU., con su pre-registro.\n"
         "* **Los datos de la SEC** (`data/investigacion/emisores/`): el universo, el panel y su validación contra "
         "Yahoo y contra el FFO publicado; los emisores sellados, con su huella digital."
     )

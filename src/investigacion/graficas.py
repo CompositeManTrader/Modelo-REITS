@@ -163,7 +163,31 @@ def seleccion(res: dict, t: Tema = OSCURO) -> go.Figure:
     return fig
 
 
+def sensibilidad(res: dict, t: Tema = OSCURO) -> go.Figure:
+    """Cada prueba que decide una conclusión, con el SIC y con el broker de EE. UU. (30% y 35%)."""
+    d = res["sensibilidad_broker"]["resumen"]
+    d = d[d["fase"] != "3"].iloc[::-1]
+    etiqueta = [f"{f['fase']} · {f['prueba']}" if f["fase"] != "estudios" else f"E · {f['prueba']}"
+                for _, f in d.iterrows()]
+    fig = go.Figure()
+    for k, nombre, marca in (("sic", "SIC (línea base)", {"color": t.contexto, "size": 10}),
+                             ("broker_30", "broker EE. UU., marginal 30%", {"color": t.principal, "size": 10}),
+                             ("broker_35", "broker EE. UU., marginal 35%",
+                              {"color": t.principal, "size": 11, "symbol": "circle-open", "line": {"width": 2}})):
+        if f"{k}_pb" in d:
+            fig.add_scatter(x=d[f"{k}_pb"], y=etiqueta, mode="markers", name=nombre, marker=marca,
+                            hovertemplate="%{y}<br>" + nombre + ": %{x:+,.0f} pb al año<extra></extra>")
+    fig.add_vline(x=0, line={"color": t.contexto, "width": 1})
+    fig.add_vline(x=CRITERIOS.mejora_minima_de_tir * 1e4, line={"color": t.perdida, "width": 1, "dash": "dot"})
+    fig = _base(fig, t, alto=60 + 34 * len(d), leyenda=True)
+    fig.update_layout(hovermode="closest", legend={"y": 1.06, "x": 0}, margin={"l": 380, "r": 30, "b": 48})
+    fig.update_xaxes(title={"text": "TIR contra su comparación (pb al año, después de impuestos)"})
+    fig.update_yaxes(tickfont={"family": "Inter, system-ui, sans-serif", "size": 10})
+    return fig
+
+
 FIGURAS = {"techo": techo, "reglas": reglas, "escalera": escalera, "prueba_final": prueba_final,
-           "seleccion": seleccion,
+           "seleccion": seleccion, "sensibilidad": sensibilidad,
            "tendencia_eeuu": tendencia_eeuu}
+REQUIERE = {"seleccion": "fase6", "sensibilidad": "sensibilidad_broker"}
 

@@ -71,12 +71,16 @@ def _portada(res: dict) -> str:
         de entrada, 5 modelos, 16 reglas de selección con todos los REITs de EE. UU. desde 2011 —incluidos los que
         desaparecieron— y pruebas finales con datos que nunca se habían visto: <b>no se encontró</b>. Aportar
         siempre y repartir entre todos le ganó a todo lo que se probó, con los impuestos y las comisiones de un
-        inversionista mexicano por el SIC.</p>
+        inversionista mexicano por el SIC{_y_broker(res)}.</p>
         {tabla(filas, ["Fase", "Qué", "Detalle", "Resultado"], alinear="llll")}
       </div>
       <div class='gris chico'>Generado el {dt.date.today():%d-%m-%Y}. Herramienta de análisis, no asesoría de
       inversión. Los cálculos fiscales son indicativos.</div>
     </section>"""
+
+
+def _y_broker(res: dict) -> str:
+    return " y también comprando directo con un broker de EE. UU." if "sensibilidad_broker" in res else ""
 
 
 def _conclusiones(res: dict) -> str:
@@ -177,7 +181,8 @@ def _prueba_final(res: dict, fig: Figuras) -> str:
             "<p>Dentro si el precio está arriba de su promedio de 10 meses; si no, en efectivo. En 1972-2015 bajaba "
             "la caída máxima de −69% a −21% casi sin costo, aunque con un mes de retraso costaba 110 pb al año. Se "
             "llevó a la prueba final <b>declarada como escogida después de ver el desarrollo</b>, se congeló en la "
-            "bitácora y se abrió una sola vez la validación de EE. UU. y los ocho mercados sellados.</p>"
+            "bitácora y se evaluó con ese modelo, sin cambiarlo, en la validación de EE. UU. y en los ocho mercados "
+            "sellados; cada lectura de los archivos queda en la bitácora.</p>"
             + fig(gi.prueba_final, res, pie="Cada mercado: cuánto bajó la caída máxima contra cuánto costó en TIR. "
                   "El criterio pide caer en el área verde.")
             + fig(gi.tendencia_eeuu, res, pie="El índice de REITs de EE. UU.; en gris, los meses en que la tendencia "
@@ -211,7 +216,38 @@ def _seleccion(res: dict, fig: Figuras) -> str:
             + f"<p class='chico gris'>Detector de recortes: AUC fuera de muestra {r['detector']['auc']:.2f}. La "
               "primera corrida tuvo dos errores de programación (exceso bruto en periodos distintos y aportación en "
               "efectivo cuando la regla no escoge a nadie); se corrigieron, se declaran en "
-              "docs/investigacion/fase6_resultados.md y el veredicto no cambió. Los sellados se abrieron una vez.</p>")
+              "docs/investigacion/fase6_resultados.md y el veredicto no cambió. Los emisores sellados se evaluaron "
+              "una vez con el modelo congelado; cada lectura queda en la bitácora.</p>")
+
+
+def _sensibilidad(res: dict, fig: Figuras) -> str:
+    if "sensibilidad_broker" not in res:
+        return ""
+    tarjeta = conclusiones._broker(res)[0]
+    notas = res["sensibilidad_broker"].get("notas", {})
+    ap = notas.get("aperturas", {})
+    return ("<h2 class='salto'>6. Si compras con un broker de EE. UU.</h2>"
+            "<p>Todo lo anterior supone que se compra por el SIC con una casa de bolsa mexicana. Comprando directo "
+            "con un broker de EE. UU. cambian los impuestos, así que se repitieron <b>las mismas reglas y los "
+            "mismos modelos congelados</b> con ese perfil, sin escoger nada nuevo; lo que solo pasara con el broker "
+            "se habría marcado como posterior. La tasa marginal del inversionista no se conoce: se corren 30% y "
+            f"35%.</p><div class='bloque'><b>{_e(tarjeta.titulo)}.</b> {_e(tarjeta.texto)}</div>"
+            + _tabla_vista(vistas.perfiles_fiscales(res), ["Perfil", "Dividendo", "Intereses del efectivo",
+                                                            "Ganancia al vender", "Comisión"],
+                           [None, _p0, _p0, _p0, _p2])
+            + fig(gi.sensibilidad, res, pie="Cada prueba que decide una conclusión, con el SIC y con el broker. La "
+                  "línea roja es el criterio de +50 pb; la de la fase 8 pide además costar menos de 25 pb.")
+            + _tabla_vista(vistas.sensibilidad(res), ["Fase", "Prueba", "SIC (pb)", "Broker 30% (pb)",
+                                                       "Broker 35% (pb)", "Criterio", "Veredicto (SIC / 30% / 35%)"],
+                           [None, None, _pb, _pb, _pb, None, None])
+            + _tabla_vista(vistas.bases_fiscales(res), ["Aportar siempre en", "SIC", "Broker 30%", "Broker 35%",
+                                                         "30% contra SIC (pb)", "35% contra SIC (pb)"],
+                           [None, _p2, _p2, _p2, _pb, _pb])
+            + "<p class='chico gris'>Dividendo: Art. 142 fr. V LISR, con crédito por el 10% que retiene EE. UU. "
+              "con el W-8BEN (tabla de Nareit por país). Ganancia: Art. 129 LISR y Criterio 37/ISR/N del SAT. Esta "
+              f"corrida abrió los archivos sellados {ap.get('sellados', 0)} veces —una por archivo, con los tres "
+              "perfiles sobre los mismos datos— con un modelo congelado propio que repite la regla ya congelada. "
+              "Detalle: docs/investigacion/sensibilidad_broker.md.</p>")
 
 
 def _pendiente() -> str:
@@ -221,7 +257,7 @@ def _pendiente() -> str:
             "comandos permiten repetir cada fase con datos nuevos.</p>"
             "<p class='chico gris'>Código: src/investigacion/. Datos y bitácora: data/investigacion/. Documentos de "
             "cada fase: docs/investigacion/. Para regenerar: python scripts/investigacion.py exploracion, fase5, "
-            "fase7, fase8, emisores, fase6 y pdf.</p>")
+            "fase7, fase8, emisores, fase6, broker y pdf.</p>")
 
 
 def html_de_investigacion(res: dict, *, fuentes_css: str | None = None) -> str:
@@ -229,7 +265,8 @@ def html_de_investigacion(res: dict, *, fuentes_css: str | None = None) -> str:
 
     fig = Figuras()     # llama a cada gráfica con el tema claro del impreso
     cuerpo = (_portada(res) + _conclusiones(res) + _metodo() + _techo(res, fig) + _senales(res, fig)
-              + _escalera(res, fig) + _prueba_final(res, fig) + _seleccion(res, fig) + _pendiente())
+              + _escalera(res, fig) + _prueba_final(res, fig) + _seleccion(res, fig) + _sensibilidad(res, fig)
+              + _pendiente())
     css = _css(css_de_fuentes() if fuentes_css is None else fuentes_css)
     return ("<!doctype html><html lang='es'><head><meta charset='utf-8'>"
             f"<title>{_e(TITULO)}</title><style>{css}</style>"

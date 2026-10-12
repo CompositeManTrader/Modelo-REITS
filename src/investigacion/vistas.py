@@ -31,6 +31,10 @@ COLUMNAS: dict[str, tuple[str, ...]] = {
     "seleccion": ("regla", "hipotesis", "desarrollo_bps", "con_un_trimestre_de_retraso_bps", "exceso_bruto_pct",
                   "recortes_regla_pct", "recortes_universo_pct", "escogidos", "pasa_desarrollo", "validacion_bps",
                   "prueba_final_bps"),
+    "sensibilidad": ("fase", "prueba", "sic_bps", "broker_30_bps", "broker_35_bps", "criterio", "veredicto"),
+    "perfiles_fiscales": ("perfil", "dividendo_pct", "intereses_pct", "ganancia_pct", "comision_pct"),
+    "bases_fiscales": ("muestra", "tir_sic", "tir_broker_30", "tir_broker_35", "broker_30_contra_sic_bps",
+                       "broker_35_contra_sic_bps"),
 }
 
 
@@ -161,6 +165,38 @@ def seleccion(res: dict) -> pd.DataFrame:
     return _con(filas, "seleccion")
 
 
+PERFILES_EN_ORDEN = ("sic", "broker_30", "broker_35")
+
+
+def sensibilidad(res: dict) -> pd.DataFrame:
+    """Las pruebas que deciden cada conclusión, con el SIC y con el broker de EE. UU."""
+    d = res["sensibilidad_broker"]["resumen"].copy()
+    for k in PERFILES_EN_ORDEN:
+        d[f"{k}_bps"] = (d[f"{k}_pb"] if f"{k}_pb" in d else pd.Series(np.nan, index=d.index)).round().astype("Int64")
+    vered = [c for c in (f"veredicto_{k}" for k in PERFILES_EN_ORDEN) if c in d]
+    d["veredicto"] = [" / ".join(str(f[c]) for c in vered if pd.notna(f[c])) or "—" for _, f in d.iterrows()]
+    return _con(d, "sensibilidad")
+
+
+def perfiles_fiscales(res: dict) -> pd.DataFrame:
+    p = res["sensibilidad_broker"]["perfiles"]
+    return _con(pd.DataFrame({"perfil": p["nombre"], "dividendo_pct": p["tasa_dividendo"],
+                              "intereses_pct": p["tasa_intereses"], "ganancia_pct": p["tasa_ganancia"],
+                              "comision_pct": p["comision_pct"]}), "perfiles_fiscales")
+
+
+def bases_fiscales(res: dict) -> pd.DataFrame:
+    b = res["sensibilidad_broker"]["bases"]
+    d = pd.DataFrame({"muestra": b["muestra"], **{f"tir_{k}": b[k] for k in PERFILES_EN_ORDEN}})
+    for k in ("broker_30", "broker_35"):
+        d[f"{k}_contra_sic_bps"] = _bps(b[k] - b["sic"])
+    return _con(d, "bases_fiscales")
+
+
 VISTAS = {"fases": fases, "descomposicion": descomposicion, "caidas": caidas, "frecuencia": frecuencia,
           "techo": techo, "reglas": reglas, "escalera": escalera, "prueba_final": prueba_final,
-          "seleccion": seleccion}
+          "seleccion": seleccion, "sensibilidad": sensibilidad, "perfiles_fiscales": perfiles_fiscales,
+          "bases_fiscales": bases_fiscales}
+# Las que dependen de una fase opcional: sin sus resultados guardados, la página y el PDF no las piden.
+REQUIERE = {"seleccion": "fase6", "sensibilidad": "sensibilidad_broker", "perfiles_fiscales": "sensibilidad_broker",
+            "bases_fiscales": "sensibilidad_broker"}
