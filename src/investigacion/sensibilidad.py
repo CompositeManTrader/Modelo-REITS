@@ -708,11 +708,11 @@ def _fase5_md(r: ResultadoSensibilidad) -> str:
     if d.empty:
         return ""
     w = _ancho(d, ["senal", "regla"], "mejora_rebalanceo")
-    b35 = d[d["perfil"] == "broker_35"].set_index(["senal", "regla"])
+    b35 = {(f["senal"], f["regla"]): f for _, f in d[d["perfil"] == "broker_35"].iterrows()}
     filas = []
     for (s, rg), f in w.sort_values("broker_35", ascending=False).iterrows():
         filas.append([s, rg, *[_pb(f.get(k)) for k in PERFILES_EN_ORDEN],
-                      "pasa" if b35.loc[(s, rg), "pasa"] else "; ".join(fallas_fase5(b35.loc[(s, rg)], eras))])
+                      "pasa" if b35[(s, rg)]["pasa"] else "; ".join(fallas_fase5(b35[(s, rg)], eras))])
     return ("## Fase 5: las 22 reglas de entrada, en desarrollo (1972-2015)\n\nMejora rebalanceando, en pb al año "
             "contra aportar siempre. La última columna dice qué criterio del filtro pre-registrado falla con el "
             "broker al 35%.\n" + _md(filas, ["Señal", "Regla", "SIC", "Broker 30%", "Broker 35%",
