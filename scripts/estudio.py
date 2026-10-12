@@ -91,14 +91,9 @@ def cmd_mercado(ticker: str) -> int:
 
 
 def _armar(ticker: str):
-    import pandas as pd
-
     from src.estudio import estudio
 
-    ajustado = pd.read_csv(
-        mercado.dir_de(ticker) / mercado.ARCHIVO_PRECIOS, parse_dates=["fecha"]
-    ).set_index("fecha")["ajustado_proveedor"]
-    return estudio.armar(Repositorio(), ticker, asof=dt.date.today(), ajustado_proveedor=ajustado)
+    return estudio.armar_versionado(ticker)
 
 
 def cmd_resumen(ticker: str) -> int:

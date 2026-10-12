@@ -57,13 +57,14 @@ def leer(ruta: Path | None = None) -> pd.DataFrame:
     return pd.read_csv(origen, dtype=str, keep_default_na=False)
 
 
-def intentos(familia: str | None = None, *, ruta: Path | None = None) -> int:
+def intentos(familia: str | None = None, *, ruta: Path | None = None, excluir: tuple[str, ...] = ()) -> int:
     """Cuántas configuraciones distintas se probaron (prueba + parámetros), sin contar repeticiones.
 
-    Las aperturas y los congelados no son intentos.
+    Las aperturas y los congelados no son intentos. ``excluir`` deja fuera familias que no
+    buscan nada nuevo (la sensibilidad fiscal vuelve a medir las mismas reglas).
     """
     b = leer(ruta)
-    b = b[~b["familia"].isin(["apertura", "congelado"])]
+    b = b[~b["familia"].isin(["apertura", "congelado", *excluir])]
     if familia is not None:
         b = b[b["familia"] == familia]
     return int(b[["prueba", "parametros"]].drop_duplicates().shape[0])

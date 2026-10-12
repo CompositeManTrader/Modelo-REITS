@@ -11,6 +11,7 @@
     python scripts/investigacion.py fase6      # fase 6: en cuáles REITs (abre la validación y, si toca, los sellados)
     python scripts/investigacion.py fase7      # fase 7: la escalera de modelos
     python scripts/investigacion.py fase8      # fase 8: la prueba final (abre los mercados sellados)
+    python scripts/investigacion.py broker     # las mismas reglas con los impuestos de un broker de EE. UU.
     python scripts/investigacion.py pdf        # el informe en PDF, con los resultados guardados
 
 Solo estos comandos tocan la red. La página de Nareit pide un navegador real: Chromium
@@ -210,6 +211,22 @@ def cmd_fase8() -> int:
     return 0
 
 
+def cmd_broker(abrir_sellados: bool = True, con_estudios: bool = True) -> int:
+    """La sensibilidad fiscal: las mismas reglas congeladas con los impuestos de un broker de EE. UU.
+    Abre los sellados una vez (con un modelo congelado propio que repite la regla ya congelada)."""
+    from src.investigacion import resultados, sensibilidad
+
+    r = sensibilidad.correr(abrir_sellados=abrir_sellados, con_estudios=con_estudios,
+                            resultados_guardados=resultados.cargar())
+    destino = sensibilidad.guardar(r)
+    informe = RAIZ / "docs" / "investigacion" / "sensibilidad_broker.md"
+    informe.write_text(sensibilidad.informe(r), encoding="utf-8")
+    print(f"{destino.relative_to(RAIZ)} y {informe.relative_to(RAIZ)}")
+    print(r["resumen"].to_string(index=False))
+    print(f"aperturas: {r.notas['aperturas']}")
+    return 0
+
+
 def cmd_pdf() -> int:
     from src.export.pdf_investigacion import generar_pdf
     from src.investigacion import resultados
@@ -222,11 +239,16 @@ def cmd_pdf() -> int:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("comando", choices=["sector", "macro", "factores", "sellar", "emisores", "exploracion", "fase5",
-                                       "fase6", "fase7", "fase8", "pdf"])
+                                       "fase6", "fase7", "fase8", "broker", "pdf"])
+    p.add_argument("--sin-sellados", action="store_true", help="broker: no abre los sellados")
+    p.add_argument("--sin-estudios", action="store_true", help="broker: no repite los estudios de O, NNN y WPC")
+    a = p.parse_args()
+    if a.comando == "broker":
+        return cmd_broker(abrir_sellados=not a.sin_sellados, con_estudios=not a.sin_estudios)
     return {"sector": cmd_sector, "macro": cmd_macro, "factores": cmd_factores, "sellar": cmd_sellar,
             "emisores": cmd_emisores,
             "exploracion": cmd_exploracion, "fase5": cmd_fase5, "fase6": cmd_fase6, "fase7": cmd_fase7,
-            "fase8": cmd_fase8, "pdf": cmd_pdf}[p.parse_args().comando]()
+            "fase8": cmd_fase8, "pdf": cmd_pdf}[a.comando]()
 
 
 if __name__ == "__main__":

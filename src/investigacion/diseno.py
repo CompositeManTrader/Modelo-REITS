@@ -7,14 +7,17 @@ que cambiar, el cambio va en el historial con su motivo y antes de correr lo que
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import pandas as pd
 
 from src.config import (
+    COMISION_BROKER_EEUU,
+    ISR_ADICIONAL_DIVIDENDO_EXTRANJERO_BROKER,
     ISR_ADICIONAL_MEXICO_DIVIDENDO_EXTRANJERO,
     RETENCION_EEUU_W8BEN,
     TASA_CEDULAR_GANANCIAS_SIC,
+    TASAS_MARGINALES_SENSIBILIDAD,
 )
 
 FECHA_DEL_DISENO = pd.Timestamp("2026-10-06")
@@ -85,6 +88,40 @@ CRITERIOS = Criterios()
 WALK_FORWARD = WalkForward()
 
 VEREDICTOS = ("APROBADO", "INCONCLUSO", "RECHAZADO")
+
+
+# --------------------------------------------------------------------------------------
+# Perfiles fiscales: la sensibilidad con un broker de EE. UU. (12-oct-2026)
+# --------------------------------------------------------------------------------------
+# El SIC sigue siendo la línea base pre-registrada (``OBJETIVO``, congelado por la prueba 60).
+# El inversionista decidió después comprar directo con un broker de EE. UU.; las mismas reglas
+# congeladas se vuelven a medir con sus impuestos, sin escoger nada nuevo.
+
+
+def impuesto_dividendo_broker(marginal: float) -> float:
+    """Carga total sobre el dividendo de un REIT comprado con un broker de EE. UU.
+
+    Retención de EE. UU. (10%) + la tarifa anual sobre el dividendo bruto menos esa retención
+    acreditada + 10% adicional sobre lo distribuido neto de la retención:
+    0.10 + (marginal − 0.10) + 0.10 × 0.90 = marginal + 0.09.
+    """
+    retencion = RETENCION_EEUU_W8BEN
+    return retencion + max(marginal - retencion, 0.0) + ISR_ADICIONAL_DIVIDENDO_EXTRANJERO_BROKER * (1 - retencion)
+
+
+def perfil_broker(marginal: float) -> Objetivo:
+    """El ``Objetivo`` del inversionista que compra directo con un broker de EE. UU."""
+    return replace(OBJETIVO, impuesto_dividendo=impuesto_dividendo_broker(marginal), impuesto_intereses=marginal,
+                   impuesto_ganancia=TASA_CEDULAR_GANANCIAS_SIC, comision=COMISION_BROKER_EEUU)
+
+
+PERFILES: dict[str, Objetivo] = {
+    "sic": OBJETIVO,
+    **{f"broker_{round(m * 100)}": perfil_broker(m) for m in TASAS_MARGINALES_SENSIBILIDAD},
+}
+NOMBRES_DE_PERFIL = {"sic": "SIC (línea base)",
+                     **{f"broker_{round(m * 100)}": f"Broker EE. UU., marginal {m:.0%}"
+                        for m in TASAS_MARGINALES_SENSIBILIDAD}}
 
 
 def veredicto(*, le_gana_en_desarrollo_y_validacion: bool, cumple_todo_en_la_final: bool) -> str:

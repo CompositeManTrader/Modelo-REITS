@@ -312,6 +312,13 @@ def _conclusiones(e: Estudio) -> list[Conclusion]:
     return c
 
 
+def armar_versionado(ticker: str, *, asof: dt.date | None = None) -> Estudio:
+    """El estudio de un emisor con su historia versionada y el ajustado del proveedor para validarla."""
+    ajustado = pd.read_csv(mercado.dir_de(ticker) / mercado.ARCHIVO_PRECIOS,
+                           parse_dates=["fecha"]).set_index("fecha")["ajustado_proveedor"]
+    return armar(Repositorio(), ticker, asof=asof or dt.date.today(), ajustado_proveedor=ajustado)
+
+
 def armar(
     repo: Repositorio,
     ticker: str,

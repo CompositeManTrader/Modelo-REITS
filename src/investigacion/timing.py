@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 
 from src.investigacion import bitacora, estadistica
+from src.investigacion.diseno import CRITERIOS, OBJETIVO, Objetivo
 from src.investigacion.exploracion import _adelante, mercado
 from src.investigacion.simulacion import Modo, benchmark, simular
 from src.modelo.senal import percentil_expandible
@@ -90,44 +91,48 @@ def predictibilidad(s: pd.Series, x: pd.DataFrame, horizontes=(1, 3, 12), minimo
 
 def evaluar(senal: Senal, regla: str, exposicion: pd.Series, x: pd.DataFrame, ind: pd.DataFrame, *,
             muestra: str, parametros: dict | None = None, registrar: bool = True, desde: pd.Timestamp | None = None,
-            ruta_bitacora=None) -> dict:
+            ruta_bitacora=None, objetivo: Objetivo = OBJETIVO, con_prediccion: bool = True) -> dict:
     """Todas las métricas de una regla de exposición sobre el sector ``x``.
 
     Con ``desde``, la simulación empieza ese mes (la señal ya trae su historia) y la
     predictibilidad se califica desde ahí con pronósticos estimados con todo lo anterior.
+    ``objetivo`` trae los impuestos y la comisión (por omisión, los del SIC pre-registrados);
+    ``con_prediccion=False`` se salta la predictibilidad, que no depende de los impuestos.
     """
     completo = x
     if desde is not None:
         x = x.loc[desde:]
     m = mercado(x)
     e = exposicion.reindex(x.index).to_numpy(dtype=float)
-    base = benchmark(m)
+    base = benchmark(m, objetivo=objetivo)
     salida = {"senal": senal.nombre, "familia": senal.familia, "regla": regla, "muestra": muestra,
               "desde": x.index.min(), "hasta": x.index.max(), "tir_aportar_siempre": base.tir,
               "caida_aportar_siempre": base.caida_maxima}
     for modo in (Modo.APORTACION, Modo.EXPOSICION):
         clave = "nuevo" if modo is Modo.APORTACION else "rebalanceo"
-        r = simular(m, e, modo=modo)
+        r = simular(m, e, modo=modo, objetivo=objetivo)
         salida[f"tir_{clave}"] = r.tir
         salida[f"mejora_{clave}"] = r.tir - base.tir
         salida[f"caida_{clave}"] = r.caida_maxima
         salida[f"exposicion_{clave}"] = r.exposicion_promedio
         salida[f"cambios_{clave}"] = r.cambios
         if modo is Modo.EXPOSICION:
-            fija = simular(m, r.exposicion_promedio, modo=Modo.EXPOSICION)
+            fija = simular(m, r.exposicion_promedio, modo=Modo.EXPOSICION, objetivo=objetivo)
             salida["tir_mezcla_fija"] = fija.tir
             salida["mejora_contra_mezcla_fija"] = r.tir - fija.tir
             salida["caida_mezcla_fija"] = fija.caida_maxima
-            con_rezago = simular(m, e, modo=modo, rezago=1)
+            con_rezago = simular(m, e, modo=modo, rezago=1, objetivo=objetivo)
             salida["mejora_rebalanceo_con_rezago"] = con_rezago.tir - base.tir
-            caro = simular(m, e, modo=modo, multiplicador_de_costos=2.0)
+            caro = simular(m, e, modo=modo, multiplicador_de_costos=CRITERIOS.multiplicador_de_costos,
+                           objetivo=objetivo)
             salida["mejora_rebalanceo_doble_costo"] = caro.tir - base.tir
             salida["apuestas_efectivas"] = estadistica.apuestas_efectivas(len(x), 12, r.cambios)
-    s = senal.calcular(completo, ind).reindex(completo.index)
-    pr = predictibilidad(s, completo, desde=desde).set_index("horizonte_meses")
-    for h, f in pr.iterrows():
-        salida[f"r2_{h}m"] = f["r2_fuera_de_muestra"]
-        salida[f"clark_west_p_{h}m"] = f["clark_west_p"]
+    if con_prediccion:
+        s = senal.calcular(completo, ind).reindex(completo.index)
+        pr = predictibilidad(s, completo, desde=desde).set_index("horizonte_meses")
+        for h, f in pr.iterrows():
+            salida[f"r2_{h}m"] = f["r2_fuera_de_muestra"]
+            salida[f"clark_west_p_{h}m"] = f["clark_west_p"]
     if registrar:
         bitacora.registrar(fase="5", familia=senal.familia, prueba=f"{senal.nombre} | {regla}", muestra=muestra,
                            parametros=parametros or {}, metrica="mejora_rebalanceo",

@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 
 from src.investigacion import datos, exploracion, mercados, muestras
-from src.investigacion.diseno import CRITERIOS, MUESTRAS
+from src.investigacion.diseno import CRITERIOS, MUESTRAS, OBJETIVO, Objetivo, veredicto
 from src.investigacion.exploracion import mercado
 from src.investigacion.muestras import Muestra
 from src.investigacion.simulacion import Modo, benchmark, simular
@@ -36,16 +36,21 @@ def exposicion_tendencia(indice_precio: pd.Series) -> pd.Series:
     return (t > 0).astype(float).where(t.notna())
 
 
-def evaluar_mercado(x: pd.DataFrame, nombre: str) -> dict:
-    """La regla contra aportar siempre en un mercado, desde que la tendencia tiene historia."""
+def evaluar_mercado(x: pd.DataFrame, nombre: str, objetivo: Objetivo = OBJETIVO) -> dict:
+    """La regla contra aportar siempre en un mercado, desde que la tendencia tiene historia.
+
+    ``objetivo`` trae los impuestos y la comisión (por omisión, los del SIC pre-registrados).
+    """
     e = exposicion_tendencia(x["indice_precio"])
     x = x[e.notna() & x["efectivo"].notna() & x["retorno_total"].notna()]
     e = e.loc[x.index]
     m = mercado(x)
-    base = benchmark(m)
-    r = simular(m, e.to_numpy(), modo=Modo.EXPOSICION)
-    rezago = simular(m, e.to_numpy(), modo=Modo.EXPOSICION, rezago=CRITERIOS.rezago_de_ejecucion_meses)
-    caro = simular(m, e.to_numpy(), modo=Modo.EXPOSICION, multiplicador_de_costos=CRITERIOS.multiplicador_de_costos)
+    base = benchmark(m, objetivo=objetivo)
+    r = simular(m, e.to_numpy(), modo=Modo.EXPOSICION, objetivo=objetivo)
+    rezago = simular(m, e.to_numpy(), modo=Modo.EXPOSICION, rezago=CRITERIOS.rezago_de_ejecucion_meses,
+                     objetivo=objetivo)
+    caro = simular(m, e.to_numpy(), modo=Modo.EXPOSICION, multiplicador_de_costos=CRITERIOS.multiplicador_de_costos,
+                   objetivo=objetivo)
 
     def protege(regla) -> bool:
         reduccion = 1 - regla.caida_maxima / base.caida_maxima if base.caida_maxima < 0 else 0.0
@@ -63,9 +68,9 @@ def evaluar_mercado(x: pd.DataFrame, nombre: str) -> dict:
             "cuenta": len(x) >= MUESTRAS.meses_minimos_por_mercado}
 
 
-def serie_de_mercado(nombre: str, *, raiz=None, ruta_bitacora=None) -> tuple[pd.DataFrame, str]:
+def serie_de_mercado(nombre: str, *, raiz=None, ruta_bitacora=None, modelo: str = MODELO) -> tuple[pd.DataFrame, str]:
     spec = datos.MERCADOS_FINALES[nombre]
-    abrir = lambda parte: muestras.abrir_sellado(f"{nombre}_{parte}", modelo_congelado=MODELO,  # noqa: E731
+    abrir = lambda parte: muestras.abrir_sellado(f"{nombre}_{parte}", modelo_congelado=modelo,  # noqa: E731
                                                  raiz=raiz, ruta_bitacora=ruta_bitacora)
     precios = abrir("precios")
     precios["fecha"] = pd.to_datetime(precios["fecha"])
@@ -102,6 +107,15 @@ def correr(*, ruta_bitacora=None, raiz=None) -> ResultadoFase8:
         r["serie"] = origen
         filas.append(r)
     d = pd.DataFrame(filas)
+    conjunto, v, apuestas = resumir(d, validacion)
+    serie = pd.DataFrame({"fecha": completo.index, "indice_precio": completo["indice_precio"].to_numpy(),
+                          "indice_total": completo["indice_total"].to_numpy(),
+                          "exposicion": exposicion_tendencia(completo["indice_precio"]).to_numpy()})
+    return ResultadoFase8(validacion, d, conjunto, v, apuestas, serie)
+
+
+def resumir(d: pd.DataFrame, validacion: dict) -> tuple[dict, str, int]:
+    """El conjunto de los mercados que cuentan, el veredicto y las apuestas efectivas."""
     cuentan = d[d["cuenta"]]
     conjunto = {"mejora": float(cuentan["mejora"].mean()),
                 "reduccion_de_caida": float(cuentan["reduccion_de_caida"].mean()),
@@ -123,25 +137,20 @@ def correr(*, ruta_bitacora=None, raiz=None) -> ResultadoFase8:
             and apuestas >= CRITERIOS.apuestas_efectivas_minimas)
     # «Le gana a aportar siempre en desarrollo y validación»: en desarrollo la tendencia ganó +15 pb (fase 5).
     gana_dev_y_val = validacion["mejora"] > 0
-    from src.investigacion.diseno import veredicto
-
-    serie = pd.DataFrame({"fecha": completo.index, "indice_precio": completo["indice_precio"].to_numpy(),
-                          "indice_total": completo["indice_total"].to_numpy(),
-                          "exposicion": exposicion_tendencia(completo["indice_precio"]).to_numpy()})
-    return ResultadoFase8(validacion, d, conjunto,
-                          veredicto(le_gana_en_desarrollo_y_validacion=gana_dev_y_val, cumple_todo_en_la_final=todo),
-                          apuestas, serie)
+    v = veredicto(le_gana_en_desarrollo_y_validacion=gana_dev_y_val, cumple_todo_en_la_final=todo)
+    return conjunto, v, apuestas
 
 
-def _desde(completo: pd.DataFrame, desde: pd.Timestamp, nombre: str) -> dict:
+def _desde(completo: pd.DataFrame, desde: pd.Timestamp, nombre: str, objetivo: Objetivo = OBJETIVO) -> dict:
     e = exposicion_tendencia(completo["indice_precio"])
     x = completo.loc[desde:]
     m = mercado(x)
     ex = e.loc[desde:].to_numpy()
-    base = benchmark(m)
-    r = simular(m, ex, modo=Modo.EXPOSICION)
-    rezago = simular(m, ex, modo=Modo.EXPOSICION, rezago=CRITERIOS.rezago_de_ejecucion_meses)
-    caro = simular(m, ex, modo=Modo.EXPOSICION, multiplicador_de_costos=CRITERIOS.multiplicador_de_costos)
+    base = benchmark(m, objetivo=objetivo)
+    r = simular(m, ex, modo=Modo.EXPOSICION, objetivo=objetivo)
+    rezago = simular(m, ex, modo=Modo.EXPOSICION, rezago=CRITERIOS.rezago_de_ejecucion_meses, objetivo=objetivo)
+    caro = simular(m, ex, modo=Modo.EXPOSICION, multiplicador_de_costos=CRITERIOS.multiplicador_de_costos,
+                   objetivo=objetivo)
     return {"mercado": nombre, "desde": x.index.min(), "hasta": x.index.max(), "meses": len(x),
             "tir_aportar_siempre": base.tir, "tir_regla": r.tir, "mejora": r.tir - base.tir,
             "caida_aportar_siempre": base.caida_maxima, "caida_regla": r.caida_maxima,

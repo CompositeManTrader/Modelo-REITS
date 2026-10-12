@@ -382,6 +382,17 @@ MIN_APUESTAS_EFECTIVAS = 100  # debajo de esto el veredicto es INCONCLUSO, nunca
 RETENCION_EEUU_W8BEN = 0.10  # dividendo de REIT con tratado y W-8BEN presentado
 ISR_ADICIONAL_MEXICO_DIVIDENDO_EXTRANJERO = 0.10
 TASA_CEDULAR_GANANCIAS_SIC = 0.10  # régimen cedular vía SIC con casa de bolsa mexicana
+
+# Comprando directo con un broker de EE. UU. (sensibilidad de la investigación, 12-oct-2026).
+# El dividendo de una sociedad extranjera se acumula a la tarifa anual con crédito de la
+# retención de EE. UU. y paga además un ISR adicional definitivo de 10% sobre lo efectivamente
+# distribuido, sin la retención (Art. 142 fr. V LISR). La ganancia de acciones listadas en el
+# SIC paga 10% aunque se vendan por un intermediario extranjero (Art. 129 LISR; Criterio
+# 37/ISR/N del SAT). Los intereses del efectivo en dólares se acumulan a la tarifa anual. Son
+# supuestos a confirmar con el contador de cada inversionista.
+ISR_ADICIONAL_DIVIDENDO_EXTRANJERO_BROKER = 0.10
+TASAS_MARGINALES_SENSIBILIDAD = (0.30, 0.35)  # la tasa marginal del inversionista no se conoce
+COMISION_BROKER_EEUU = 0.0
 UMBRAL_ESTATE_TAX_USD = 60_000.0
 TASA_MAXIMA_ESTATE_TAX = 0.40
 DEDUCCION_CIEGA_ARRENDAMIENTO = 0.35  # deducción opcional del 35% más predial

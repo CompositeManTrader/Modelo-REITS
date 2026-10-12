@@ -40,6 +40,15 @@ Impuestos y costos, los del backtest de reglas: 20% al dividendo y a los interes
 de retención con W-8BEN y 10% de ISR adicional), 10% cedular a la ganancia al vender, y
 0.25% de comisión por compra y por venta.
 
+**Enmienda del 12-oct-2026: comprar con un broker de EE. UU.** El inversionista avisó que
+no va a comprar por el SIC sino directo con un broker de EE. UU. Lo pre-registrado no se
+reescribe: el SIC sigue siendo la línea base (`diseno.OBJETIVO`, prueba 60). Las mismas
+reglas y modelos congelados se repiten como **sensibilidad declarada** con su perfil:
+dividendo a la tasa marginal más 9 puntos (39% con marginal de 30%, 44% con 35%),
+intereses a la marginal, ganancia al 10% y comisión de 0%. Lo que solo pase con ese perfil
+se marca como posterior. Pre-registro: `sensibilidad_broker_preregistro.md`; resultados:
+`sensibilidad_broker.md`.
+
 ## Las muestras
 
 El error más caro de esta investigación sería encontrar un patrón que solo existe en los

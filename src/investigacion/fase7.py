@@ -292,12 +292,16 @@ def evaluar(peldanos: list[Peldano], x: pd.DataFrame, ind: pd.DataFrame, *, mues
     return timing.resumen(filas)
 
 
+# Un peldaño que siempre está dentro es aportar siempre: su «mejora» es redondeo (del orden de 1e-16).
+TOLERANCIA = 1e-9
+
+
 def escalera(evaluacion: pd.DataFrame) -> tuple[list[str], str]:
     """Los peldaños que se quedan y el candidato (el último que se quedó)."""
     se_quedan, mejor = [], 0.0          # el punto de partida es aportar siempre (mejora 0)
     for nombre in PELDANOS:
         m = float(evaluacion.set_index("senal").loc[nombre, "mejora_rebalanceo"])
-        if m > mejor:
+        if m > mejor + TOLERANCIA:
             se_quedan.append(nombre)
             mejor = m
     return se_quedan, (se_quedan[-1] if se_quedan else "")

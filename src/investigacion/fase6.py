@@ -28,7 +28,7 @@ import numpy as np
 import pandas as pd
 
 from src.investigacion import bitacora, estadistica
-from src.investigacion.diseno import CRITERIOS, MUESTRAS, OBJETIVO
+from src.investigacion.diseno import CRITERIOS, MUESTRAS, OBJETIVO, Objetivo
 
 
 @dataclass(frozen=True)
@@ -298,7 +298,8 @@ def _tir(flujos: np.ndarray) -> float:
 
 def simular(sel: pd.DataFrame, x: pd.DataFrame, *, desde: pd.Timestamp, hasta: pd.Timestamp,
             d: Diseno6 = DISENO6, rezago: int = 0, multiplicador_de_costos: float = 1.0,
-            rotar_cada: int | None = None, respaldo: pd.DataFrame | None = None) -> Simulacion:
+            rotar_cada: int | None = None, respaldo: pd.DataFrame | None = None,
+            objetivo: Objetivo = OBJETIVO) -> Simulacion:
     """El inversionista: 3,000 dólares por trimestre a los escogidos, por partes iguales.
 
     Sin vender nunca (``rotar_cada=None``): los dividendos pagan 20% y se reinvierten con la
@@ -309,9 +310,11 @@ def simular(sel: pd.DataFrame, x: pd.DataFrame, *, desde: pd.Timestamp, hasta: p
     Un trimestre en que la regla no escoge a nadie (su señal todavía no tiene historia), la
     aportación va a ``respaldo``, todos los elegibles: guardarla en efectivo metería un timing
     que esta fase no mide (corrección del 6 de octubre, declarada en los resultados).
+
+    ``objetivo`` trae los impuestos y la comisión (por omisión, los del SIC pre-registrados).
     """
-    imp_div, imp_gan = OBJETIVO.impuesto_dividendo, OBJETIVO.impuesto_ganancia
-    comision = OBJETIVO.comision * multiplicador_de_costos
+    imp_div, imp_gan = objetivo.impuesto_dividendo, objetivo.impuesto_ganancia
+    comision = objetivo.comision * multiplicador_de_costos
     R = x.dropna(subset=["retorno"]).set_index(["fecha", "cik"])[["retorno", "dividendo", "salida"]]
     R = R[~R.index.duplicated()]
     escogidos = sel.groupby("fecha")["cik"].apply(list)
@@ -502,7 +505,7 @@ def _anual(r: pd.Series) -> float:
 
 def evaluar(regla: str, x: pd.DataFrame, *, desde: pd.Timestamp, hasta: pd.Timestamp, muestra: str,
             d: Diseno6 = DISENO6, riesgo: pd.Series | None = None, registrar: bool = True, ruta_bitacora=None,
-            mitades: tuple[pd.Timestamp, ...] = ()) -> dict:
+            mitades: tuple[pd.Timestamp, ...] = (), objetivo: Objetivo = OBJETIVO) -> dict:
     """Todas las métricas de una regla entre ``desde`` (primera cartera) y ``hasta`` (último retorno).
 
     ``x`` trae las señales calculadas sobre lo que la muestra deja ver.
@@ -517,12 +520,12 @@ def evaluar(regla: str, x: pd.DataFrame, *, desde: pd.Timestamp, hasta: pd.Times
     # Regla y universo, en los mismos trimestres: los que la regla ya tiene cartera.
     comun = ventana & gr.notna().to_numpy() & gu.notna().to_numpy()
     exceso = (gr - gu)[comun]
-    kw = {"desde": desde, "hasta": hasta, "d": d, "respaldo": sel_todos}
+    kw = {"desde": desde, "hasta": hasta, "d": d, "respaldo": sel_todos, "objetivo": objetivo}
     sims = {
         "base": (simular(sel, x, **kw), simular(sel_todos, x, **kw)),
         "rezago": (simular(sel, x, rezago=1, **kw), simular(sel_todos, x, rezago=1, **kw)),
-        "doble_costo": (simular(sel, x, multiplicador_de_costos=2.0, **kw),
-                        simular(sel_todos, x, multiplicador_de_costos=2.0, **kw)),
+        "doble_costo": (simular(sel, x, multiplicador_de_costos=CRITERIOS.multiplicador_de_costos, **kw),
+                        simular(sel_todos, x, multiplicador_de_costos=CRITERIOS.multiplicador_de_costos, **kw)),
         "rotando": (simular(sel, x, rotar_cada=d.horizonte, **kw), simular(sel_todos, x, **kw)),
     }
     adelante = _adelante(R, d)
@@ -729,24 +732,38 @@ def correr_final(panel_abierto: pd.DataFrame, regla: str, *, d: Diseno6 = DISENO
     El detector, si es la regla, se estima solo con los emisores abiertos y pronostica a los
     sellados: nunca ve a quien va a calificar.
     """
-    from src.investigacion import emisores
-    from src.investigacion.muestras import abrir_sellado, congelar
+    from src.investigacion.muestras import congelar
 
     congelar(f"{MODELO_FINAL}: {regla}", {"regla": regla, "diseno": repr(d)}, ruta_bitacora=ruta_bitacora)
-    sellado = abrir_sellado(emisores.ARCHIVO_SELLADO, modelo_congelado=f"{MODELO_FINAL}: {regla}",
-                            raiz=raiz_sellado, ruta_bitacora=ruta_bitacora)
+    sellado = abrir_sellados(f"{MODELO_FINAL}: {regla}", raiz_sellado=raiz_sellado, ruta_bitacora=ruta_bitacora)
+    f = evaluar_final(sellado, regla, d=d, panel_abierto=panel_abierto, ruta_bitacora=ruta_bitacora)
+    return f, veredicto_final(f, pbo=pbo, dsr=dsr, d=d)
+
+
+def abrir_sellados(modelo: str, *, raiz_sellado=None, ruta_bitacora=None) -> pd.DataFrame:
+    """Los emisores sellados, con sus tipos; ``modelo`` tiene que estar congelado en la bitácora."""
+    from src.investigacion import emisores
+    from src.investigacion.muestras import abrir_sellado
+
+    sellado = abrir_sellado(emisores.ARCHIVO_SELLADO, modelo_congelado=modelo, raiz=raiz_sellado,
+                            ruta_bitacora=ruta_bitacora)
     sellado = sellado.assign(cik=sellado["cik"].astype(str).str.zfill(10), fecha=pd.to_datetime(sellado["fecha"]))
     for c in ("salida", "split", "es_reit", "de_capital"):
         if c in sellado:
             sellado[c] = sellado[c].astype(bool)
+    return sellado
+
+
+def evaluar_final(sellado: pd.DataFrame, regla: str, *, d: Diseno6 = DISENO6, panel_abierto: pd.DataFrame | None = None,
+                  registrar: bool = True, ruta_bitacora=None, objetivo: Objetivo = OBJETIVO) -> dict:
+    """La regla en los sellados de 2012 en adelante (el detector se estima con los abiertos)."""
     x = senales(sellado, d)
     riesgo = None
     if regla == DETECTOR:
         riesgo = riesgo_de_recorte(x, d, entrenar_con=senales(panel_abierto, d))
     desde, hasta = primera_fecha(x, d), pd.Timestamp(x["fecha"].max())
-    f = evaluar(regla, x, desde=desde, hasta=hasta, muestra="final", d=d, riesgo=riesgo, ruta_bitacora=ruta_bitacora,
-                mitades=(MUESTRAS.desarrollo_hasta,))
-    return f, veredicto_final(f, pbo=pbo, dsr=dsr, d=d)
+    return evaluar(regla, x, desde=desde, hasta=hasta, muestra="final", d=d, riesgo=riesgo, registrar=registrar,
+                   ruta_bitacora=ruta_bitacora, mitades=(MUESTRAS.desarrollo_hasta,), objetivo=objetivo)
 
 
 def pasa_la_validacion_el_detector(f: dict, detector: dict, d: Diseno6 = DISENO6) -> bool:

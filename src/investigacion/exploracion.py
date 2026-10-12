@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 
 from src.investigacion import datos, muestras
+from src.investigacion.diseno import OBJETIVO, Objetivo
 from src.investigacion.muestras import Muestra
 from src.investigacion.simulacion import Mercado, Modo, benchmark, simular
 from src.modelo.senal import percentil_expandible
@@ -226,8 +227,11 @@ class Techo:
     resultados: dict
 
 
-def techo(x: pd.DataFrame) -> Techo:
-    """Oráculos que conocen el futuro, contra aportar siempre. Marcan el máximo alcanzable."""
+def techo(x: pd.DataFrame, objetivo: Objetivo = OBJETIVO) -> Techo:
+    """Oráculos que conocen el futuro, contra aportar siempre. Marcan el máximo alcanzable.
+
+    ``objetivo`` trae los impuestos y la comisión (por omisión, los del SIC pre-registrados).
+    """
     m = mercado(x)
     n = len(x)
     reit, cash = x["retorno_total"].to_numpy(), x["efectivo"].to_numpy()
@@ -244,12 +248,12 @@ def techo(x: pd.DataFrame) -> Techo:
               "fuera en cada caída de 20% o más (del máximo al mínimo)": fuera,
               "anti-oráculo de 12 meses": 1 - doce}
     filas, resultados = [], {}
-    base = benchmark(m)
+    base = benchmark(m, objetivo=objetivo)
     for nombre, e in reglas.items():
         for modo in (Modo.APORTACION, Modo.EXPOSICION):
             if e is None and modo is Modo.EXPOSICION:
                 continue
-            r = base if e is None else simular(m, e, modo=modo)
+            r = base if e is None else simular(m, e, modo=modo, objetivo=objetivo)
             resultados[(nombre, modo)] = r
             filas.append({"regla": nombre, "modo": "nunca vende" if modo is Modo.APORTACION else "rebalancea",
                           "tir": r.tir, "contra_aportar_siempre_bps": round((r.tir - base.tir) * 1e4),
