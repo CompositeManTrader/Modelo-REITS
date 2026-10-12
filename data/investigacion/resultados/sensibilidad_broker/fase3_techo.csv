@@ -1,0 +1,28 @@
+regla,modo,tir,contra_aportar_siempre_bps,caida_maxima,exposicion_promedio,cambios,perfil
+aportar siempre,nunca vende,0.1065330866,0,-0.6894232228,1,0,sic
+oráculo del mes siguiente,nunca vende,0.1094649286,29,-0.6842130662,0.9900205942,228,sic
+oráculo del mes siguiente,rebalancea,0.279439026,1729,0,0.5882352941,228,sic
+oráculo de los 12 meses siguientes,nunca vende,0.1123688704,58,-0.6647899021,0.9505096841,32,sic
+oráculo de los 12 meses siguientes,rebalancea,0.1444630037,379,-0.346367786,0.7324478178,32,sic
+fuera en cada caída de 20% o más (del máximo al mínimo),nunca vende,0.1144035233,79,-0.653528638,0.9617344724,8,sic
+fuera en cada caída de 20% o más (del máximo al mínimo),rebalancea,0.1654421701,589,-0.1831754437,0.8311195446,8,sic
+anti-oráculo de 12 meses,nunca vende,0.08772318266,-188,-0.6873559317,0.8830418342,32,sic
+anti-oráculo de 12 meses,rebalancea,-0.01924779099,-1258,-0.6357681054,0.2675521822,32,sic
+aportar siempre,nunca vende,0.09201499073,0,-0.6954417369,1,0,broker_30
+oráculo del mes siguiente,nunca vende,0.09449171782,25,-0.6913518981,0.9907367182,228,broker_30
+oráculo del mes siguiente,rebalancea,0.280990019,1890,-0.00398132627,0.5882352941,228,broker_30
+oráculo de los 12 meses siguientes,nunca vende,0.09715238115,51,-0.6758376738,0.9519686021,32,broker_30
+oráculo de los 12 meses siguientes,rebalancea,0.1333211807,413,-0.3474006557,0.7324478178,32,broker_30
+fuera en cada caída de 20% o más (del máximo al mínimo),nunca vende,0.09890629513,69,-0.66684574,0.96297876,8,broker_30
+fuera en cada caída de 20% o más (del máximo al mínimo),rebalancea,0.1523798957,604,-0.1870943003,0.8311195446,8,broker_30
+anti-oráculo de 12 meses,nunca vende,0.0763494023,-157,-0.6937826504,0.8911490209,32,broker_30
+anti-oráculo de 12 meses,rebalancea,-0.02324335314,-1153,-0.6423474195,0.2675521822,32,broker_30
+aportar siempre,nunca vende,0.08816032509,0,-0.6970069706,1,0,broker_35
+oráculo del mes siguiente,nunca vende,0.09050856318,23,-0.6932001421,0.9909176058,228,broker_35
+oráculo del mes siguiente,rebalancea,0.2768366344,1887,-0.00670573092,0.5882352941,228,broker_35
+oráculo de los 12 meses siguientes,nunca vende,0.09307608982,49,-0.6787122224,0.9523459708,32,broker_35
+oráculo de los 12 meses siguientes,rebalancea,0.1295120089,414,-0.3476723488,0.7324478178,32,broker_35
+fuera en cada caída de 20% o más (del máximo al mínimo),nunca vende,0.09475528385,66,-0.6703033265,0.963306006,8,broker_35
+fuera en cada caída de 20% o más (del máximo al mínimo),rebalancea,0.1486042035,604,-0.1881731507,0.8311195446,8,broker_35
+anti-oráculo de 12 meses,nunca vende,0.07320023503,-150,-0.6954499892,0.8932930586,32,broker_35
+anti-oráculo de 12 meses,rebalancea,-0.02547661359,-1136,-0.6441035913,0.2675521822,32,broker_35

@@ -211,16 +211,22 @@ def cmd_fase8() -> int:
     return 0
 
 
-def cmd_broker(abrir_sellados: bool = True, con_estudios: bool = True) -> int:
+def cmd_broker(abrir_sellados: bool = True, con_estudios: bool = True, solo_informe: bool = False) -> int:
     """La sensibilidad fiscal: las mismas reglas congeladas con los impuestos de un broker de EE. UU.
-    Abre los sellados una vez (con un modelo congelado propio que repite la regla ya congelada)."""
+    Abre los sellados una vez (con un modelo congelado propio que repite la regla ya congelada).
+    ``solo_informe`` reescribe el documento con lo guardado, sin correr ni abrir nada."""
     from src.investigacion import resultados, sensibilidad
 
-    r = sensibilidad.correr(abrir_sellados=abrir_sellados, con_estudios=con_estudios,
-                            resultados_guardados=resultados.cargar())
-    destino = sensibilidad.guardar(r)
+    guardado = resultados.cargar()
     informe = RAIZ / "docs" / "investigacion" / "sensibilidad_broker.md"
-    informe.write_text(sensibilidad.informe(r), encoding="utf-8")
+    if solo_informe:
+        r = sensibilidad.cargar()
+        informe.write_text(sensibilidad.informe(r, guardado), encoding="utf-8")
+        print(informe.relative_to(RAIZ))
+        return 0
+    r = sensibilidad.correr(abrir_sellados=abrir_sellados, con_estudios=con_estudios, resultados_guardados=guardado)
+    destino = sensibilidad.guardar(r)
+    informe.write_text(sensibilidad.informe(r, guardado), encoding="utf-8")
     print(f"{destino.relative_to(RAIZ)} y {informe.relative_to(RAIZ)}")
     print(r["resumen"].to_string(index=False))
     print(f"aperturas: {r.notas['aperturas']}")
@@ -242,9 +248,11 @@ def main() -> int:
                                        "fase6", "fase7", "fase8", "broker", "pdf"])
     p.add_argument("--sin-sellados", action="store_true", help="broker: no abre los sellados")
     p.add_argument("--sin-estudios", action="store_true", help="broker: no repite los estudios de O, NNN y WPC")
+    p.add_argument("--solo-informe", action="store_true", help="broker: reescribe el informe con lo guardado")
     a = p.parse_args()
     if a.comando == "broker":
-        return cmd_broker(abrir_sellados=not a.sin_sellados, con_estudios=not a.sin_estudios)
+        return cmd_broker(abrir_sellados=not a.sin_sellados, con_estudios=not a.sin_estudios,
+                          solo_informe=a.solo_informe)
     return {"sector": cmd_sector, "macro": cmd_macro, "factores": cmd_factores, "sellar": cmd_sellar,
             "emisores": cmd_emisores,
             "exploracion": cmd_exploracion, "fase5": cmd_fase5, "fase6": cmd_fase6, "fase7": cmd_fase7,

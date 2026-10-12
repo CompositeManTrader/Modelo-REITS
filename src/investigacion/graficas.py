@@ -179,8 +179,9 @@ def sensibilidad(res: dict, t: Tema = OSCURO) -> go.Figure:
                             hovertemplate="%{y}<br>" + nombre + ": %{x:+,.0f} pb al año<extra></extra>")
     fig.add_vline(x=0, line={"color": t.contexto, "width": 1})
     fig.add_vline(x=CRITERIOS.mejora_minima_de_tir * 1e4, line={"color": t.perdida, "width": 1, "dash": "dot"})
-    fig = _base(fig, t, alto=60 + 34 * len(d), leyenda=True)
-    fig.update_layout(hovermode="closest", legend={"y": 1.06, "x": 0}, margin={"l": 380, "r": 30, "b": 48})
+    fig = _base(fig, t, alto=110 + 34 * len(d), leyenda=True)
+    fig.update_layout(hovermode="closest", legend={"y": 1.0, "x": 0, "yanchor": "bottom", "orientation": "h"},
+                      margin={"l": 380, "r": 30, "b": 48, "t": 60})
     fig.update_xaxes(title={"text": "TIR contra su comparación (pb al año, después de impuestos)"})
     fig.update_yaxes(tickfont={"family": "Inter, system-ui, sans-serif", "size": 10})
     return fig

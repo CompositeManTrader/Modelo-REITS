@@ -601,8 +601,12 @@ def _perfiles_md() -> str:
     return _md(filas, ["Perfil", "Dividendo", "Intereses del efectivo", "Ganancia al vender", "Comisión"])
 
 
-def informe(r: ResultadoSensibilidad) -> str:
-    """La sensibilidad en Markdown, con el veredicto de cada fase en cada perfil."""
+def informe(r: ResultadoSensibilidad, guardado: dict | None = None) -> str:
+    """La sensibilidad en Markdown, con el veredicto de cada fase en cada perfil.
+
+    Con ``guardado`` (``resultados.cargar()``) agrega la prueba de que la columna SIC es la
+    de cada fase ya guardada.
+    """
     o = ["# Sensibilidad fiscal: comprar con un broker de EE. UU. Resultados\n\n",
          "Pre-registro: `sensibilidad_broker_preregistro.md` (commit anterior a esta corrida). Las mismas reglas y "
          "los mismos modelos congelados de las fases 3 a 8 y de los estudios de O, NNN y WPC, con los impuestos de "
@@ -624,6 +628,8 @@ def informe(r: ResultadoSensibilidad) -> str:
     o.append(_fase6_md(r))
     o.append(_estudios_md(r))
     o.append(_hipotesis_md(r))
+    if guardado:
+        o.append(_reproduccion_md(reproduccion(r, guardado)))
     o.append(_bitacora_md(r))
     o.append("## Límites\n\n"
              "* Una sola tasa marginal para todo el ingreso; la tarifa real es progresiva.\n"
@@ -638,8 +644,31 @@ def informe(r: ResultadoSensibilidad) -> str:
     return "".join(o)
 
 
+def _sin_cambio(r: ResultadoSensibilidad) -> bool:
+    """Ningún veredicto cambia con el broker: nada pasa un filtro ni un criterio que no pasara con el SIC."""
+    iguales = []
+    for nombre, col in (("fase5_desarrollo", "pasa"), ("fase6_desarrollo", "pasa"), ("fase6_validacion", "pasa")):
+        d = r[nombre]
+        if not d.empty:
+            w = d.assign(**{col: d[col].astype(bool)}).pivot_table(index="regla" if "senal" not in d else ["senal", "regla"],
+                                                                   columns="perfil", values=col, aggfunc="max")
+            iguales.append(bool(w.eq(w["sic"], axis=0).all().all()))
+    for nombre in ("fase8_conjunto", "fase6_final"):
+        d = r[nombre]
+        if not d.empty:
+            iguales.append(bool((d["veredicto"] == d.loc[d["perfil"] == "sic", "veredicto"].iloc[0]).all()))
+    iguales.append(all(not e["candidato"] for e in r.escaleras.values()) or len({e["candidato"] for e in
+                                                                                 r.escaleras.values()}) == 1)
+    return all(iguales)
+
+
 def _veredicto(r: ResultadoSensibilidad) -> str:
     o = ["## Veredicto\n\n"]
+    if _sin_cambio(r):
+        o.append("**Con el broker de EE. UU. ningún veredicto cambia.** Ninguna regla pasa un filtro o un criterio "
+                 "que no pasara con el SIC, con marginal de 30% ni de 35%. Lo que sí cambia es el nivel: aportar "
+                 "siempre rinde menos, porque el dividendo paga casi el doble, y las reglas que salen del mercado "
+                 "cuestan menos que con el SIC, porque estar fuera evita ese dividendo y no hay comisión.\n\n")
     d5 = r["fase5_desarrollo"]
     if not d5.empty:
         pasan = d5.groupby("perfil")["pasa"].sum()
@@ -849,7 +878,8 @@ def _hipotesis_md(r: ResultadoSensibilidad) -> str:
     if not d6.empty:
         w = _ancho(d6, "regla", "mejora")
         peor = [rg for rg in ("rendimiento_del_dividendo", "calidad y barato") if w.loc[rg, "broker_35"] < w.loc[rg, "sic"]]
-        o.append(f"* **H-B5, el yield alto y «calidad y barato» salen peor.** {_si(len(peor) == 2)}: yield alto "
+        veredicto5 = "Se cumple" if len(peor) == 2 else ("Se cumple a medias" if peor else "No se cumple")
+        o.append(f"* **H-B5, el yield alto y «calidad y barato» salen peor.** {veredicto5}: yield alto "
                  f"{_pb(w.loc['rendimiento_del_dividendo', 'sic'])} → {_pb(w.loc['rendimiento_del_dividendo', 'broker_35'])}"
                  f" pb; calidad y barato {_pb(w.loc['calidad y barato', 'sic'])} → "
                  f"{_pb(w.loc['calidad y barato', 'broker_35'])} pb.\n")
@@ -866,6 +896,56 @@ def _hipotesis_md(r: ResultadoSensibilidad) -> str:
                  + ", ".join(f"{t} {_pb(c)[1:] if _pb(c) != '0' else '0'} pb" for t, c in cambio.items())
                  + " de cambio máximo.\n")
     return "".join(o) + "\n"
+
+
+def reproduccion(r: ResultadoSensibilidad, guardado: dict) -> pd.DataFrame:
+    """La columna SIC contra lo que cada fase guardó: la sensibilidad no movió la línea base."""
+    filas = []
+
+    def comparar(fase: str, que: str, ahora: pd.Series, antes: pd.Series) -> None:
+        a, b = ahora.astype(float), antes.reindex(ahora.index).astype(float)
+        filas.append({"fase": fase, "que": que, "comparadas": int(b.notna().sum()),
+                      "diferencia_maxima": float((a - b).abs().max())})
+
+    def sic(nombre: str, indice) -> pd.DataFrame:
+        d = r[nombre]
+        return d[d["perfil"] == "sic"].set_index(indice)
+
+    if "fase3" in guardado and not r["fase3_techo"].empty:
+        comparar("3", "TIR del techo", sic("fase3_techo", ["regla", "modo"])["tir"],
+                 guardado["fase3"]["techo"].set_index(["regla", "modo"])["tir"])
+    if "fase5" in guardado and not r["fase5_desarrollo"].empty:
+        comparar("5", "Mejora de las 22 reglas", sic("fase5_desarrollo", ["senal", "regla"])["mejora_rebalanceo"],
+                 guardado["fase5"]["desarrollo"].set_index(["senal", "regla"])["mejora_rebalanceo"])
+    if "fase7" in guardado and not r["fase7_evaluacion"].empty:
+        comparar("7", "Mejora de los 5 peldaños", sic("fase7_evaluacion", "senal")["mejora_rebalanceo"],
+                 guardado["fase7"]["evaluacion"].set_index("senal")["mejora_rebalanceo"])
+    if "fase8" in guardado:
+        if not r["fase8_validacion"].empty:
+            comparar("8", "Tendencia en EE. UU., 2016 en adelante", sic("fase8_validacion", "mercado")["mejora"],
+                     pd.Series({r["fase8_validacion"]["mercado"].iloc[0]: guardado["fase8"]["resumen"]["validacion"]["mejora"]}))
+        if not r["fase8_mercados"].empty:
+            comparar("8", "Tendencia en los 8 mercados", sic("fase8_mercados", "mercado")["mejora"],
+                     guardado["fase8"]["mercados"].set_index("mercado")["mejora"])
+    if "fase6" in guardado:
+        for nombre, clave, que in (("fase6_desarrollo", "desarrollo", "Mejora de las 16 reglas, desarrollo"),
+                                   ("fase6_validacion", "validacion", "Mejora en validación")):
+            if not r[nombre].empty:
+                comparar("6", que, sic(nombre, "regla")["mejora"], guardado["fase6"][clave].set_index("regla")["mejora"])
+        if not r["fase6_final"].empty and "final" in guardado["fase6"]:
+            comparar("6", "Momentum en los emisores sellados", sic("fase6_final", "regla")["mejora"],
+                     guardado["fase6"]["final"].set_index("regla")["mejora"])
+    return pd.DataFrame(filas)
+
+
+def _reproduccion_md(d: pd.DataFrame) -> str:
+    if d.empty:
+        return ""
+    filas = [[f["fase"], f["que"], str(f["comparadas"]), f"{f['diferencia_maxima'] * 1e4:.1e}"] for _, f in d.iterrows()]
+    return ("## La línea base no se movió\n\nLa columna SIC de esta corrida contra los resultados que cada fase ya "
+            "tenía guardados. La prueba final de momentum en los emisores sellados corrió con el código corregido de "
+            "la fase 6 y da lo mismo que la original.\n"
+            + _md(filas, ["Fase", "Qué se compara", "Cifras", "Diferencia máxima (pb)"]))
 
 
 def _bitacora_md(r: ResultadoSensibilidad) -> str:

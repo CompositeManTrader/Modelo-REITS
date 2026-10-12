@@ -1,0 +1,17 @@
+fase,prueba,criterio,sic_pb,broker_30_pb,broker_35_pb,veredicto_broker_30,veredicto_broker_35,veredicto_sic
+3,"Oráculo de 12 meses, solo dinero nuevo (techo de entrar bien)","techo, no es regla",58.35783805,51.37390415,49.1576473,,,
+3,"Oráculo: fuera en cada caída de 20% o más, rebalanceando","techo, no es regla",589.0908356,603.6490499,604.4387838,,,
+5,"Mejor de las 22 reglas de entrada, rebalanceando",pasar el filtro,92.27316608,112.5092821,114.0708328,0 de 22 pasan,0 de 22 pasan,0 de 22 pasan
+5,Tendencia de 10 meses (signo),pasar el filtro,15.02736414,86.8080458,93.3671783,,,
+7,Mejor peldaño de la escalera,ganarle a aportar siempre,-1.526556659e-12,2.081668171e-12,3.330669074e-12,sin candidato (RECHAZADO),sin candidato (RECHAZADO),sin candidato (RECHAZADO)
+8,"Protección por tendencia, EE. UU. 2016 en adelante",costo ≤ 25 pb,-490.3935481,-387.0300162,-385.8994311,,,
+8,"Protección por tendencia, promedio de los 8 mercados",costo ≤ 25 pb y 30% menos caída,-126.9845328,-53.6609684,-49.40396754,RECHAZADO,RECHAZADO,RECHAZADO
+6,"Momentum, desarrollo",pasar el filtro,85.56931485,83.8821293,83.47113158,2 de 16 pasan,2 de 16 pasan,2 de 16 pasan
+6,"Yield de dividendo alto, desarrollo",pasar el filtro,-86.03312706,-117.2042566,-125.4083432,,,
+6,"Calidad y barato (FFO), desarrollo",pasar el filtro,-211.3926941,-210.7576897,-210.4542684,,,
+6,"Momentum, validación",≥ +50 pb,57.13105203,59.55971855,60.207246,,,
+6,"Momentum, emisores sellados (prueba final)",≥ +50 pb,38.19669658,41.16251949,41.92947225,RECHAZADO,RECHAZADO,RECHAZADO
+estudios,Semáforo de NNN: modelo completo contra aportar siempre,> 0,-559.9191337,-501.9520902,-489.0002184,,,
+estudios,Semáforo de O: modelo completo contra aportar siempre,> 0,-57.51981502,-41.34410328,-38.04000682,,,
+estudios,Semáforo de WPC: modelo completo contra aportar siempre,> 0,1.245660185,24.48995587,28.25396365,,,
+estudios,"Asignación entre O, NNN y WPC: consenso contra partes iguales",> 0,72.46818053,62.75124429,60.19239618,,,

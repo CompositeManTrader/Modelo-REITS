@@ -644,6 +644,13 @@ emisores sellados, debajo del criterio de +50. El yield alto y lo «barato» con
 recortes de dividendo; un detector de recortes acierta (AUC 0.75), pero esquivarlos no paga
 porque los que recortan rebotan el año siguiente.
 
+**Con un broker de EE. UU. en lugar del SIC (sensibilidad, `docs/investigacion/sensibilidad_broker.md`):
+ningún veredicto cambia.** Las mismas reglas, con el dividendo a la tasa marginal más 9 puntos
+(39% o 44%), los intereses a la marginal, la ganancia al 10% y sin comisión. Aportar siempre
+rinde 145 a 184 pb menos al año; las reglas que salen del mercado cuestan menos (la tendencia,
+49 pb en los ocho mercados contra 127), pero ninguna pasa sus criterios; momentum gana +42 pb
+en los emisores sellados (+38 con el SIC). La columna SIC reproduce lo guardado al centavo.
+
 ## El semáforo: tres puertas, por separado
 
 No es una caja negra. Cada puerta responde una pregunta distinta y se muestra sola.

@@ -1,0 +1,55 @@
+perfil,emisor,variante,tir_usd,ventaja_tir_usd,desde,hasta
+sic,NNN,Modelo completo,0.03220139589,-0.05599191337,1992-02-03,2026-09-28
+sic,NNN,"Modelo, reinversión en 12 meses",0.0691339177,-0.01905939156,1992-02-03,2026-09-28
+sic,NNN,Solo compras (nunca vende),0.07903953894,-0.009153770322,1992-02-03,2026-09-28
+sic,NNN,"Solo compras, reinversión en 12 meses",0.08541479595,-0.002778513308,1992-02-03,2026-09-28
+sic,NNN,Solo tesis rota (compra fija),0.0783891774,-0.009804131858,1992-02-03,2026-09-28
+sic,NNN,"Aportación fija, sin reglas",0.08819330926,0,1992-02-03,2026-09-28
+sic,O,Modelo completo,0.09259863191,-0.005751981502,1994-11-01,2026-09-28
+sic,O,"Modelo, reinversión en 12 meses",0.09521748491,-0.003133128497,1994-11-01,2026-09-28
+sic,O,Solo compras (nunca vende),0.09259863191,-0.005751981502,1994-11-01,2026-09-28
+sic,O,"Solo compras, reinversión en 12 meses",0.09521748491,-0.003133128497,1994-11-01,2026-09-28
+sic,O,Solo tesis rota (compra fija),0.09835061341,0,1994-11-01,2026-09-28
+sic,O,"Aportación fija, sin reglas",0.09835061341,0,1994-11-01,2026-09-28
+sic,WPC,Modelo completo,0.09354813125,0.0001245660185,1998-02-02,2026-09-28
+sic,WPC,"Modelo, reinversión en 12 meses",0.07374403283,-0.0196795324,1998-02-02,2026-09-28
+sic,WPC,Solo compras (nunca vende),0.09284624782,-0.0005773174132,1998-02-02,2026-09-28
+sic,WPC,"Solo compras, reinversión en 12 meses",0.09292473745,-0.0004988277801,1998-02-02,2026-09-28
+sic,WPC,Solo tesis rota (compra fija),0.0745369054,-0.01888665983,1998-02-02,2026-09-28
+sic,WPC,"Aportación fija, sin reglas",0.09342356523,0,1998-02-02,2026-09-28
+broker_30,NNN,Modelo completo,0.02508204382,-0.05019520902,1992-02-03,2026-09-28
+broker_30,NNN,"Modelo, reinversión en 12 meses",0.05846944883,-0.01680780401,1992-02-03,2026-09-28
+broker_30,NNN,Solo compras (nunca vende),0.0678546705,-0.00742258234,1992-02-03,2026-09-28
+broker_30,NNN,"Solo compras, reinversión en 12 meses",0.07305474485,-0.002222507986,1992-02-03,2026-09-28
+broker_30,NNN,Solo tesis rota (compra fija),0.06690811105,-0.008369141789,1992-02-03,2026-09-28
+broker_30,NNN,"Aportación fija, sin reglas",0.07527725284,0,1992-02-03,2026-09-28
+broker_30,O,Modelo completo,0.0819403891,-0.004134410328,1994-11-01,2026-09-28
+broker_30,O,"Modelo, reinversión en 12 meses",0.08358989085,-0.002484908572,1994-11-01,2026-09-28
+broker_30,O,Solo compras (nunca vende),0.0819403891,-0.004134410328,1994-11-01,2026-09-28
+broker_30,O,"Solo compras, reinversión en 12 meses",0.08358989085,-0.002484908572,1994-11-01,2026-09-28
+broker_30,O,Solo tesis rota (compra fija),0.08607479942,0,1994-11-01,2026-09-28
+broker_30,O,"Aportación fija, sin reglas",0.08607479942,0,1994-11-01,2026-09-28
+broker_30,WPC,Modelo completo,0.08266532378,0.002448995587,1998-02-02,2026-09-28
+broker_30,WPC,"Modelo, reinversión en 12 meses",0.06202739376,-0.01818893443,1998-02-02,2026-09-28
+broker_30,WPC,Solo compras (nunca vende),0.08016361904,-5.270915251e-05,1998-02-02,2026-09-28
+broker_30,WPC,"Solo compras, reinversión en 12 meses",0.07997463056,-0.0002416976334,1998-02-02,2026-09-28
+broker_30,WPC,Solo tesis rota (compra fija),0.06244512813,-0.01777120005,1998-02-02,2026-09-28
+broker_30,WPC,"Aportación fija, sin reglas",0.08021632819,0,1998-02-02,2026-09-28
+broker_35,NNN,Modelo completo,0.02291390119,-0.04890002184,1992-02-03,2026-09-28
+broker_35,NNN,"Modelo, reinversión en 12 meses",0.05550061014,-0.01631331289,1992-02-03,2026-09-28
+broker_35,NNN,Solo compras (nunca vende),0.06477828945,-0.00703563358,1992-02-03,2026-09-28
+broker_35,NNN,"Solo compras, reinversión en 12 meses",0.06971444666,-0.002099476372,1992-02-03,2026-09-28
+broker_35,NNN,Solo tesis rota (compra fija),0.06373462257,-0.008079300462,1992-02-03,2026-09-28
+broker_35,NNN,"Aportación fija, sin reglas",0.07181392303,0,1992-02-03,2026-09-28
+broker_35,O,Modelo completo,0.07896103048,-0.003804000682,1994-11-01,2026-09-28
+broker_35,O,"Modelo, reinversión en 12 meses",0.08041969729,-0.002345333879,1994-11-01,2026-09-28
+broker_35,O,Solo compras (nunca vende),0.07896103048,-0.003804000682,1994-11-01,2026-09-28
+broker_35,O,"Solo compras, reinversión en 12 meses",0.08041969729,-0.002345333879,1994-11-01,2026-09-28
+broker_35,O,Solo tesis rota (compra fija),0.08276503117,0,1994-11-01,2026-09-28
+broker_35,O,"Aportación fija, sin reglas",0.08276503117,0,1994-11-01,2026-09-28
+broker_35,WPC,Modelo completo,0.07947034843,0.002825396365,1998-02-02,2026-09-28
+broker_35,WPC,"Modelo, reinversión en 12 meses",0.05857840172,-0.01806655034,1998-02-02,2026-09-28
+broker_35,WPC,Solo compras (nunca vende),0.07668385579,3.89037279e-05,1998-02-02,2026-09-28
+broker_35,WPC,"Solo compras, reinversión en 12 meses",0.0764491981,-0.0001957539621,1998-02-02,2026-09-28
+broker_35,WPC,Solo tesis rota (compra fija),0.05893271397,-0.01771223809,1998-02-02,2026-09-28
+broker_35,WPC,"Aportación fija, sin reglas",0.07664495206,0,1998-02-02,2026-09-28

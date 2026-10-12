@@ -22,6 +22,7 @@ reduce las caídas, pero fuera de la muestra en que se escogió cuesta de 1 a 5 
 | 7 | Escalera de 5 modelos, estimados siempre con el pasado | Ninguno le gana a aportar siempre: RECHAZADO. El compuesto predice cuánto le ganan los REITs al efectivo, pero nunca que pierdan (`fase7_resultados.md`) |
 | 8 | Prueba final de la protección por tendencia: EE. UU. 2016-2026 y ocho mercados | Baja la caída 32% en promedio, cuesta 127 pb al año (490 pb en EE. UU.): RECHAZADO (`fase8_resultados.md`) |
 | 6 | En cuáles: 16 reglas de selección y un detector de recortes con todos los REITs de capital desde 2011; un tercio de los emisores sellado | Solo momentum pasa la validación (+57 pb) y en los sellados gana +38 pb, debajo de los +50: RECHAZADO (`fase6_resultados.md`) |
+| S | Las mismas reglas con un broker de EE. UU. (dividendo al 39% o 44%, sin comisión) | Ningún veredicto cambia; aportar siempre rinde 145 a 184 pb menos al año (`sensibilidad_broker.md`) |
 
 ## La respuesta corta (pregunta 2: en cuáles)
 
@@ -30,6 +31,32 @@ todos los REITs de capital de EE. UU. desde 2011 —incluidos los que quebraron 
 comprados, con precios de los 13F de la SEC—, ninguna de 16 reglas de selección le ganó de
 forma robusta. La única que llegó a la prueba final, momentum, ganó +38 pb al año en los
 emisores sellados: debajo del criterio. Lo «barato» resultó trampa, aun entre los de calidad.
+
+## Si compra con un broker de EE. UU. (sensibilidad, 12-oct-2026)
+
+Todo lo anterior supone el SIC. Comprando directo con un broker de EE. UU., el dividendo de
+un REIT paga la tasa marginal más 9 puntos (39% con marginal de 30%, 44% con 35%), los
+intereses la marginal, la ganancia sigue en 10% y no hay comisión. Se repitieron las mismas
+reglas y modelos congelados con ese perfil, sin escoger nada nuevo
+(`sensibilidad_broker_preregistro.md`, `sensibilidad_broker.md`). **Ningún veredicto cambia.**
+
+* Aportar siempre rinde de 145 a 184 pb menos al año (1972-2015) y de 123 a 168 pb menos en
+  O, NNN y WPC: es lo que el broker le cuesta al que no hace timing.
+* Las reglas que salen del mercado cuestan menos, porque estar fuera evita un dividendo más
+  gravado y no hay comisión. La tendencia de 10 meses pasa de +15 a +93 pb en desarrollo y
+  condiciones financieras de +92 a +114 pb, pero ninguna de las 22 pasa el filtro (la de
+  condiciones financieras solo falla en predecir a 12 meses). En la prueba final, la
+  protección por tendencia cuesta 49 a 54 pb al año en los ocho mercados (127 con el SIC) y
+  386 a 387 pb en EE. UU. desde 2016 (490): sigue RECHAZADA.
+* En la selección casi nada cambia: momentum gana +41 a +42 pb en los emisores sellados
+  (+38 con el SIC), debajo de los +50; el yield alto pierde más (−125 pb contra −86).
+* En O, NNN y WPC, mandar la aportación al más barato con el consenso de los métodos gana
+  +60 a +63 pb (+72 con el SIC).
+* La columna SIC reproduce exactamente lo guardado en cada fase. Los ocho mercados y los
+  emisores sellados se leyeron una vez más, con un modelo congelado propio que repite la
+  regla ya congelada; la bitácora guarda las 192 reevaluaciones aparte de los intentos.
+* Fuera del modelo: el impuesto sucesorio de EE. UU. (más de 60 mil dólares en activos de
+  EE. UU.). Las tasas deben confirmarse con un contador.
 
 ## Lo que sí se aprendió
 
@@ -54,8 +81,8 @@ emisores sellados: debajo del criterio. Lo «barato» resultó trampa, aun entre
 Cada hipótesis se guardó en un commit antes de correrla, los datos se partieron antes de verlos
 y las pruebas finales (ocho mercados y un tercio de los emisores de EE. UU.) se evaluaron con un
 solo modelo congelado, sin cambiarlo. La bitácora registra cada lectura: los ocho mercados se
-leyeron tres veces con el modelo de la fase 8 (al regenerar su informe) y los emisores sellados,
-una vez. En la fase 6, la primera corrida tuvo dos errores de programación que se corrigieron
+leyeron tres veces con el modelo de la fase 8 (al regenerar su informe) y una más en la
+sensibilidad fiscal; los emisores sellados, una vez en la fase 6 y otra en la sensibilidad. En la fase 6, la primera corrida tuvo dos errores de programación que se corrigieron
 y se declaran en su informe; el veredicto no cambió. Límites: la selección empieza en 2011
 (antes casi no hay XBRL) y las escisiones no se ven en los 13F.
 

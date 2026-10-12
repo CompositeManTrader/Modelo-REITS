@@ -1,0 +1,31 @@
+perfil,senal,regla,era,mejora_rebalanceo,mejora_contra_mezcla_fija
+sic,mejor señal sola,dentro si el pronóstico es positivo,1972-1992,1.110223025e-16,0
+sic,mejor señal sola,dentro si el pronóstico es positivo,1993-2015,2.581589837e-05,0.002061334692
+sic,compuesto,dentro si el pronóstico es positivo,1972-1992,1.110223025e-16,0
+sic,compuesto,dentro si el pronóstico es positivo,1993-2015,-1.942890293e-16,0
+sic,ridge,dentro si el pronóstico es positivo,1972-1992,1.110223025e-16,0
+sic,ridge,dentro si el pronóstico es positivo,1993-2015,-1.942890293e-16,0
+sic,árboles,dentro si el pronóstico es positivo,1972-1992,-0.01766098206,-0.01332927707
+sic,árboles,dentro si el pronóstico es positivo,1993-2015,-0.04936696016,-0.04071817544
+sic,regímenes,dentro si el pronóstico es positivo,1972-1992,-0.02598414766,-0.02026245812
+sic,regímenes,dentro si el pronóstico es positivo,1993-2015,-0.01770585017,0.002035298009
+broker_30,mejor señal sola,dentro si el pronóstico es positivo,1972-1992,3.885780586e-16,0
+broker_30,mejor señal sola,dentro si el pronóstico es positivo,1993-2015,4.265443392e-05,0.001770185492
+broker_30,compuesto,dentro si el pronóstico es positivo,1972-1992,3.885780586e-16,0
+broker_30,compuesto,dentro si el pronóstico es positivo,1993-2015,1.665334537e-16,0
+broker_30,ridge,dentro si el pronóstico es positivo,1972-1992,3.885780586e-16,0
+broker_30,ridge,dentro si el pronóstico es positivo,1993-2015,1.665334537e-16,0
+broker_30,árboles,dentro si el pronóstico es positivo,1972-1992,-0.01628672405,-0.01280295342
+broker_30,árboles,dentro si el pronóstico es positivo,1993-2015,-0.04356703711,-0.03619852656
+broker_30,regímenes,dentro si el pronóstico es positivo,1972-1992,-0.02153875261,-0.0169351666
+broker_30,regímenes,dentro si el pronóstico es positivo,1993-2015,-0.008808785101,0.00814127455
+broker_35,mejor señal sola,dentro si el pronóstico es positivo,1972-1992,3.053113318e-16,0
+broker_35,mejor señal sola,dentro si el pronóstico es positivo,1993-2015,4.496047506e-05,0.001705538955
+broker_35,compuesto,dentro si el pronóstico es positivo,1972-1992,3.053113318e-16,0
+broker_35,compuesto,dentro si el pronóstico es positivo,1993-2015,0,0
+broker_35,ridge,dentro si el pronóstico es positivo,1972-1992,3.053113318e-16,0
+broker_35,ridge,dentro si el pronóstico es positivo,1993-2015,0,0
+broker_35,árboles,dentro si el pronóstico es positivo,1972-1992,-0.01614636955,-0.01274318991
+broker_35,árboles,dentro si el pronóstico es positivo,1993-2015,-0.04305622521,-0.03595604635
+broker_35,regímenes,dentro si el pronóstico es positivo,1972-1992,-0.02136722357,-0.01686981325
+broker_35,regímenes,dentro si el pronóstico es positivo,1993-2015,-0.008148038265,0.008224786736

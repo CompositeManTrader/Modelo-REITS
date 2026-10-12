@@ -1,0 +1,33 @@
+{
+  "escaleras": {
+    "sic": {
+      "se_quedan": [],
+      "candidato": ""
+    },
+    "broker_30": {
+      "se_quedan": [],
+      "candidato": ""
+    },
+    "broker_35": {
+      "se_quedan": [],
+      "candidato": ""
+    }
+  },
+  "aperturas": {
+    "validacion": 2,
+    "sellados": 25,
+    "congelados": [
+      "sensibilidad-fiscal: proteccion-tendencia-10m",
+      "sensibilidad-fiscal: seleccion-fase6: momentum"
+    ]
+  },
+  "sellados_abiertos": true,
+  "con_estudios": true,
+  "pbo_fase6": 0.04285714285714286,
+  "sharpe_deflactado_fase6": 0.3945842671434651,
+  "candidatas_fase6_sic": [
+    "yield_contra_su_historia",
+    "momentum"
+  ],
+  "reevaluaciones": 192
+}

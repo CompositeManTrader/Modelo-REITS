@@ -195,7 +195,8 @@ def _reevaluaciones(res: dict) -> str:
     if "sensibilidad_broker" not in res:
         return ""
     n = bitacora.intentos(FAMILIA_SENSIBILIDAD)
-    return f", más {n} reevaluaciones de las mismas reglas con los impuestos de un broker de EE. UU." if n else ""
+    return (f", más {n} reevaluaciones de las mismas reglas con los impuestos de un broker de EE. UU. (no son "
+            "intentos nuevos)") if n else ""
 
 
 def _fila_fase6(res: dict) -> tuple[str, str, str, str]:

@@ -1,0 +1,4 @@
+perfil,nombre,tasa_dividendo,tasa_intereses,tasa_ganancia,comision_pct
+sic,SIC (línea base),0.2,0.2,0.1,0.0025
+broker_30,"Broker EE. UU., marginal 30%",0.39,0.3,0.1,0
+broker_35,"Broker EE. UU., marginal 35%",0.44,0.35,0.1,0

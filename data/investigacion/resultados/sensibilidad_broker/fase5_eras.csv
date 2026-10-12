@@ -1,0 +1,133 @@
+perfil,senal,regla,era,mejora_rebalanceo,mejora_contra_mezcla_fija
+sic,yield de los REITs,fuera en el quintil peor (20%),1972-1992,-0.004541253196,0.0004846080579
+sic,yield de los REITs,fuera en el quintil peor (20%),1993-2015,-0.07757241908,-0.02200841356
+sic,yield de los REITs,continua con piso de 50%,1972-1992,-0.012027061,-0.000839441622
+sic,yield de los REITs,continua con piso de 50%,1993-2015,-0.03059239985,-0.002421280674
+sic,yield contra el Treasury,fuera en el quintil peor (20%),1972-1992,-0.01083547174,0.007083093053
+sic,yield contra el Treasury,fuera en el quintil peor (20%),1993-2015,0.0004297000386,0.0006300798877
+sic,yield contra el Treasury,continua con piso de 50%,1972-1992,-0.01735381295,-0.003019686334
+sic,yield contra el Treasury,continua con piso de 50%,1993-2015,-0.01035293556,-0.001522400385
+sic,yield contra la tasa real,fuera en el quintil peor (20%),1972-1992,-0.02706076103,-0.01302838199
+sic,yield contra la tasa real,fuera en el quintil peor (20%),1993-2015,-0.02285286859,-0.01015211614
+sic,yield contra la tasa real,continua con piso de 50%,1972-1992,-0.0150244744,-0.0009071827115
+sic,yield contra la tasa real,continua con piso de 50%,1993-2015,-0.02947901172,-0.009866283389
+sic,yield contra bonos Baa,fuera en el quintil peor (20%),1972-1992,-0.02414968162,-0.009875393724
+sic,yield contra bonos Baa,fuera en el quintil peor (20%),1993-2015,-1.942890293e-16,0
+sic,yield contra bonos Baa,continua con piso de 50%,1972-1992,-0.02036236754,-0.00618027713
+sic,yield contra bonos Baa,continua con piso de 50%,1993-2015,-0.009949374214,0.001545605581
+sic,spread de default,fuera en el quintil peor (20%),1972-1992,-0.01199343163,-0.007891886094
+sic,spread de default,fuera en el quintil peor (20%),1993-2015,-0.02150351005,-0.0004624213288
+sic,spread de default,continua con piso de 50%,1972-1992,-0.01009198949,0.0006905578223
+sic,spread de default,continua con piso de 50%,1993-2015,-0.02163279004,-0.001814504823
+sic,cambio del spread de crédito,fuera en el quintil peor (20%),1972-1992,-0.03168375389,-0.02432976549
+sic,cambio del spread de crédito,fuera en el quintil peor (20%),1993-2015,0.0009378627298,0.01194725398
+sic,cambio del spread de crédito,continua con piso de 50%,1972-1992,-0.02238039667,-0.01119369671
+sic,cambio del spread de crédito,continua con piso de 50%,1993-2015,-0.001022965302,0.01504118099
+sic,condiciones financieras,fuera en el quintil peor (20%),1972-1992,-0.001513437871,0.004673143414
+sic,condiciones financieras,fuera en el quintil peor (20%),1993-2015,0.01994761057,0.02324356299
+sic,condiciones financieras,continua con piso de 50%,1972-1992,-0.01073869594,-0.001016499532
+sic,condiciones financieras,continua con piso de 50%,1993-2015,-0.0003244677842,0.009253870058
+sic,crédito bancario a inmuebles,fuera en el quintil peor (20%),1972-1992,1.110223025e-16,0
+sic,crédito bancario a inmuebles,fuera en el quintil peor (20%),1993-2015,0.003233096399,0.01593384885
+sic,crédito bancario a inmuebles,continua con piso de 50%,1972-1992,1.110223025e-16,0
+sic,crédito bancario a inmuebles,continua con piso de 50%,1993-2015,-0.005576513993,0.007559644676
+sic,bolsa del mes,fuera en el quintil peor (20%),1972-1992,-0.01704959605,-0.01016355026
+sic,bolsa del mes,fuera en el quintil peor (20%),1993-2015,-0.005769692716,0.006687418874
+sic,bolsa del mes,continua con piso de 50%,1972-1992,-0.008061884804,0.002213532238
+sic,bolsa del mes,continua con piso de 50%,1993-2015,-0.00909521341,0.006543667802
+sic,tendencia de 10 meses,signo,1972-1992,-0.01112114847,0.008752965476
+sic,tendencia de 10 meses,signo,1993-2015,0.01211797626,0.03237756517
+sic,momentum contra el efectivo,signo,1972-1992,-0.007725300138,0.009218415793
+sic,momentum contra el efectivo,signo,1993-2015,0.00844264609,0.02411009722
+sic,caro y con tendencia negativa,fuera si caro y a la baja,1972-1992,-0.002051385935,0.001820604052
+sic,caro y con tendencia negativa,fuera si caro y a la baja,1993-2015,-1.942890293e-16,0
+sic,compuesto de cuatro familias,continua con piso de 50%,1972-1992,-0.002809023809,0.0003892911795
+sic,compuesto de cuatro familias,continua con piso de 50%,1993-2015,0.0035117688,0.01445292001
+broker_30,yield de los REITs,fuera en el quintil peor (20%),1972-1992,-0.001224690226,0.002818113076
+broker_30,yield de los REITs,fuera en el quintil peor (20%),1993-2015,-0.06956095966,-0.0206171846
+broker_30,yield de los REITs,continua con piso de 50%,1972-1992,-0.008380712515,0.0006390961973
+broker_30,yield de los REITs,continua con piso de 50%,1993-2015,-0.02631819285,-0.001970582972
+broker_30,yield contra el Treasury,fuera en el quintil peor (20%),1972-1992,-0.00600515497,0.008462625958
+broker_30,yield contra el Treasury,fuera en el quintil peor (20%),1993-2015,0.0008532294918,0.001022911477
+broker_30,yield contra el Treasury,continua con piso de 50%,1972-1992,-0.01357252644,-0.002007376137
+broker_30,yield contra el Treasury,continua con piso de 50%,1993-2015,-0.008635150845,-0.001110732717
+broker_30,yield contra la tasa real,fuera en el quintil peor (20%),1972-1992,-0.0230546933,-0.01173372336
+broker_30,yield contra la tasa real,fuera en el quintil peor (20%),1993-2015,-0.01782488763,-0.006975441494
+broker_30,yield contra la tasa real,continua con piso de 50%,1972-1992,-0.01164537441,-0.0002557133129
+broker_30,yield contra la tasa real,continua con piso de 50%,1993-2015,-0.0260467637,-0.009208702214
+broker_30,yield contra bonos Baa,fuera en el quintil peor (20%),1972-1992,-0.019532733,-0.008016079978
+broker_30,yield contra bonos Baa,fuera en el quintil peor (20%),1993-2015,1.665334537e-16,0
+broker_30,yield contra bonos Baa,continua con piso de 50%,1972-1992,-0.01665570155,-0.005213613787
+broker_30,yield contra bonos Baa,continua con piso de 50%,1993-2015,-0.007339409219,0.0024721622
+broker_30,spread de default,fuera en el quintil peor (20%),1972-1992,-0.008934671876,-0.00563676573
+broker_30,spread de default,fuera en el quintil peor (20%),1993-2015,-0.01847885634,-0.0003942554824
+broker_30,spread de default,continua con piso de 50%,1972-1992,-0.006694949823,0.00199640053
+broker_30,spread de default,continua con piso de 50%,1993-2015,-0.01859929433,-0.001582421056
+broker_30,cambio del spread de crédito,fuera en el quintil peor (20%),1972-1992,-0.02578861597,-0.01986664493
+broker_30,cambio del spread de crédito,fuera en el quintil peor (20%),1993-2015,0.004434619217,0.01382855015
+broker_30,cambio del spread de crédito,continua con piso de 50%,1972-1992,-0.01838067223,-0.009361801726
+broker_30,cambio del spread de crédito,continua con piso de 50%,1993-2015,0.002026578206,0.01578092365
+broker_30,condiciones financieras,fuera en el quintil peor (20%),1972-1992,0.001878485273,0.006857418054
+broker_30,condiciones financieras,fuera en el quintil peor (20%),1993-2015,0.02121176287,0.02401065546
+broker_30,condiciones financieras,continua con piso de 50%,1972-1992,-0.0078531347,-1.906154407e-05
+broker_30,condiciones financieras,continua con piso de 50%,1993-2015,0.001484002723,0.009649406044
+broker_30,crédito bancario a inmuebles,fuera en el quintil peor (20%),1972-1992,3.885780586e-16,0
+broker_30,crédito bancario a inmuebles,fuera en el quintil peor (20%),1993-2015,0.006951266512,0.01780071264
+broker_30,crédito bancario a inmuebles,continua con piso de 50%,1972-1992,3.885780586e-16,0
+broker_30,crédito bancario a inmuebles,continua con piso de 50%,1993-2015,-0.002924078195,0.008300530906
+broker_30,bolsa del mes,fuera en el quintil peor (20%),1972-1992,-0.007852263101,-0.002308566952
+broker_30,bolsa del mes,fuera en el quintil peor (20%),1993-2015,0.005527532146,0.01616720134
+broker_30,bolsa del mes,continua con piso de 50%,1972-1992,-0.001484578991,0.006799771121
+broker_30,bolsa del mes,continua con piso de 50%,1993-2015,-0.002437556057,0.01095238331
+broker_30,tendencia de 10 meses,signo,1972-1992,-0.00226756545,0.01378760032
+broker_30,tendencia de 10 meses,signo,1993-2015,0.01739254371,0.03479480231
+broker_30,momentum contra el efectivo,signo,1972-1992,-0.002610385016,0.01106753843
+broker_30,momentum contra el efectivo,signo,1993-2015,0.0123901951,0.02580100179
+broker_30,caro y con tendencia negativa,fuera si caro y a la baja,1972-1992,0.0006784583882,0.003791227891
+broker_30,caro y con tendencia negativa,fuera si caro y a la baja,1993-2015,1.665334537e-16,0
+broker_30,compuesto de cuatro familias,continua con piso de 50%,1972-1992,-0.001240801262,0.001329598267
+broker_30,compuesto de cuatro familias,continua con piso de 50%,1993-2015,0.005883227592,0.01521913611
+broker_35,yield de los REITs,fuera en el quintil peor (20%),1972-1992,-0.001104831909,0.002844453537
+broker_35,yield de los REITs,fuera en el quintil peor (20%),1993-2015,-0.06810744622,-0.0205905637
+broker_35,yield de los REITs,continua con piso de 50%,1972-1992,-0.008157197533,0.0006564780046
+broker_35,yield de los REITs,continua con piso de 50%,1993-2015,-0.02553738058,-0.001984262996
+broker_35,yield contra el Treasury,fuera en el quintil peor (20%),1972-1992,-0.005875805312,0.008259919034
+broker_35,yield contra el Treasury,fuera en el quintil peor (20%),1993-2015,0.0008911432497,0.001054136936
+broker_35,yield contra el Treasury,continua con piso de 50%,1972-1992,-0.01332751587,-0.002027172097
+broker_35,yield contra el Treasury,continua con piso de 50%,1993-2015,-0.008403564071,-0.001152807921
+broker_35,yield contra la tasa real,fuera en el quintil peor (20%),1972-1992,-0.02303931859,-0.01197744362
+broker_35,yield contra la tasa real,fuera en el quintil peor (20%),1993-2015,-0.01747508311,-0.007009987436
+broker_35,yield contra la tasa real,continua con piso de 50%,1972-1992,-0.0114700331,-0.0003411088268
+broker_35,yield contra la tasa real,continua con piso de 50%,1993-2015,-0.02548574515,-0.009221502736
+broker_35,yield contra bonos Baa,fuera en el quintil peor (20%),1972-1992,-0.01933577591,-0.008082763894
+broker_35,yield contra bonos Baa,fuera en el quintil peor (20%),1993-2015,0,0
+broker_35,yield contra bonos Baa,continua con piso de 50%,1972-1992,-0.01639924659,-0.005219109548
+broker_35,yield contra bonos Baa,continua con piso de 50%,1993-2015,-0.006992767975,0.002468640658
+broker_35,spread de default,fuera en el quintil peor (20%),1972-1992,-0.008615448148,-0.005393927383
+broker_35,spread de default,fuera en el quintil peor (20%),1993-2015,-0.01817604556,-0.0007030771957
+broker_35,spread de default,continua con piso de 50%,1972-1992,-0.006341909578,0.002150706636
+broker_35,spread de default,continua con piso de 50%,1993-2015,-0.01811085973,-0.001673280043
+broker_35,cambio del spread de crédito,fuera en el quintil peor (20%),1972-1992,-0.02542783588,-0.01964182176
+broker_35,cambio del spread de crédito,fuera en el quintil peor (20%),1993-2015,0.004869783259,0.01392726901
+broker_35,cambio del spread de crédito,continua con piso de 50%,1972-1992,-0.01802637294,-0.009213623022
+broker_35,cambio del spread de crédito,continua con piso de 50%,1993-2015,0.002484727397,0.01576109924
+broker_35,condiciones financieras,fuera en el quintil peor (20%),1972-1992,0.001974508459,0.006838623135
+broker_35,condiciones financieras,fuera en el quintil peor (20%),1993-2015,0.02137741504,0.02406910949
+broker_35,condiciones financieras,continua con piso de 50%,1972-1992,-0.007663811131,-9.613394534e-06
+broker_35,condiciones financieras,continua con piso de 50%,1993-2015,0.001799786751,0.009669960118
+broker_35,crédito bancario a inmuebles,fuera en el quintil peor (20%),1972-1992,3.053113318e-16,0
+broker_35,crédito bancario a inmuebles,fuera en el quintil peor (20%),1993-2015,0.007494222885,0.01795931856
+broker_35,crédito bancario a inmuebles,continua con piso de 50%,1972-1992,3.053113318e-16,0
+broker_35,crédito bancario a inmuebles,continua con piso de 50%,1993-2015,-0.002442773676,0.00838518354
+broker_35,bolsa del mes,fuera en el quintil peor (20%),1972-1992,-0.007810359553,-0.0023942542
+broker_35,bolsa del mes,fuera en el quintil peor (20%),1993-2015,0.00594867198,0.01621088677
+broker_35,bolsa del mes,continua con piso de 50%,1972-1992,-0.001321910866,0.006772610659
+broker_35,bolsa del mes,continua con piso de 50%,1993-2015,-0.001982169559,0.01094135737
+broker_35,tendencia de 10 meses,signo,1972-1992,-0.001626566347,0.01405988728
+broker_35,tendencia de 10 meses,signo,1993-2015,0.01792302424,0.0347342757
+broker_35,momentum contra el efectivo,signo,1972-1992,-0.002352630996,0.0110113526
+broker_35,momentum contra el efectivo,signo,1993-2015,0.01284185692,0.02578559754
+broker_35,caro y con tendencia negativa,fuera si caro y a la baja,1972-1992,0.0008816933043,0.003922262553
+broker_35,caro y con tendencia negativa,fuera si caro y a la baja,1993-2015,0,0
+broker_35,compuesto de cuatro familias,continua con piso de 50%,1972-1992,-0.001089215032,0.001421397211
+broker_35,compuesto de cuatro familias,continua con piso de 50%,1993-2015,0.006193137252,0.01519445099
