@@ -1,0 +1,4 @@
+delta,muestras,mejora_mediana,pasa_criterios_de_retorno,pasa_50pb,pasa_ambos
+0,200,-0.0004471016892,0.195,0.4,0.195
+0.01,200,0.006917614447,0.23,0.54,0.23
+0.02,200,0.01952297996,0.38,0.77,0.38

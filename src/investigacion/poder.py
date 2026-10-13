@@ -368,6 +368,18 @@ def inadvertida(r: ResultadoPoder, prueba: str, muestra: str, delta: float) -> f
     return float(f["inadvertida"].iloc[0]) if len(f) else np.nan
 
 
+MUESTRAS_LEGIBLES = {"desarrollo": "2011-2015", "validacion": "2016 en adelante"}
+
+
+def _nombre(texto: str) -> str:
+    """Sin «|», que en Markdown parte la celda."""
+    return str(texto).replace(" | ", " · ")
+
+
+def _muestra(texto: str) -> str:
+    return MUESTRAS_LEGIBLES.get(str(texto), str(texto))
+
+
 def informe(r: ResultadoPoder) -> str:
     e = r["errores"]
     o = ["# Análisis de poder. Resultados\n\n",
@@ -378,12 +390,13 @@ def informe(r: ResultadoPoder) -> str:
     o.append("## Veredicto\n\n")
     filas = []
     for _, f in e.iterrows():
-        filas.append([f["prueba"], f["muestra"], _pb(f["observado"]), _pb(f["nula_media"]), _pba(f["ee"]),
+        filas.append([_nombre(f["prueba"]), _muestra(f["muestra"]), _pb(f["observado"]), _pb(f["nula_media"]), _pba(f["ee"]),
                       _pba(f["mde"]), _pb(f["habilidad_observada"]),
                       _p(inadvertida(r, f["prueba"], f["muestra"], 0.01)),
                       _p(inadvertida(r, f["prueba"], f["muestra"], 0.02))])
     o.append(_md(filas, ["Prueba", "Muestra", "Observado (pb)", "Placebo promedio (pb)", "EE (pb)", "MDE (pb)",
                          "Observado − placebo (pb)", "100 pb pasarían inadvertidos", "200 pb pasarían inadvertidos"]))
+    o.append(_lectura(r))
     techo = r.notas.get("techo_oraculo_12m_pb")
     if techo:
         o.append(f"El oráculo que conoce los 12 meses siguientes ganó +{techo} pb al año rebalanceando (fase 3): es el "
@@ -404,6 +417,42 @@ def informe(r: ResultadoPoder) -> str:
     return "".join(o)
 
 
+def _cuantas_igualan(f: pd.Series) -> str:
+    n = int(f["placebos"])
+    k = round(float(f["p_placebo"]) * n)
+    return (f"ninguna de las {n} elecciones al azar lo igualó" if k == 0
+            else f"solo {k} de las {n} elecciones al azar lo igualaron")
+
+
+def _lectura(r: ResultadoPoder) -> str:
+    """Lo que dice la tabla, en palabras, con las cifras de la corrida."""
+    e = r["errores"]
+    t = e[e["prueba"].str.startswith("Timing")]
+    s = e[e["prueba"].str.startswith("Selección")]
+    a = e[e["prueba"].str.startswith("Asignación")]
+    o = []
+    if not t.empty:
+        perdidas = [inadvertida(r, f["prueba"], f["muestra"], 0.01) for _, f in t.iterrows()]
+        o.append(f"* **Cuándo entrar al sector: las pruebas eran poco finas.** El efecto mínimo detectable va de "
+                 f"{_pba(t['mde'].min())} a {_pba(t['mde'].max())} pb al año: una regla con 100 pb de habilidad "
+                 f"verdadera habría pasado inadvertida entre {_p(min(perdidas))} y {_p(max(perdidas))} de las veces. "
+                 "«No se encontró» no descarta una ventaja de 1 punto al año. Además, salir a ciegas cuesta: el "
+                 f"placebo promedio pierde entre {_pba(t['nula_media'].max())} y {_pba(t['nula_media'].min())} pb al "
+                 "año, así que una regla necesita esa habilidad solo para empatar con aportar siempre.\n")
+    if not s.empty:
+        o.append(f"* **En cuáles REITs: la prueba sí era fina.** El MDE de momentum fue de {_pba(s['mde'].max())} pb en "
+                 f"desarrollo y {_pba(s['mde'].min())} pb en validación, y momentum sí se distinguió del azar "
+                 f"(p del placebo de {s['p_placebo'].max():.2f} o menos). Lo que no alcanzó fue el tamaño: el criterio pedía "
+                 "+50 pb también en los emisores sellados.\n")
+    if not a.empty:
+        f = a.iloc[0]
+        o.append(f"* **Escoger entre O, NNN y WPC con la valuación: la prueba más fina y la ventaja sí se ve.** EE de "
+                 f"{_pba(f['ee'])} pb y MDE de {_pba(f['mde'])} pb; el consenso ganó {_pb(f['observado'])} pb al año y "
+                 f"{_cuantas_igualan(f)}. Sigue "
+                 "siendo INCONCLUSO por pocas decisiones y sesgo de supervivencia, pero no es una moneda al aire.\n")
+    return "".join(o) + "\n"
+
+
 def _curvas_md(r: ResultadoPoder) -> str:
     c = r["curvas"]
     if c.empty:
@@ -411,7 +460,7 @@ def _curvas_md(r: ResultadoPoder) -> str:
     filas = []
     for (prueba, muestra), g in c.groupby(["prueba", "muestra"], sort=False):
         g = g.set_index("delta")
-        filas.append([prueba, muestra, *[_p(g.loc[d, "potencia_deteccion"]) for d in DELTAS]])
+        filas.append([_nombre(prueba), _muestra(muestra), *[_p(g.loc[d, "potencia_deteccion"]) for d in DELTAS]])
     return ("## Curvas de potencia\n\nProbabilidad de distinguir del azar, al 5%, una regla con una habilidad "
             "verdadera de δ al año sobre una regla sin habilidad con el mismo perfil.\n"
             + _md(filas, ["Prueba", "Muestra", *[f"δ = {round(d * 1e4)} pb" for d in DELTAS]]))
@@ -420,7 +469,8 @@ def _curvas_md(r: ResultadoPoder) -> str:
 def _dsr_md(d: pd.DataFrame) -> str:
     if d.empty:
         return ""
-    filas = [[f["prueba"], f["mejor"], str(f["periodos"]), str(f["intentos"]), f"{f['sharpe_observado_anual']:.2f}",
+    filas = [[f["prueba"], _nombre(f["mejor"]), str(f["periodos"]), str(f["intentos"]),
+              f"{f['sharpe_observado_anual']:.2f}",
               f"{f['sharpe_necesario_anual']:.2f}", f"{f['sharpe_deflactado']:.2f}"] for _, f in d.iterrows()]
     return ("## El Sharpe deflactado\n\nEl Sharpe anual de la mejor regla contra el que habría hecho falta para un "
             "Sharpe deflactado de 0.95, con los mismos intentos, la misma varianza de Sharpes y la misma forma de la "

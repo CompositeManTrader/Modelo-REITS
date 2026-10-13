@@ -1,0 +1,3 @@
+prueba,mejor,periodos,intentos,sharpe_observado_anual,sharpe_necesario_anual,sharpe_deflactado
+Fase 5: la mejor regla de entrada,tendencia de 10 meses | signo,527,22,0.723703264,0.4371057679,0.9997224189
+Fase 6: la mejor regla de selección,momentum,18,19,1.515871719,2.532135809,0.3945842671
