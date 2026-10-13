@@ -1,0 +1,11 @@
+nivel,senal,fecha,percentil,corte
+sector,yield de los REITs,2026-09-30,0.2374429224,centro
+sector,yield contra el Treasury,2026-09-30,0.1210045662,centro
+sector,yield contra la tasa real,2026-09-30,0.1527131783,centro
+sector,yield contra bonos Baa,2026-09-30,0.2298325723,centro
+emisores,NNN · consenso,2026-09-28,0.6019021739,centro
+emisores,NNN · prima_treasury,2026-09-28,0.3982630273,centro
+emisores,O · consenso,2026-09-28,0.8765625,centro
+emisores,O · prima_treasury,2026-09-28,0.4098591549,centro
+emisores,WPC · consenso,2026-09-28,0.2819148936,centro
+emisores,WPC · prima_treasury,2026-09-28,0.01104100946,caro 5%

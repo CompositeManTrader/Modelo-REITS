@@ -300,7 +300,9 @@ def pistas(sector: pd.DataFrame, reglas: pd.DataFrame, transversal: pd.DataFrame
                   and abs(a["t"]) >= T_MINIMA and abs(b["t"]) >= T_MINIMA)
             filas.append({"nivel": "sector", "prueba": f"{senal} · {corte} · {h} meses",
                           "desarrollo": a["diferencia_contra_el_resto"], "t_desarrollo": a["t"],
-                          "validacion": b["diferencia_contra_el_resto"], "t_validacion": b["t"], "pista": bool(ok)})
+                          "validacion": b["diferencia_contra_el_resto"], "t_validacion": b["t"],
+                          "episodios_desarrollo": a["episodios"], "episodios_validacion": b["episodios"],
+                          "meses_desarrollo": a["meses"], "meses_validacion": b["meses"], "pista": bool(ok)})
     if not reglas.empty:
         for (senal, regla, perfil), g in reglas.groupby(["senal", "regla", "perfil"]):
             g = g.set_index("muestra")
@@ -437,6 +439,15 @@ def informe(r: ResultadoExtremos) -> str:
     if n_pistas:
         o.append(" Las pistas, que solo una prueba nueva con datos nuevos podría confirmar:\n\n"
                  + "".join(f"* {f['prueba']} ({f['nivel']}): {_valor_pista(f)}\n" for _, f in p[p["pista"]].iterrows()))
+    elegidas = p[p["pista"]] if n_pistas else p
+    if n_pistas and (elegidas["nivel"] == "sector").all() and elegidas["prueba"].str.contains("barato").all():
+        o.append("\nCómo leerlas: una t de Newey-West con uno o dos episodios no mide la incertidumbre real —cada "
+                 "episodio es una sola crisis que se ve muchos meses seguidos—. Lo que sí dicen es que, en las pocas "
+                 "veces en que los REITs llegaron a su 5% más barato contra los bonos (1998-99, 2001-03 y 2008-09 en "
+                 "desarrollo, y uno después de 2016), los 12 meses siguientes fueron muy buenos. Eso no se puede "
+                 "convertir en una regla de timing "
+                 "para quien aporta siempre, porque ya está 100% invertido: a lo más dice que esos son los peores "
+                 "momentos para dejar de aportar y los mejores para meter dinero extra.\n")
     o.append("\n\n")
     o.append(_hoy_md(r["hoy"]))
     o.append(_sector_md(r["sector"]))
@@ -457,8 +468,13 @@ def informe(r: ResultadoExtremos) -> str:
 def _valor_pista(f: pd.Series) -> str:
     if f["nivel"] == "regla":
         return f"{_pb(f['desarrollo'])} pb en desarrollo y {_pb(f['validacion'])} pb en validación"
-    return (f"{_p(f['desarrollo'])} (t {_t(f['t_desarrollo'])}) en desarrollo y {_p(f['validacion'])} "
-            f"(t {_t(f['t_validacion'])}) en validación")
+    texto = (f"{_p(f['desarrollo'])} (t {_t(f['t_desarrollo'])}) en desarrollo y {_p(f['validacion'])} "
+             f"(t {_t(f['t_validacion'])}) en validación")
+    if pd.notna(f.get("episodios_desarrollo", np.nan)):
+        texto += (f"; detrás hay {int(f['meses_desarrollo'])} meses en {int(f['episodios_desarrollo'])} episodios en "
+                  f"desarrollo y {int(f['meses_validacion'])} meses en {int(f['episodios_validacion'])} episodio(s) en "
+                  "validación")
+    return texto
 
 
 def _hoy_md(h: pd.DataFrame) -> str:

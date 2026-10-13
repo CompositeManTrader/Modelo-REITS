@@ -610,3 +610,55 @@ momento,fase,familia,prueba,muestra,parametros,metrica,valor,commit
 2026-10-12T17:47:57+00:00,8,sensibilidad-fiscal,proteccion-tendencia-10m | europa_continental,final,"{""comision"": 0.0, ""dividendo"": 0.44, ""ganancia"": 0.1, ""intereses"": 0.35, ""perfil"": ""broker_35""}",mejora,-0.019803,4b11992
 2026-10-12T17:47:57+00:00,8,sensibilidad-fiscal,proteccion-tendencia-10m | canada,final,"{""comision"": 0.0, ""dividendo"": 0.44, ""ganancia"": 0.1, ""intereses"": 0.35, ""perfil"": ""broker_35""}",mejora,-0.010926,4b11992
 2026-10-12T17:47:58+00:00,8,sensibilidad-fiscal,proteccion-tendencia-10m | mexico_fibras,final,"{""comision"": 0.0, ""dividendo"": 0.44, ""ganancia"": 0.1, ""intereses"": 0.35, ""perfil"": ""broker_35""}",mejora,-0.0279,4b11992
+2026-10-13T14:20:19+00:00,validacion,apertura,abrir validacion,validacion,"{""motivo"": ""exploratoria de los extremos de valuación (13-oct-2026), declarada posterior a todas las fases (sector)""}",,,3a9ea70
+2026-10-13T14:20:20+00:00,extremos,extremos,yield de los REITs | fuera en el 5% más caro,desarrollo,"{""perfil"": ""sic""}",mejora_rebalanceo,-0.029539,3a9ea70
+2026-10-13T14:20:20+00:00,extremos,extremos,yield de los REITs | fuera en el 5% más caro,desarrollo,"{""perfil"": ""broker_35""}",mejora_rebalanceo,-0.02512,3a9ea70
+2026-10-13T14:20:20+00:00,extremos,extremos,yield de los REITs | fuera en el 10% más caro,desarrollo,"{""perfil"": ""sic""}",mejora_rebalanceo,-0.051017,3a9ea70
+2026-10-13T14:20:21+00:00,extremos,extremos,yield de los REITs | fuera en el 10% más caro,desarrollo,"{""perfil"": ""broker_35""}",mejora_rebalanceo,-0.046426,3a9ea70
+2026-10-13T14:20:21+00:00,extremos,extremos,yield contra el Treasury | fuera en el 5% más caro,desarrollo,"{""perfil"": ""sic""}",mejora_rebalanceo,0.000471,3a9ea70
+2026-10-13T14:20:21+00:00,extremos,extremos,yield contra el Treasury | fuera en el 5% más caro,desarrollo,"{""perfil"": ""broker_35""}",mejora_rebalanceo,0.001234,3a9ea70
+2026-10-13T14:20:22+00:00,extremos,extremos,yield contra el Treasury | fuera en el 10% más caro,desarrollo,"{""perfil"": ""sic""}",mejora_rebalanceo,-0.001025,3a9ea70
+2026-10-13T14:20:22+00:00,extremos,extremos,yield contra el Treasury | fuera en el 10% más caro,desarrollo,"{""perfil"": ""broker_35""}",mejora_rebalanceo,0.000374,3a9ea70
+2026-10-13T14:20:22+00:00,extremos,extremos,yield contra la tasa real | fuera en el 5% más caro,desarrollo,"{""perfil"": ""sic""}",mejora_rebalanceo,-0.008778,3a9ea70
+2026-10-13T14:20:22+00:00,extremos,extremos,yield contra la tasa real | fuera en el 5% más caro,desarrollo,"{""perfil"": ""broker_35""}",mejora_rebalanceo,-0.007986,3a9ea70
+2026-10-13T14:20:23+00:00,extremos,extremos,yield contra la tasa real | fuera en el 10% más caro,desarrollo,"{""perfil"": ""sic""}",mejora_rebalanceo,-0.014115,3a9ea70
+2026-10-13T14:20:23+00:00,extremos,extremos,yield contra la tasa real | fuera en el 10% más caro,desarrollo,"{""perfil"": ""broker_35""}",mejora_rebalanceo,-0.011936,3a9ea70
+2026-10-13T14:20:23+00:00,extremos,extremos,yield contra bonos Baa | fuera en el 5% más caro,desarrollo,"{""perfil"": ""sic""}",mejora_rebalanceo,0.001915,3a9ea70
+2026-10-13T14:20:23+00:00,extremos,extremos,yield contra bonos Baa | fuera en el 5% más caro,desarrollo,"{""perfil"": ""broker_35""}",mejora_rebalanceo,0.002851,3a9ea70
+2026-10-13T14:20:24+00:00,extremos,extremos,yield contra bonos Baa | fuera en el 10% más caro,desarrollo,"{""perfil"": ""sic""}",mejora_rebalanceo,-0.000465,3a9ea70
+2026-10-13T14:20:24+00:00,extremos,extremos,yield contra bonos Baa | fuera en el 10% más caro,desarrollo,"{""perfil"": ""broker_35""}",mejora_rebalanceo,0.000403,3a9ea70
+2026-10-13T14:20:24+00:00,extremos,extremos,yield de los REITs | fuera en el 5% más caro,validacion,"{""perfil"": ""sic""}",mejora_rebalanceo,0.013956,3a9ea70
+2026-10-13T14:20:24+00:00,extremos,extremos,yield de los REITs | fuera en el 5% más caro,validacion,"{""perfil"": ""broker_35""}",mejora_rebalanceo,0.0161,3a9ea70
+2026-10-13T14:20:24+00:00,extremos,extremos,yield de los REITs | fuera en el 10% más caro,validacion,"{""perfil"": ""sic""}",mejora_rebalanceo,0.005863,3a9ea70
+2026-10-13T14:20:24+00:00,extremos,extremos,yield de los REITs | fuera en el 10% más caro,validacion,"{""perfil"": ""broker_35""}",mejora_rebalanceo,0.009558,3a9ea70
+2026-10-13T14:20:25+00:00,extremos,extremos,yield contra el Treasury | fuera en el 5% más caro,validacion,"{""perfil"": ""sic""}",mejora_rebalanceo,0.0,3a9ea70
+2026-10-13T14:20:25+00:00,extremos,extremos,yield contra el Treasury | fuera en el 5% más caro,validacion,"{""perfil"": ""broker_35""}",mejora_rebalanceo,0.0,3a9ea70
+2026-10-13T14:20:25+00:00,extremos,extremos,yield contra el Treasury | fuera en el 10% más caro,validacion,"{""perfil"": ""sic""}",mejora_rebalanceo,0.0,3a9ea70
+2026-10-13T14:20:25+00:00,extremos,extremos,yield contra el Treasury | fuera en el 10% más caro,validacion,"{""perfil"": ""broker_35""}",mejora_rebalanceo,0.0,3a9ea70
+2026-10-13T14:20:25+00:00,extremos,extremos,yield contra la tasa real | fuera en el 5% más caro,validacion,"{""perfil"": ""sic""}",mejora_rebalanceo,0.0,3a9ea70
+2026-10-13T14:20:25+00:00,extremos,extremos,yield contra la tasa real | fuera en el 5% más caro,validacion,"{""perfil"": ""broker_35""}",mejora_rebalanceo,0.0,3a9ea70
+2026-10-13T14:20:25+00:00,extremos,extremos,yield contra la tasa real | fuera en el 10% más caro,validacion,"{""perfil"": ""sic""}",mejora_rebalanceo,0.0,3a9ea70
+2026-10-13T14:20:25+00:00,extremos,extremos,yield contra la tasa real | fuera en el 10% más caro,validacion,"{""perfil"": ""broker_35""}",mejora_rebalanceo,0.0,3a9ea70
+2026-10-13T14:20:25+00:00,extremos,extremos,yield contra bonos Baa | fuera en el 5% más caro,validacion,"{""perfil"": ""sic""}",mejora_rebalanceo,0.0,3a9ea70
+2026-10-13T14:20:25+00:00,extremos,extremos,yield contra bonos Baa | fuera en el 5% más caro,validacion,"{""perfil"": ""broker_35""}",mejora_rebalanceo,0.0,3a9ea70
+2026-10-13T14:20:25+00:00,extremos,extremos,yield contra bonos Baa | fuera en el 10% más caro,validacion,"{""perfil"": ""sic""}",mejora_rebalanceo,0.0,3a9ea70
+2026-10-13T14:20:26+00:00,extremos,extremos,yield contra bonos Baa | fuera en el 10% más caro,validacion,"{""perfil"": ""broker_35""}",mejora_rebalanceo,0.0,3a9ea70
+2026-10-13T14:20:29+00:00,validacion,apertura,abrir validacion,validacion,"{""motivo"": ""exploratoria de los extremos de valuación (13-oct-2026), declarada posterior a todas las fases (corte transversal)""}",,,3a9ea70
+2026-10-13T14:20:31+00:00,extremos,extremos,decil barato 10% | rendimiento_del_dividendo,desarrollo,"{""grupos"": 10}",exceso_anual,0.027427,3a9ea70
+2026-10-13T14:20:31+00:00,extremos,extremos,decil caro 10% | rendimiento_del_dividendo,desarrollo,"{""grupos"": 10}",exceso_anual,-0.056092,3a9ea70
+2026-10-13T14:20:33+00:00,extremos,extremos,decil barato 10% | rendimiento_ffo,desarrollo,"{""grupos"": 10}",exceso_anual,0.016635,3a9ea70
+2026-10-13T14:20:33+00:00,extremos,extremos,decil caro 10% | rendimiento_ffo,desarrollo,"{""grupos"": 10}",exceso_anual,0.063985,3a9ea70
+2026-10-13T14:20:34+00:00,extremos,extremos,decil barato 10% | rendimiento_de_la_empresa,desarrollo,"{""grupos"": 10}",exceso_anual,-0.027959,3a9ea70
+2026-10-13T14:20:34+00:00,extremos,extremos,decil caro 10% | rendimiento_de_la_empresa,desarrollo,"{""grupos"": 10}",exceso_anual,0.017077,3a9ea70
+2026-10-13T14:20:36+00:00,extremos,extremos,decil barato 10% | yield_contra_su_historia,desarrollo,"{""grupos"": 10}",exceso_anual,0.097872,3a9ea70
+2026-10-13T14:20:36+00:00,extremos,extremos,decil caro 10% | yield_contra_su_historia,desarrollo,"{""grupos"": 10}",exceso_anual,-0.029229,3a9ea70
+2026-10-13T14:20:41+00:00,extremos,extremos,decil barato 10% | rendimiento_del_dividendo,validacion,"{""grupos"": 10}",exceso_anual,0.004158,3a9ea70
+2026-10-13T14:20:41+00:00,extremos,extremos,decil caro 10% | rendimiento_del_dividendo,validacion,"{""grupos"": 10}",exceso_anual,0.022487,3a9ea70
+2026-10-13T14:20:45+00:00,extremos,extremos,decil barato 10% | rendimiento_ffo,validacion,"{""grupos"": 10}",exceso_anual,-0.028137,3a9ea70
+2026-10-13T14:20:45+00:00,extremos,extremos,decil caro 10% | rendimiento_ffo,validacion,"{""grupos"": 10}",exceso_anual,-0.030397,3a9ea70
+2026-10-13T14:20:49+00:00,extremos,extremos,decil barato 10% | rendimiento_de_la_empresa,validacion,"{""grupos"": 10}",exceso_anual,-0.00389,3a9ea70
+2026-10-13T14:20:49+00:00,extremos,extremos,decil caro 10% | rendimiento_de_la_empresa,validacion,"{""grupos"": 10}",exceso_anual,-0.012357,3a9ea70
+2026-10-13T14:20:53+00:00,extremos,extremos,decil barato 10% | yield_contra_su_historia,validacion,"{""grupos"": 10}",exceso_anual,-0.031243,3a9ea70
+2026-10-13T14:20:53+00:00,extremos,extremos,decil caro 10% | yield_contra_su_historia,validacion,"{""grupos"": 10}",exceso_anual,0.010926,3a9ea70
+2026-10-13T14:22:01+00:00,validacion,apertura,abrir validacion,validacion,"{""motivo"": ""análisis de poder (13-oct-2026): placebos de las mismas reglas, sin probar reglas nuevas (fase 8)""}",,,3a9ea70
+2026-10-13T14:22:08+00:00,validacion,apertura,abrir validacion,validacion,"{""motivo"": ""análisis de poder (13-oct-2026): placebos de las mismas reglas, sin probar reglas nuevas (fase 6)""}",,,3a9ea70

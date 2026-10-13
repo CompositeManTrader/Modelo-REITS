@@ -1,0 +1,361 @@
+nivel,senal,alcance,mitad,anios,corte,trimestres,ventanas_independientes,episodios,mediana,p10,p90,efectivo_5a
+emisores,consenso,juntos,completo,1,caro 5%,6,1.5,5,0.03142477321,-0.2977566787,0.07456361708,
+emisores,consenso,juntos,completo,1,caro 10%,24,6,10,0.006667041742,-0.1963747642,0.1260050997,
+emisores,consenso,juntos,completo,1,centro,237,59.25,5,0.1151582179,-0.1238104391,0.3525135871,
+emisores,consenso,juntos,completo,1,barato 10%,13,3.25,5,0.2055089156,-0.005723429191,0.3805820615,
+emisores,consenso,juntos,completo,1,barato 5%,6,1.5,3,0.1151180909,0.01637486901,0.2743605626,
+emisores,consenso,juntos,primera mitad,1,caro 5%,4,1,3,0.06884517112,0.01861243906,0.07469517045,
+emisores,consenso,juntos,primera mitad,1,caro 10%,16,4,6,0.02082783391,-0.06571393894,0.1293970198,
+emisores,consenso,juntos,primera mitad,1,centro,110,27.5,5,0.1715697703,-0.0769948045,0.3586999875,
+emisores,consenso,juntos,primera mitad,1,barato 10%,11,2.75,3,0.1350252872,-0.008783566588,0.3869025076,
+emisores,consenso,juntos,primera mitad,1,barato 5%,5,1.25,2,0.09521089456,0.01134318189,0.1986525728,
+emisores,consenso,juntos,segunda mitad,1,caro 5%,2,0.5,2,-0.2977566787,-0.3544438781,-0.2410694793,
+emisores,consenso,juntos,segunda mitad,1,caro 10%,8,2,4,-0.1001997566,-0.269413079,0.1162560191,
+emisores,consenso,juntos,segunda mitad,1,centro,127,31.75,3,0.04216084015,-0.1360652264,0.3090466762,
+emisores,consenso,juntos,segunda mitad,1,barato 10%,2,0.5,2,0.2842173898,0.2654710119,0.3029637676,
+emisores,consenso,juntos,segunda mitad,1,barato 5%,1,0.25,1,0.3076503621,0.3076503621,0.3076503621,
+emisores,consenso,juntos,completo,3,caro 5%,6,0.5,5,0.01823144559,-0.06124786486,0.08008408436,
+emisores,consenso,juntos,completo,3,caro 10%,24,2,10,0.04894246117,-0.01955089689,0.1102481984,
+emisores,consenso,juntos,completo,3,centro,213,17.75,5,0.0808007803,-0.0227777874,0.2026709248,
+emisores,consenso,juntos,completo,3,barato 10%,13,1.083333333,5,0.1947775815,0.1375007162,0.3010459757,
+emisores,consenso,juntos,completo,3,barato 5%,6,0.5,3,0.1911976411,0.1324446195,0.2379289943,
+emisores,consenso,juntos,primera mitad,3,caro 5%,4,0.3333333333,3,0.01823144559,-0.05737593149,0.0966721979,
+emisores,consenso,juntos,primera mitad,3,caro 10%,16,1.333333333,6,0.04894246117,-0.01373477694,0.1049689567,
+emisores,consenso,juntos,primera mitad,3,centro,98,8.166666667,5,0.1189398937,0.03034076787,0.2426676102,
+emisores,consenso,juntos,primera mitad,3,barato 10%,11,0.9166666667,3,0.217526278,0.1648690042,0.3129884029,
+emisores,consenso,juntos,primera mitad,3,barato 5%,5,0.4166666667,2,0.217526278,0.1515703569,0.2409984489,
+emisores,consenso,juntos,segunda mitad,3,caro 5%,2,0.1666666667,2,-0.001419065536,-0.02877410625,0.02593597518,
+emisores,consenso,juntos,segunda mitad,3,caro 10%,8,0.6666666667,4,0.04663842613,0.003516906512,0.1262435937,
+emisores,consenso,juntos,segunda mitad,3,centro,115,9.583333333,3,0.0460126586,-0.0347425267,0.1411685932,
+emisores,consenso,juntos,segunda mitad,3,barato 10%,2,0.1666666667,2,0.1291921971,0.123586157,0.1347982372,
+emisores,consenso,juntos,segunda mitad,3,barato 5%,1,0.08333333333,1,0.122184647,0.122184647,0.122184647,
+emisores,consenso,juntos,completo,5,caro 5%,6,0.3,5,0.06627481288,-0.0091338937,0.1189959664,0.00795114014
+emisores,consenso,juntos,completo,5,caro 10%,24,1.2,10,0.04718651892,-0.006753695791,0.110112822,0.007592129621
+emisores,consenso,juntos,completo,5,centro,189,9.45,5,0.09285284463,0.01500565303,0.166057625,0.007233119102
+emisores,consenso,juntos,completo,5,barato 10%,13,0.65,5,0.1944770136,0.08589723857,0.2534833077,0.01450960016
+emisores,consenso,juntos,completo,5,barato 5%,6,0.3,3,0.1993616039,0.1194402119,0.2496510141,0.01732415148
+emisores,consenso,juntos,primera mitad,5,caro 5%,3,0.15,2,0.06945700988,0.06436549468,0.08291966624,0.00795114014
+emisores,consenso,juntos,primera mitad,5,caro 10%,15,0.75,5,0.06322277289,0.02428114578,0.1081932967,0.00795114014
+emisores,consenso,juntos,primera mitad,5,centro,87,4.35,5,0.1220079988,0.0757949432,0.199425239,0.003490532617
+emisores,consenso,juntos,primera mitad,5,barato 10%,11,0.55,3,0.2032098694,0.1732053743,0.2560381701,0.001189852267
+emisores,consenso,juntos,primera mitad,5,barato 5%,5,0.25,2,0.2170349506,0.1765985275,0.2509284453,0.01731565261
+emisores,consenso,juntos,segunda mitad,5,caro 5%,3,0.15,3,0.005766238183,-0.01807397283,0.1225185296,0.00715742806
+emisores,consenso,juntos,segunda mitad,5,caro 10%,9,0.45,5,0.005766238183,-0.02504740306,0.09167755002,0.00715742806
+emisores,consenso,juntos,segunda mitad,5,centro,102,5.1,3,0.05460881411,-0.005172365391,0.1252091207,0.007292778953
+emisores,consenso,juntos,segunda mitad,5,barato 10%,2,0.1,2,0.06039710501,0.05617474937,0.06461946066,0.01733265034
+emisores,consenso,juntos,segunda mitad,5,barato 5%,1,0.05,1,0.06567504957,0.06567504957,0.06567504957,0.01733265034
+emisores,consenso,NNN,completo,1,caro 5%,5,1.25,4,0.06345560858,-0.3119284785,0.07462939377,
+emisores,consenso,NNN,completo,1,caro 10%,17,4.25,5,0.01470079452,-0.1872844597,0.1230584787,
+emisores,consenso,NNN,completo,1,centro,84,21,2,0.130609173,-0.08442924916,0.3627684253,
+emisores,consenso,NNN,completo,1,barato 10%,5,1.25,1,0.09521089456,0.01134318189,0.2953837324,
+emisores,consenso,NNN,completo,1,barato 5%,3,0.75,1,0.0415333046,0.001279807651,0.08447537657,
+emisores,consenso,NNN,primera mitad,1,caro 5%,3,0.75,2,0.07423473366,0.06561143359,0.07476094714,
+emisores,consenso,NNN,primera mitad,1,caro 10%,10,2.5,2,0.04520524094,-0.02904007391,0.1238029276,
+emisores,consenso,NNN,primera mitad,1,centro,38,9.5,2,0.1834027723,-0.08002226105,0.3583579424,
+emisores,consenso,NNN,primera mitad,1,barato 10%,5,1.25,1,0.09521089456,0.01134318189,0.2953837324,
+emisores,consenso,NNN,primera mitad,1,barato 5%,3,0.75,1,0.0415333046,0.001279807651,0.08447537657,
+emisores,consenso,NNN,segunda mitad,1,caro 5%,2,0.5,2,-0.2977566787,-0.3544438781,-0.2410694793,
+emisores,consenso,NNN,segunda mitad,1,caro 10%,7,1.75,3,-0.0395238666,-0.2835848789,0.1180696907,
+emisores,consenso,NNN,segunda mitad,1,centro,46,11.5,1,0.04414364531,-0.0821416259,0.3842865585,
+emisores,consenso,NNN,segunda mitad,1,barato 10%,0,0,0,,,,
+emisores,consenso,NNN,segunda mitad,1,barato 5%,0,0,0,,,,
+emisores,consenso,NNN,completo,3,caro 5%,5,0.4166666667,4,0.01147357603,-0.06637486454,0.08954595416,
+emisores,consenso,NNN,completo,3,caro 10%,17,1.416666667,5,0.05389290165,-0.03121019266,0.1171496316,
+emisores,consenso,NNN,completo,3,centro,76,6.333333333,2,0.0985924787,-0.007662177591,0.2027144274,
+emisores,consenso,NNN,completo,3,barato 10%,5,0.4166666667,1,0.217526278,0.1635337878,0.2305756219,
+emisores,consenso,NNN,completo,3,barato 5%,3,0.25,1,0.217526278,0.1576689292,0.2215706331,
+emisores,consenso,NNN,primera mitad,3,caro 5%,3,0.25,2,0.01147357603,-0.06721157542,0.1042094619,
+emisores,consenso,NNN,primera mitad,3,caro 10%,10,0.8333333333,2,0.04819242728,-0.03413585546,0.1118110347,
+emisores,consenso,NNN,primera mitad,3,centro,34,2.833333333,2,0.1360427512,0.07867408628,0.2329874694,
+emisores,consenso,NNN,primera mitad,3,barato 10%,5,0.4166666667,1,0.217526278,0.1635337878,0.2305756219,
+emisores,consenso,NNN,primera mitad,3,barato 5%,3,0.25,1,0.217526278,0.1576689292,0.2215706331,
+emisores,consenso,NNN,segunda mitad,3,caro 5%,2,0.1666666667,2,-0.001419065536,-0.02877410625,0.02593597518,
+emisores,consenso,NNN,segunda mitad,3,caro 10%,7,0.5833333333,3,0.0605021169,-0.0002827545505,0.1315513147,
+emisores,consenso,NNN,segunda mitad,3,centro,42,3.5,1,0.05471066447,-0.02481056552,0.1595862809,
+emisores,consenso,NNN,segunda mitad,3,barato 10%,0,0,0,,,,
+emisores,consenso,NNN,segunda mitad,3,barato 5%,0,0,0,,,,
+emisores,consenso,NNN,completo,5,caro 5%,5,0.25,4,0.06309261588,-0.01211392008,0.1188067654,0.00795114014
+emisores,consenso,NNN,completo,5,caro 10%,17,0.85,5,0.04890414879,-0.006507029895,0.09128815398,0.00795114014
+emisores,consenso,NNN,completo,5,centro,68,3.4,2,0.09722306443,0.01839274563,0.1664331437,0.007373094613
+emisores,consenso,NNN,completo,5,barato 10%,5,0.25,1,0.1816882572,0.174808093,0.2080117758,0.01731565261
+emisores,consenso,NNN,completo,5,barato 5%,3,0.15,1,0.1816882572,0.1749019509,0.2099656119,0.01832947078
+emisores,consenso,NNN,primera mitad,5,caro 5%,2,0.1,1,0.06627481288,0.06372905528,0.06882057048,0.01031115762
+emisores,consenso,NNN,primera mitad,5,caro 10%,9,0.45,1,0.06322277289,0.03513948283,0.089492157,0.01406723096
+emisores,consenso,NNN,primera mitad,5,centro,31,1.55,2,0.1289357725,0.07824314818,0.1986262066,0.01395698323
+emisores,consenso,NNN,primera mitad,5,barato 10%,5,0.25,1,0.1816882572,0.174808093,0.2080117758,0.01731565261
+emisores,consenso,NNN,primera mitad,5,barato 5%,3,0.15,1,0.1816882572,0.1749019509,0.2099656119,0.01832947078
+emisores,consenso,NNN,segunda mitad,5,caro 5%,3,0.15,3,0.005766238183,-0.01807397283,0.1225185296,0.00715742806
+emisores,consenso,NNN,segunda mitad,5,caro 10%,8,0.4,4,0.01085212324,-0.01211046086,0.09918118157,0.007117325718
+emisores,consenso,NNN,segunda mitad,5,centro,37,1.85,1,0.07096924775,-0.007363865976,0.1317170967,0.006957932875
+emisores,consenso,NNN,segunda mitad,5,barato 10%,0,0,0,,,,
+emisores,consenso,NNN,segunda mitad,5,barato 5%,0,0,0,,,,
+emisores,consenso,O,completo,1,caro 5%,1,0.25,1,-0.0006060621608,-0.0006060621608,-0.0006060621608,
+emisores,consenso,O,completo,1,caro 10%,5,1.25,4,-0.0006060621608,-0.1737980297,0.104452006,
+emisores,consenso,O,completo,1,centro,82,20.5,1,0.09274759343,-0.1090823447,0.3140796107,
+emisores,consenso,O,completo,1,barato 10%,3,0.75,2,0.3076503621,0.06674376873,0.6171200582,
+emisores,consenso,O,completo,1,barato 5%,1,0.25,1,0.3076503621,0.3076503621,0.3076503621,
+emisores,consenso,O,primera mitad,1,caro 5%,1,0.25,1,-0.0006060621608,-0.0006060621608,-0.0006060621608,
+emisores,consenso,O,primera mitad,1,caro 10%,4,1,3,0.02551368479,-0.08216026533,0.1132551017,
+emisores,consenso,O,primera mitad,1,centro,39,9.75,1,0.1359299841,-0.06418671333,0.3163886523,
+emisores,consenso,O,primera mitad,1,barato 10%,2,0.5,1,0.3505023013,0.07531415657,0.625690446,
+emisores,consenso,O,primera mitad,1,barato 5%,0,0,0,,,,
+emisores,consenso,O,segunda mitad,1,caro 5%,0,0,0,,,,
+emisores,consenso,O,segunda mitad,1,caro 10%,1,0.25,1,-0.2115886717,-0.2115886717,-0.2115886717,
+emisores,consenso,O,segunda mitad,1,centro,43,10.75,1,0.07689098563,-0.123348963,0.3086218471,
+emisores,consenso,O,segunda mitad,1,barato 10%,1,0.25,1,0.3076503621,0.3076503621,0.3076503621,
+emisores,consenso,O,segunda mitad,1,barato 5%,1,0.25,1,0.3076503621,0.3076503621,0.3076503621,
+emisores,consenso,O,completo,3,caro 5%,1,0.08333333333,1,0.02498931516,0.02498931516,0.02498931516,
+emisores,consenso,O,completo,3,caro 10%,5,0.4166666667,4,0.05617266924,0.02216781159,0.07299460484,
+emisores,consenso,O,completo,3,centro,74,6.166666667,1,0.08400054293,-0.02380870994,0.1681619067,
+emisores,consenso,O,completo,3,barato 10%,3,0.25,2,0.1788485657,0.1335174307,0.2861604354,
+emisores,consenso,O,completo,3,barato 5%,1,0.08333333333,1,0.122184647,0.122184647,0.122184647,
+emisores,consenso,O,primera mitad,3,caro 5%,1,0.08333333333,1,0.02498931516,0.02498931516,0.02498931516,
+emisores,consenso,O,primera mitad,3,caro 10%,4,0.3333333333,3,0.05719437649,0.03434432138,0.07545769169,
+emisores,consenso,O,primera mitad,3,centro,35,2.916666667,1,0.1120223274,0.05055491053,0.1804125645,
+emisores,consenso,O,primera mitad,3,barato 10%,2,0.1666666667,1,0.2459184843,0.1922625495,0.2995744192,
+emisores,consenso,O,primera mitad,3,barato 5%,0,0,0,,,,
+emisores,consenso,O,segunda mitad,3,caro 5%,0,0,0,,,,
+emisores,consenso,O,segunda mitad,3,caro 10%,1,0.08333333333,1,0.0202868092,0.0202868092,0.0202868092,
+emisores,consenso,O,segunda mitad,3,centro,39,3.25,1,0.04689854446,-0.03115370974,0.1498988452,
+emisores,consenso,O,segunda mitad,3,barato 10%,1,0.08333333333,1,0.122184647,0.122184647,0.122184647,
+emisores,consenso,O,segunda mitad,3,barato 5%,1,0.08333333333,1,0.122184647,0.122184647,0.122184647,
+emisores,consenso,O,completo,5,caro 5%,1,0.05,1,0.08628533033,0.08628533033,0.08628533033,0.00795114014
+emisores,consenso,O,completo,5,caro 10%,5,0.25,4,0.08628533033,-0.0007889147481,0.1387949427,0.00795114014
+emisores,consenso,O,completo,5,centro,66,3.3,1,0.08764908969,0.01593424173,0.1490720193,0.007195273581
+emisores,consenso,O,completo,5,barato 10%,3,0.15,2,0.1667859945,0.08589723857,0.1959250944,0.001189852267
+emisores,consenso,O,completo,5,barato 5%,1,0.05,1,0.06567504957,0.06567504957,0.06567504957,0.01733265034
+emisores,consenso,O,primera mitad,5,caro 5%,1,0.05,1,0.08628533033,0.08628533033,0.08628533033,0.00795114014
+emisores,consenso,O,primera mitad,5,caro 10%,4,0.2,3,0.1010783641,0.0550609569,0.1426155336,0.004181795682
+emisores,consenso,O,primera mitad,5,centro,31,1.55,1,0.1158741564,0.06502893693,0.1620286671,0.00483237067
+emisores,consenso,O,primera mitad,5,barato 10%,2,0.1,1,0.184997932,0.170428382,0.1995674819,0.0008822190109
+emisores,consenso,O,primera mitad,5,barato 5%,0,0,0,,,,
+emisores,consenso,O,segunda mitad,5,caro 5%,0,0,0,,,,
+emisores,consenso,O,segunda mitad,5,caro 10%,1,0.05,1,-0.02910091296,-0.02910091296,-0.02910091296,0.01337720319
+emisores,consenso,O,segunda mitad,5,centro,35,1.75,1,0.05501332481,0.006932526269,0.1185672391,0.007252419184
+emisores,consenso,O,segunda mitad,5,barato 10%,1,0.05,1,0.06567504957,0.06567504957,0.06567504957,0.01733265034
+emisores,consenso,O,segunda mitad,5,barato 5%,1,0.05,1,0.06567504957,0.06567504957,0.06567504957,0.01733265034
+emisores,consenso,WPC,completo,1,caro 5%,0,0,0,,,,
+emisores,consenso,WPC,completo,1,caro 10%,2,0.5,1,-0.04196622283,-0.07860222625,-0.005330219403,
+emisores,consenso,WPC,completo,1,centro,71,17.75,2,0.1403011292,-0.1575322145,0.3429393084,
+emisores,consenso,WPC,completo,1,barato 10%,5,1.25,2,0.2410707632,0.0007502170788,0.3364552716,
+emisores,consenso,WPC,completo,1,barato 5%,2,0.5,1,0.1880480252,0.1456298348,0.2304662156,
+emisores,consenso,WPC,primera mitad,1,caro 5%,0,0,0,,,,
+emisores,consenso,WPC,primera mitad,1,caro 10%,2,0.5,1,-0.04196622283,-0.07860222625,-0.005330219403,
+emisores,consenso,WPC,primera mitad,1,centro,33,8.25,2,0.1749825541,-0.1110672707,0.3850015912,
+emisores,consenso,WPC,primera mitad,1,barato 10%,4,1,1,0.1880480252,-0.02162896127,0.3431529843,
+emisores,consenso,WPC,primera mitad,1,barato 5%,2,0.5,1,0.1880480252,0.1456298348,0.2304662156,
+emisores,consenso,WPC,segunda mitad,1,caro 5%,0,0,0,,,,
+emisores,consenso,WPC,segunda mitad,1,caro 10%,0,0,0,,,,
+emisores,consenso,WPC,segunda mitad,1,centro,38,9.5,1,0.03849163585,-0.173450391,0.2313236268,
+emisores,consenso,WPC,segunda mitad,1,barato 10%,1,0.25,1,0.2607844174,0.2607844174,0.2607844174,
+emisores,consenso,WPC,segunda mitad,1,barato 5%,0,0,0,,,,
+emisores,consenso,WPC,completo,3,caro 5%,0,0,0,,,,
+emisores,consenso,WPC,completo,3,caro 10%,2,0.1666666667,1,0.02239877181,0.005124172704,0.03967337091,
+emisores,consenso,WPC,completo,3,centro,63,5.25,2,0.05019194619,-0.02798429934,0.2438886236,
+emisores,consenso,WPC,completo,3,barato 10%,5,0.4166666667,2,0.1697516409,0.14766745,0.2988628027,
+emisores,consenso,WPC,completo,3,barato 5%,2,0.1666666667,1,0.2090726356,0.1737097305,0.2444355406,
+emisores,consenso,WPC,primera mitad,3,caro 5%,0,0,0,,,,
+emisores,consenso,WPC,primera mitad,3,caro 10%,2,0.1666666667,1,0.02239877181,0.005124172704,0.03967337091,
+emisores,consenso,WPC,primera mitad,3,centro,29,2.416666667,2,0.08527496419,0.01086741037,0.3009590526,
+emisores,consenso,WPC,primera mitad,3,barato 10%,4,0.3333333333,1,0.2115139539,0.1663337952,0.3064605587,
+emisores,consenso,WPC,primera mitad,3,barato 5%,2,0.1666666667,1,0.2090726356,0.1737097305,0.2444355406,
+emisores,consenso,WPC,segunda mitad,3,caro 5%,0,0,0,,,,
+emisores,consenso,WPC,segunda mitad,3,caro 10%,0,0,0,,,,
+emisores,consenso,WPC,segunda mitad,3,centro,34,2.833333333,1,0.03086650136,-0.04688762499,0.1064755505,
+emisores,consenso,WPC,segunda mitad,3,barato 10%,1,0.08333333333,1,0.1361997472,0.1361997472,0.1361997472,
+emisores,consenso,WPC,segunda mitad,3,barato 5%,0,0,0,,,,
+emisores,consenso,WPC,completo,5,caro 5%,0,0,0,,,,
+emisores,consenso,WPC,completo,5,caro 10%,2,0.1,1,0.02598167511,0.0191795578,0.03278379243,0.002544138806
+emisores,consenso,WPC,completo,5,centro,55,2.75,2,0.08855479304,0.008681503191,0.19430544,0.006917692718
+emisores,consenso,WPC,completo,5,barato 10%,5,0.25,2,0.243263858,0.1234769479,0.2604726456,0.0007011035862
+emisores,consenso,WPC,completo,5,barato 5%,2,0.1,1,0.2496510141,0.2445412892,0.2547607389,0.0006624167982
+emisores,consenso,WPC,primera mitad,5,caro 5%,0,0,0,,,,
+emisores,consenso,WPC,primera mitad,5,caro 10%,2,0.1,1,0.02598167511,0.0191795578,0.03278379243,0.002544138806
+emisores,consenso,WPC,primera mitad,5,centro,25,1.25,2,0.13652515,0.09683197246,0.2206861359,0.00112421395
+emisores,consenso,WPC,primera mitad,5,barato 10%,4,0.2,1,0.2496510141,0.2311886978,0.2612117248,0.0006624167982
+emisores,consenso,WPC,primera mitad,5,barato 5%,2,0.1,1,0.2496510141,0.2445412892,0.2547607389,0.0006624167982
+emisores,consenso,WPC,segunda mitad,5,caro 5%,0,0,0,,,,
+emisores,consenso,WPC,segunda mitad,5,caro 10%,0,0,0,,,,
+emisores,consenso,WPC,segunda mitad,5,centro,30,1.5,1,0.04844817348,-0.02927870341,0.08879250601,0.007373094613
+emisores,consenso,WPC,segunda mitad,5,barato 10%,1,0.05,1,0.05511916045,0.05511916045,0.05511916045,0.01733265034
+emisores,consenso,WPC,segunda mitad,5,barato 5%,0,0,0,,,,
+emisores,prima_treasury,juntos,completo,1,caro 5%,17,4.25,8,-0.01092655396,-0.1370136033,0.1229085381,
+emisores,prima_treasury,juntos,completo,1,caro 10%,36,9,10,-0.01138124303,-0.1775656609,0.1735162406,
+emisores,prima_treasury,juntos,completo,1,centro,243,60.75,8,0.1185091712,-0.1089668736,0.313891417,
+emisores,prima_treasury,juntos,completo,1,barato 10%,30,7.5,8,0.2180829804,-0.1691029059,0.4433815609,
+emisores,prima_treasury,juntos,completo,1,barato 5%,23,5.75,7,0.2055089156,-0.1521779147,0.4476896023,
+emisores,prima_treasury,juntos,primera mitad,1,caro 5%,8,2,5,0.001611359646,-0.1575957634,0.1520468843,
+emisores,prima_treasury,juntos,primera mitad,1,caro 10%,13,3.25,5,0.01882686395,-0.1112418988,0.177078684,
+emisores,prima_treasury,juntos,primera mitad,1,centro,116,29,6,0.1678108167,-0.06777331725,0.3208915251,
+emisores,prima_treasury,juntos,primera mitad,1,barato 10%,25,6.25,6,0.1686478619,-0.1898033228,0.4464587334,
+emisores,prima_treasury,juntos,primera mitad,1,barato 5%,22,5.5,6,0.1870783887,-0.1585703686,0.4483050368,
+emisores,prima_treasury,juntos,segunda mitad,1,caro 5%,9,2.25,3,-0.06760198134,-0.1301740663,0.0960734609,
+emisores,prima_treasury,juntos,segunda mitad,1,caro 10%,23,5.75,6,-0.05623028968,-0.1895857288,0.1134060446,
+emisores,prima_treasury,juntos,segunda mitad,1,centro,127,31.75,5,0.05656481419,-0.1360652264,0.3090466762,
+emisores,prima_treasury,juntos,segunda mitad,1,barato 10%,5,1.25,2,0.3076503621,0.2052978555,0.3940583072,
+emisores,prima_treasury,juntos,segunda mitad,1,barato 5%,1,0.25,1,0.3076503621,0.3076503621,0.3076503621,
+emisores,prima_treasury,juntos,completo,3,caro 5%,13,1.083333333,7,0.01979617063,-0.01869065565,0.04398501606,
+emisores,prima_treasury,juntos,completo,3,caro 10%,27,2.25,9,0.0202868092,-0.04337053778,0.05713319214,
+emisores,prima_treasury,juntos,completo,3,centro,228,19,7,0.08217501306,-0.02842926214,0.2026199846,
+emisores,prima_treasury,juntos,completo,3,barato 10%,30,2.5,8,0.1540366578,0.02752478928,0.2656349992,
+emisores,prima_treasury,juntos,completo,3,barato 5%,23,1.916666667,7,0.1947775815,0.02658431561,0.2803022799,
+emisores,prima_treasury,juntos,primera mitad,3,caro 5%,5,0.4166666667,5,0.01790574611,0.004436523713,0.04369932761,
+emisores,prima_treasury,juntos,primera mitad,3,caro 10%,10,0.8333333333,5,0.02144753063,-0.05044185918,0.05964190639,
+emisores,prima_treasury,juntos,primera mitad,3,centro,107,8.916666667,5,0.110079657,-0.009789820987,0.241239803,
+emisores,prima_treasury,juntos,primera mitad,3,barato 10%,25,2.083333333,6,0.1947775815,0.02685302237,0.2761116283,
+emisores,prima_treasury,juntos,primera mitad,3,barato 5%,22,1.833333333,6,0.1967416891,0.02644996223,0.2823976057,
+emisores,prima_treasury,juntos,segunda mitad,3,caro 5%,8,0.6666666667,3,0.02069308607,-0.03116529633,0.0439675045,
+emisores,prima_treasury,juntos,segunda mitad,3,caro 10%,17,1.416666667,5,0.0202868092,-0.03280934783,0.04442808211,
+emisores,prima_treasury,juntos,segunda mitad,3,centro,121,10.08333333,4,0.06053332072,-0.0334274531,0.1614064998,
+emisores,prima_treasury,juntos,segunda mitad,3,barato 10%,5,0.4166666667,2,0.09462052253,0.03694365948,0.1347964456,
+emisores,prima_treasury,juntos,segunda mitad,3,barato 5%,1,0.08333333333,1,0.122184647,0.122184647,0.122184647,
+emisores,prima_treasury,juntos,completo,5,caro 5%,8,0.4,5,0.03808170217,0.009936881393,0.09307412075,0.006098080277
+emisores,prima_treasury,juntos,completo,5,caro 10%,16,0.8,6,0.05483622696,0.002565582731,0.1096469524,0.008749553182
+emisores,prima_treasury,juntos,completo,5,centro,215,10.75,6,0.08634344819,0.002939745706,0.162379911,0.007308277595
+emisores,prima_treasury,juntos,completo,5,barato 10%,30,1.5,8,0.1662238038,0.05463688972,0.2375708956,0.01632377594
+emisores,prima_treasury,juntos,completo,5,barato 5%,23,1.15,7,0.1772121711,0.05865174278,0.2419987553,0.01538386289
+emisores,prima_treasury,juntos,primera mitad,5,caro 5%,4,0.2,4,0.06398220645,0.007140701524,0.1021258413,0.01298620714
+emisores,prima_treasury,juntos,primera mitad,5,caro 10%,9,0.45,4,0.1007896358,0.0318109737,0.1112767028,0.0126711751
+emisores,prima_treasury,juntos,primera mitad,5,centro,99,4.95,5,0.1107279863,0.02635109255,0.1850247715,0.01406723096
+emisores,prima_treasury,juntos,primera mitad,5,barato 10%,22,1.1,5,0.1794502141,0.05812774176,0.2426313066,0.01585381941
+emisores,prima_treasury,juntos,primera mitad,5,barato 5%,20,1,5,0.1794502141,0.05463688972,0.2445412892,0.01585381941
+emisores,prima_treasury,juntos,segunda mitad,5,caro 5%,4,0.2,1,0.03398773668,0.02228266541,0.04385293965,0.003163337034
+emisores,prima_treasury,juntos,segunda mitad,5,caro 10%,7,0.35,2,0.03349115159,-0.003964788838,0.05344259389,0.004245020415
+emisores,prima_treasury,juntos,segunda mitad,5,centro,116,5.8,4,0.0598818867,-0.006269711326,0.1362627947,0.00715742806
+emisores,prima_treasury,juntos,segunda mitad,5,barato 10%,8,0.4,3,0.08168963802,0.05420502601,0.203702995,0.01733265034
+emisores,prima_treasury,juntos,segunda mitad,5,barato 5%,3,0.15,2,0.1592422333,0.08438848633,0.196988842,0.0006237300101
+emisores,prima_treasury,NNN,completo,1,caro 5%,0,0,0,,,,
+emisores,prima_treasury,NNN,completo,1,caro 10%,2,0.5,2,0.0223774713,-0.01910833858,0.06386328119,
+emisores,prima_treasury,NNN,completo,1,centro,99,24.75,2,0.1048822482,-0.1356050453,0.2852717891,
+emisores,prima_treasury,NNN,completo,1,barato 10%,17,4.25,3,0.2870222365,-0.181523156,0.4262414634,
+emisores,prima_treasury,NNN,completo,1,barato 5%,12,3,2,0.1503599051,-0.2022235729,0.4341278349,
+emisores,prima_treasury,NNN,primera mitad,1,caro 5%,0,0,0,,,,
+emisores,prima_treasury,NNN,primera mitad,1,caro 10%,1,0.25,1,0.07423473366,0.07423473366,0.07423473366,
+emisores,prima_treasury,NNN,primera mitad,1,centro,44,11,2,0.1342048043,-0.1081737661,0.2480259651,
+emisores,prima_treasury,NNN,primera mitad,1,barato 10%,14,3.5,2,0.1503599051,-0.1939434061,0.4168512518,
+emisores,prima_treasury,NNN,primera mitad,1,barato 5%,12,3,2,0.1503599051,-0.2022235729,0.4341278349,
+emisores,prima_treasury,NNN,segunda mitad,1,caro 5%,0,0,0,,,,
+emisores,prima_treasury,NNN,segunda mitad,1,caro 10%,1,0.25,1,-0.02947979105,-0.02947979105,-0.02947979105,
+emisores,prima_treasury,NNN,segunda mitad,1,centro,55,13.75,1,0.04216084015,-0.1340712299,0.3142088677,
+emisores,prima_treasury,NNN,segunda mitad,1,barato 10%,3,0.75,1,0.362308236,0.3025747413,0.4046416643,
+emisores,prima_treasury,NNN,segunda mitad,1,barato 5%,0,0,0,,,,
+emisores,prima_treasury,NNN,completo,3,caro 5%,0,0,0,,,,
+emisores,prima_treasury,NNN,completo,3,caro 10%,2,0.1666666667,2,-0.05107928224,-0.07972214707,-0.0224364174,
+emisores,prima_treasury,NNN,completo,3,centro,91,7.583333333,2,0.08034871218,-0.03561286643,0.175370905,
+emisores,prima_treasury,NNN,completo,3,barato 10%,17,1.416666667,3,0.1947775815,0.03227547963,0.2428023499,
+emisores,prima_treasury,NNN,completo,3,barato 5%,12,1,2,0.2081160374,0.02913645348,0.2434760487,
+emisores,prima_treasury,NNN,primera mitad,3,caro 5%,0,0,0,,,,
+emisores,prima_treasury,NNN,primera mitad,3,caro 10%,1,0.08333333333,1,-0.08688286328,-0.08688286328,-0.08688286328,
+emisores,prima_treasury,NNN,primera mitad,3,centro,40,3.333333333,2,0.08864076162,-0.07171129606,0.1589583894,
+emisores,prima_treasury,NNN,primera mitad,3,barato 10%,14,1.166666667,2,0.2081160374,0.03477814275,0.2432065692,
+emisores,prima_treasury,NNN,primera mitad,3,barato 5%,12,1,2,0.2081160374,0.02913645348,0.2434760487,
+emisores,prima_treasury,NNN,segunda mitad,3,caro 5%,0,0,0,,,,
+emisores,prima_treasury,NNN,segunda mitad,3,caro 10%,1,0.08333333333,1,-0.01527570119,-0.01527570119,-0.01527570119,
+emisores,prima_treasury,NNN,segunda mitad,3,centro,51,4.25,1,0.06657464608,-0.02484565449,0.1774491746,
+emisores,prima_treasury,NNN,segunda mitad,3,barato 10%,3,0.25,1,0.09462052253,0.04792308596,0.1334875536,
+emisores,prima_treasury,NNN,segunda mitad,3,barato 5%,0,0,0,,,,
+emisores,prima_treasury,NNN,completo,5,caro 5%,0,0,0,,,,
+emisores,prima_treasury,NNN,completo,5,caro 10%,1,0.05,1,0.06309261588,0.06309261588,0.06309261588,0.0126711751
+emisores,prima_treasury,NNN,completo,5,centro,84,4.2,2,0.07745671754,0.004109316028,0.149277789,0.0088370323
+emisores,prima_treasury,NNN,completo,5,barato 10%,17,0.85,3,0.1732053743,0.07269474417,0.2050741976,0.01733265034
+emisores,prima_treasury,NNN,completo,5,barato 5%,12,0.6,2,0.1794502141,0.09138536822,0.206200278,0.01681971428
+emisores,prima_treasury,NNN,primera mitad,5,caro 5%,0,0,0,,,,
+emisores,prima_treasury,NNN,primera mitad,5,caro 10%,1,0.05,1,0.06309261588,0.06309261588,0.06309261588,0.0126711751
+emisores,prima_treasury,NNN,primera mitad,5,centro,39,1.95,2,0.08461239843,0.02353979299,0.1466165415,0.01755205204
+emisores,prima_treasury,NNN,primera mitad,5,barato 10%,11,0.55,1,0.1772121711,0.08826226023,0.2041733332,0.01832947078
+emisores,prima_treasury,NNN,primera mitad,5,barato 5%,10,0.5,1,0.1794502141,0.08635745148,0.205459495,0.0178225617
+emisores,prima_treasury,NNN,segunda mitad,5,caro 5%,0,0,0,,,,
+emisores,prima_treasury,NNN,segunda mitad,5,caro 10%,0,0,0,,,,
+emisores,prima_treasury,NNN,segunda mitad,5,centro,45,2.25,1,0.04473864875,-0.01216104894,0.1460090613,0.006895968697
+emisores,prima_treasury,NNN,segunda mitad,5,barato 10%,6,0.3,2,0.1243882171,0.07240716143,0.2044808519,0.008978190174
+emisores,prima_treasury,NNN,segunda mitad,5,barato 5%,2,0.1,1,0.1828338637,0.1639605594,0.201707168,0.0005991578822
+emisores,prima_treasury,O,completo,1,caro 5%,9,2.25,4,-0.01092655396,-0.1174191732,0.0960734609,
+emisores,prima_treasury,O,completo,1,caro 10%,20,5,3,-0.005766308058,-0.1176721579,0.170097963,
+emisores,prima_treasury,O,completo,1,centro,77,19.25,2,0.1359299841,-0.1003469526,0.3200954214,
+emisores,prima_treasury,O,completo,1,barato 10%,5,1.25,3,0.3076503621,0.1577004532,0.5962606778,
+emisores,prima_treasury,O,completo,1,barato 5%,4,1,3,0.3782854167,0.2103486119,0.6208173789,
+emisores,prima_treasury,O,primera mitad,1,caro 5%,2,0.5,2,-0.05885906442,-0.1054614662,-0.01225666261,
+emisores,prima_treasury,O,primera mitad,1,caro 10%,6,1.5,1,0.03457474808,-0.08930145333,0.1855735647,
+emisores,prima_treasury,O,primera mitad,1,centro,42,10.5,1,0.1756535266,-0.0152468856,0.3160273651,
+emisores,prima_treasury,O,primera mitad,1,barato 10%,3,0.75,2,0.4489204713,0.2247023838,0.64537408,
+emisores,prima_treasury,O,primera mitad,1,barato 5%,3,0.75,2,0.4489204713,0.2247023838,0.64537408,
+emisores,prima_treasury,O,segunda mitad,1,caro 5%,7,1.75,2,-0.01092655396,-0.1015624313,0.09988346503,
+emisores,prima_treasury,O,segunda mitad,1,caro 10%,14,3.5,2,-0.03357842182,-0.1183224523,0.1131444737,
+emisores,prima_treasury,O,segunda mitad,1,centro,35,8.75,2,0.0808049273,-0.1298454071,0.3558849461,
+emisores,prima_treasury,O,segunda mitad,1,barato 10%,2,0.5,1,0.2290262714,0.1661269989,0.2919255439,
+emisores,prima_treasury,O,segunda mitad,1,barato 5%,1,0.25,1,0.3076503621,0.3076503621,0.3076503621,
+emisores,prima_treasury,O,completo,3,caro 5%,5,0.4166666667,3,0.02498931516,0.004624943938,0.05128640057,
+emisores,prima_treasury,O,completo,3,caro 10%,13,1.083333333,3,0.04395699757,-0.02278728807,0.06711741573,
+emisores,prima_treasury,O,completo,3,centro,76,6.333333333,1,0.1077188866,-0.006111654276,0.2049927373,
+emisores,prima_treasury,O,completo,3,barato 10%,5,0.4166666667,3,0.1868844505,0.07166549386,0.3015902143,
+emisores,prima_treasury,O,completo,3,barato 5%,4,0.3333333333,3,0.235688691,0.141594588,0.3044397615,
+emisores,prima_treasury,O,primera mitad,3,caro 5%,2,0.1666666667,2,0.0405809922,0.02810765057,0.05305433383,
+emisores,prima_treasury,O,primera mitad,3,caro 10%,6,0.5,1,0.05557336257,-0.01070177178,0.06391362601,
+emisores,prima_treasury,O,primera mitad,3,centro,38,3.166666667,1,0.136244806,0.06885363614,0.2266528799,
+emisores,prima_treasury,O,primera mitad,3,barato 10%,3,0.25,2,0.2844929315,0.2064061467,0.3072893086,
+emisores,prima_treasury,O,primera mitad,3,barato 5%,3,0.25,2,0.2844929315,0.2064061467,0.3072893086,
+emisores,prima_treasury,O,segunda mitad,3,caro 5%,3,0.25,1,0.01979617063,-0.0004321316244,0.03912483218,
+emisores,prima_treasury,O,segunda mitad,3,caro 10%,7,0.5833333333,2,0.0202868092,-0.01413824763,0.05885474882,
+emisores,prima_treasury,O,segunda mitad,3,centro,38,3.166666667,1,0.07276528344,-0.03154387284,0.1531974671,
+emisores,prima_treasury,O,segunda mitad,3,barato 10%,2,0.1666666667,1,0.08008535271,0.04640591731,0.1137647881,
+emisores,prima_treasury,O,segunda mitad,3,barato 5%,1,0.08333333333,1,0.122184647,0.122184647,0.122184647,
+emisores,prima_treasury,O,completo,5,caro 5%,2,0.1,2,0.06398220645,0.04613970735,0.08182470555,0.01298620714
+emisores,prima_treasury,O,completo,5,caro 10%,8,0.4,2,0.09353748307,0.000224565183,0.1117254177,0.01255364196
+emisores,prima_treasury,O,completo,5,centro,73,3.65,1,0.1016586489,0.01759498436,0.1659516104,0.007292778953
+emisores,prima_treasury,O,completo,5,barato 10%,5,0.25,3,0.1350547282,0.04273500244,0.2234469543,0.01632377594
+emisores,prima_treasury,O,completo,5,barato 5%,4,0.2,3,0.1691322988,0.08648895316,0.2268198018,0.008473752974
+emisores,prima_treasury,O,primera mitad,5,caro 5%,2,0.1,2,0.06398220645,0.04613970735,0.08182470555,0.01298620714
+emisores,prima_treasury,O,primera mitad,5,caro 10%,6,0.3,1,0.1017787263,0.06398220645,0.1126228474,0.01110957066
+emisores,prima_treasury,O,primera mitad,5,centro,34,1.7,1,0.1273087933,0.06687274516,0.1723445284,0.01428604721
+emisores,prima_treasury,O,primera mitad,5,barato 10%,3,0.15,2,0.2032098694,0.1486857564,0.2301926493,0.0006237300101
+emisores,prima_treasury,O,primera mitad,5,barato 5%,3,0.15,2,0.2032098694,0.1486857564,0.2301926493,0.0006237300101
+emisores,prima_treasury,O,segunda mitad,5,caro 5%,0,0,0,,,,
+emisores,prima_treasury,O,segunda mitad,5,caro 10%,2,0.1,1,-0.008154142858,-0.02491155894,0.008603273224,0.01290665601
+emisores,prima_treasury,O,segunda mitad,5,centro,39,1.95,1,0.07605273567,0.01269063393,0.1535386411,0.006957932875
+emisores,prima_treasury,O,segunda mitad,5,barato 10%,2,0.1,1,0.04655834363,0.03126497888,0.06185170838,0.01800681086
+emisores,prima_treasury,O,segunda mitad,5,barato 5%,1,0.05,1,0.06567504957,0.06567504957,0.06567504957,0.01733265034
+emisores,prima_treasury,WPC,completo,1,caro 5%,8,2,4,-0.04196622283,-0.1858898669,0.1520468843,
+emisores,prima_treasury,WPC,completo,1,caro 10%,14,3.5,5,-0.04979857961,-0.2195526756,0.1677078911,
+emisores,prima_treasury,WPC,completo,1,centro,67,16.75,4,0.1434725703,-0.1020323142,0.3457371202,
+emisores,prima_treasury,WPC,completo,1,barato 10%,8,2,2,0.09866633842,-0.1385006501,0.2848202865,
+emisores,prima_treasury,WPC,completo,1,barato 5%,7,1.75,2,0.1350252872,-0.09133979006,0.2994034609,
+emisores,prima_treasury,WPC,primera mitad,1,caro 5%,6,1.5,3,0.0113278227,-0.1699094748,0.1598773877,
+emisores,prima_treasury,WPC,primera mitad,1,caro 10%,6,1.5,3,0.0113278227,-0.1699094748,0.1598773877,
+emisores,prima_treasury,WPC,primera mitad,1,centro,30,7.5,3,0.1792742515,-0.07001764984,0.3946215926,
+emisores,prima_treasury,WPC,primera mitad,1,barato 10%,8,2,2,0.09866633842,-0.1385006501,0.2848202865,
+emisores,prima_treasury,WPC,primera mitad,1,barato 5%,7,1.75,2,0.1350252872,-0.09133979006,0.2994034609,
+emisores,prima_treasury,WPC,segunda mitad,1,caro 5%,2,0.5,1,-0.1404333718,-0.1541124459,-0.1267542978,
+emisores,prima_treasury,WPC,segunda mitad,1,caro 10%,8,2,3,-0.1257799668,-0.2070077795,0.1321529358,
+emisores,prima_treasury,WPC,segunda mitad,1,centro,37,9.25,2,0.08169873397,-0.1375921692,0.2603135968,
+emisores,prima_treasury,WPC,segunda mitad,1,barato 10%,0,0,0,,,,
+emisores,prima_treasury,WPC,segunda mitad,1,barato 5%,0,0,0,,,,
+emisores,prima_treasury,WPC,completo,3,caro 5%,8,0.6666666667,4,0.0138943855,-0.03116529633,0.03650146086,
+emisores,prima_treasury,WPC,completo,3,caro 10%,12,1,4,0.0138943855,-0.0394191932,0.0329504047,
+emisores,prima_treasury,WPC,completo,3,centro,61,5.083333333,4,0.0584502012,-0.02152286875,0.2444272925,
+emisores,prima_treasury,WPC,completo,3,barato 10%,8,0.6666666667,2,0.06966659808,0.02041287407,0.2760695348,
+emisores,prima_treasury,WPC,completo,3,barato 5%,7,0.5833333333,2,0.03308541658,0.01799745121,0.2836672908,
+emisores,prima_treasury,WPC,primera mitad,3,caro 5%,3,0.25,3,0.009883024889,0.002621023321,0.01630120186,
+emisores,prima_treasury,WPC,primera mitad,3,caro 10%,3,0.25,3,0.009883024889,0.002621023321,0.01630120186,
+emisores,prima_treasury,WPC,primera mitad,3,centro,29,2.416666667,2,0.08527496419,-0.001625876198,0.3009590526,
+emisores,prima_treasury,WPC,primera mitad,3,barato 10%,8,0.6666666667,2,0.06966659808,0.02041287407,0.2760695348,
+emisores,prima_treasury,WPC,primera mitad,3,barato 5%,7,0.5833333333,2,0.03308541658,0.01799745121,0.2836672908,
+emisores,prima_treasury,WPC,segunda mitad,3,caro 5%,5,0.4166666667,2,0.02159000152,-0.0403395749,0.03971170078,
+emisores,prima_treasury,WPC,segunda mitad,3,caro 10%,9,0.75,2,0.02159000152,-0.04359891498,0.03543138088,
+emisores,prima_treasury,WPC,segunda mitad,3,centro,32,2.666666667,2,0.04852511946,-0.03494517049,0.1168146566,
+emisores,prima_treasury,WPC,segunda mitad,3,barato 10%,0,0,0,,,,
+emisores,prima_treasury,WPC,segunda mitad,3,barato 5%,0,0,0,,,,
+emisores,prima_treasury,WPC,completo,5,caro 5%,6,0.3,3,0.03398773668,0.004908783342,0.07839134667,0.003867776516
+emisores,prima_treasury,WPC,completo,5,caro 10%,7,0.35,3,0.03448432176,0.007422832367,0.08064848808,0.004245020415
+emisores,prima_treasury,WPC,completo,5,centro,58,2.9,3,0.08033594527,-0.007342347018,0.1895666792,0.007242769143
+emisores,prima_treasury,WPC,completo,5,barato 10%,8,0.4,2,0.1530688576,0.03289084475,0.2582554078,0.007882417946
+emisores,prima_treasury,WPC,completo,5,barato 5%,7,0.35,2,0.08553124519,0.03241924219,0.2589944871,0.01406723096
+emisores,prima_treasury,WPC,primera mitad,5,caro 5%,2,0.1,2,0.05062658498,0.00399614757,0.09725702239,0.01298620714
+emisores,prima_treasury,WPC,primera mitad,5,caro 10%,2,0.1,2,0.05062658498,0.00399614757,0.09725702239,0.01298620714
+emisores,prima_treasury,WPC,primera mitad,5,centro,26,1.3,2,0.1360342851,-0.0003367842176,0.2233764377,0.001766694549
+emisores,prima_treasury,WPC,primera mitad,5,barato 10%,8,0.4,2,0.1530688576,0.03289084475,0.2582554078,0.007882417946
+emisores,prima_treasury,WPC,primera mitad,5,barato 5%,7,0.35,2,0.08553124519,0.03241924219,0.2589944871,0.01406723096
+emisores,prima_treasury,WPC,segunda mitad,5,caro 5%,4,0.2,1,0.03398773668,0.02228266541,0.04385293965,0.003163337034
+emisores,prima_treasury,WPC,segunda mitad,5,caro 10%,5,0.25,1,0.03448432176,0.02388387772,0.05622986003,0.003490532617
+emisores,prima_treasury,WPC,segunda mitad,5,centro,32,1.6,2,0.05721793174,-0.02581293451,0.1022540407,0.007373094613
+emisores,prima_treasury,WPC,segunda mitad,5,barato 10%,0,0,0,,,,
+emisores,prima_treasury,WPC,segunda mitad,5,barato 5%,0,0,0,,,,

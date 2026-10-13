@@ -1,0 +1,57 @@
+nivel,prueba,desarrollo,t_desarrollo,validacion,t_validacion,episodios_desarrollo,episodios_validacion,meses_desarrollo,meses_validacion,pista
+sector,yield contra bonos Baa · barato 10% · 12 meses,0.1246105146,1.254154029,0.2773891178,6.053641647,5,2,26,15,False
+sector,yield contra bonos Baa · barato 5% · 12 meses,0.417807076,2.305060326,0.3217187076,11.33625201,2,1,6,5,True
+sector,yield contra bonos Baa · caro 10% · 12 meses,-0.04992883387,-0.8331516072,,,1,0,40,0,False
+sector,yield contra bonos Baa · caro 5% · 12 meses,-0.09064373886,-1.45426171,,,1,0,31,0,False
+sector,yield contra bonos Baa · barato 10% · 60 meses,0.07032306121,2.856241404,-0.002874857688,-0.2504002048,5,2,26,15,False
+sector,yield contra bonos Baa · barato 5% · 60 meses,0.1486064941,4.861046929,-0.0001538832581,-0.01312764281,2,1,6,5,False
+sector,yield contra bonos Baa · caro 10% · 60 meses,0.03471016949,1.891991402,,,1,0,40,0,False
+sector,yield contra bonos Baa · caro 5% · 60 meses,0.02823820177,1.607685795,,,1,0,31,0,False
+sector,yield contra el Treasury · barato 10% · 12 meses,0.1391958598,1.593559873,0.3047280992,9.697314221,4,1,39,11,False
+sector,yield contra el Treasury · barato 5% · 12 meses,0.2692819714,2.891887914,0.2970475692,9.499645249,3,1,19,5,True
+sector,yield contra el Treasury · caro 10% · 12 meses,-0.02506036395,-0.3951417836,,,2,0,50,0,False
+sector,yield contra el Treasury · caro 5% · 12 meses,-0.05066221297,-0.728060334,,,3,0,39,0,False
+sector,yield contra el Treasury · barato 10% · 60 meses,0.09712083135,5.260727176,-0.004328300671,-0.3405722964,4,1,39,11,False
+sector,yield contra el Treasury · barato 5% · 60 meses,0.1127917006,5.047192602,0.004213768158,0.3471092443,3,1,19,5,False
+sector,yield contra el Treasury · caro 10% · 60 meses,0.02542588909,1.627926124,,,2,0,50,0,False
+sector,yield contra el Treasury · caro 5% · 60 meses,0.02231304516,1.448905618,,,3,0,39,0,False
+sector,yield contra la tasa real · barato 10% · 12 meses,0.1263605145,3.638854093,-0.2210597191,-6.781256517,1,1,3,10,False
+sector,yield contra la tasa real · barato 5% · 12 meses,,,,,0,0,0,0,False
+sector,yield contra la tasa real · caro 10% · 12 meses,0.04436840331,0.7889790887,,,3,0,54,0,False
+sector,yield contra la tasa real · caro 5% · 12 meses,0.09397346589,1.70756098,,,2,0,35,0,False
+sector,yield contra la tasa real · barato 10% · 60 meses,0.09810125998,6.574046892,,,1,0,3,0,False
+sector,yield contra la tasa real · barato 5% · 60 meses,,,,,0,0,0,0,False
+sector,yield contra la tasa real · caro 10% · 60 meses,0.02665239244,1.819227022,,,3,0,52,0,False
+sector,yield contra la tasa real · caro 5% · 60 meses,0.04468299677,2.262216638,,,2,0,35,0,False
+sector,yield de los REITs · barato 10% · 12 meses,0.4297807412,2.694659566,,,2,0,7,0,False
+sector,yield de los REITs · barato 5% · 12 meses,,,,,1,0,1,0,False
+sector,yield de los REITs · caro 10% · 12 meses,-0.03157205427,-0.6960905136,-0.1154909713,-2.006412025,5,2,165,31,False
+sector,yield de los REITs · caro 5% · 12 meses,-0.001915858171,-0.04222821485,-0.1554798327,-3.027049217,4,1,121,18,False
+sector,yield de los REITs · barato 10% · 60 meses,0.1203080525,2.664841297,,,2,0,7,0,False
+sector,yield de los REITs · barato 5% · 60 meses,,,,,1,0,1,0,False
+sector,yield de los REITs · caro 10% · 60 meses,-0.05554423988,-1.931436408,-0.02742643167,-3.988048057,5,2,118,20,False
+sector,yield de los REITs · caro 5% · 60 meses,-0.06025652613,-1.781638804,-0.04409736067,-4.482931027,4,1,91,8,False
+regla,yield contra bonos Baa · fuera en el 10% más caro · broker_35,0.0004026592713,,1.45716772e-16,,,,,,False
+regla,yield contra bonos Baa · fuera en el 10% más caro · sic,-0.000464579962,,1.665334537e-16,,,,,,False
+regla,yield contra bonos Baa · fuera en el 5% más caro · broker_35,0.002850681568,,1.45716772e-16,,,,,,False
+regla,yield contra bonos Baa · fuera en el 5% más caro · sic,0.001915404835,,1.665334537e-16,,,,,,False
+regla,yield contra el Treasury · fuera en el 10% más caro · broker_35,0.0003742833781,,1.45716772e-16,,,,,,False
+regla,yield contra el Treasury · fuera en el 10% más caro · sic,-0.001025261622,,1.665334537e-16,,,,,,False
+regla,yield contra el Treasury · fuera en el 5% más caro · broker_35,0.001233954116,,1.45716772e-16,,,,,,False
+regla,yield contra el Treasury · fuera en el 5% más caro · sic,0.0004707392008,,1.665334537e-16,,,,,,False
+regla,yield contra la tasa real · fuera en el 10% más caro · broker_35,-0.01193573881,,1.45716772e-16,,,,,,False
+regla,yield contra la tasa real · fuera en el 10% más caro · sic,-0.01411499797,,1.665334537e-16,,,,,,False
+regla,yield contra la tasa real · fuera en el 5% más caro · broker_35,-0.007985899397,,1.45716772e-16,,,,,,False
+regla,yield contra la tasa real · fuera en el 5% más caro · sic,-0.008777545001,,1.665334537e-16,,,,,,False
+regla,yield de los REITs · fuera en el 10% más caro · broker_35,-0.04642590622,,0.009557818427,,,,,,False
+regla,yield de los REITs · fuera en el 10% más caro · sic,-0.05101674244,,0.005862982385,,,,,,False
+regla,yield de los REITs · fuera en el 5% más caro · broker_35,-0.02512046665,,0.01609971707,,,,,,False
+regla,yield de los REITs · fuera en el 5% más caro · sic,-0.0295387979,,0.01395620282,,,,,,False
+transversal,rendimiento_de_la_empresa · barato 10%,-0.02795901207,-0.9770750555,-0.003890033313,0.4872523906,,,,,False
+transversal,rendimiento_de_la_empresa · caro 10%,0.01707734747,0.4002807816,-0.01235730212,-0.9151166002,,,,,False
+transversal,rendimiento_del_dividendo · barato 10%,0.02742707083,0.7529221426,0.004158041006,0.7153680507,,,,,False
+transversal,rendimiento_del_dividendo · caro 10%,-0.05609186874,-1.63170315,0.02248679892,0.722984679,,,,,False
+transversal,rendimiento_ffo · barato 10%,0.01663450722,0.6735488769,-0.02813678498,-0.06027633513,,,,,False
+transversal,rendimiento_ffo · caro 10%,0.06398508126,1.564357267,-0.03039697226,-1.852087932,,,,,False
+transversal,yield_contra_su_historia · barato 10%,0.09787169671,3.72586709,-0.03124277509,-1.184841075,,,,,False
+transversal,yield_contra_su_historia · caro 10%,-0.02922899866,,0.01092593942,0.338663748,,,,,False

@@ -240,9 +240,12 @@ def cmd_extremos(solo_informe: bool = False) -> int:
     from src.investigacion import extremos
 
     destino = RAIZ / "docs" / "investigacion" / "extremos_resultados.md"
-    r = extremos.cargar() if solo_informe else extremos.correr()
-    if not solo_informe:
-        extremos.guardar(r)
+    if solo_informe:
+        r = extremos.cargar()
+        r.tablas["pistas"] = extremos.pistas(r["sector"], r["reglas"], r["transversal"])
+    else:
+        r = extremos.correr()
+    extremos.guardar(r)
     destino.write_text(extremos.informe(r), encoding="utf-8")
     print(destino.relative_to(RAIZ))
     print(r["pistas"].to_string(index=False))
