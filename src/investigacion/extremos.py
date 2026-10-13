@@ -301,8 +301,10 @@ def pistas(sector: pd.DataFrame, reglas: pd.DataFrame, transversal: pd.DataFrame
             filas.append({"nivel": "sector", "prueba": f"{senal} · {corte} · {h} meses",
                           "desarrollo": a["diferencia_contra_el_resto"], "t_desarrollo": a["t"],
                           "validacion": b["diferencia_contra_el_resto"], "t_validacion": b["t"],
-                          "episodios_desarrollo": a["episodios"], "episodios_validacion": b["episodios"],
-                          "meses_desarrollo": a["meses"], "meses_validacion": b["meses"], "pista": bool(ok)})
+                          "episodios_desarrollo": a.get("episodios", np.nan),
+                          "episodios_validacion": b.get("episodios", np.nan),
+                          "meses_desarrollo": a.get("meses", np.nan), "meses_validacion": b.get("meses", np.nan),
+                          "pista": bool(ok)})
     if not reglas.empty:
         for (senal, regla, perfil), g in reglas.groupby(["senal", "regla", "perfil"]):
             g = g.set_index("muestra")
