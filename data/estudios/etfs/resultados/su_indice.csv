@@ -1,0 +1,2 @@
+fondo,desde,hasta,meses,correlacion,rendimiento_indice,rendimiento_fondo,diferencia_anual,error_de_seguimiento,indice
+USRT,2016-12-31,2026-09-30,118,0.9997757645,0.06495746717,0.0629773901,-0.001980077067,0.003835632325,equity

@@ -11,6 +11,8 @@
     python scripts/estudio.py metodos       # métodos de valuación en el tiempo: PDF y Excel trimestral
     python scripts/estudio.py universo      # baja y versiona la lista, precios y dividendos del universo de REITs
     python scripts/estudio.py seleccion     # la prueba del universo: ¿la valuación sabe escoger REITs? (PDF)
+    python scripts/estudio.py etfs          # USRT, SCHH y VNQ contra el índice de la investigación
+    python scripts/estudio.py etfs --sin-descarga   # lo mismo con los datos ya versionados
 
 ``mercado`` y ``tbill`` son lo único que toca la red. Se niega a guardar si la serie no cuadra
 contra el proveedor diario y las anclas NYSE: una historia larga que no coincide
@@ -202,6 +204,28 @@ def cmd_seleccion() -> int:
     return 0
 
 
+def cmd_etfs(sin_descarga: bool = False) -> int:
+    from src.estudio import etfs
+
+    if sin_descarga:
+        guardados = etfs.cargar_datos()
+        if guardados is None:
+            print("No hay datos versionados de los ETFs; corre sin --sin-descarga.")
+            return 1
+        precios, dividendos = guardados
+    else:
+        print(f"Precios y dividendos de {', '.join(etfs.ETFS)} (Yahoo)…")
+        precios, dividendos = etfs.bajar()
+        print(f"  → {etfs.guardar_datos(precios, dividendos).relative_to(RAIZ)}")
+    r = etfs.correr(precios, dividendos)
+    print(f"Tablas → {etfs.guardar(r).relative_to(RAIZ)}")
+    destino = RAIZ / "docs" / "estudios" / "etfs_de_reits.md"
+    destino.write_text(etfs.informe(r), encoding="utf-8")
+    print(f"Informe → {destino.relative_to(RAIZ)}\n")
+    print(etfs.lectura(r))
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="comando", required=True)
@@ -214,6 +238,8 @@ def main() -> int:
     sub.add_parser("metodos")
     sub.add_parser("universo")
     sub.add_parser("seleccion")
+    e = sub.add_parser("etfs")
+    e.add_argument("--sin-descarga", action="store_true", help="usa los datos ya versionados")
     args = p.parse_args()
     if args.comando == "tbill":
         return cmd_tbill()
@@ -227,6 +253,8 @@ def main() -> int:
         return cmd_universo()
     if args.comando == "seleccion":
         return cmd_seleccion()
+    if args.comando == "etfs":
+        return cmd_etfs(args.sin_descarga)
     ticker = args.ticker.upper()
     if args.comando == "mercado":
         return cmd_mercado(ticker)

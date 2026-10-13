@@ -663,6 +663,26 @@ eran poco finas (lo mínimo detectable va de 195 a 432 pb al año), las de selec
 azar. Las páginas de valuación muestran ahora el retorno esperado a 5 años por tramo, neto
 con broker al 35%.
 
+## Comprar el índice con un ETF
+
+Lo que ninguna regla superó fue aportar siempre al FTSE Nareit All Equity REITs; un ETF amplio
+es la manera práctica de comprarlo. `docs/estudios/etfs_de_reits.md` compara USRT, SCHH y VNQ
+contra ese índice: rendimiento, caídas, error de seguimiento y la TIR neta aportando cada mes
+con el broker al 35%, en la ventana común, desde el inicio de cada uno y desde que sigue su
+índice actual.
+
+```bash
+python scripts/estudio.py etfs                  # baja de Yahoo, versiona en data/estudios/etfs/ y escribe el informe
+python scripts/estudio.py etfs --sin-descarga   # lo mismo con los datos ya versionados
+```
+
+Desde que cambió de índice en 2020, SCHH se desvía 0.43% al año del índice de la
+investigación (−2 pb al año); USRT se desvía más (2.6%) porque su índice deja fuera torres y
+madera, pero contra su propio índice solo 0.38%; VNQ, que también tiene inmobiliarias que no
+son REITs, −51 pb al año. Los tres pagan cada trimestre y ninguno quita las caídas (−66% a
+−68% en 2007-2009). Es descriptivo: no prueba reglas ni suma intentos, y la apertura de los
+datos posteriores a 2016 queda en la bitácora.
+
 ## El semáforo: tres puertas, por separado
 
 No es una caja negra. Cada puerta responde una pregunta distinta y se muestra sola.

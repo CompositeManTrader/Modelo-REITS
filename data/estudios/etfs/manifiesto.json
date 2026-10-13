@@ -1,0 +1,14 @@
+{
+  "descargado_en": "2026-10-13T18:02:38+00:00",
+  "fuente": "Yahoo Finance, chart v8: cierre (ajustado por splits) y cierre ajustado de fin de mes; dividendos con fecha ex",
+  "meses": {
+    "SCHH": 190,
+    "USRT": 234,
+    "VNQ": 266
+  },
+  "desde": {
+    "SCHH": "2011-01-31",
+    "USRT": "2007-05-31",
+    "VNQ": "2004-09-30"
+  }
+}

@@ -662,3 +662,5 @@ momento,fase,familia,prueba,muestra,parametros,metrica,valor,commit
 2026-10-13T14:20:53+00:00,extremos,extremos,decil caro 10% | yield_contra_su_historia,validacion,"{""grupos"": 10}",exceso_anual,0.010926,3a9ea70
 2026-10-13T14:22:01+00:00,validacion,apertura,abrir validacion,validacion,"{""motivo"": ""análisis de poder (13-oct-2026): placebos de las mismas reglas, sin probar reglas nuevas (fase 8)""}",,,3a9ea70
 2026-10-13T14:22:08+00:00,validacion,apertura,abrir validacion,validacion,"{""motivo"": ""análisis de poder (13-oct-2026): placebos de las mismas reglas, sin probar reglas nuevas (fase 6)""}",,,3a9ea70
+2026-10-13T18:02:38+00:00,validacion,apertura,abrir validacion,validacion,"{""motivo"": ""comparación descriptiva de ETFs de REITs contra el índice (13-oct-2026); no prueba reglas""}",,,3e70218
+2026-10-13T18:02:38+00:00,validacion,apertura,abrir validacion,validacion,"{""motivo"": ""comparación descriptiva de ETFs de REITs contra el índice (13-oct-2026); no prueba reglas (índices propios de los ETFs)""}",,,3e70218
