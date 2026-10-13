@@ -6,6 +6,7 @@ umbral del criterio.
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -187,8 +188,51 @@ def sensibilidad(res: dict, t: Tema = OSCURO) -> go.Figure:
     return fig
 
 
+def extremos(res: dict, t: Tema = OSCURO) -> go.Figure:
+    """O, NNN y WPC: el retorno de los 5 años siguientes según qué tan caro estaba el consenso."""
+    e = res["extremos"]["emisores"]
+    e = e[(e["senal"] == "consenso") & (e["anios"] == 5) & (e["alcance"] == "juntos") & (e["mitad"] == "completo")]
+    orden = ["caro 5%", "caro 10%", "centro", "barato 10%", "barato 5%"]
+    e = e.set_index("corte").reindex(orden).dropna(subset=["mediana"])
+    colores = [t.contexto if c.startswith("caro") else t.contexto_2 if c == "centro" else t.principal for c in e.index]
+    fig = go.Figure()
+    fig.add_bar(x=list(e.index), y=e["mediana"], marker_color=colores,
+                error_y={"type": "data", "symmetric": False, "array": e["p90"] - e["mediana"],
+                         "arrayminus": e["mediana"] - e["p10"], "color": t.texto_2, "thickness": 1.2},
+                text=[f"{v:.1%}" for v in e["mediana"]], textposition="inside",
+                customdata=np.c_[e["p10"], e["p90"], e["trimestres"], e["ventanas_independientes"]],
+                hovertemplate="%{x}: mediana %{y:.1%}; 8 de cada 10 entre %{customdata[0]:.1%} y %{customdata[1]:.1%}"
+                              "<br>%{customdata[2]} trimestres, %{customdata[3]:.1f} ventanas independientes"
+                              "<extra></extra>")
+    fig = _base(fig, t, alto=320, eje_y="retorno anual de los 5 años siguientes, neto", formato_y=".0%")
+    fig.update_layout(hovermode="closest", showlegend=False)
+    return fig
+
+
+def poder(res: dict, t: Tema = OSCURO) -> go.Figure:
+    """Lo que cada prueba podía ver (efecto mínimo detectable) contra la habilidad que se observó."""
+    e = res["poder"]["errores"].iloc[::-1]
+    nombres = {"desarrollo": "2011-2015", "validacion": "2016+"}
+    etiqueta = [f"{f['prueba'].replace(' | ', ' · ')} ({nombres.get(f['muestra'], f['muestra'])})"
+                for _, f in e.iterrows()]
+    fig = go.Figure()
+    fig.add_bar(x=e["mde"] * 1e4, y=etiqueta, orientation="h", name="lo mínimo que la prueba podía ver",
+                marker_color=t.contexto_2, hovertemplate="%{y}<br>mínimo detectable: %{x:,.0f} pb al año<extra></extra>")
+    fig.add_scatter(x=e["habilidad_observada"] * 1e4, y=etiqueta, mode="markers", name="observado contra el azar",
+                    marker={"color": t.principal, "size": 11},
+                    hovertemplate="%{y}<br>observado contra el azar: %{x:+,.0f} pb al año<extra></extra>")
+    fig.add_vline(x=0, line={"color": t.contexto, "width": 1})
+    fig.add_vline(x=CRITERIOS.mejora_minima_de_tir * 1e4, line={"color": t.perdida, "width": 1, "dash": "dot"})
+    fig = _base(fig, t, alto=80 + 44 * len(e), leyenda=True)
+    fig.update_layout(hovermode="closest", legend={"y": 1.0, "x": 0, "yanchor": "bottom", "orientation": "h"},
+                      margin={"l": 380, "r": 30, "b": 48, "t": 60})
+    fig.update_xaxes(title={"text": "pb al año"})
+    fig.update_yaxes(tickfont={"family": "Inter, system-ui, sans-serif", "size": 10})
+    return fig
+
+
 FIGURAS = {"techo": techo, "reglas": reglas, "escalera": escalera, "prueba_final": prueba_final,
-           "seleccion": seleccion, "sensibilidad": sensibilidad,
+           "seleccion": seleccion, "sensibilidad": sensibilidad, "extremos": extremos, "poder": poder,
            "tendencia_eeuu": tendencia_eeuu}
-REQUIERE = {"seleccion": "fase6", "sensibilidad": "sensibilidad_broker"}
+REQUIERE = {"seleccion": "fase6", "sensibilidad": "sensibilidad_broker", "extremos": "extremos", "poder": "poder"}
 

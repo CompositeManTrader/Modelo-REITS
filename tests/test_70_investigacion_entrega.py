@@ -63,10 +63,12 @@ def test_las_conclusiones_estan_completas_y_cuadran_con_los_resultados(res):
                  if "fase6" in res else [])
     broker = [x.titulo for x in c if x.titulo.startswith("Con un broker de EE. UU.")]
     assert len(broker) == ("sensibilidad_broker" in res)
+    extremos = ["En los extremos la valuación sí dice algo, pero no cuándo salir"] if "extremos" in res else []
+    poder = ["Las pruebas de timing eran poco finas; la de escoger entre REITs, no"] if "poder" in res else []
     assert [x.titulo for x in c] == [
         "No hay una señal que diga cuándo entrar", "Esperar no paga",
         "Decidiendo solo el dinero nuevo, el timing casi no puede valer nada",
-        "La protección contra caídas existe, pero se paga", *seleccion, *broker, "Qué hacer",
+        "La protección contra caídas existe, pero se paga", *seleccion, *broker, *extremos, *poder, "Qué hacer",
         "Qué tanto se le puede creer"]
     for x in c:
         assert not re.search(r"\bnan\b|—(?: pb|%)", x.texto), x.texto
@@ -96,7 +98,9 @@ def test_el_pdf_trae_todas_sus_secciones(res):
     texto = re.sub(r"<[^>]+>", " ", re.sub(r"<(script|style)>.*?</\1>", "", h, flags=re.S))
     for seccion in ("Lo que se encontró", "Cómo se hizo", "1. El techo", "2. Las señales de entrada",
                     "3. La escalera de modelos", "4. La prueba final", "5. En cuáles REITs", "Lo que queda",
-                    *(["6. Si compras con un broker de EE. UU."] if "sensibilidad_broker" in res else [])):
+                    *(["6. Si compras con un broker de EE. UU."] if "sensibilidad_broker" in res else []),
+                    *(["7. Los extremos de valuación"] if "extremos" in res else []),
+                    *(["8. Qué tan grande tenía que ser la ventaja para verla"] if "poder" in res else [])):
         assert seccion in texto, seccion
     assert not re.search(r"\bnan\b", texto, re.I)
     assert res["fase8"]["resumen"]["veredicto"] in texto

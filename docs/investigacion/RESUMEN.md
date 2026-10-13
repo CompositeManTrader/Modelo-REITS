@@ -22,6 +22,8 @@ reduce las caídas, pero fuera de la muestra en que se escogió cuesta de 1 a 5 
 | 7 | Escalera de 5 modelos, estimados siempre con el pasado | Ninguno le gana a aportar siempre: RECHAZADO. El compuesto predice cuánto le ganan los REITs al efectivo, pero nunca que pierdan (`fase7_resultados.md`) |
 | 8 | Prueba final de la protección por tendencia: EE. UU. 2016-2026 y ocho mercados | Baja la caída 32% en promedio, cuesta 127 pb al año (490 pb en EE. UU.): RECHAZADO (`fase8_resultados.md`) |
 | 6 | En cuáles: 16 reglas de selección y un detector de recortes con todos los REITs de capital desde 2011; un tercio de los emisores sellado | Solo momentum pasa la validación (+57 pb) y en los sellados gana +38 pb, debajo de los +50: RECHAZADO (`fase6_resultados.md`) |
+| E | Los extremos de valuación (exploratoria): 5% y 10% más caro y más barato | 2 pistas de 56 (lo barato extremo contra los bonos, 12 meses), ninguna regla de salir (`extremos_resultados.md`) |
+| P | Análisis de poder | Timing: mínimo detectable de 195 a 432 pb; selección de 59 a 110; asignación 54 (`poder_resultados.md`) |
 | S | Las mismas reglas con un broker de EE. UU. (dividendo al 39% o 44%, sin comisión) | Ningún veredicto cambia; aportar siempre rinde 145 a 184 pb menos al año (`sensibilidad_broker.md`) |
 
 ## La respuesta corta (pregunta 2: en cuáles)
@@ -57,6 +59,34 @@ reglas y modelos congelados con ese perfil, sin escoger nada nuevo
   regla ya congelada; la bitácora guarda las 192 reevaluaciones aparte de los intentos.
 * Fuera del modelo: el impuesto sucesorio de EE. UU. (más de 60 mil dólares en activos de
   EE. UU.). Las tasas deben confirmarse con un contador.
+
+## ¿Entonces la valuación no sirve? Los extremos y el análisis de poder (13-oct-2026)
+
+Dos análisis más, decididos después de ver todo lo anterior y declarados así
+(`extremos_preregistro.md`, `poder_preregistro.md`):
+
+* **En los extremos la valuación sí dice algo, pero no cuándo salir**
+  (`extremos_resultados.md`, exploratorio).
+  - En O, NNN y WPC, cuando el consenso estaba en su 10% más barato, el papel rindió 19.4% al
+    año en los 5 años siguientes, contra 4.7% en su 10% más caro (neto con broker), con menos
+    de dos ventanas independientes en cada extremo.
+  - En el sector, las 4 crisis en que los REITs quedaron en su 5% más barato contra los bonos
+    precedieron 12 meses muy buenos, antes y después de 2016: son las 2 pistas de 56
+    combinaciones, con un solo episodio en validación.
+  - Salir solo en el 5% o 10% más caro no le ganó a aportar siempre por +50 pb en las dos
+    muestras con ninguna señal: lo caro rinde menos, no pierde.
+* **Qué tan grande tenía que ser la ventaja para verla** (`poder_resultados.md`).
+  - Para decidir cuándo entrar, lo mínimo detectable era de 195 a 432 pb al año: una ventaja
+    de 100 pb habría pasado inadvertida entre 45% y 82% de las veces. «No se encontró» no
+    descarta una ventaja de 1 punto; sí una grande. Salir a ciegas cuesta de 86 a 302 pb al
+    año, que es lo que una regla tiene que ganar solo para empatar.
+  - Para escoger en cuáles, las pruebas sí eran finas (59 a 110 pb).
+  - Escoger entre O, NNN y WPC con el consenso ganó +72 pb, más que cada una de 500
+    elecciones al azar (mínimo detectable: 54 pb). Ahí la valuación no es una moneda al aire.
+* **En la aplicación**, las páginas Valuación, Estudio y Valuación en el tiempo muestran ahora
+  el retorno esperado a 5 años según el tramo de valuación, con su rango y neto con broker al
+  35%. El semáforo sigue igual, pero dice que «caro» es retorno esperado más bajo, no vender ni
+  esperar en efectivo.
 
 ## Lo que sí se aprendió
 

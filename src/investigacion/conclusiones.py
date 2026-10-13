@@ -5,6 +5,7 @@ La página y el PDF usan este mismo texto, así que no pueden decir cifras disti
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from src.estudio.reglas import Conclusion
@@ -80,6 +81,8 @@ def conclusiones(res: dict) -> list[Conclusion]:
             "desfavorable"),
         *_seleccion(res),
         *_broker(res),
+        *_extremos(res),
+        *_poder(res),
         Conclusion(
             "Qué hacer",
             "Aportar siempre, completo, sin guardar efectivo esperando el momento, y repartido entre muchos REITs de "
@@ -87,7 +90,7 @@ def conclusiones(res: dict) -> list[Conclusion]:
             "perseguir el yield alto ni lo «barato»: concentran los recortes. No vender después de un recorte: los "
             "que recortan rindieron más que el resto el año siguiente. Si una caída grande es intolerable, la "
             "manera de reducirla es tener menos en REITs desde el principio, no intentar salir a tiempo."
-            + _que_hacer_broker(res),
+            + _que_hacer_broker(res) + _que_hacer_extremos(res),
             "favorable"),
         Conclusion(
             "Qué tanto se le puede creer",
@@ -184,6 +187,68 @@ def _broker(res: dict) -> list[Conclusion]:
         "neutral")]
 
 
+def _extremos(res: dict) -> list[Conclusion]:
+    """La prueba exploratoria de los extremos de valuación, si ya corrió."""
+    if "extremos" not in res:
+        return []
+    x = res["extremos"]
+    e = x["emisores"]
+    j = e[(e["senal"] == "consenso") & (e["anios"] == 5) & (e["alcance"] == "juntos")
+          & (e["mitad"] == "completo")].set_index("corte")
+    p = x["pistas"]
+    pistas = p[p["pista"].astype(bool)]
+    episodios = (pistas[["episodios_desarrollo", "episodios_validacion"]].sum(axis=1).max()
+                 if len(pistas) and "episodios_desarrollo" in pistas else 0)
+    reglas = p[p["nivel"] == "regla"]
+    texto = (
+        "Medido solo en los extremos, la valuación sí dice algo. En O, NNN y WPC, cuando el consenso estaba en su 10% "
+        f"más barato, el papel rindió {_p(j.loc['barato 10%', 'mediana'], 1)} al año en los 5 años siguientes, contra "
+        f"{_p(j.loc['caro 10%', 'mediana'], 1)} cuando estaba en su 10% más caro (neto con broker), aunque con menos de "
+        "dos ventanas independientes en cada extremo. ")
+    if len(pistas):
+        texto += (f"En el sector, las pocas veces que los REITs quedaron en su 5% más barato contra los bonos —{int(episodios)} "
+                  "crisis en 54 años— los 12 meses siguientes fueron muy buenos, antes y después de 2016. ")
+    texto += (f"Pero salir solo en el 5% o 10% más caro no le ganó a aportar siempre por +50 pb en las dos muestras con "
+              f"ninguna de las {len(reglas) // 2 if len(reglas) else 0} combinaciones: lo caro rinde menos, no pierde. "
+              "Es una prueba exploratoria, decidida después de ver todo lo demás: nada se adopta como regla.")
+    return [Conclusion("En los extremos la valuación sí dice algo, pero no cuándo salir", texto, "neutral")]
+
+
+def _poder(res: dict) -> list[Conclusion]:
+    """El análisis de poder, si ya corrió: qué tan grande tenía que ser una ventaja para verla."""
+    if "poder" not in res:
+        return []
+    e, c = res["poder"]["errores"], res["poder"]["curvas"]
+    t = e[e["prueba"].str.startswith("Timing")]
+    s = e[e["prueba"].str.startswith("Selección")]
+    a = e[e["prueba"].str.startswith("Asignación")]
+    cien = c[np.isclose(c["delta"], 0.01) & c["prueba"].str.startswith("Timing")]["inadvertida"]
+    texto = (
+        "¿«No se encontró» quiere decir «no existe»? Para decidir cuándo entrar al sector, no del todo: lo mínimo que "
+        f"las pruebas podían ver era de {_costo(t['mde'].min())} a {_costo(t['mde'].max())} al año, y una regla con "
+        f"100 pb de ventaja real habría pasado inadvertida entre {_p(cien.min())} y {_p(cien.max())} de las veces. Lo "
+        "que sí se descarta es una ventaja grande y confiable. Y salir a ciegas cuesta de "
+        f"{_costo(t['nula_media'].max())} a {_costo(t['nula_media'].min())} al año: es la habilidad que necesita "
+        "cualquier regla solo para empatar con aportar siempre.")
+    if len(s):
+        texto += (f" Para escoger en cuáles las pruebas sí eran finas ({_costo(s['mde'].min())} a "
+                  f"{_costo(s['mde'].max())} de efecto mínimo).")
+    if len(a):
+        f = a.iloc[0]
+        cuantas = (f"cada una de las {int(f['placebos'])}" if f["p_placebo"] == 0
+                   else f"el {_p(1 - f['p_placebo'])} de las {int(f['placebos'])}")
+        texto += (f" Y escoger entre O, NNN y WPC con la valuación ganó {_pb(f['observado'])} al año, más que {cuantas} "
+                  "elecciones al azar: ahí la valuación no es una moneda al aire.")
+    return [Conclusion("Las pruebas de timing eran poco finas; la de escoger entre REITs, no", texto, "neutral")]
+
+
+def _que_hacer_extremos(res: dict) -> str:
+    if "extremos" not in res or not res["extremos"]["pistas"]["pista"].astype(bool).any():
+        return ""
+    return (" Y en las pocas crisis en que los REITs quedan en su 5% más barato contra los bonos, no dejar de aportar: "
+            "si hay dinero extra, ese ha sido el mejor momento para meterlo.")
+
+
 def _que_hacer_broker(res: dict) -> str:
     if "sensibilidad_broker" not in res:
         return ""
@@ -224,7 +289,23 @@ def fases(res: dict) -> pd.DataFrame:
         ("8", "Prueba final", "Protección por tendencia en EE. UU. 2016+ y ocho mercados", f8["resumen"]["veredicto"]),
         _fila_fase6(res),
         *_fila_broker(res),
+        *_filas_extremos_y_poder(res),
     ], columns=["fase", "que", "detalle", "resultado"])
+
+
+def _filas_extremos_y_poder(res: dict) -> list[tuple[str, str, str, str]]:
+    filas = []
+    if "extremos" in res:
+        n = int(res["extremos"]["pistas"]["pista"].astype(bool).sum())
+        filas.append(("E", "Los extremos de valuación (exploratoria)",
+                      "El 5% y 10% más caro y más barato: sector, O/NNN/WPC y todos los REITs",
+                      f"{n} pistas, ninguna regla"))
+    if "poder" in res:
+        t = res["poder"]["errores"]
+        t = t[t["prueba"].str.startswith("Timing")]
+        filas.append(("P", "Análisis de poder", "Qué tan grande tenía que ser una ventaja para verla",
+                      f"Timing: mínimo detectable de {_costo(t['mde'].min())} a {_costo(t['mde'].max())}"))
+    return filas
 
 
 def _fila_broker(res: dict) -> list[tuple[str, str, str, str]]:

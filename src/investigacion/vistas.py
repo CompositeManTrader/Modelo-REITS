@@ -35,6 +35,13 @@ COLUMNAS: dict[str, tuple[str, ...]] = {
     "perfiles_fiscales": ("perfil", "dividendo_pct", "intereses_pct", "ganancia_pct", "comision_pct"),
     "bases_fiscales": ("muestra", "tir_sic", "tir_broker_30", "tir_broker_35", "broker_30_contra_sic_bps",
                        "broker_35_contra_sic_bps"),
+    "extremos_sector": ("senal", "corte", "muestra", "meses", "episodios", "rendimiento_reits",
+                        "rendimiento_efectivo", "fraccion_efectivo_gana", "diferencia_contra_el_resto_bps", "t"),
+    "extremos_emisores": ("corte", "trimestres", "ventanas_independientes", "rendimiento_5a_mediana",
+                          "rendimiento_5a_p10", "rendimiento_5a_p90"),
+    "pistas": ("nivel", "prueba", "desarrollo", "validacion", "pista"),
+    "poder": ("prueba", "muestra", "observado_bps", "placebo_promedio_bps", "error_estandar_bps",
+              "efecto_minimo_detectable_bps", "inadvertida_con_100_pb_pct", "inadvertida_con_200_pb_pct"),
 }
 
 
@@ -193,10 +200,82 @@ def bases_fiscales(res: dict) -> pd.DataFrame:
     return _con(d, "bases_fiscales")
 
 
+ORDEN_CORTES = ("caro 5%", "caro 10%", "centro", "barato 10%", "barato 5%")
+MUESTRA_LEGIBLE = {"desarrollo": "1972-2015", "validacion": "2016 en adelante"}
+
+
+def extremos_sector(res: dict) -> pd.DataFrame:
+    """El retorno de los 60 meses siguientes en el 10% más caro, el centro y el 10% más barato de cada señal."""
+    d = res["extremos"]["sector"]
+    d = d[(d["horizonte_meses"] == 60) & d["corte"].isin(["caro 10%", "centro", "barato 10%"]) & (d["meses"] > 0)]
+    return _con(pd.DataFrame({
+        "senal": d["senal"], "corte": d["corte"], "muestra": d["muestra"].map(MUESTRA_LEGIBLE),
+        "meses": d["meses"].astype(int), "episodios": d["episodios"].astype(int),
+        "rendimiento_reits": d["reits_mediana"], "rendimiento_efectivo": d["efectivo_mediana"],
+        "fraccion_efectivo_gana": d["efectivo_gana"], "diferencia_contra_el_resto_bps": _bps(d["diferencia_contra_el_resto"]),
+        "t": d["t"].round(2)}), "extremos_sector")
+
+
+def extremos_emisores(res: dict) -> pd.DataFrame:
+    """O, NNN y WPC juntos: el retorno de los 5 años siguientes según el tramo del consenso, neto del broker."""
+    e = res["extremos"]["emisores"]
+    e = e[(e["senal"] == "consenso") & (e["anios"] == 5) & (e["alcance"] == "juntos") & (e["mitad"] == "completo")]
+    e = e.set_index("corte").reindex(list(ORDEN_CORTES)).reset_index()
+    return _con(pd.DataFrame({
+        "corte": e["corte"], "trimestres": e["trimestres"].astype(int),
+        "ventanas_independientes": [f"{v:.1f}" for v in e["ventanas_independientes"]],
+        "rendimiento_5a_mediana": e["mediana"], "rendimiento_5a_p10": e["p10"], "rendimiento_5a_p90": e["p90"]}),
+        "extremos_emisores")
+
+
+def pistas(res: dict) -> pd.DataFrame:
+    """Las combinaciones que cumplen la regla de lectura, y las que más se le acercaron."""
+    p = res["extremos"]["pistas"]
+    p = p[p["nivel"] != "regla"].copy()
+    p["t_minima"] = p[["t_desarrollo", "t_validacion"]].abs().min(axis=1)
+    p = p.sort_values(["pista", "t_minima"], ascending=False).head(8)
+
+    def lado(v, t, ep, meses) -> str:
+        texto = "—" if pd.isna(v) else f"{v * 100:+.1f}% (t {t:+.2f})" if pd.notna(t) else f"{v * 100:+.1f}%"
+        if pd.notna(ep):
+            texto += f", {int(meses)} meses en {int(ep)} episodio{'s' if int(ep) != 1 else ''}"
+        return texto
+
+    def ep(f, k):
+        return f.get(f"episodios_{k}", np.nan), f.get(f"meses_{k}", np.nan)
+
+    return _con(pd.DataFrame({
+        "nivel": p["nivel"], "prueba": p["prueba"],
+        "desarrollo": [lado(f["desarrollo"], f["t_desarrollo"], *ep(f, "desarrollo")) for _, f in p.iterrows()],
+        "validacion": [lado(f["validacion"], f["t_validacion"], *ep(f, "validacion")) for _, f in p.iterrows()],
+        "pista": np.where(p["pista"].astype(bool), "sí", "no")}), "pistas")
+
+
+def poder(res: dict) -> pd.DataFrame:
+    """Qué tan grande tenía que ser una ventaja para que cada prueba la viera."""
+    e = res["poder"]["errores"]
+    c = res["poder"]["curvas"]
+
+    def inadvertida(f, delta):
+        x = c[(c["prueba"] == f["prueba"]) & (c["muestra"] == f["muestra"]) & np.isclose(c["delta"], delta)]
+        return float(x["inadvertida"].iloc[0]) if len(x) else np.nan
+
+    return _con(pd.DataFrame({
+        "prueba": e["prueba"].str.replace(" | ", " · ", regex=False),
+        # En el análisis de poder, «desarrollo» y «validación» son las de la selección (fase 6).
+        "muestra": e["muestra"].map(lambda m: {"desarrollo": "2011-2015", "validacion": "2016 en adelante"}.get(m, m)),
+        "observado_bps": _bps(e["observado"]), "placebo_promedio_bps": _bps(e["nula_media"]),
+        "error_estandar_bps": _bps(e["ee"]), "efecto_minimo_detectable_bps": _bps(e["mde"]),
+        "inadvertida_con_100_pb_pct": [inadvertida(f, 0.01) for _, f in e.iterrows()],
+        "inadvertida_con_200_pb_pct": [inadvertida(f, 0.02) for _, f in e.iterrows()]}), "poder")
+
+
 VISTAS = {"fases": fases, "descomposicion": descomposicion, "caidas": caidas, "frecuencia": frecuencia,
           "techo": techo, "reglas": reglas, "escalera": escalera, "prueba_final": prueba_final,
           "seleccion": seleccion, "sensibilidad": sensibilidad, "perfiles_fiscales": perfiles_fiscales,
-          "bases_fiscales": bases_fiscales}
+          "bases_fiscales": bases_fiscales, "extremos_sector": extremos_sector,
+          "extremos_emisores": extremos_emisores, "pistas": pistas, "poder": poder}
 # Las que dependen de una fase opcional: sin sus resultados guardados, la página y el PDF no las piden.
 REQUIERE = {"seleccion": "fase6", "sensibilidad": "sensibilidad_broker", "perfiles_fiscales": "sensibilidad_broker",
-            "bases_fiscales": "sensibilidad_broker"}
+            "bases_fiscales": "sensibilidad_broker", "extremos_sector": "extremos", "extremos_emisores": "extremos",
+            "pistas": "extremos", "poder": "poder"}

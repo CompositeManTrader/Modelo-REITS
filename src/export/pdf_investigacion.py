@@ -37,6 +37,10 @@ def _pb(v) -> str:
     return f"{int(v):+,d}" if int(v) else "0"
 
 
+def _sin_signo(v) -> str:
+    return "—" if v is None or pd.isna(v) else f"{abs(int(v)):,d}"
+
+
 def _p0(v) -> str:
     return pct(v, 0)
 
@@ -250,6 +254,39 @@ def _sensibilidad(res: dict, fig: Figuras) -> str:
               "Detalle: docs/investigacion/sensibilidad_broker.md.</p>")
 
 
+def _extremos(res: dict, fig: Figuras) -> str:
+    if "extremos" not in res:
+        return ""
+    tarjeta = conclusiones._extremos(res)[0]
+    return ("<h2 class='salto'>7. Los extremos de valuación (exploratoria)</h2>"
+            "<p>¿Y si la valuación solo importa en los extremos? Se midió qué pasó solo cuando estaba en su 5% o 10% "
+            "más caro o más barato contra su propia historia: en el sector, en O, NNN y WPC, y en todos los REITs. Se "
+            "decidió después de ver todo lo demás; lo que salga a favor es una pista, no una regla.</p>"
+            f"<div class='bloque'><b>{_e(tarjeta.titulo)}.</b> {_e(tarjeta.texto)}</div>"
+            + fig(gi.extremos, res, pie="O, NNN y WPC: retorno anual de los 5 años siguientes por tramo del consenso, "
+                  "neto con broker al 35%. Barras de error: del percentil 10 al 90.")
+            + _tabla_vista(vistas.extremos_emisores(res), ["Tramo", "Trimestres", "Ventanas", "Mediana", "p10", "p90"],
+                           [None, None, None, _p1, _p1, _p1])
+            + _tabla_vista(vistas.pistas(res), ["Nivel", "Prueba", "1972-2015", "2016 en adelante", "Pista"],
+                           [None, None, None, None, None])
+            + "<p class='chico gris'>Detalle: docs/investigacion/extremos_resultados.md. Una pista pide el mismo signo "
+              "y |t| ≥ 2 en las dos muestras; con uno o dos episodios esa t no mide la incertidumbre real.</p>")
+
+
+def _poder(res: dict, fig: Figuras) -> str:
+    if "poder" not in res:
+        return ""
+    tarjeta = conclusiones._poder(res)[0]
+    return ("<h2 class='salto'>8. Qué tan grande tenía que ser la ventaja para verla</h2>"
+            f"<div class='bloque'><b>{_e(tarjeta.titulo)}.</b> {_e(tarjeta.texto)}</div>"
+            + fig(gi.poder, res, pie="Gris: lo mínimo que cada prueba podía ver (80% de probabilidad, al 5%). Punto: la "
+                  "habilidad observada contra reglas sin habilidad con el mismo perfil.")
+            + _tabla_vista(vistas.poder(res), ["Prueba", "Muestra", "Observado (pb)", "Placebo (pb)", "EE (pb)",
+                                               "Mínimo detectable (pb)", "100 pb inadvertidos", "200 pb inadvertidos"],
+                           [None, None, _pb, _pb, _sin_signo, _sin_signo, _p0, _p0])
+            + "<p class='chico gris'>Detalle: docs/investigacion/poder_resultados.md.</p>")
+
+
 def _pendiente() -> str:
     return ("<h2 class='salto'>Lo que queda</h2>"
             "<p><b>Seguimiento en vivo.</b> El plan lo pedía para la regla que resultara; como ninguna pasó, no hay "
@@ -257,7 +294,7 @@ def _pendiente() -> str:
             "comandos permiten repetir cada fase con datos nuevos.</p>"
             "<p class='chico gris'>Código: src/investigacion/. Datos y bitácora: data/investigacion/. Documentos de "
             "cada fase: docs/investigacion/. Para regenerar: python scripts/investigacion.py exploracion, fase5, "
-            "fase7, fase8, emisores, fase6, broker y pdf.</p>")
+            "fase7, fase8, emisores, fase6, broker, extremos, poder y pdf.</p>")
 
 
 def html_de_investigacion(res: dict, *, fuentes_css: str | None = None) -> str:
@@ -266,7 +303,7 @@ def html_de_investigacion(res: dict, *, fuentes_css: str | None = None) -> str:
     fig = Figuras()     # llama a cada gráfica con el tema claro del impreso
     cuerpo = (_portada(res) + _conclusiones(res) + _metodo() + _techo(res, fig) + _senales(res, fig)
               + _escalera(res, fig) + _prueba_final(res, fig) + _seleccion(res, fig) + _sensibilidad(res, fig)
-              + _pendiente())
+              + _extremos(res, fig) + _poder(res, fig) + _pendiente())
     css = _css(css_de_fuentes() if fuentes_css is None else fuentes_css)
     return ("<!doctype html><html lang='es'><head><meta charset='utf-8'>"
             f"<title>{_e(TITULO)}</title><style>{css}</style>"

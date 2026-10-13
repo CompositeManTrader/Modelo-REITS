@@ -134,6 +134,33 @@ if "sensibilidad_broker" in res:
                    "Ganancia: Art. 129 LISR y Criterio 37/ISR/N del SAT. Confírmalo con tu contador; el impuesto "
                    "sucesorio de EE. UU. (arriba de 60 mil dólares) queda fuera del modelo.")
 
+if "extremos" in res:
+    st.header("7. Los extremos de valuación")
+    st.markdown("¿Y si la valuación solo importa cuando está en un extremo? Esta prueba mide qué pasó **solo** cuando "
+                "estaba en su 5% o 10% más caro o más barato contra su propia historia. Se decidió después de ver "
+                "todo lo demás, así que es exploratoria: lo que salga a favor es una pista, no una regla.")
+    grafica("extremos")
+    st.caption("O, NNN y WPC juntos: retorno anual de los 5 años siguientes según el tramo del consenso de los siete "
+               "métodos, neto con broker al 35%. Las barras de error van del percentil 10 al 90. En los extremos hay "
+               "menos de dos ventanas independientes de 5 años.")
+    mostrar_tabla(vistas.extremos_emisores(res))
+    st.subheader("Las pistas")
+    mostrar_tabla(vistas.pistas(res), fijar_primera=True)
+    st.caption("Una pista pide el mismo signo y |t| ≥ 2 en 1972-2015 y en 2016 en adelante. Con uno o dos episodios, "
+               "la t no mide la incertidumbre real: cada episodio es una sola crisis vista muchos meses seguidos.")
+    with st.expander("El sector en sus extremos, a 5 años"):
+        mostrar_tabla(vistas.extremos_sector(res), fijar_primera=True)
+
+if "poder" in res:
+    st.header("8. Qué tan grande tenía que ser la ventaja para verla")
+    st.markdown("«No se encontró» no siempre quiere decir «no existe». Cada prueba se repitió cientos de veces con "
+                "reglas sin habilidad que conservan lo demás de la regla real; la dispersión de esos placebos dice el "
+                "efecto mínimo que la prueba podía detectar (con 80% de probabilidad, al 5%).")
+    grafica("poder")
+    st.caption("La barra gris es lo mínimo que la prueba podía ver; el punto, la habilidad que mostró la regla real "
+               "contra reglas sin habilidad con el mismo perfil. La línea roja es el criterio de +50 pb.")
+    mostrar_tabla(vistas.poder(res), fijar_primera=True)
+
 with st.expander("Cómo se hizo"):
     st.markdown(
         "* **Plan y reglas del juego** (`docs/investigacion/PLAN.md`): objetivo, muestras y criterios de éxito, "
@@ -147,6 +174,8 @@ with st.expander("Cómo se hizo"):
         "`fase7_resultados.md`, `fase8_resultados.md` y `fase6_resultados.md` (con la corrección declarada).\n"
         "* **La sensibilidad fiscal** (`docs/investigacion/sensibilidad_broker.md`): las mismas reglas con los "
         "impuestos de un broker de EE. UU., con su pre-registro.\n"
+        "* **Los extremos y el análisis de poder** (`docs/investigacion/extremos_resultados.md`, "
+        "`poder_resultados.md`), con sus pre-registros.\n"
         "* **Los datos de la SEC** (`data/investigacion/emisores/`): el universo, el panel y su validación contra "
         "Yahoo y contra el FFO publicado; los emisores sellados, con su huella digital."
     )

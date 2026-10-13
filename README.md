@@ -615,6 +615,8 @@ python scripts/investigacion.py fase8        # prueba final (abre los mercados s
 python scripts/investigacion.py emisores     # todos los REITs de EE. UU. con la SEC (pide SEC_USER_AGENT)
 python scripts/investigacion.py fase6        # en cuáles REITs (abre los emisores sellados una vez)
 python scripts/investigacion.py broker       # las mismas reglas con los impuestos de un broker de EE. UU.
+python scripts/investigacion.py extremos     # exploratoria: la valuación en su 5% o 10% más extremo
+python scripts/investigacion.py poder        # qué tan grande tenía que ser una ventaja para verla
 python scripts/investigacion.py pdf          # docs/investigacion/investigacion_cuando_entrar.pdf
 ```
 
@@ -650,6 +652,16 @@ ningún veredicto cambia.** Las mismas reglas, con el dividendo a la tasa margin
 rinde 145 a 184 pb menos al año; las reglas que salen del mercado cuestan menos (la tendencia,
 49 pb en los ocho mercados contra 127), pero ninguna pasa sus criterios; momentum gana +42 pb
 en los emisores sellados (+38 con el SIC). La columna SIC reproduce lo guardado al centavo.
+
+**Los extremos y el análisis de poder** (`docs/investigacion/extremos_resultados.md`,
+`poder_resultados.md`): en los extremos la valuación sí dice algo —en O, NNN y WPC el 10% más
+barato del consenso rindió 19.4% al año a 5 años contra 4.7% del 10% más caro, y las pocas
+crisis en que el sector quedó en su 5% más barato contra los bonos precedieron 12 meses muy
+buenos—, pero salir en el extremo caro no le gana a aportar siempre. Las pruebas de timing
+eran poco finas (lo mínimo detectable va de 195 a 432 pb al año), las de selección sí (59 a
+110 pb), y escoger entre O, NNN y WPC con el consenso (+72 pb) le ganó a 500 elecciones al
+azar. Las páginas de valuación muestran ahora el retorno esperado a 5 años por tramo, neto
+con broker al 35%.
 
 ## El semáforo: tres puertas, por separado
 
