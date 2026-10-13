@@ -28,13 +28,13 @@ el de P7: con decenas de ventanas independientes, no cientos, INCONCLUSO.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 import pandas as pd
 from scipy import optimize, stats
 
-from src.config import UMBRALES
+from src.config import MARGINAL_DEL_INVERSIONISTA, UMBRALES
 from src.estudio import macro
 from src.estudio import reglas as rg
 from src.modelo.senal import percentil_expandible
@@ -574,6 +574,7 @@ class ResultadoMetodos:
     nombres: dict[str, str]
     hasta: pd.Timestamp
     intrinsecos: object = None      # ``intrinsecos.ResultadoIntrinsecos``
+    esperado: pd.DataFrame = field(default_factory=pd.DataFrame)   # ``retorno_esperado`` neto del broker
 
     def hoy(self) -> pd.DataFrame:
         """Qué dice cada método hoy para cada emisor."""
@@ -589,6 +590,9 @@ class ResultadoMetodos:
     def asignacion(self) -> pd.DataFrame:
         return tabla_asignaciones(self.asignaciones)
 
+    def esperado_hoy(self) -> pd.DataFrame:
+        return esperado_hoy(self.paneles, self.esperado)
+
 
 def estudiar(estudios: dict, *, n_azar: int = 200, intrinsecos: bool = True) -> ResultadoMetodos:
     baa, cpi, tbill = macro.cargar("baa"), macro.cargar("cpi"), rg.cargar_tbill()
@@ -602,11 +606,123 @@ def estudiar(estudios: dict, *, n_azar: int = 200, intrinsecos: bool = True) -> 
         nombres={t: (e.narrativa.nombre if e.narrativa else t) for t, e in estudios.items()},
         hasta=max(e.tabla.index[-1] for e in estudios.values()),
     )
+    r.esperado = retorno_esperado(paneles_netos(estudios, baa=baa, cpi=cpi, tbill=tbill))
     if intrinsecos:
         from src.estudio import intrinsecos as it
 
         r.intrinsecos = it.estudiar(estudios, paneles, n_azar=n_azar, tbill=tbill)
     return r
+
+
+# --------------------------------------------------------------------------------------
+# La valuación como retorno esperado
+# --------------------------------------------------------------------------------------
+#
+# La investigación encontró que la valuación no sirve para decidir cuándo entrar, pero sí dice
+# cuánto esperar: cuando el consenso decía barato, el papel rindió mucho más en los 5 años
+# siguientes que cuando decía caro, y casi siempre más que el efectivo. Esto lo muestra así:
+# por tramo del percentil, el rango de lo que de verdad pasó después, neto de los impuestos de
+# un broker de EE. UU. con la tasa marginal conservadora.
+
+TRAMOS: tuple[tuple[str, float, float], ...] = (
+    ("muy caro", 0.0, 0.10), ("caro", 0.10, CARO), ("medio", CARO, BARATO), ("barato", BARATO, 0.90),
+    ("muy barato", 0.90, 1.0),
+)
+MIN_TRIMESTRES_TRAMO = 4     # con menos, el rango no se reporta
+
+
+def tramo_de(p: float | None) -> str | None:
+    """El tramo de un percentil; el último incluye el 100%."""
+    if p is None or not np.isfinite(p):
+        return None
+    for nombre, bajo, alto in TRAMOS:
+        if bajo <= p < alto or (alto == 1.0 and p >= bajo):
+            return nombre
+    return None
+
+
+def paneles_netos(estudios: dict, *, marginal: float = MARGINAL_DEL_INVERSIONISTA, baa: pd.Series | None = None,
+                  cpi: pd.Series | None = None, tbill: pd.Series | None = None) -> dict[str, pd.DataFrame]:
+    """Los paneles con el retorno de un broker de EE. UU.: dividendo a la marginal más 9 puntos y
+    efectivo a la marginal (``fiscal.mexico.tasa_dividendo_via_broker``). Los percentiles no
+    cambian: solo los retornos siguientes."""
+    from src.estudio.estudio import con_dividendo_neto
+    from src.fiscal.mexico import tasa_dividendo_via_broker
+
+    baa = macro.cargar("baa") if baa is None else baa
+    cpi = macro.cargar("cpi") if cpi is None else cpi
+    tbill = rg.cargar_tbill() if tbill is None else tbill
+    parametros = replace(rg.PARAMETROS, impuesto_intereses=marginal)
+    tasa = tasa_dividendo_via_broker(marginal)
+    return {t: panel(con_dividendo_neto(e, tasa), baa=baa, cpi=cpi, tbill=tbill, parametros=parametros)
+            for t, e in estudios.items()}
+
+
+def retorno_esperado(paneles: dict[str, pd.DataFrame], clave: str = "consenso") -> pd.DataFrame:
+    """Retorno anual de los 5 años siguientes según el tramo del percentil, los emisores juntos y
+    uno por uno, en fines de trimestre: mediana, p10, p25, p75 y p90, y el efectivo de esos años."""
+    columna = f"p_{clave}"
+    trimestres = {t: trimestral(p).dropna(subset=[columna, "adelante_5a"]) for t, p in paneles.items()}
+    filas = []
+    for alcance, tickers in [("juntos", list(trimestres))] + [(t, [t]) for t in trimestres]:
+        d = pd.concat([trimestres[t] for t in tickers]) if tickers else pd.DataFrame(columns=[columna, "adelante_5a"])
+        tramo = d[columna].map(tramo_de)
+        for nombre, bajo, alto in TRAMOS:
+            m = (tramo == nombre).to_numpy()
+            v = d.loc[m, "adelante_5a"]
+            n = int(m.sum())
+            ok = n >= MIN_TRIMESTRES_TRAMO
+            cuantiles = {k: float(v.quantile(q)) if ok else np.nan
+                         for k, q in (("p10", 0.10), ("p25", 0.25), ("mediana", 0.50), ("p75", 0.75), ("p90", 0.90))}
+            efectivo = d.loc[m, "efectivo_5a"].dropna() if "efectivo_5a" in d else pd.Series(dtype=float)
+            filas.append({"alcance": alcance, "tramo": nombre, "percentil_desde": bajo, "percentil_hasta": alto,
+                          "trimestres": n, "ventanas_independientes": n / 20, **cuantiles,
+                          "efectivo_5a": float(efectivo.median()) if ok and len(efectivo) else np.nan})
+    return pd.DataFrame(filas)
+
+
+def esperado_hoy(paneles: dict[str, pd.DataFrame], tabla: pd.DataFrame, clave: str = "consenso") -> pd.DataFrame:
+    """Para cada emisor: su percentil de hoy, su tramo y el rango que rindió ese tramo (los tres juntos)."""
+    filas = []
+    juntos = tabla[tabla["alcance"] == "juntos"].set_index("tramo") if len(tabla) else pd.DataFrame()
+    for t, p in paneles.items():
+        v = p[f"p_{clave}"].dropna()
+        if v.empty:
+            continue
+        percentil = float(v.iloc[-1])
+        tramo = tramo_de(percentil)
+        f = juntos.loc[tramo] if tramo in juntos.index else pd.Series(dtype=float)
+        filas.append({"emisor": t, "fecha": v.index[-1], "percentil": percentil, "tramo": tramo,
+                      **{k: f.get(k, np.nan) for k in ("mediana", "p10", "p90", "trimestres",
+                                                        "ventanas_independientes", "efectivo_5a")}})
+    return pd.DataFrame(filas)
+
+
+def frase_esperado(f: pd.Series) -> str:
+    """Una fila de ``esperado_hoy`` en palabras."""
+    if f.get("tramo") is None or pd.isna(f.get("mediana", np.nan)):
+        return "Sin suficientes trimestres en ese tramo para dar un rango."
+    return (f"Hoy está en el tramo «{f['tramo']}» (percentil {f['percentil']:.0%} del consenso contra su propia "
+            f"historia). Desde ese tramo, los tres emisores rindieron en los 5 años siguientes una mediana de "
+            f"{f['mediana']:.1%} al año, entre {f['p10']:.1%} y {f['p90']:.1%} en 8 de cada 10 casos, neto con un "
+            f"broker de EE. UU. ({int(f['trimestres'])} trimestres, {f['ventanas_independientes']:.1f} ventanas "
+            "independientes).")
+
+
+@dataclass
+class Esperado:
+    """El retorno esperado sin el resto del estudio de métodos (para las páginas que solo lo citan)."""
+
+    tabla: pd.DataFrame
+    hoy: pd.DataFrame
+    hasta: pd.Timestamp
+
+
+def esperado(estudios: dict, *, marginal: float = MARGINAL_DEL_INVERSIONISTA) -> Esperado:
+    baa, cpi, tbill = macro.cargar("baa"), macro.cargar("cpi"), rg.cargar_tbill()
+    netos = paneles_netos(estudios, marginal=marginal, baa=baa, cpi=cpi, tbill=tbill)
+    tabla = retorno_esperado(netos)
+    return Esperado(tabla, esperado_hoy(netos, tabla), max(e.tabla.index[-1] for e in estudios.values()))
 
 
 # --------------------------------------------------------------------------------------

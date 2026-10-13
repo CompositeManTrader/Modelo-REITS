@@ -80,6 +80,25 @@ st.header("Qué dice cada método hoy")
 mostrar_tabla(vistas_metodos.hoy(r), fijar_primera=True)
 st.caption(f"Señal y percentil contra la historia propia, al {r.hasta:%d-%m-%Y}.")
 
+st.header("¿Cuánto esperar ganar según qué tan caro está?")
+st.markdown(
+    "La investigación encontró que la valuación **no sirve para decidir cuándo entrar**, pero sí dice **cuánto "
+    "esperar**. Cada fin de trimestre, el consenso de los siete métodos ubica a cada emisor en un tramo contra su "
+    "propia historia; la gráfica muestra lo que de verdad rindieron los tres en los 5 años siguientes desde cada "
+    "tramo, **neto con un broker de EE. UU.** (marginal de 35%: 44% al dividendo y 35% al efectivo). «Caro» casi "
+    "nunca quiso decir perder: quiso decir esperar menos, y aun así casi siempre más que el efectivo."
+)
+grafica("esperado")
+mostrar_tabla(vistas_metodos.esperado_hoy(r), fijar_primera=True)
+mostrar_tabla(vistas_metodos.esperado(r))
+st.caption(
+    "La caja va del percentil 25 al 75 de los retornos; los bigotes, del 10 al 90 (8 de cada 10 casos). Las "
+    "ventanas de 5 años se enciman: las independientes son trimestres entre 20, y en los tramos extremos no llegan "
+    "a dos. Es un rango de lo que pasó, no una promesa; con marginal de 30% el rango sube unas décimas."
+)
+suficiencia(int(r.esperado.loc[r.esperado["alcance"] == "juntos", "trimestres"].sum() // 20),
+            "ventanas de 5 años independientes")
+
 st.header("¿Predicen?")
 st.plotly_chart(gm.barato_caro(r, g.OSCURO), width="stretch", config={"displayModeBar": False})
 mostrar_tabla(vistas_metodos.juntos(r))

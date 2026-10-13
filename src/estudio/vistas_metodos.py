@@ -33,6 +33,15 @@ COLUMNAS: dict[str, tuple[str, ...]] = {
         "ventaja_al_mas_caro_bps", "ventaja_primera_mitad_bps", "ventaja_segunda_mitad_bps",
         "fraccion_del_azar_que_la_iguala", "cambios_de_emisor", "meses_en_cada_uno", "hoy_va_a",
     ),
+    "esperado": (
+        "tramo", "percentil_desde", "percentil_hasta", "trimestres", "ventanas_independientes",
+        "rendimiento_5a_p10", "rendimiento_5a_p25", "rendimiento_5a_mediana", "rendimiento_5a_p75",
+        "rendimiento_5a_p90", "rendimiento_efectivo_5a",
+    ),
+    "esperado_hoy": (
+        "emisor", "percentil_consenso", "tramo", "rendimiento_5a_mediana", "rendimiento_5a_p10",
+        "rendimiento_5a_p90", "trimestres", "ventanas_independientes",
+    ),
     "trimestres": (
         "trimestre", "precio", "flujo_por_accion", "multiplo_flujo", "yield_flujo", "yield_dividendo",
         "tasa_treasury_10a", "inflacion_12m", "tasa_real", "tasa_baa",
@@ -148,6 +157,43 @@ def asignacion_trimestral(r: ResultadoMetodos) -> pd.DataFrame:
         d[f"percentil_{t.lower()}"] = pcs[t]
     d["la_aportacion_va_a"] = elegido.where(pcs.notna().all(axis=1), "—")
     return d.iloc[::-1].reset_index(drop=True)
+
+
+def _esperado_de(x) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """La tabla y el «hoy» del retorno esperado, de un ``ResultadoMetodos`` o de un ``metodos.Esperado``."""
+    if hasattr(x, "tabla"):
+        return x.tabla, x.hoy
+    return x.esperado, x.esperado_hoy()
+
+
+def _ventanas(v) -> str:
+    """Una ventana independiente es un número con decimales: menos de una es menos de una."""
+    return "—" if pd.isna(v) else f"{float(v):.1f}"
+
+
+def esperado(x) -> pd.DataFrame:
+    """Lo que rindieron los tres emisores juntos en los 5 años siguientes, por tramo del consenso."""
+    tabla, _ = _esperado_de(x)
+    d = tabla[tabla["alcance"] == "juntos"]
+    return _con(pd.DataFrame({
+        "tramo": d["tramo"], "percentil_desde": d["percentil_desde"], "percentil_hasta": d["percentil_hasta"],
+        "trimestres": d["trimestres"].astype(int), "ventanas_independientes": d["ventanas_independientes"].map(_ventanas),
+        "rendimiento_5a_p10": d["p10"], "rendimiento_5a_p25": d["p25"], "rendimiento_5a_mediana": d["mediana"],
+        "rendimiento_5a_p75": d["p75"], "rendimiento_5a_p90": d["p90"], "rendimiento_efectivo_5a": d["efectivo_5a"],
+    }), "esperado")
+
+
+def esperado_hoy(x) -> pd.DataFrame:
+    """Cada emisor: dónde está hoy y qué rindió ese tramo."""
+    _, hoy = _esperado_de(x)
+    if hoy.empty:
+        return _con(pd.DataFrame(columns=list(COLUMNAS["esperado_hoy"])), "esperado_hoy")
+    return _con(pd.DataFrame({
+        "emisor": hoy["emisor"], "percentil_consenso": hoy["percentil"], "tramo": hoy["tramo"],
+        "rendimiento_5a_mediana": hoy["mediana"], "rendimiento_5a_p10": hoy["p10"], "rendimiento_5a_p90": hoy["p90"],
+        "trimestres": pd.to_numeric(hoy["trimestres"], errors="coerce").fillna(0).astype(int),
+        "ventanas_independientes": hoy["ventanas_independientes"].map(_ventanas),
+    }), "esperado_hoy")
 
 
 VISTAS = {"por_emisor": por_emisor, "esperar": esperar, "trimestres": trimestres}

@@ -367,18 +367,24 @@ def puerta_valuacion(
             f"Historia insuficiente ({n_observaciones} observaciones; se piden "
             f"{umbrales.min_observaciones}). Veredicto de valuación: INCONCLUSO.",
         )
+    # «Caro» quiere decir retorno esperado más bajo, no pérdida: la investigación encontró que la
+    # valuación predice cuánto rinde el papel en los años siguientes, pero que esperar en efectivo
+    # o vender por estar caro costó más de lo que ahorró (docs/investigacion/RESUMEN.md).
     if percentil_prima >= umbrales.percentil_compra:
         luz, msg = Luz.VERDE, (
-            f"Prima en el percentil {percentil_prima:.0%} de su propia historia: barato contra sí mismo."
+            f"Prima en el percentil {percentil_prima:.0%} de su propia historia: barato contra sí mismo. "
+            "Desde niveles así, el retorno de los años siguientes fue más alto que su promedio."
         )
     elif percentil_prima >= umbrales.percentil_mantener:
         luz, msg = Luz.AMARILLO, (
-            f"Prima en el percentil {percentil_prima:.0%}: zona media, mantener sin agregar agresivamente."
+            f"Prima en el percentil {percentil_prima:.0%}: zona media, mantener sin agregar agresivamente. "
+            "Retorno esperado cerca de su promedio histórico."
         )
     else:
         luz, msg = Luz.ROJO, (
-            f"Prima en el percentil {percentil_prima:.0%}: caro contra su propia historia. "
-            "No comprar más. Esto NO es una señal de venta."
+            f"Prima en el percentil {percentil_prima:.0%}: caro contra su propia historia, es decir, retorno "
+            "esperado más bajo que su promedio, no pérdida. No comprar más de este: la aportación va mejor a "
+            "otro REIT de calidad más barato, no a efectivo. Esto NO es una señal de venta."
         )
     return ResultadoPuerta("Valuación", luz != Luz.ROJO, luz, criterios, msg)
 

@@ -392,6 +392,8 @@ TASA_CEDULAR_GANANCIAS_SIC = 0.10  # régimen cedular vía SIC con casa de bolsa
 # supuestos a confirmar con el contador de cada inversionista.
 ISR_ADICIONAL_DIVIDENDO_EXTRANJERO_BROKER = 0.10
 TASAS_MARGINALES_SENSIBILIDAD = (0.30, 0.35)  # la tasa marginal del inversionista no se conoce
+# La app muestra el retorno esperado con la de 35%, el caso conservador (decisión del 13-oct-2026).
+MARGINAL_DEL_INVERSIONISTA = 0.35
 COMISION_BROKER_EEUU = 0.0
 UMBRAL_ESTATE_TAX_USD = 60_000.0
 TASA_MAXIMA_ESTATE_TAX = 0.40

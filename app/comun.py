@@ -292,6 +292,18 @@ def panel_del_modelo_en_cache(
     )
 
 
+@st.cache_data(show_spinner="Calculando el retorno esperado…", max_entries=4)
+def esperado_en_cache(_repo: Repositorio, tickers: tuple[str, ...], asof: dt.date, firma: tuple):
+    """El retorno esperado por tramo de valuación (``metodos.esperado``) de los emisores con estudio.
+
+    Arma los estudios de largo plazo (unos dos segundos los tres) solo la primera vez.
+    """
+    from src.estudio import estudio as mod_estudio
+    from src.estudio import metodos
+
+    return metodos.esperado({t: mod_estudio.armar(_repo, t, asof=asof) for t in tickers})
+
+
 def _publicar_secretos() -> None:
     """Copia los secretos de Streamlit al entorno, que es donde los leen los ingestores.
 

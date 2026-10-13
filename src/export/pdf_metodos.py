@@ -120,6 +120,27 @@ def _predicen(r: ResultadoMetodos, fig: Figuras) -> str:
               "de los años siguientes, un renglón por fin de trimestre.</p>")
 
 
+def _esperado(r: ResultadoMetodos, fig: Figuras) -> str:
+    """La valuación como retorno esperado: el rango de lo que rindieron los tres desde cada tramo."""
+    if r.esperado is None or r.esperado.empty:
+        return ""
+    hoy = vm.esperado_hoy(r)
+    return ("<h2 class='salto'>¿Cuánto esperar ganar según qué tan caro está?</h2>"
+            "<p>La valuación no sirve para decidir cuándo entrar, pero sí dice cuánto esperar. Cada fin de trimestre "
+            "el consenso de los siete métodos ubica a cada emisor en un tramo contra su propia historia; esto es lo "
+            "que rindieron los tres en los 5 años siguientes desde cada tramo, neto con un broker de EE. UU. "
+            "(marginal de 35%: 44% al dividendo y 35% al efectivo). «Caro» quiere decir esperar menos, no "
+            "perder.</p>"
+            + fig(gm.esperado, r, pie="Caja: del percentil 25 al 75 de los retornos; bigotes: del 10 al 90.")
+            + _tabla_vista(hoy, ["Emisor", "Percentil del consenso", "Tramo", "Mediana a 5 años", "p10", "p90",
+                                 "Trimestres", "Ventanas"], [None, lambda v: pct(v, 0), None, pct, pct, pct, None, None])
+            + _tabla_vista(vm.esperado(r), ["Tramo", "Desde", "Hasta", "Trimestres", "Ventanas", "p10", "p25",
+                                            "Mediana", "p75", "p90", "Efectivo"],
+                           [None, lambda v: pct(v, 0), lambda v: pct(v, 0), None, None, pct, pct, pct, pct, pct, pct])
+            + "<p class='chico gris'>Las ventanas de 5 años se enciman: las independientes son trimestres entre 20, y "
+              "en los tramos extremos no llegan a dos. Es el rango de lo que pasó, no una promesa.</p>")
+
+
 def _esperar(r: ResultadoMetodos) -> str:
     partes = ["<h2 class='salto'>¿Convenía esperar cuando decía caro?</h2>"
               "<p>Si «caro» fuera una señal para guardar el dinero, el papel tendría que rendir menos que el "
@@ -262,7 +283,8 @@ def html_de_metodos(r: ResultadoMetodos, *, fuentes_css: str | None = None) -> s
     import plotly.offline
 
     fig = Figuras()
-    cuerpo = (_portada(r) + _conclusiones(r) + _metodos_y_hoy(r) + _predicen(r, fig) + _esperar(r)
+    cuerpo = (_portada(r) + _conclusiones(r) + _metodos_y_hoy(r) + _predicen(r, fig) + _esperado(r, fig)
+              + _esperar(r)
               + _asignacion(r, fig) + "".join(_emisor(r, t, fig) for t in r.paneles) + _intrinsecos(r, fig)
               + _metodologia())
     css = _css(css_de_fuentes() if fuentes_css is None else fuentes_css)

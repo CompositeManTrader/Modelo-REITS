@@ -56,6 +56,7 @@ from comun import (  # noqa: E402
     configurar,
     descargo,
     dinero,
+    esperado_en_cache,
     estado_en_cache,
     exigir_base,
     explicar,
@@ -93,6 +94,8 @@ from marca import (  # noqa: E402
     plantilla_plotly,
 )
 from src.config import DIR_EXPORTES, UMBRALES  # noqa: E402
+from src.estudio import mercado as mercado_estudio  # noqa: E402
+from src.estudio import metodos as mod_metodos  # noqa: E402
 from src.export.excel import (  # noqa: E402
     DatosExportacion,
     estados_para_libro,
@@ -348,7 +351,7 @@ _CODA = {
     "INCONCLUSO": "no es lo mismo que MANTENER",
     "DESCARTADO": "lo que falla no está barato: está descartado",
     "VENDER": "tesis rota, no precio caro",
-    "NO COMPRAR MÁS": "modula compras nuevas, no dispara venta",
+    "NO COMPRAR MÁS": "espera menos de este; la aportación va a otro, no a efectivo",
 }
 
 
@@ -624,6 +627,30 @@ with tab_evidencia:
                 if valuacion_g.crecimiento_historico is not None else "—",
             )
             tarjeta_cierra(valuacion_g.como_texto())
+
+    # D · ¿Cuánto esperar ganar? Solo con historia larga verificada (O, NNN, WPC): ahí la valuación
+    # dice cuánto rindió el papel desde un nivel parecido, que es lo que la investigación sí respaldó.
+    if mercado_estudio.hay_estudio(ticker):
+        con_estudio = tuple(t for t in sorted(repo.emisores()["ticker"]) if mercado_estudio.hay_estudio(t))
+        esperado = esperado_en_cache(repo, con_estudio, asof, firma_de_la_base())
+        fila = esperado.hoy[esperado.hoy["emisor"] == ticker]
+        tarjeta_abre(
+            "¿Cuánto esperar ganar?",
+            "Lo que rindieron O, NNN y WPC en 5 años desde un nivel de valuación parecido, neto con broker.",
+        )
+        if fila.empty or pd.isna(fila.iloc[0]["mediana"]):
+            st.caption("Sin percentil del consenso o sin trimestres suficientes en su tramo.")
+            tarjeta_cierra()
+        else:
+            f = fila.iloc[0]
+            e_izq, e_med, e_der = st.columns(3)
+            e_izq.metric("Tramo del consenso", f"{f['tramo']} · {f['percentil']:.0%}")
+            e_med.metric("Mediana a 5 años", pct(f["mediana"]))
+            e_der.metric("8 de cada 10 casos", f"{pct(f['p10'])} a {pct(f['p90'])}")
+            tarjeta_cierra(
+                mod_metodos.frase_esperado(f) + " «Caro» quiere decir esperar menos, no perder: no es señal de "
+                "vender ni de esperar en efectivo."
+            )
 
 
 with tab_estados:

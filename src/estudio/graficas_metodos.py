@@ -95,8 +95,43 @@ def azar(r: ResultadoMetodos, clave: str = "consenso", t: Tema = OSCURO) -> go.F
     return fig
 
 
+def esperado(x, t: Tema = OSCURO) -> go.Figure:
+    """Lo que rindieron los tres emisores en los 5 años siguientes desde cada tramo del consenso:
+    caja del p25 al p75, bigotes del p10 al p90, y dónde está cada emisor hoy."""
+    from src.estudio.metodos import TRAMOS
+
+    tabla, hoy = (x.tabla, x.hoy) if hasattr(x, "tabla") else (x.esperado, x.esperado_hoy())
+    j = tabla[tabla["alcance"] == "juntos"].set_index("tramo").reindex([n for n, _, _ in TRAMOS])
+    j = j.dropna(subset=["mediana"])
+    fig = go.Figure()
+    fig.add_trace(go.Box(
+        x=list(j.index), q1=j["p25"], median=j["mediana"], q3=j["p75"], lowerfence=j["p10"], upperfence=j["p90"],
+        name="5 años siguientes", marker_color=t.principal, line={"color": t.principal, "width": 1.6},
+        fillcolor="rgba(245,166,35,0.22)", boxpoints=False, hoverinfo="skip",
+    ))
+    fig.add_scatter(x=list(j.index), y=j["mediana"], mode="markers+text", marker={"color": t.principal, "size": 8},
+                    text=[f"{v:.1%}" for v in j["mediana"]], textposition="middle right",
+                    textfont={"color": t.texto, "size": 11}, name="mediana", showlegend=False,
+                    customdata=np.c_[j["p10"], j["p90"], j["trimestres"]],
+                    hovertemplate="%{x}: mediana %{y:.1%}; 8 de cada 10 entre %{customdata[0]:.1%} y "
+                                  "%{customdata[1]:.1%} (%{customdata[2]} trimestres)<extra></extra>")
+    efectivo = j["efectivo_5a"].median()
+    if pd.notna(efectivo):
+        fig.add_hline(y=efectivo, line={"color": t.contexto, "width": 1, "dash": "dot"},
+                      annotation_text=f"efectivo neto, {efectivo:.1%}", annotation_position="bottom right",
+                      annotation_font={"color": t.texto_2, "size": 10})
+    if not hoy.empty:
+        for tramo, g in hoy.groupby("tramo"):
+            if tramo in j.index:
+                fig.add_annotation(x=tramo, y=float(j.loc[tramo, "p90"]), yshift=16, showarrow=False,
+                                   text="hoy: " + ", ".join(g["emisor"]), font={"color": t.principal, "size": 11})
+    fig = _base(fig, t, alto=360, eje_y="retorno anual de los 5 años siguientes, neto", formato_y=".0%")
+    fig.update_layout(hovermode="closest", showlegend=False)
+    return fig
+
+
 FIGURAS = {"mapa": mapa, "barato_caro": barato_caro, "dispersion": dispersion,
-           "asignacion": asignacion, "azar": azar}
+           "asignacion": asignacion, "azar": azar, "esperado": esperado}
 
 
 def valores(ri, ticker: str, t: Tema = OSCURO) -> go.Figure:

@@ -220,7 +220,8 @@ def test_las_vistas_ponen_cada_fraccion_en_porcentaje(r_metodos):
 
     from src.estudio import vistas_metodos as vm
 
-    tablas = {"juntos": vm.juntos(r_metodos), "asignacion": vm.asignacion(r_metodos), "metodos": vm.metodos()}
+    tablas = {"juntos": vm.juntos(r_metodos), "asignacion": vm.asignacion(r_metodos), "metodos": vm.metodos(),
+              "esperado": vm.esperado(r_metodos), "esperado_hoy": vm.esperado_hoy(r_metodos)}
     for nombre, construir in vm.VISTAS.items():
         tablas[nombre] = construir(r_metodos, next(iter(r_metodos.paneles)))
     problemas = []

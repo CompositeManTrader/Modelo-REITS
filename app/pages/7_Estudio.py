@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from comun import (  # noqa: E402
     configurar,
     descargo,
+    esperado_en_cache,
     exigir_base,
     explicar,
     firma_de_la_base,
@@ -34,9 +35,11 @@ from comun import (  # noqa: E402
 from marca import COLOR_LUZ, GLIFO_LUZ, encabezado, inyectar_estilos  # noqa: E402
 from src.estudio import estudio as mod_estudio  # noqa: E402
 from src.estudio import graficas as g  # noqa: E402
+from src.estudio import graficas_metodos as gm  # noqa: E402
 from src.estudio import historia as hist  # noqa: E402
 from src.estudio import (
     mercado,  # noqa: E402
+    metodos,  # noqa: E402
     textos,  # noqa: E402
     vistas,  # noqa: E402
 )
@@ -304,6 +307,17 @@ grafica("escenarios")
 mostrar_tabla(vistas.escenarios(e))
 for s in h.supuestos:
     st.caption(s)
+
+st.subheader("Lo que rindió desde donde está hoy")
+esperado = esperado_en_cache(repo, tuple(con_estudio), asof, firma_de_la_base())
+fila = esperado.hoy[esperado.hoy["emisor"] == ticker]
+if fila.empty:
+    st.caption("Sin percentil del consenso todavía para este emisor.")
+else:
+    st.markdown(metodos.frase_esperado(fila.iloc[0]) + " Los escenarios de arriba salen de un modelo (yield más "
+                "crecimiento); este rango sale de lo que de verdad pasó con O, NNN y WPC. El detalle está en la "
+                "página **Valuación en el tiempo**.")
+    st.plotly_chart(gm.esperado(esperado, t=g.OSCURO), width="stretch", config={"displayModeBar": False})
 
 # --------------------------------------------------------------------------------------
 # Riesgos
