@@ -25,12 +25,25 @@ import pandas as pd
 
 from src.config import (
     DEDUCCION_CIEGA_ARRENDAMIENTO,
+    ISR_ADICIONAL_DIVIDENDO_EXTRANJERO_BROKER,
     ISR_ADICIONAL_MEXICO_DIVIDENDO_EXTRANJERO,
     RETENCION_EEUU_W8BEN,
     TASA_CEDULAR_GANANCIAS_SIC,
     TASA_MAXIMA_ESTATE_TAX,
     UMBRAL_ESTATE_TAX_USD,
 )
+
+
+def tasa_dividendo_via_broker(marginal: float) -> float:
+    """Carga total sobre el dividendo de un REIT comprado con un broker de EE. UU.
+
+    Retención de EE. UU. con el W-8BEN (10%) + la tarifa anual sobre el dividendo bruto con
+    esa retención acreditada + 10% adicional sobre lo distribuido neto de la retención
+    (Art. 142 fr. V LISR): 0.10 + (marginal − 0.10) + 0.10 × 0.90 = marginal + 0.09.
+    """
+    retencion = RETENCION_EEUU_W8BEN
+    return retencion + max(marginal - retencion, 0.0) + ISR_ADICIONAL_DIVIDENDO_EXTRANJERO_BROKER * (1 - retencion)
+
 
 # --------------------------------------------------------------------------------------
 # Tarifa anual del ISR para personas físicas (Art. 152 LISR)

@@ -312,6 +312,16 @@ def _conclusiones(e: Estudio) -> list[Conclusion]:
     return c
 
 
+def con_dividendo_neto(e: Estudio, tasa: float) -> Estudio:
+    """El estudio con el retorno total neto de ``tasa`` al dividendo (en lugar del 20% del SIC)."""
+    from dataclasses import replace
+
+    t = e.tabla.copy()
+    t["rt_usd_neto"] = retornos.indice_retorno_total(e.historia_mercado, fraccion_neta=1 - tasa).reindex(t.index)
+    t["rt_mxn_neto"] = t["rt_usd_neto"] * t["usdmxn"]
+    return replace(e, serie=replace(e.serie, tabla=t))
+
+
 def armar_versionado(ticker: str, *, asof: dt.date | None = None) -> Estudio:
     """El estudio de un emisor con su historia versionada y el ajustado del proveedor para validarla."""
     ajustado = pd.read_csv(mercado.dir_de(ticker) / mercado.ARCHIVO_PRECIOS,

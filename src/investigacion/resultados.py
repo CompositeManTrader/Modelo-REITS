@@ -78,7 +78,7 @@ def cargar(raiz: Path | None = None) -> dict:
     base = raiz or DIR_RESULTADOS
     salida: dict = {}
     fechas = {"desde", "hasta", "maximo", "minimo", "recuperado", "fecha"}
-    for fase in ("fase3", "fase5", "fase6", "fase7", "fase8", "sensibilidad_broker"):
+    for fase in ("fase3", "fase5", "fase6", "fase7", "fase8", "sensibilidad_broker", "extremos", "poder"):
         d = base / fase
         if not d.exists():
             continue

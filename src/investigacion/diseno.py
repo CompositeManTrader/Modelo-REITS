@@ -13,12 +13,12 @@ import pandas as pd
 
 from src.config import (
     COMISION_BROKER_EEUU,
-    ISR_ADICIONAL_DIVIDENDO_EXTRANJERO_BROKER,
     ISR_ADICIONAL_MEXICO_DIVIDENDO_EXTRANJERO,
     RETENCION_EEUU_W8BEN,
     TASA_CEDULAR_GANANCIAS_SIC,
     TASAS_MARGINALES_SENSIBILIDAD,
 )
+from src.fiscal.mexico import tasa_dividendo_via_broker
 
 FECHA_DEL_DISENO = pd.Timestamp("2026-10-06")
 
@@ -99,14 +99,9 @@ VEREDICTOS = ("APROBADO", "INCONCLUSO", "RECHAZADO")
 
 
 def impuesto_dividendo_broker(marginal: float) -> float:
-    """Carga total sobre el dividendo de un REIT comprado con un broker de EE. UU.
-
-    Retención de EE. UU. (10%) + la tarifa anual sobre el dividendo bruto menos esa retención
-    acreditada + 10% adicional sobre lo distribuido neto de la retención:
-    0.10 + (marginal − 0.10) + 0.10 × 0.90 = marginal + 0.09.
-    """
-    retencion = RETENCION_EEUU_W8BEN
-    return retencion + max(marginal - retencion, 0.0) + ISR_ADICIONAL_DIVIDENDO_EXTRANJERO_BROKER * (1 - retencion)
+    """Carga total sobre el dividendo de un REIT comprado con un broker de EE. UU.: marginal + 9 puntos
+    (``fiscal.mexico.tasa_dividendo_via_broker``)."""
+    return tasa_dividendo_via_broker(marginal)
 
 
 def perfil_broker(marginal: float) -> Objetivo:

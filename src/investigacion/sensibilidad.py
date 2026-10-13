@@ -288,16 +288,6 @@ def fase6_final(perfiles: dict[str, Objetivo] = PERFILES, *, pbo: float, dsr: fl
 # --------------------------------------------------------------------------------------
 
 
-def con_dividendo_neto(e, tasa: float):
-    """El estudio con el retorno total neto de ``tasa`` al dividendo (en lugar del 20% del SIC)."""
-    from src.estudio import retornos
-
-    t = e.tabla.copy()
-    t["rt_usd_neto"] = retornos.indice_retorno_total(e.historia_mercado, fraccion_neta=1 - tasa).reindex(t.index)
-    t["rt_mxn_neto"] = t["rt_usd_neto"] * t["usdmxn"]
-    return replace(e, serie=replace(e.serie, tabla=t))
-
-
 def retorno_largo(e, tasa: float) -> dict:
     """Comprar al inicio y reinvertir el dividendo neto: retorno anual en dólares de toda la historia."""
     from src.estudio import retornos
@@ -311,6 +301,7 @@ def estudios_(perfiles: dict[str, Objetivo] = PERFILES, *, construidos: dict | N
               registrar: bool = True, ruta_bitacora=None) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """El semáforo de cada emisor, la asignación entre los tres con cada método y el retorno largo."""
     from src.estudio import estudio, macro, metodos, reglas
+    from src.estudio.estudio import con_dividendo_neto
 
     construidos = construidos or {t: estudio.armar_versionado(t) for t in EMISORES}
     tbill, baa, cpi = reglas.cargar_tbill(), macro.cargar("baa"), macro.cargar("cpi")

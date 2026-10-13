@@ -30,8 +30,8 @@ EULER = 0.5772156649015329
 # --------------------------------------------------------------------------------------
 
 
-def newey_west_t(serie: np.ndarray, rezago: int) -> float:
-    """t del promedio de una serie con errores de Newey-West (Bartlett)."""
+def error_estandar_nw(serie: np.ndarray, rezago: int) -> float:
+    """Error estándar del promedio de una serie con Newey-West (Bartlett)."""
     x = np.asarray(serie, dtype=float)
     x = x[~np.isnan(x)]
     n = len(x)
@@ -41,7 +41,15 @@ def newey_west_t(serie: np.ndarray, rezago: int) -> float:
     var = u @ u / n
     for k in range(1, min(rezago, n - 1) + 1):
         var += 2 * (1 - k / (rezago + 1)) * (u[k:] @ u[:-k]) / n
-    return float(x.mean() / math.sqrt(var / n)) if var > 0 else np.nan
+    return float(math.sqrt(var / n)) if var > 0 else np.nan
+
+
+def newey_west_t(serie: np.ndarray, rezago: int) -> float:
+    """t del promedio de una serie con errores de Newey-West (Bartlett)."""
+    x = np.asarray(serie, dtype=float)
+    x = x[~np.isnan(x)]
+    ee = error_estandar_nw(x, rezago)
+    return float(x.mean() / ee) if np.isfinite(ee) else np.nan
 
 
 def r2_fuera_de_muestra(real: np.ndarray, pronostico: np.ndarray, promedio: np.ndarray) -> float:

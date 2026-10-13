@@ -12,6 +12,8 @@
     python scripts/investigacion.py fase7      # fase 7: la escalera de modelos
     python scripts/investigacion.py fase8      # fase 8: la prueba final (abre los mercados sellados)
     python scripts/investigacion.py broker     # las mismas reglas con los impuestos de un broker de EE. UU.
+    python scripts/investigacion.py extremos   # exploratoria: qué pasa en los extremos de valuación
+    python scripts/investigacion.py poder      # qué tan grande tenía que ser una ventaja para verla
     python scripts/investigacion.py pdf        # el informe en PDF, con los resultados guardados
 
 Solo estos comandos tocan la red. La página de Nareit pide un navegador real: Chromium
@@ -233,6 +235,34 @@ def cmd_broker(abrir_sellados: bool = True, con_estudios: bool = True, solo_info
     return 0
 
 
+def cmd_extremos(solo_informe: bool = False) -> int:
+    """Exploratoria: la valuación en su 5% o 10% más extremo (abre la validación, nunca los sellados)."""
+    from src.investigacion import extremos
+
+    destino = RAIZ / "docs" / "investigacion" / "extremos_resultados.md"
+    r = extremos.cargar() if solo_informe else extremos.correr()
+    if not solo_informe:
+        extremos.guardar(r)
+    destino.write_text(extremos.informe(r), encoding="utf-8")
+    print(destino.relative_to(RAIZ))
+    print(r["pistas"].to_string(index=False))
+    return 0
+
+
+def cmd_poder(solo_informe: bool = False) -> int:
+    """Qué tan grande tenía que ser una ventaja para que cada prueba la viera (no prueba reglas nuevas)."""
+    from src.investigacion import poder
+
+    destino = RAIZ / "docs" / "investigacion" / "poder_resultados.md"
+    r = poder.cargar() if solo_informe else poder.correr()
+    if not solo_informe:
+        poder.guardar(r)
+    destino.write_text(poder.informe(r), encoding="utf-8")
+    print(destino.relative_to(RAIZ))
+    print(r["errores"][["prueba", "muestra", "observado", "nula_media", "ee", "mde"]].to_string(index=False))
+    return 0
+
+
 def cmd_pdf() -> int:
     from src.export.pdf_investigacion import generar_pdf
     from src.investigacion import resultados
@@ -245,14 +275,17 @@ def cmd_pdf() -> int:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("comando", choices=["sector", "macro", "factores", "sellar", "emisores", "exploracion", "fase5",
-                                       "fase6", "fase7", "fase8", "broker", "pdf"])
+                                       "fase6", "fase7", "fase8", "broker", "extremos", "poder", "pdf"])
     p.add_argument("--sin-sellados", action="store_true", help="broker: no abre los sellados")
     p.add_argument("--sin-estudios", action="store_true", help="broker: no repite los estudios de O, NNN y WPC")
-    p.add_argument("--solo-informe", action="store_true", help="broker: reescribe el informe con lo guardado")
+    p.add_argument("--solo-informe", action="store_true",
+                   help="broker, extremos y poder: reescribe el informe con lo guardado")
     a = p.parse_args()
     if a.comando == "broker":
         return cmd_broker(abrir_sellados=not a.sin_sellados, con_estudios=not a.sin_estudios,
                           solo_informe=a.solo_informe)
+    if a.comando in ("extremos", "poder"):
+        return {"extremos": cmd_extremos, "poder": cmd_poder}[a.comando](solo_informe=a.solo_informe)
     return {"sector": cmd_sector, "macro": cmd_macro, "factores": cmd_factores, "sellar": cmd_sellar,
             "emisores": cmd_emisores,
             "exploracion": cmd_exploracion, "fase5": cmd_fase5, "fase6": cmd_fase6, "fase7": cmd_fase7,
