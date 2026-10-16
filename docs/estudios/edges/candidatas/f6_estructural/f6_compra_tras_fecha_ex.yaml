@@ -142,15 +142,16 @@ n_trials:
   observed_extra: 0
 
 notes_adversarial: >
-  Steelman en contra: (1) La caída en la fecha ex podría ser menor que el dividendo (en acciones, Elton y
-  Gruber, 1970, Review of Economics and Statistics, la ligan al impuesto marginal de quien tiene la
-  acción), y entonces comprar antes no devuelve todo el ingreso acumulado. En un ETF el precio
-  está anclado al NAV por la creación y redención, así que la caída debería ser ~1; B lo mide (kill 1).
-  (2) El ingreso de SCHH no se acumula de forma lineal: muchos REITs tienen su fecha ex en el último mes
-  del trimestre, así que casi todo f se concentra en las 3 a 5 semanas antes de la fecha ex de SCHH. Esto
-  ayuda a la regla, porque basta esperar poco, pero hay que medirlo. (3) Esperar en efectivo cuesta
-  ~0.085% por semana en valor esperado, del mismo orden que el impuesto evitado con f alto: con W de 5
-  semanas la regla puede salir neutra. (4) Es tan pequeña que el ruido de la TIR la tapa; B debe medirla
-  como diferencia pareada sobre la misma trayectoria de precios, no como dos TIR independientes.
-  Sobrevive como higiene: la mecánica está verificada en el prospecto y en la LISR, y el costo de
-  validarla es mínimo. No es alfa ni pretende pasar el +50.
+  VEREDICTO DEL ADVERSARIO (16-oct-2026): MATAR. Argumento dominante: rango propio de 0 a +6 pb al
+  año, una octava parte del objetivo; la card misma dice que no compite por los +50, así que no
+  justifica 18 trials del presupuesto de B. Mecanismo: el impuesto que se evita al esperar es 0.44 x
+  D completo, no 0.44 x f x D, y el costo es el retorno esperado en exceso durante la espera
+  (~0.085% por semana según la card), que crece con el tiempo y no con el patrón de acumulación del
+  ingreso dentro del fondo; el equilibrio queda en ~2.6 semanas en marzo (D ~0.5%), ~3.7 con el
+  promedio (0.72%) y ~5.7 en diciembre (D ~1.1%), así que los puntos del grid con W = 35 días
+  pierden en marzo, junio y septiembre. Con el calendario real (800 MXN el primer día hábil del
+  mes), la llegada cae ~3 a 3.5 semanas antes de la fecha ex de marzo, junio y septiembre, cerca del
+  equilibrio, y el calendario del backtest del repo (fin de trimestre) ya cae después de la fecha
+  ex: lo que queda es casi cero. Si se liquida al 10%, el ahorro baja a 0.34 x D: no desaparece,
+  pero sigue siendo irrelevante. La objeción cae solo si SCHH repartiera mucho más por trimestre, lo
+  que no ocurre.

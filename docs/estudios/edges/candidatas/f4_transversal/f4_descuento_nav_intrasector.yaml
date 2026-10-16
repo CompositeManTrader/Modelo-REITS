@@ -239,14 +239,21 @@ n_trials:
   observed_extra: 2
 
 notes_adversarial: >
-  Steelman preliminar del investigador (el adversario lo reemplaza). (1) Es S5 con otro corte: si
-  el S5 perdió porque el cap rate alto marca trampas de valor (oficinas y centros comerciales
-  2011-2015) y no por mezclar sectores, la versión intra-sector hereda el mismo problema; Letdin et
-  al. muestran que el componente fundamental del descuento va EN CONTRA del inversionista de valor y
-  la fase 6 encontró que «barato entre los de calidad» fue la peor regla (-211 pb). La variante 3
-  (residuo) es la respuesta, pero es la que más grados de libertad tiene. (2) El NOI de XBRL es un
-  sustituto pobre del NAV: no ve crecimiento de rentas embebido, desarrollo en curso ni terrenos;
-  la dispersión de ic dentro del sector puede ser casi toda calidad de activos. (3) La magnitud
-  central (~+10 pb) está abajo del criterio y del mínimo detectable; sobrevive como card solo
-  porque el rango alto supera +50 y porque el corte intra-sector nunca se probó (la fase 6 lo
-  descartó por falta de sector en los muertos).
+  VEREDICTO DEL ADVERSARIO (16-oct-2026): SOBREVIVE-DEGRADADA. Mejor argumento en contra: con el
+  respaldo NOI = FFO + intereses + G&A, la variante 1 es casi literalmente S5 de la fase 6 ((FFO +
+  intereses) / (capitalización + pasivos), -172 pb en desarrollo) menos la mediana del sector, y la
+  card no trae un kill de redundancia contra S5 (la de eficiencia sí lo trae contra S8 y S10). En
+  este universo lo barato por flujo fue trampa con la t más negativa de la fase 6 (barato entre los
+  de calidad, -211 pb, t = -4.48). La evidencia posterior a 2001 no pasa t > 3: Letdin, Sirmans y
+  Sirmans (2020) encuentran que la prima cruda solo predice al 10% con controles en 2001-2015 y que
+  el residuo de sentimiento da t = 2.99, con NAV de analista y frecuencia mensual, no con un
+  sustituto XBRL trimestral; las recomendaciones de Green Street ganaron por 1.5 a 3.3 puntos en
+  2012-2014, mucho menos que en los noventa. Crowding alto: el NAV es la disciplina de valuación de
+  todo gestor dedicado, que llega antes y con mejor dato. La aritmética de la propia card da un
+  máximo de ~57 pb (+60 antes de impuestos, +7 por no pagar SCHH, -10 de impuestos), no +80, y el
+  centro (+10) está debajo del mínimo detectable. Solapa con f5_recompra_neta_descuento_nav (misma
+  variable latente; esa card se mata). Por qué resiste: el único lugar del repo donde la valuación
+  sí mostró habilidad es dentro de un mismo tipo de propiedad (escoger entre O, NNN y WPC con el
+  consenso: +72 pb con mínimo detectable de 54 y mejor que 500 elecciones al azar, aunque con sesgo
+  de supervivencia), el canal de cierre externo existe (Chacon y Morillon 2025: los descontados son
+  adquiridos con más frecuencia y con mayor prima) y la card limita el lastre fiscal con su kill 5.

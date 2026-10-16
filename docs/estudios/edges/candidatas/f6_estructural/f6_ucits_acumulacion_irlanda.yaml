@@ -171,19 +171,28 @@ n_trials:
   observed_extra: 2
 
 notes_adversarial: >
-  Steelman en contra: (1) "No hay REFIPRE sin control" es la lectura literal del Art. 176, pero el mismo
-  artículo presume el control salvo prueba en contrario, y el SAT podría exigir la declaración
-  informativa del Art. 178 con multas o tratar el NAV acumulado como dividendo ficto. Si cualquiera de
-  las dos aplica, la ventaja se vuelve negativa (-58 pb). Por eso es precondición, no parámetro.
-  (2) El 15% dentro del fondo depende de que el fondo califique para el tratado (limitación de
-  beneficios) y tenga ≤ 5% de cada REIT; la huella de las fichas lo sugiere, pero es inferencia, no un
-  dato de retención. (3) XRES gana más en la aritmética, pero es sintético: el 15% es contractual (el
-  swap y la regla 871(m); el índice inmobiliario no pasa la prueba de yield ≤ 1.5 veces el del S&P 500
-  del 26 CFR 1.871-15(l)(3)), concentra ~30 emisoras con tope de 19% y, sin listado en la BMV, su
-  ganancia pagaría la tasa del Art. 120. (4) El índice Dividend+ deja fuera los REITs de yield < 2%, una
-  inclinación suave al yield alto que en la fase 6 perdió; en 2016-2020 costó cerca de 1 punto al año.
-  (5) Con 800 MXN al mes la comisión mínima por orden en Euronext o LSE se come la ventaja: por eso
-  existe el umbral de 60 mil USD, que con este saldo deja todo en SCHH durante años. Sobrevive porque
-  la mecánica es ley vigente verificada en el texto primario (tratado de 1999, LISR 142, 176 y 129), la
-  aritmética es positiva bajo la regla de nunca vender, y B puede medirla con NAVs públicos sin minar
-  nada: solo 4 combinaciones. No le gana a SCHH antes de impuestos; si gana, gana después.
+  VEREDICTO DEL ADVERSARIO (16-oct-2026): SOBREVIVE-DEGRADADA. Mejor argumento en contra: de sus
+  tres patas fiscales, una está en texto primario y dos dependen de supuestos. (1) REFIPRE: el Art.
+  176 LISR (reforma DOF 09-12-2019; texto revisado en mley.mx, pendiente de cotejo con la Cámara de
+  Diputados) dice que el capítulo solo será aplicable cuando el contribuyente ejerza el control
+  efectivo (> 50%), pero también que se presume, salvo prueba en contrario, que lo tiene: la carga
+  de la prueba es del contribuyente cada año, y no está verificado si la obligación informativa del
+  Art. 178 aplica sin control; si el SAT lo trata como REFIPRE, la ventaja pasa a -58 pb. (2) Art.
+  129 para IUSI: el Criterio 37/ISR/N no menciona ETFs; XRES no cotiza en la BMV y su ganancia iría
+  al Art. 120. (3) El 15% de retención dentro del fondo se infiere de la diferencia contra el
+  índice, no de un informe auditado; en XRES es contractual (swap con Morgan Stanley como
+  contraparte de ~99%). Aritmética de la propia card: IUSI, el vehículo realista (físico, listado en
+  la BMV como IUSIN MM), da +21 a +25 pb sin vender, más 0 a +8 por el impuesto sucesorio: ~+33 como
+  máximo, debajo de +50. Solo XRES sin vender nunca llega (+57 a +59), y liquidando al final cae a
+  -38 a -53: su ventaja no solo desaparece, se invierte. La composición domina la varianza: XRES
+  tiene 31 emisoras del sector inmobiliario del S&P 500 con tope de 19% a 20%, IUSI filtra yield >=
+  2% (la card estima ~1 punto al año de costo en 2016-2020), contra unos 120 REITs en SCHH.
+  Operabilidad: la clase IUSI nació el 25-jul-2025 con 19 a 23 M USD (riesgo de cierre y venta
+  forzada gravada), exige un broker con acceso a Euronext o LSE para residentes en México, y con 800
+  MXN al mes el umbral de 60 mil USD deja todo en SCHH por años. Por qué resiste: no es una
+  anomalía, así que no hay crowding ni decaimiento post-publicación; el protocolo de 1999 del
+  tratado EE. UU.-Irlanda, el Art. 142 fr. V y la cláusula de control del Art. 176 están en texto
+  primario; la exclusión del impuesto sucesorio de EE. UU. es real (IRS 2026) y vale más de lo que
+  la TIR captura; son solo 4 combinaciones y la precondición del contador es su kill 1. Si en México
+  el heredero conserva el costo del autor de la sucesión (inferido, por confirmar con contador),
+  nunca vender puede extenderse a la herencia.

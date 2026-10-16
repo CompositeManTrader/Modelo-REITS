@@ -217,14 +217,16 @@ n_trials:
   observed_extra: 1
 
 notes_adversarial: >
-  Steelman preliminar del investigador (el adversario debe reescribirlo). Mejor argumento en
-  contra: en EE. UU. el efecto se apagó después de su publicación (2001-2014 negativo no
-  significativo, Fernandes 2015), no hay ni una prueba en REITs, y el máximo trimestral 13F es un
-  sustituto grueso del máximo diario que mira el inversionista anclado. Además hay TENSIÓN DIRECTA
-  con f3_rebote_post_recorte_dividendo: esta card compra lo cercano a su máximo y aquella compra a
-  quien recortó el dividendo, que suele estar lejos de su máximo; en la misma región del corte
-  transversal no pueden ser ciertas las dos (anclaje con subreacción contra presión de clientela
-  con sobrerreacción). B debe probarlas como hipótesis rivales, no como complementarias. Por qué
-  sobrevive: cuesta solo 8 trials, su mecanismo es distinto de S1 por el uso del precio nominal en
-  un activo de dividendo alto, y la no-reversión es falsable en los meses 13 a 36. Si el
-  priorizador necesita cortar, esta es la primera de las tres f3 en salir.
+  VEREDICTO DEL ADVERSARIO (16-oct-2026): MATAR. Argumento dominante: techo propio de +40 pb y
+  centro ~+10, debajo del objetivo y del mínimo detectable de la selección (59 a 110 pb).
+  Solapamiento con una regla rechazada: George y Hwang (2004) muestran que la cercanía al máximo
+  explica la mayor parte de las ganancias del momentum, así que por construcción es pariente cercano
+  de S1 (momentum 12-3, rechazado con +38 pb en los sellados) y de
+  f3_momentum_residual_sin_reversion. Decaimiento: la única prueba de EE. UU. posterior a 2001 que
+  encontró el investigador (Fernandes 2015, tesis) da negativo y no significativo, y no hay ninguna
+  prueba en REITs. Mecanismo frágil en REITs: los objetivos de fusión quedan pegados a su máximo por
+  la oferta y no por anclaje, y el máximo de los cierres trimestrales 13F (fuente_maximo = 1) es un
+  sustituto grueso del máximo diario que mira el inversionista anclado. Tensión directa con
+  f3_rebote_post_recorte_dividendo (hipótesis rivales en la misma región del corte transversal). La
+  objeción cae si la señal mostrara correlación de rangos < 0.5 con S1 y un techo plausible >= 50
+  pb, que la propia card no sostiene.

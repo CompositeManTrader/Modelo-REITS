@@ -210,14 +210,15 @@ n_trials:
   observed_extra: 3
 
 notes_adversarial: >
-  Pre-steelman del investigador (el adversario lo reescribe): (1) aritmética: con 250 M USD de
-  piso y ponderación por capitalización, el grupo excluido pesa poco y la mejora esperada queda
-  debajo de +50 pb aun si el efecto existe; (2) en este universo ya se vio que excluir el quintil de
-  más riesgo de recorte costó 18 pb (D1) y que los que recortan rebotan +7.7% al año siguiente (H9):
-  en REITs, los de IVOL alta pueden ser justo los que rebotan, y excluirlos regala el rebote;
-  (3) Ooi, Wang y Webb (2009) encuentran el signo contrario y MacKinnon y Spinney (2017) no ven el
-  efecto en el periodo reciente; (4) el sesgo de supervivencia de Yahoo puede fabricar o borrar el
-  efecto. Sobrevive como candidata porque la versión idiosincrática diaria que pedía la literatura
-  nunca se probó (S4 fue volatilidad total trimestral), el mecanismo nombra al perdedor y su
-  barrera, la exclusión deja la cartera casi igual a SCHH y el costo de probarla es bajo; su prior
-  debe ser bajo.
+  VEREDICTO DEL ADVERSARIO (16-oct-2026): MATAR. Argumento dominante: el techo propio es +30 pb,
+  debajo de +50, porque el grupo excluido pesa ~2-8% del universo ponderado por capitalización y ni
+  un diferencial grande mueve la TIR lo suficiente. Además, el diseño cae justo donde la anomalía no
+  existe: Bali y Cakici (2008, JFQA 43(1)) muestran que el efecto de IVOL no es robusto a ponderar
+  por valor ni a filtros de tamaño, precio y liquidez, y esta card pondera por capitalización con
+  piso de 250 M USD y precio >= 5 USD; Pyun (2021, Critical Finance Review) lo ve atenuarse en
+  carteras ponderadas por valor al final de la muestra; MacKinnon y Spinney (2017) no lo ven en
+  REITs en el periodo reciente. En este universo, excluir el quintil de más riesgo de recorte costó
+  -18 pb (D1) y los que recortan, que suelen ser de IVOL alta, rebotaron +7.7% al año siguiente
+  (H9): excluirlos regala el rebote. Riesgo de datos: Yahoo pierde a los muertos, que son justo los
+  de IVOL alta. La objeción cae si el grupo excluido pesara >= 15% del universo con un diferencial
+  bruto >= 4% al año, algo que la propia card descarta.

@@ -276,15 +276,24 @@ n_trials:
   observed_extra: 1
 
 notes_adversarial: >
-  Steelman preliminar del investigador (el adversario debe reescribirlo). Mejor argumento en
-  contra: en REITs el R2 contra el índice es alto y la dispersión idiosincrática baja, así que el
-  residuo trimestral es en buena parte ruido; con 12 a 20 observaciones el beta es impreciso y el
-  puntaje puede terminar correlacionado más de 0.8 con el 12-3 ya rechazado. La evidencia de
-  no-reversión (Gutierrez y Prinsky 2007) es de 1963-2000, antes de su publicación y del auge
-  pasivo, y la muestra de Blitz, Huij y Martens excluye REITs: no hay ni una prueba en el activo. Además
-  el exceso bruto de S1 en este universo bajó de 7.2% (2011-2013) a -0.2% (2021-2026): si el
-  drift de información en REITs murió, el residuo murió con él.
-  Por qué sobrevive: el mecanismo (agencia institucional + propiedad pasiva) es distinto del de S1
-  y predice algo falsable y barato de medir (meses 13 a 36, kill 1); la redundancia con S1 se mide
-  antes de gastar el presupuesto (kill 2); el grid es chico (16) y la ponderación por
-  capitalización evita la desventaja conocida de pesar igual.
+  VEREDICTO DEL ADVERSARIO (16-oct-2026): SOBREVIVE-DEGRADADA (la más cerca de morir de las que
+  sobreviven). Mejor argumento en contra: es una variante de S1 diseñada después de ver a S1 fallar
+  (+38 pb en los sellados), y su techo propio (+50) apenas iguala el objetivo; el centro (+20) está
+  debajo del mínimo detectable de la selección (59 a 110 pb). Dentro de un solo sector con betas
+  cercanas a 1, el orden por residuo y el orden por retorno total de 12 meses difieren poco: (b - 1)
+  x retorno del índice REIT es del orden de +/-4 a +/-8 puntos contra una dispersión transversal de
+  12 meses de 15 a 20 puntos (inferido, no medido), así que la correlación de rangos con S1
+  probablemente supere 0.8 con factor_tipo_propiedad = 0 y dispare el kill 2; la variante 1 exige
+  una clasificación por tipo de propiedad point-in-time que el panel no tiene. El drift que la
+  sostiene se apagó en este universo: el exceso bruto de S1 pasó de 7.2% (2011-2013) a 1.7%
+  (2014-2015), 2.1% (2016-2020) y -0.2% (2021-2026); Tomtosov et al. (2025) dan -3.81% al año al
+  momentum de 12 meses en REITs en 1998-2021, y Blitz, Hanauer y Vidojevic (2020) reportan que el
+  momentum idiosincrático se debilitó desde inicios de los 2000. La evidencia de no-reversión
+  (Gutierrez y Prinsky 2007) es de 1963-2000. Crowding fuera de REITs: Robeco aplica el residuo al
+  momentum en todos sus modelos cuantitativos de selección. Sin muestra limpia: los sellados ya se
+  abrieron y la prueba final exige datos posteriores a 2026T2. Por qué resiste: el mecanismo
+  (persecución del retorno relativo contra subreacción a la noticia propia) predice algo distinto de
+  S1 y relevante para quien nunca vende (sin reversión en los meses 13 a 36), los dos kills baratos
+  (reversión y redundancia) se miden antes de gastar el presupuesto, y Chui, Titman y Wei (2003)
+  encuentran el momentum de REITs intra-industria y más fuerte en los grandes y líquidos, compatible
+  con ponderar por capitalización.

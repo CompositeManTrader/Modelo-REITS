@@ -210,15 +210,19 @@ n_trials:
   observed_extra: 0
 
 notes_adversarial: >
-  Steelman preliminar del investigador (el adversario debe reescribirlo): (1) en este universo lo
-  barato fue trampa (fase 6: rendimiento FFO -167 pb, cap rate -172, calidad y barato -211) y el
-  recomprador neto es, casi por definición, un REIT barato; la firma de la administración puede no
-  cambiar eso. (2) Fu y Huang (2016) matan el efecto general después de 2003 y Huang, Liano y Pan
-  (2019) dicen que en REITs se incorpora en el anuncio. (3) Las recompras netas de 2017-2024 se
-  concentraron en oficinas, el peor tipo de inmueble del periodo: sin neutralizar por sector, B
-  puede medir una apuesta sectorial y no un descuento revelado. (4) Casi duplica 'crecimiento de
-  activos bajo' (S10), que ya perdió. (5) El yield de los recompradores suele ser mayor que el de
-  SCHH y cada punto cuesta ~47 pb al año con el 44% al dividendo. Sobrevive como candidata porque
-  es la única forma pública de ver el descuento a NAV, que es la señal transversal con mejor
-  evidencia en REITs (Gentry, Jones y Mayer 2004; Letdin et al. 2020), porque su efecto es lento y
-  le sirve a quien nunca vende, y porque B la puede probar barato con el panel más un campo de XBRL.
+  VEREDICTO DEL ADVERSARIO (16-oct-2026): MATAR. Argumento dominante: el extremo alto (+75) se apoya
+  en +8% por tramo tomado de la reversión del P/NAV previa a 2003, y la evidencia posterior lo
+  anula: Fu y Huang (2016, Management Science 62(4)) documentan que el retorno anormal de largo
+  plazo después de recompras desaparece en los eventos de 2003-2012, y Huang, Liano y Pan (2019,
+  Journal of Economics and Finance 43(2)) encuentran que en REITs la señal de la recompra se
+  incorpora completa en el anuncio y que el retorno posterior viene de la industria. Con exceso ~0
+  por tramo, el rango de la propia card queda entre ~-60 y ~+5 por el yield más alto (-47 pb por
+  punto). Solapamiento: mide la misma variable latente que f4_descuento_nav_intrasector (el
+  descuento a NAV) en un subconjunto más chico y más ruidoso, y es pariente de crecimiento de
+  activos bajo (S10: -6 pb, -57 con retraso). Trampa concreta: SL Green compró 36.1 millones de
+  acciones de 2017 a 2022 a precios promedio de 64 a 108 USD, más de la mitad de sus 64.7 millones
+  en circulación a fines de 2023 (10-K de 2023), mientras las oficinas entraban en su peor década.
+  Eventos escasos: en 2009-2013 los REITs emitían, y su kill 4 (< 3 emisores por trimestre) se
+  dispara desde el inicio. Producto: ETFs de recompras desde 2006 (PKW). La objeción cae si una
+  prueba con eventos de REITs posteriores a 2012 muestra exceso propio del emisor >= 4% por tramo
+  después del anuncio.

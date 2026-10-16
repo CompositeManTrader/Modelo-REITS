@@ -258,16 +258,22 @@ n_trials:
   observed_extra: 1
 
 notes_adversarial: >
-  Steelman preliminar del investigador (el adversario debe reescribirlo). Mejor argumento en
-  contra: el +7.7% de validación es beta de rebote: los que recortaron en 2020 (hoteles, centros
-  comerciales, oficinas) tenían beta alta y el sector subió 41% en 2021; en desarrollo el signo
-  fue negativo. La evidencia general (Michaely, Thaler y Womack 1995) es de drift negativo, la
-  presión de precio forzada se comprimió (Greenwood y Sammon 2022), el yield posterior al recorte
-  suele seguir arriba del de SCHH con dividendo al 44%, y la validación ya está contaminada sin
-  sellados para reabrir: la única prueba limpia es hacia adelante, con pocos eventos fuera de
-  crisis. Hay además tensión directa con f3_cercania_maximo_52s (hipótesis rivales sobre la misma
-  región del corte transversal). Por qué sobrevive: es la única señal con huella positiva en este
-  universo, su mecanismo (clientela de ingreso + retención de capital por la regla del 90% fiscal)
-  es anterior al dato y distinto del de las acciones generales, los kills 1 y 2 separan mecanismo
-  de episodio y de beta, y el inversionista tiene un asiento real (nunca vende, sin riesgo de
-  carrera) para cobrar un edge episódico de crisis.
+  VEREDICTO DEL ADVERSARIO (16-oct-2026): SOBREVIVE-DEGRADADA. Mejor argumento en contra: el extremo
+  alto (+55) descansa en el +7.7% de D3, que es justo el dato que motivó la card: t = 1.31, lejos
+  del t > 3 de Harvey, Liu y Zhu (2016), con signo negativo en desarrollo (-0.8%), ya mirado y sin
+  sellados que reabrir; sin ese dato el centro es de 0 a +20. Los recortes llegan en racimos de
+  crisis (en 2008-2009 más de dos tercios de los REITs recortaron o suspendieron, según S&P Global
+  vía fuente secundaria; en 2020, otra ola), así que hay ~2 episodios independientes en 18 años, y
+  en esos trimestres los que recortan son hoteles, centros comerciales y oficinas: beta sectorial al
+  rebote de 2021 (+41% del sector). La card cuenta las suspensiones como recortes, pero Pettenuzzo,
+  Sabbatucci y Timmermann (2020, CEPR DP14921) encuentran retornos anormales negativos grandes en
+  las empresas que suspendieron y positivos en las que solo redujeron: mezcla dos grupos de signo
+  opuesto. En acciones generales el drift después de omisiones es negativo (Michaely, Thaler y
+  Womack 1995) y la presión de vendedores forzados se comprimió (Greenwood y Sammon 2022). El yield
+  después del recorte suele seguir arriba del de SCHH y paga 44%. Por qué resiste: hay evidencia
+  independiente de rebote en crisis (Case, Hardin y Wu 2012 en REITs 2008-2009; Pettenuzzo et al.
+  2021, CEPR DP16145, recuperación más rápida después de suspensiones en 2020), el mecanismo de la
+  regla del 90% sobre la renta fiscal es específico de REITs y anterior al dato, los kills 1 y 2
+  separan episodio y beta, y quien nunca vende sí puede sostener emisores en crisis. Como la propia
+  card dice, la única prueba limpia es hacia adelante, y con ~1 crisis por década tardará años en
+  dar veredicto.

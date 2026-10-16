@@ -190,17 +190,18 @@ n_trials:
   observed_extra: 0
 
 notes_adversarial: >
-  Steelman del propio investigador; el adversario lo reescribirá. (1) McConnell y Xu (2008) no
-  encuentran más volumen ni más flujo a fondos en el cambio de mes, así que el mecanismo de flujos
-  no está cerrado. Responde Etula et al. con trades institucionales directos de ANcerno y con el
-  experimento de liquidación europeo, pero esa evidencia es del mercado amplio hasta 2013, no de
-  REITs. (2) Con un índice REIT ponderado por valor, las anomalías de calendario desaparecen
-  (Hardin et al. 2005), y en REITs de EE. UU. el cambio de mes se desvanece en 2015-2024 (tesis de
-  Aalto). (3) Potencia: con volatilidad diaria de ~1.3%, una ventana de 3 días tiene desviación de
-  ~2.3%. Con 186 meses el error estándar del delta medio es de ~0.17%, y con 62 fines de trimestre
-  de ~0.29%: un efecto real de 0.25% queda en t ~ 0.9 a 1.5. B casi seguro no podrá confirmarlo,
-  y la card debe leerse como 'regla gratuita sin daño esperado', no como edge demostrable. (4)
-  Aunque exista, mueve a lo más ~5 pb/año de TIR: no sirve para el objetivo de +50 pb. Sobrevive
-  como candidata solo porque su costo es cero, su mecanismo tiene un perdedor forzado con evidencia
-  causal y es la única regla de calendario que no exige esperar con el efectivo ocioso: compra
-  ANTES de la fecha base, no después.
+  VEREDICTO DEL ADVERSARIO (16-oct-2026): MATAR. Argumento dominante: el techo de la propia card es
+  +5 pb al año, una décima del objetivo, y la aritmética que ella misma verifica exige un delta de
+  ~4.3% por aportación para llegar a +50 pb, imposible para un efecto de 1 a 5 días. El repo pone un
+  techo independiente: en la fase 3 (1972-2015), un oráculo que conoce el retorno del mes siguiente
+  y solo decide el dinero nuevo, sin vender, ganó +29 pb al año; mover la compra unos días dentro
+  del mes no puede acercarse a +50. Además: (1) potencia: la card estima t de 0.9 a 1.5 aun si el
+  efecto de 0.25% es real, así que su kill 2 (p > 0.10 con >= 120 meses) casi seguro se dispara y B
+  gasta 6 trials para archivarla; (2) decaimiento: Maberly y Waggoner (2000) no ven el cambio de mes
+  después de 1990 en el S&P 500 y Hardin, Liano y Huang (2005) no ven anomalías de calendario en un
+  índice REIT ponderado por valor en 1994-2002; no encontré una replicación independiente de Etula
+  et al. con datos posteriores a 2013 (búsqueda de oct-2026); (3) cambio estructural: con T+1 desde
+  el 28-may-2024 la ventana queda en T-2 a T y solo hay ~2.4 años de datos de ese régimen; (4)
+  McConnell y Xu (2008) no encuentran más volumen ni más flujo a fondos en esos días. La objeción
+  cae solo si se muestra que mover el día de compra puede cambiar la TIR en >= 50 pb, lo que
+  contradice la aritmética de la card y el oráculo de la fase 3.

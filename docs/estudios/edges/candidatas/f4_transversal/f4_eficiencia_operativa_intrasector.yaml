@@ -201,14 +201,23 @@ n_trials:
   observed_extra: 2
 
 notes_adversarial: >
-  Steelman preliminar del investigador (el adversario lo reemplaza). (1) Es calidad con otro nombre:
-  la fase 6 rechazó FFO / activos (-118 pb) y la calidad defensiva, y el satélite de calidad perdió
-  -70 pb contra el índice; si la eficiencia es solo tamaño (los grandes tienen menos G&A por dólar
-  de ingreso), la card replica «tamaño grande» (+60 pb en desarrollo, rechazado). (2) La única
-  evidencia de REITs con esta medida es de un solo grupo de autores y llega a 2017; las otras dos
-  pruebas en REITs con medidas cercanas no encuentran prima. (3) El gasto de propiedad en XBRL es
-  heterogéneo: la dispersión de rel_i dentro del sector puede ser contabilidad (qué se capitaliza,
-  qué se reembolsa por inquilinos en arrendamiento neto) y no eficiencia. Sobrevive porque es la
-  única medida de «calidad» con evidencia publicada en REITs que el repo no probó, porque es
-  sector-neutral, y porque su perfil de menor yield juega a favor del inversionista con dividendo
-  gravado a 44%.
+  VEREDICTO DEL ADVERSARIO (16-oct-2026): SOBREVIVE-DEGRADADA. Mejor argumento en contra: dentro de
+  los sectores de Nareit, gasto operativo / ingreso mide sobre todo la ESTRUCTURA DEL ARRENDAMIENTO,
+  no la eficiencia. Retail junta arrendamiento neto (Realty Income, NNN, Agree) con centros
+  comerciales y malls; Health Care junta triple-net (Omega, Sabra, CareTrust) con vivienda para
+  adultos mayores operada (los SHOP o RIDEA de Welltower y Ventas, que reportan el gasto de operar
+  el negocio). La señal mandaría la aportación a los de arrendamiento neto, que suelen pagar más
+  dividendo (inferido; B debe medirlo, y la card no trae un kill de yield como las otras dos f4),
+  así que la ventaja fiscal de +5 a +20 pb puede cambiar de signo; con ese cambio, la derivación de
+  la propia card (+25 a +40 antes de impuestos, +7 por no pagar SCHH) queda en ~+42 como máximo,
+  debajo de +50; la card declara +90 pero su derivación da ~67. Ruptura de la medida: ASU 2018-20
+  (FASB, dic-2018) obliga desde 2019 a excluir del ingreso y del gasto los costos del arrendador que
+  paga el inquilino directamente (p. ej., impuesto predial), lo que cambia el cociente a mitad de la
+  muestra. La evidencia en REITs es de un solo grupo de autores con datos hasta 2017 (Beracha, Feng
+  y Hardin 2019) y dos estudios independientes no encuentran prima de rentabilidad (Andronoudis,
+  Guidolin y Pedio 2025; Tomtosov et al. 2025); en el repo, FFO / activos perdió -118 pb y el
+  satélite de calidad -70. Por qué resiste: el canal de G&A y de administración externa contra
+  interna tiene un perdedor nombrado, la comparación intra-sector la separa de S8 y S10 (y su kill 4
+  lo verifica), Letdin, Seagraves y Sirmans (2025) reportan un factor de calidad en REITs de
+  1987-2023 que sobrevive a más de 15,000 predictores (solo resumen leído), y su centro (+30) es el
+  más alto de las cards de selección.

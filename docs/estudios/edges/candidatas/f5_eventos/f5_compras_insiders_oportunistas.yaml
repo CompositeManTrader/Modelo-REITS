@@ -218,16 +218,18 @@ n_trials:
   observed_extra: 0
 
 notes_adversarial: >
-  Steelman preliminar del investigador (el adversario debe reescribirlo): (1) los insiders de REITs
-  compran después de caídas, y en este universo lo caído y barato fue trampa (fase 6: yield alto
-  -86 pb, calidad y barato -211); la firma del insider puede no compensarlo. (2) Desde SOX el
-  mercado reacciona a la presentación (Brochet 2010) y el seguidor trimestral llega tarde; Gyamfi-
-  Yeboah, Ling y Naranjo (2012) muestran que los REITs incorporan rápido la información de
-  utilidades, señal de que la asimetría de información en REITs es menor que en el resto. (3) Las
-  compras se concentran en REITs chicos: igual peso arrastra el sesgo de tamaño que costó -137 pb
-  al año contra el índice en el estudio del satélite; con peso por capitalización el conjunto S_t
-  queda dominado por uno o dos nombres. (4) Cada punto de yield extra cuesta ~47 pb con el 44% al
-  dividendo. (5) Son 48 combinaciones para una señal con t-stat esperado chico: el DSR con el ledger
-  completo será exigente. Sobrevive como candidata porque es la señal de evento con más eventos en
-  REITs, tiene la mejor evidencia general (tres papers independientes) y dos estudios REIT de que
-  los insiders sí saben, y porque B la puede probar con datos públicos y point-in-time por FILING_DATE.
+  VEREDICTO DEL ADVERSARIO (16-oct-2026): MATAR. Argumento dominante: con los supuestos que la
+  propia card documenta (0.5% a 2.5% de exceso por tramo después de SOX, McLean-Pontiff y el rezago
+  trimestral), su aritmética da como máximo 2.5 x 11.8 x 0.9 + 5 = ~+32 pb, debajo de +50 aun con
+  yield igual al de SCHH; el +60 sale de suponer 5% por tramo porque en REITs el insider anticiparía
+  el cierre del descuento a NAV, y la card misma dice no haber encontrado evidencia publicada de
+  REITs posterior a 2010 (Damodaran y Liu 1993 es de la era de los REITs reavaluados de los
+  ochenta). Decaimiento documentado: Brochet (2010) y Knewtson y Nofsinger (2012) ven caer los alfas
+  de las compras después de SOX, y el seguidor trimestral llega semanas después de la presentación.
+  Producto empaquetado que no retuvo capital: el Guggenheim (después Invesco) Insider Sentiment ETF
+  (NFO) tenía más de 223 M USD en 2011 y se liquidó en feb-2020 con ~81 M; Direxion liquidó su Large
+  Cap Insider Sentiment (INSD) en ene-2013. Lakonishok y Lee (2001) ubican el poder en empresas
+  chicas, que el piso de 250 M USD y la ponderación por capitalización reducen. Es el grid más
+  grande de las 14 cards (48) para una señal de t esperada chica: el DSR con el ledger completo no
+  la deja pasar. La objeción cae si aparece evidencia de REITs posterior a 2010 de excesos >= 4% por
+  tramo a 6-24 meses contados desde la presentación del Form 4.

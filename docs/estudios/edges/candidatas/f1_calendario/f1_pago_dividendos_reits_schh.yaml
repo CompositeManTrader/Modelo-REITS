@@ -172,14 +172,14 @@ n_trials:
   observed_extra: 0
 
 notes_adversarial: >
-  Steelman del propio investigador; el adversario lo reescribirá. (1) La evidencia verificada es
-  del mercado amplio (Hartzmark y Solomon) y de acciones con DRIP (Berkman y Koch), no de REITs:
-  la aplicación al sector es una inferencia por yield. (2) Las dos fuentes discrepan en la
-  persistencia: sin reversión en el mercado durante el mes contra reversión completa por acción en
-  días. La card solo apuesta a la parte en que ambas coinciden (no comprar en el pico), así que la
-  magnitud útil es la menor. (3) El dato que hace falta (fechas de pago point-in-time de vivos y
-  muertos) no existe en el repo y armarlo desde los 8-K es caro; si se arma solo con vivos queda un
-  sesgo de supervivencia en la intensidad. (4) Se traslapa con la card de fin de mes; si el
-  incremento es ~0 no aporta nada. (5) Aun si funciona, mueve <= 3 pb/año de TIR. Sobrevive como
-  candidata secundaria porque el flujo es mecánico y anunciado, el perdedor está obligado por
-  mandato y la regla no cuesta nada ni exige esperar con el efectivo ocioso.
+  VEREDICTO DEL ADVERSARIO (16-oct-2026): MATAR. Argumento dominante: rango propio de -1 a +3 pb al
+  año (el techo es 1/16 del objetivo) y el mismo techo del oráculo de la fase 3 (+29 pb al año
+  decidiendo solo el dinero nuevo con el retorno del mes siguiente conocido). Además: (1)
+  solapamiento: muchos pagos de REITs caen a fin de mes y la propia card prevé que su incremento
+  sobre f1_fin_de_mes_liquidacion_schh sea ~0 (su kill 1); esa card también muere; (2) evidencia en
+  REITs: ninguna verificada; Hartzmark y Solomon (2022) no ven efecto en el cuarto trimestre, justo
+  la aportación de diciembre, y en Berkman y Koch (2017) el alza revierte en días; (3) datos: la
+  fecha de pago no está en el repo ni en Yahoo, y armarla desde los 8-K de vivos y muertos con >=
+  80% de cobertura es el costo de datos más alto de las 14 cards para el beneficio esperado más
+  chico. La objeción cae solo si el efecto por evento en REITs fuera de varios puntos porcentuales,
+  algo que ninguna fuente sugiere.

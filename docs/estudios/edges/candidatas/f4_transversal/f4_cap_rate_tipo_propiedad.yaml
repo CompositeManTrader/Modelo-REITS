@@ -212,14 +212,17 @@ n_trials:
   observed_extra: 1
 
 notes_adversarial: >
-  Steelman preliminar del investigador (el adversario lo reemplaza). (1) La única evidencia directa
-  de predicción por cap rate (Plazzi et al.) es del mercado privado y no incluye oficinas; en REITs
-  el sector barato suele seguir cayendo por momentum de industria y por razones estructurales
-  (oficinas y centros comerciales desde 2015): «barato contra su historia» en un sector en declive
-  secular es la trampa de valor del sector. (2) Con 12 sectores y 25 años hay pocas observaciones
-  independientes por sector (un ciclo de construcción dura años): 18 combinaciones sobre tan pocos
-  ciclos es terreno fértil para el sobreajuste, y la variante 2 depende de cap rates privados de
-  avalúo que se suavizan y se publican tarde. (3) La aritmética: aportar sin vender diluye el
-  efecto y la concentración sube el ruido; el centro (~+15 pb) está abajo del criterio. Sobrevive
-  porque el corte por tipo de propiedad nunca se probó en el repo, el dato existe y es público, y
-  el mecanismo de oferta nombra un perdedor y una barrera concretos.
+  VEREDICTO DEL ADVERSARIO (16-oct-2026): MATAR. Argumento dominante: la propia card dice que, por
+  la concentración en 2 a 4 sectores, en 15 años solo se distingue un efecto de más de ~100 pb, y su
+  rango es de -80 a +100: todo lo que propone es indistinguible de cero para B. Solapamiento con
+  reglas rechazadas: barato contra su propia historia ya se probó por emisor (S12: +214 pb en
+  desarrollo y -28 en validación; calidad y barato contra su historia: -22 en el satélite), y la
+  valuación del sector contra su historia predice dentro de muestra y falla fuera (fase 1; 22 reglas
+  de timing rechazadas); Asness, Chandra, Ilmanen e Israel (2017) muestran lo mismo para el timing
+  por spread de valuación. Trampa concreta: la fuente de la propia card (Pierzak, Nareit,
+  10-sep-2026) da para oficinas un cap rate implícito 194 pb arriba del de avalúo al 2T2026, es
+  decir, barato después de una década como el peor sector. Datos: las vintages point-in-time del
+  Tracker pueden no existir para los años viejos (la card lo admite), la variante 2 exige NCREIF por
+  suscripción y el panel no tiene tipo de propiedad; son 18 combinaciones sobre uno o dos ciclos de
+  construcción por sector. La objeción cae si se presenta un diseño de esta señal con mínimo
+  detectable < 50 pb, que con 2 a 4 sectores por aportación no es posible.

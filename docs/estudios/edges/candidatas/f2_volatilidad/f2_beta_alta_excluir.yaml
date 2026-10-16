@@ -206,13 +206,18 @@ n_trials:
   observed_extra: 2
 
 notes_adversarial: >
-  Pre-steelman del investigador (el adversario lo reescribe): (1) para un inversionista que no se
-  apalanca y mide TIR bruta, una línea del mercado plana significa que excluir beta alta no sube el
-  retorno, solo baja el riesgo: el edge esperado ronda cero; (2) Liu, Stambaugh y Yuan (2018) dicen
-  que la anomalía de beta es la de IVOL disfrazada, así que puede duplicar a f2_loteria; (3) Novy-Marx
-  y Velikov (2022) atribuyen el BAB a nombres diminutos que el piso de 250 M USD elimina;
-  (4) en este universo, apalancamiento bajo perdió 136 pb en desarrollo: los REITs cíclicos y
-  apalancados, que son los de beta alta, no rindieron menos en 2011-2015; (5) MacKinnon y Spinney
-  (2017) no encuentran ventaja de bajo riesgo en REITs. Sobrevive como candidata porque es la única
-  prueba del canal de apalancamiento en este universo, tiene un perdedor institucional con
-  restricción de mandato, y trae su propia prueba de independencia; su prior debe ser bajo.
+  VEREDICTO DEL ADVERSARIO (16-oct-2026): MATAR. Argumento dominante: rango propio de -40 a +40 pb y
+  centro 0: ni el mejor caso llega a +50, y el centro está debajo del mínimo detectable de la
+  selección en el repo (59 a 110 pb). La card reconoce que, para quien no se apalanca y mide TIR
+  bruta, una línea del mercado plana da ganancia cero y que solo gana si en REITs la línea está
+  invertida. Evidencia en contra concreta: (1) en este universo, apalancamiento bajo perdió -136 pb
+  (t = -3.47) en desarrollo; los REITs de beta alta son los apalancados, así que excluirlos inclina
+  la cartera hacia la regla con la t más negativa de la fase 6 después de H6; volatilidad baja (S4)
+  perdió -34; (2) MacKinnon y Spinney (2017, International Real Estate Review 20(1)) no encuentran
+  que los diseños de bajo riesgo le ganen al ponderado por capitalización en REITs de EE. UU., y el
+  efecto desaparece en el periodo reciente; (3) Novy-Marx y Velikov (2022, JFE) atribuyen el
+  desempeño de BAB a una construcción casi a partes iguales cargada a micro-caps, que el piso de 250
+  M USD y la ponderación por capitalización eliminan; (4) Liu, Stambaugh y Yuan (2018) la reducen a
+  IVOL, es decir, a f2_loteria_excluir_ivol_max, que también muere. La objeción cae si se muestra
+  que en REITs la relación entre beta y retorno BRUTO es negativa (no solo plana) en datos que el
+  repo no haya usado.
