@@ -1,0 +1,19 @@
+REITs_EEUU_capital|trimestral:
+  sessions:
+  - fecha: '2026-10-16'
+    nota: fase 6, extremos transversales, satélite y estudio del universo, ya corridos
+      en el repo
+    session_id: repo-historico-hasta-2026-10-16
+    trials_hipotesis: 0
+    trials_observados: 39
+  - fecha: '2026-10-16'
+    nota: 'descubrimiento-edge contra SCHH: 6 familias, 14 cards (suma de this_card
+      184; 9 matadas por el adversario, 5 sobrevivientes degradadas, 3 al catálogo)
+      + 99 variantes conceptuales descartadas por los investigadores sin mirar retornos;
+      2 observados (f6 comparó los retornos anuales 2016-2025 de las fichas de IDUP/IUSP
+      y XRES contra su índice); adversario y priorizador 0'
+    session_id: 2026-10-16-edges-contra-schh
+    trials_hipotesis: 283
+    trials_observados: 2
+  total_hipotesis: 283
+  total_observados: 41

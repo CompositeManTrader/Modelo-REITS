@@ -708,6 +708,29 @@ python scripts/estudio.py satelite evaluar                # la cuenta en papel c
   `python scripts/investigacion.py emisores`. La bitácora en papel
   (`data/estudios/satelite/papel.csv`) se niega a anotar fuera del calendario o dos veces.
 
+## Búsqueda de edges contra SCHH
+
+Una búsqueda sistemática de hipótesis para ganarle a SCHH después de impuestos, sin backtests.
+Seis investigadores (calendario, volatilidad, momentum, valor relativo, eventos y asiento
+fiscal) propusieron 14 cards. El adversario mató 9 y el priorizador dejó 3 en el catálogo.
+
+- **Narrativa:** `docs/estudios/edges/catalogo_edges_contra_schh.docx`.
+- **Cards:** `docs/estudios/edges/catalogo/` las finales y `docs/estudios/edges/candidatas/` las 14.
+- **Ledger de intentos:** `docs/estudios/edges/research_ledger.yaml`. Suma 41 observados en este
+  universo y 324 en total contando los conceptuales.
+
+Ninguna regla de selección tiene un centro esperado arriba de +30 pb al año, y el panel solo
+distingue efectos de 59 a 110 pb, así que con la historia solo pueden morir. Lo único con un
+mecanismo que no depende de predecir el mercado es fiscal: un ETF UCITS irlandés de
+acumulación sobre REITs de EE. UU., de +21 a +59 pb al año sin vender nunca, según el
+vehículo. Depende de supuestos que confirma un contador. La búsqueda dejó cuatro hallazgos
+para el repo:
+
+- El dividendo vía SIC probablemente no paga 20% (Art. 142 fr. V LISR).
+- SCHH probablemente no está listado en el SIC.
+- El panel de la fase 6 no ajusta escisiones.
+- La regla S4 se implementó como volatilidad total y no idiosincrática.
+
 ## El semáforo: tres puertas, por separado
 
 No es una caja negra. Cada puerta responde una pregunta distinta y se muestra sola.

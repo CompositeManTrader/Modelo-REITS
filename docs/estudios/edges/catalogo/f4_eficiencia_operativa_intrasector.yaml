@@ -1,0 +1,327 @@
+# CATÁLOGO (priorizador, 16-oct-2026): rango 3 de 3, puntaje 2.55 de 5, MARCADA PARA ESCRUTINIO
+# (validez de la medida). Copia editada de
+# candidatas/f4_transversal/f4_eficiencia_operativa_intrasector.yaml: cambia n_trials (cierre de
+# sesión y ledger), se añaden tres kills y el bloque priorizacion. Lo demás queda igual.
+# Strategy Card v1.1 — familia 4 (cross-sectional / factores combinados), investigador transversal.
+# «Calidad bien definida para REITs»: eficiencia operativa (gasto operativo / ingreso) comparada
+# SOLO dentro del mismo tipo de propiedad. Distinta de las reglas rechazadas S8 (calidad defensiva)
+# y S10 (FFO / activos). No se corrió ningún backtest ni se miró el retorno de esta señal.
+
+card_version: "1.1"
+id: f4_eficiencia_operativa_intrasector
+asset_universe:
+  - "SCHH (benchmark: Dow Jones Equity All REIT Capped desde 2020-07)"
+  - "UNIVERSO_REGLA: REITs de capital de EE. UU. elegibles del panel data/investigacion/emisores/panel.csv.gz (capitalización >= 250 M USD, precio >= 5 USD, >= 20 tenedores en 13F; vivos y muertos), solo emisores abiertos"
+  - "CLASIFICACION: tipo de propiedad Nareit point-in-time (la misma de f4_descuento_nav_intrasector)"
+instrument: canasta
+direction: long_only
+
+holding_horizon:
+  min_bars: 4
+  max_bars: 62
+  bar_size: trimestral
+  overnight_allowed: true
+
+economic_rationale:
+  mechanism: >
+    Dentro de un mismo tipo de propiedad, el REIT que convierte más ingreso en NOI y FFO (por
+    economías de escala en administración de inmuebles, compras y tecnología, menor gasto general
+    y administración interna en vez de asesor externo con comisión) genera un crecimiento de FFO por
+    acción más alto y más estable. Esa eficiencia es persistente, pero el mercado la subestima
+    porque analistas e inversionistas de ingreso anclan en el múltiplo de FFO y el yield y ajustan
+    sus expectativas con lentitud (expectativas pegajosas: Bouchaud, Krüger, Landier y Thesmar 2019
+    lo documentan para la rentabilidad en acciones), lo que se traduce en sorpresas de FFO y en
+    retorno a favor de los eficientes: Beracha, Feng y Hardin (2019) encuentran que el REIT eficiente
+    tiene mejor ROA y ROE el año siguiente, menos riesgo de crédito y hasta 3.88% más de retorno al
+    año (1995-2017), en todos los sectores. Medirla dentro del sector es necesario porque el gasto
+    operativo depende del tipo de propiedad (hoteles y salud operada contra arrendamiento neto): sin
+    ese corte la señal sería una apuesta de sectores. Es «rentabilidad» en el sentido de Novy-Marx
+    (2013) y Bond y Xue (2017), no la calidad defensiva (S8) ni FFO / activos (S10), que se
+    contaminan con apalancamiento y con la antigüedad del costo en libros.
+  who_loses: >
+    El inversionista de ingreso que paga de más por el yield alto del REIT ineficiente (en la fase 6
+    el yield alto rindió -86 pb con el SIC y -125 pb con broker, con el doble de recortes) y el
+    analista con expectativas pegajosas que no extrapola la ventaja de costos; también el accionista
+    del REIT con asesor externo, que paga comisiones sobre activos. Acepta pagar porque su mandato es
+    de ingreso corriente, no de crecimiento del FFO por acción.
+  why_persists: >
+    La eficiencia no es un factor estándar de REITs ni existe un ETF que la empaquete; armarla exige
+    etiquetas XBRL de gasto de propiedad que no están estandarizadas; los eficientes suelen cotizar
+    con yield menor, que los mandatos de ingreso evitan; y la ventaja se acumula en años, sin
+    catalizador, lo que no atrae capital de corto plazo.
+
+signal_definition:
+  formula: |
+    Para cada trimestre t y emisor elegible i del sector s (clasificación Nareit vigente en t), con
+    sumas de 12 meses de XBRL (primera versión publicada, fecha de presentación <= t):
+      variante_senal = 1 (total):     OER_i = (gastos_operativos_propiedad_12m + gya_12m) / ingresos_12m
+      variante_senal = 2 (propiedad): OER_i = gastos_operativos_propiedad_12m / ingresos_12m
+      (sin depreciación, intereses, deterioros ni ganancias por venta; OER_i fuera de [0, 1] = excluido)
+      rel_i = OER_i - mediana de OER_j entre los elegibles j del sector s en t
+    Selección: S_s = los ceil(fraccion_seleccion * n_s) emisores de MENOR rel_i en el sector s
+               (requiere n_s >= minimo_pares_sector; si no, el sector se compra a peso capitalizado).
+    Pesos de la aportación: W_s = capitalización del sector / capitalización del universo elegible;
+      w_i = W_s * cap_i / suma_{j en S_s} cap_j, con tope tope_por_nombre y el exceso repartido en S_s.
+  inputs:
+    - ingresos_12m
+    - "gastos_operativos_propiedad_12m (XBRL, por agregar)"
+    - "gya_12m (XBRL GeneralAndAdministrativeExpense, por agregar)"
+    - capitalizacion
+    - "precio (13F, fin de trimestre)"
+    - "tipo de propiedad point-in-time (por armar)"
+  timing: >
+    Calculada al cierre del trimestre t con estados XBRL presentados a más tardar en t y precios de
+    fin de trimestre; la aportación de t se ejecuta al cierre de t. B repite con un trimestre de
+    retraso.
+  warmup_bars: 4
+
+entry_rules: >
+  Cada trimestre la aportación (3,000 USD teóricos) se reparte con los pesos w_i; nunca se vende.
+  Dividendos netos de 44% y salidas por adquisición igual que en el simulador del repo y en la
+  cuenta de referencia en SCHH.
+
+exit_rules:
+  primary: >
+    Sin salida voluntaria: cada compra se mantiene indefinidamente. Solo sale por adquisición,
+    deslistado o quiebra con la regla de salida del repo; el efectivo, neto de 10% sobre la
+    ganancia, se suma a la siguiente aportación.
+  stop_loss: null
+  take_profit: null
+  time_stop: "Fin de la muestra: valuación final con 10% sobre la ganancia latente, igual que la referencia."
+  intrabar_note: "No aplica: sin stops ni targets; frecuencia trimestral."
+
+sizing: >
+  100% de cada aportación a la canasta; sin apalancamiento; sector-neutral y capitalizado dentro de
+  la selección, con tope por nombre fijo. Con aportaciones reales pequeñas, acciones fraccionarias
+  o los 15 nombres de mayor peso.
+
+data_required:
+  fields:
+    - fecha
+    - cik
+    - precio
+    - retorno
+    - dividendo
+    - salida
+    - capitalizacion
+    - ingresos_12m
+    - gastos_operativos_propiedad_12m
+    - gya_12m
+    - tipo_de_propiedad
+  frequency: trimestral
+  history_years: 15
+  timestamp_convention: bar_close
+  session: rth
+  point_in_time_notes: >
+    EN EL REPO, point-in-time: precio 13F, retorno, dividendo, salida, capitalización e ingresos de
+    12 meses de XBRL por fecha de presentación (panel 2008-12 a 2026-06; carteras desde 2011-03).
+    HAY QUE CONSEGUIR: (1) gasto operativo de propiedad, impuesto predial y G&A de los companyfacts
+    de la SEC con el procedimiento de src/investigacion/fundamentales.py (etiquetas us-gaap
+    DirectCostsOfLeasedAndRentedPropertyOrEquipment, CostOfRevenue, OperatingCostsAndExpenses,
+    RealEstateTaxExpense, GeneralAndAdministrativeExpense), primera versión publicada. Riesgos: muchos
+    REITs usan etiquetas propias (prefijo del emisor) para el gasto de propiedad; los REITs de hoteles
+    y de salud operada (RIDEA) reportan gasto operativo de negocio, no de inmueble, por eso la
+    comparación es solo dentro del sector; los cambios de etiqueta entre años no deben mezclar
+    definiciones en un mismo emisor. B reporta la cobertura por trimestre y excluye al emisor sin
+    las dos etiquetas (no imputar). (2) Tipo de propiedad point-in-time (REITWatch de Nareit
+    archivados o 10-K del año; nunca la clasificación actual hacia atrás).
+  extra_datasets:
+    - "SEC companyfacts: gasto operativo de propiedad, impuesto predial y G&A (por bajar)"
+    - "Clasificación por tipo de propiedad point-in-time (REITWatch de Nareit archivados / 10-K)"
+    - "Precios mensuales de SCHH (en el repo, Yahoo)"
+
+expected_edge:
+  source:
+    - "Beracha, Feng y Hardin (2019), 'REIT Operational Efficiency: Performance, Risk, and Return', Journal of Real Estate Finance and Economics 58(3), 408-437 — eficiencia = gasto operativo / ingreso; el REIT eficiente tiene mejor ROA y ROE el año siguiente, menos riesgo de crédito y total, y su cartera rinde más que la de los ineficientes"
+    - "Beracha, Feng y Hardin (2019), 'REIT Operational Efficiency and Shareholder Value', Journal of Real Estate Research 41(4), 513-554 — 1995-2017: los más eficientes rinden hasta 3.88% más al año, en todos los sectores y con factores de riesgo (mismo grupo de autores: cuenta como una sola fuente con la anterior)"
+    - "Bond y Xue (2017), 'The Cross Section of Expected Real Estate Returns: Insights from Investment-Based Asset Pricing', Journal of Real Estate Finance and Economics 54(3), 403-428 — la rentabilidad y la inversión predicen el retorno de los REITs más allá de los modelos estándar (grupo independiente)"
+    - "Bouchaud, Krüger, Landier y Thesmar (2019), 'Sticky Expectations and the Profitability Anomaly', Journal of Finance 74(2), 639-674 — la prima de rentabilidad viene de analistas que ajustan con lentitud; es más fuerte cuando la rentabilidad es persistente (mecanismo, acciones en general)"
+    - "Novy-Marx (2013), 'The Other Side of Value: The Gross Profitability Premium', Journal of Financial Economics 108(1), 1-28 — la rentabilidad bruta predice el retorno tanto como el book-to-market (acciones en general)"
+    - "En contra: Andronoudis, Guidolin y Pedio (2025), Journal of Portfolio Management 52(3), 129-152 — en REITs de 1993 a 2020 tamaño, valor, inversión y momentum funcionan pero la rentabilidad no (leído solo el resumen; medida de rentabilidad no verificada)"
+    - "En contra: Tomtosov, Rechmedina y Dobrynskaya (2025), HSE Working Paper — en 195 REITs de 1998 a 2021 el factor de rentabilidad da 0.46% al año, sin alfa sistemática después de 2008"
+  sign: positivo
+  magnitude_annual_bps: { low: -40, high: 90, label: estimado }
+  magnitude_derivation: >
+    Neto del broker de EE. UU., contra SCHH, aportando sin vender. Punto de partida: hasta 3.88% al
+    año entre más y menos eficientes (1995-2017), es decir un largo-corto; la pata larga dentro del
+    sector contra su sector sería un tercio a la mitad, ~1.3% a 1.9%; con el descuento de ~58%
+    posterior a la publicación (McLean y Pontiff 2016) quedan ~0.5% a 0.8% al año. A diferencia de
+    las cards de valuación, la eficiencia es persistente, así que el exceso no se agota en uno o dos
+    años y se acumula en todas las aportaciones que siguen en cartera: la mejora de TIR se acerca a
+    ~0.5 veces el exceso anual, +25 a +40 pb antes de impuestos. Ajustes: +7 pb por no pagar SCHH;
+    +5 a +20 pb de ventaja fiscal, porque el eficiente suele cotizar con prima y yield menor (menos
+    dividendo gravado a 44%, más ganancia diferida a 10%); sesgo a tamaño grande, cercano a los pesos
+    de SCHH (bueno para el seguimiento). Abajo: las reglas cercanas ya rechazadas (FFO / activos -118
+    pb, calidad -70 pb en el satélite) y la evidencia en contra en REITs dan un piso de -40 pb. Rango
+    neto -40 a +90 pb, centro ~+30 pb, todavía abajo del criterio de +50 y del mínimo detectable.
+  crowding_decay_risk: >
+    La prima de rentabilidad se publicó en acciones en 2013 (Novy-Marx) y la de eficiencia en REITs en
+    2019 (Beracha et al., datos hasta 2017): hay a lo más siete años posteriores a la publicación y no
+    encontré ninguna verificación posterior a 2017 en REITs, así que va como estimado y con el
+    descuento de McLean y Pontiff. Crowding: los ETFs de calidad de acciones en general existen, pero
+    no encontré ninguno de REITs por eficiencia; Green Street sí incorpora el G&A y la administración
+    al premio que justifica para cada REIT, de modo que los profesionales ya pagan parte de la
+    eficiencia (la parte de G&A, no necesariamente la del gasto de propiedad). Evidencia mixta en
+    REITs: Andronoudis et al. (2025) y Tomtosov et al. (2025) no encuentran prima de rentabilidad con
+    otras medidas; Letdin, Seagraves y Sirmans (2025, leído solo vía resumen secundario en el repo)
+    sí reportan un factor de calidad. La contraparte (mandatos de ingreso) no puede dejar de perder sin
+    cambiar de mandato, lo que frenaría el decaimiento si el efecto es real.
+
+parameters:
+  fraccion_seleccion:
+    { min: 0.333, max: 0.5, n_grid: 2, unit: "fracción más eficiente de cada sector que recibe la aportación" }
+  variante_senal:
+    { min: 1, max: 2, n_grid: 2, unit: "1 = gasto de propiedad + G&A, 2 = solo gasto de propiedad" }
+  minimo_pares_sector:
+    { min: 4, max: 4, n_grid: 1, unit: "emisores elegibles por sector (fijo)" }
+  tope_por_nombre:
+    { min: 0.10, max: 0.10, n_grid: 1, unit: "fracción máxima de la aportación en un emisor (fijo)" }
+
+kill_criteria:
+  - "Correlación de rangos entre -rel_i y el crecimiento del FFO por acción de los 4 trimestres siguientes <= 0 en la ventana de 12 trimestres: el canal fundamental se rompió aunque el precio todavía no lo refleje."
+  - "Correlación de rangos entre -rel_i y el retorno de los 4 trimestres siguientes contra su sector <= 0 en dos evaluaciones anuales seguidas (ventana de 12 trimestres)."
+  - "Después de 8 aportaciones, la TIR neta va 200 pb o más abajo de la cuenta en SCHH."
+  - "La correlación de rangos de la señal con la regla rechazada S10 (FFO / activos) o con la calidad S8 supera 0.7 en la muestra de B: la card no aporta un mecanismo distinto y se archiva sin correr la prueba final."
+  - "La cobertura de las etiquetas de gasto de propiedad cae abajo de 70% de los elegibles en un trimestre."
+  - >-
+    (Añadido por el priorizador, objeción del adversario.) La cartera acumulada supera en más de
+    1.0 pp el yield de dividendo de SCHH durante 4 trimestres seguidos: el lastre fiscal al 44%
+    se come el exceso esperado (el mismo kill que traen las otras dos cards f4).
+  - >-
+    (Añadido por el priorizador.) Tipo de arrendamiento, medido SIN retornos antes de la prueba:
+    si en Retail y en Health Care más de dos tercios del peso seleccionado es de emisores de
+    arrendamiento neto o triple-net (Item 1 del 10-K de ese año), la señal mide la estructura
+    del arrendamiento y no la eficiencia: se archiva sin correr la TIR.
+  - >-
+    (Añadido por el priorizador.) Ruptura de la medida por ASU 2018-20: si la correlación de
+    rangos de rel_i del mismo emisor entre 2018T4 y 2019T4 es menor que 0.5, la serie no es
+    comparable y el veredicto se emite solo con datos de 2019 en adelante (regla fijada antes de
+    mirar retornos; no es una variante).
+
+n_trials:
+  this_card: 4
+  session_total: 285
+  accounting: >
+    CIERRE DEL PRIORIZADOR (16-oct-2026), recontado desde los 14 YAML candidatos por camino
+    independiente; cada this_card se verificó contra el producto de su grid. (1) Suma de
+    this_card de las 14 cards emitidas = 184: f1 10 (fin_de_mes 6 + pago_dividendos 4), f2 12
+    (beta_alta 4 + loteria 8), f3 40 (momentum_residual 16 + cercania_52s 8 + rebote_recorte
+    16), f4 28 (descuento_nav 6 + cap_rate 18 + eficiencia 4), f5 72 (insiders 48 + recompra
+    24), f6 22 (fecha_ex 18 = 9 del grid x 2 calendarios + ucits 4). Las 9 matadas por el
+    adversario aportan 138, las 5 sobrevivientes 46 y las 3 del catálogo 24 (ucits 4 + rebote 16
+    + eficiencia 4); las matadas y las cortadas cuentan completas. (2) Variantes conceptuales
+    descartadas por los investigadores sin mirar retornos = 99: f1 13, f2 16, f3 11, f4 17, f5
+    26, f6 16; se cuentan aunque dos familias hayan considerado temas parecidos (emisión neta en
+    f4 y f5, momentum por tipo de propiedad en f3 y f4): error del lado conservador. (3)
+    Observados nuevos = 2: f6 comparó con su índice los retornos anuales 2016-2025 de las fichas
+    de IDUP/IUSP y de XRES. Adversario y priorizador: 0 trials y 0 observados (el priorizador
+    solo re-corrió la aritmética determinista de f6, con supuestos fijos, y revisó montos de
+    dividendos de SCHH, que son el fenómeno y no el retorno de una regla). session_total = 184 +
+    99 + 2 = 285: 2 OBSERVADOS y 283 CONCEPTUALES. (4) Ledger REITs_EEUU_capital|trimestral
+    (docs/estudios/edges/research_ledger.yaml): sesión repo-historico-hasta-2026-10-16 con 39
+    observados (20 de la fase 6, 8 de los extremos transversales, 8 del satélite, 3 del estudio
+    del universo) + sesión 2026-10-16-edges-contra-schh con 2 observados y 283 conceptuales = 41
+    observados y ledger_total de estrés 324. observed_extra = 41: todos los observados del
+    ledger, para el DSR vinculante; el DSR de estrés usa 324. En esta card: 4 = 2 variantes de
+    señal x 2 fracciones de selección. Los observados que nombran al perdedor y motivan pesar
+    por capitalización (yield alto S7, -86/-125 pb; satélite a partes iguales, -137 pb) ya están
+    dentro de los 39 del repo y no se suman otra vez. Los tres kills que añadió el priorizador
+    no son trials: no escogen entre variantes, solo pueden archivar la card. Contingencias: si B
+    escoge con un diagnóstico, prueba una variante fuera del grid o reabre una card muerta, lo
+    registra como sesión nueva del ledger antes de reportar.
+  ledger_total: 324
+  ledger_ref: "REITs_EEUU_capital|trimestral"
+  observed_extra: 41
+
+notes_adversarial: >
+  VEREDICTO DEL ADVERSARIO (16-oct-2026): SOBREVIVE-DEGRADADA. Mejor argumento en contra: dentro de
+  los sectores de Nareit, gasto operativo / ingreso mide sobre todo la ESTRUCTURA DEL ARRENDAMIENTO,
+  no la eficiencia. Retail junta arrendamiento neto (Realty Income, NNN, Agree) con centros
+  comerciales y malls; Health Care junta triple-net (Omega, Sabra, CareTrust) con vivienda para
+  adultos mayores operada (los SHOP o RIDEA de Welltower y Ventas, que reportan el gasto de operar
+  el negocio). La señal mandaría la aportación a los de arrendamiento neto, que suelen pagar más
+  dividendo (inferido; B debe medirlo, y la card no trae un kill de yield como las otras dos f4),
+  así que la ventaja fiscal de +5 a +20 pb puede cambiar de signo; con ese cambio, la derivación de
+  la propia card (+25 a +40 antes de impuestos, +7 por no pagar SCHH) queda en ~+42 como máximo,
+  debajo de +50; la card declara +90 pero su derivación da ~67. Ruptura de la medida: ASU 2018-20
+  (FASB, dic-2018) obliga desde 2019 a excluir del ingreso y del gasto los costos del arrendador que
+  paga el inquilino directamente (p. ej., impuesto predial), lo que cambia el cociente a mitad de la
+  muestra. La evidencia en REITs es de un solo grupo de autores con datos hasta 2017 (Beracha, Feng
+  y Hardin 2019) y dos estudios independientes no encuentran prima de rentabilidad (Andronoudis,
+  Guidolin y Pedio 2025; Tomtosov et al. 2025); en el repo, FFO / activos perdió -118 pb y el
+  satélite de calidad -70. Por qué resiste: el canal de G&A y de administración externa contra
+  interna tiene un perdedor nombrado, la comparación intra-sector la separa de S8 y S10 (y su kill 4
+  lo verifica), Letdin, Seagraves y Sirmans (2025) reportan un factor de calidad en REITs de
+  1987-2023 que sobrevive a más de 15,000 predictores (solo resumen leído), y su centro (+30) es el
+  más alto de las cards de selección.
+
+priorizacion:
+  fecha: "2026-10-16"
+  rango: "3 de 3"
+  puntaje_ponderado: 2.55
+  pesos: "mecanismo 0.25, ventaja estructural 0.15, evidencia 0.15, edge neto 0.15, crowding 0.10, datos 0.10, simplicidad 0.10"
+  rubrica:
+    mecanismo:
+      puntaje: 3
+      peso: 0.25
+      motivo: >
+        Canal de G&A y de administración externa con perdedor nombrado, y expectativas
+        pegajosas (Bouchaud, Krüger, Landier y Thesmar 2019). Pero dentro de Retail y Health
+        Care el cociente mide sobre todo la estructura del arrendamiento (neto contra
+        operado) y ASU 2018-20 cambia la medida en 2019: el mecanismo es plausible y la
+        medida es dudosa.
+    ventaja_estructural:
+      puntaje: 2
+      peso: 0.15
+      motivo: >
+        Anomalía publicada (rentabilidad desde 2013; eficiencia en REITs desde 2019). El
+        único asiento es la paciencia de quien nunca vende.
+    evidencia:
+      puntaje: 2
+      peso: 0.15
+      motivo: >
+        Un solo grupo de autores en REITs con datos hasta 2017 (Beracha, Feng y Hardin 2019;
+        dos artículos que cuentan como una fuente) contra dos estudios independientes sin
+        prima de rentabilidad (Andronoudis, Guidolin y Pedio 2025; Tomtosov, Rechmedina y
+        Dobrynskaya 2025). En el repo, FFO / activos perdió -118 pb y el satélite de calidad
+        -70.
+    edge_neto_tras_costos:
+      puntaje: 2
+      peso: 0.15
+      motivo: >
+        Centro +30 pb, el más alto de las de selección, pero debajo del mínimo detectable
+        del repo (59 a 110). Su derivación da ~67 como máximo, no +90, y ~42 si la ventaja
+        fiscal cambia de signo.
+    crowding:
+      puntaje: 3
+      peso: 0.1
+      motivo: >
+        No hay ETF de REITs por eficiencia; Green Street ya incorpora el G&A en su
+        valuación.
+    datos:
+      puntaje: 2
+      peso: 0.1
+      motivo: >
+        Las etiquetas XBRL de gasto de propiedad no están estandarizadas (muchos REITs usan
+        prefijo propio) y el panel no tiene tipo de propiedad point-in-time: es el mayor
+        trabajo de datos de las tres.
+    simplicidad:
+      puntaje: 4
+      peso: 0.1
+      motivo: >
+        Un cociente y 4 combinaciones; la complejidad está en los datos, no en la regla.
+  marcada_para_escrutinio: true
+  auditoria_del_adversario: >
+    Objeciones concretas y nuevas: confusión con el tipo de arrendamiento, ASU 2018-20 y techo
+    recalculado. Verifiqué la aritmética: +40 + 7 + 20 = 67 con los supuestos de la card y +40 +
+    7 - 5 = 42 con el signo fiscal invertido. La card no traía kill de yield ni de tipo de
+    arrendamiento; los añado junto con uno de ruptura de la medida. MARCADA PARA ESCRUTINIO por
+    la validez de la medida.
+  protocolo_de_validacion: >
+    Primero lo que se mide SIN retornos y puede archivarla barato: cobertura XBRL (kill 5),
+    correlación de rangos con S8 y S10 (kill 4), peso de arrendamiento neto en Retail y Health
+    Care y ruptura de 2019 (kills añadidos). Después el canal fundamental (kill 1: correlación
+    con el crecimiento siguiente del FFO por acción; usa FFO futuro, no precios). Solo entonces
+    la TIR en el panel, con pre-registro y sabiendo que con un mínimo detectable de 59 a 110 pb
+    solo puede matarla. La prueba que puede confirmarla es hacia adelante en papel,
+    pre-registrada.
