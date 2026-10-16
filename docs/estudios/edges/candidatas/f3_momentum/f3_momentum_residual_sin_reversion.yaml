@@ -1,0 +1,289 @@
+# Strategy Card v1.1 — familia 3 (momentum y reversión), investigador f3.
+# Emitida sin backtest y sin mirar retornos de esta señal en los datos del repo.
+card_version: "1.1"
+id: f3_momentum_residual_sin_reversion
+asset_universe:
+  - >-
+    UNIVERSO_PIT: REITs de capital de EE. UU. elegibles al cierre de cada trimestre según
+    fase6.elegibles() de src/investigacion/fase6.py (capitalización >= 250 M USD, precio >= 5,
+    de_capital, es_reit, tenedores 13F mínimos), vivos y muertos, solo emisores abiertos de
+    data/investigacion/emisores/panel.csv.gz (el tercio sellado no se reabre).
+  - SCHH
+instrument: canasta
+direction: long_only
+
+holding_horizon:
+  min_bars: 4        # la cohorte se evalúa al menos 12 meses
+  max_bars: 62       # nunca se vende: cada aportación se queda hasta el fin de la muestra (2011T1-2026T2)
+  bar_size: trimestral
+  overnight_allowed: true
+
+economic_rationale:
+  mechanism: >
+    El precio de un REIT se mueve por dos tipos de información: la común (tasas, ciclo
+    inmobiliario, tipo de propiedad) y la propia del emisor (un arrendamiento grande, una venta
+    o compra de cartera, un refinanciamiento, un cambio de administración). Los REITs son de las
+    acciones con más propiedad pasiva del mercado (Vanguard tiene alrededor de 20% de casi 80% de
+    los REITs, Evans, Jones y Mueller) y los fondos activos dedicados se miden contra un índice
+    REIT con presupuesto de tracking error. Los indexados no operan la noticia propia del emisor y
+    los activos la operan poco, porque desviarse del índice por un solo nombre les cuesta riesgo
+    de carrera; en cambio sí persiguen el retorno RELATIVO (lo que subió frente al sector y a sus
+    pares), porque es lo que ven sus clientes y sus comités (Gutierrez y Prinsky 2007). Eso genera
+    dos momentos distintos: el de retorno relativo, sobrerreaccionado, que revierte después del
+    mes 12, y el de retorno anormal propio del emisor, subreaccionado, que sigue pagando durante
+    años porque el capital que debería arbitrarlo está atado al índice (la propiedad pasiva además
+    reduce la información que entra al precio antes de los resultados, Sammon 2025). La
+    subreacción se traduce en un drift lento del residuo. Para quien aporta cada trimestre y nunca
+    vende, lo que cuenta es el retorno acumulado de cada aportación a varios años: el momentum
+    12-3 de la fase 6 compra sobre todo retorno relativo (beta al índice y tipo de propiedad) y lo
+    sostiene durante la reversión, mientras que el residuo contra el índice REIT y contra el tipo
+    de propiedad aísla la parte que no revierte. En REITs la parte de tipo de propiedad no paga
+    (Lantushenko y Nelling 2017) y el momentum que sí existió es intra-industria (Chui, Titman y
+    Wei 2003), lo que empuja a quitarla del puntaje.
+  who_loses: >
+    Los gestores que persiguen retorno relativo (compran al ganador de sector o de mercado y lo
+    sostienen durante la reversión de los meses 13 a 60) y los vehículos pasivos o con mandato de
+    índice que, con cada flujo de entrada o salida de VNQ, SCHH, XLRE o fondos REIT indexados,
+    compran o venden a prorrata, también a los emisores con noticia propia todavía no incorporada.
+    Aceptan pagar porque su objetivo es replicar el índice o minimizar tracking error y riesgo de
+    carrera, no capturar información idiosincrática.
+  why_persists: >
+    El drift del residuo es lento (años) y de amplitud chica en un sector homogéneo de dispersión
+    idiosincrática baja: un fondo cuantitativo largo-corto con horizonte de 12 meses y costo de
+    préstamo no cobra los meses 13 a 60 ni le alcanza la capacidad. Las restricciones de tracking
+    error y riesgo de carrera de los gestores dedicados son estructurales y la propiedad pasiva
+    sigue creciendo. El inversionista de esta card no rinde cuentas, nunca vende y no paga
+    comisión: puede esperar los años del drift que el profesional no puede esperar (asiento de
+    paciencia, no de información).
+
+signal_definition:
+  formula: >
+    Para cada emisor i elegible al cierre del trimestre t:
+    (1) Con los retornos totales trimestrales de i (columna retorno del panel) en exceso del
+    T-bill (TB3MS), en la ventana de W trimestres que termina en t (mínimo 8 observaciones),
+    estimar por MCO: r_i,k - rf_k = a_i + b_i*(R_REIT,k - rf_k) + c_i*(R_tipo(i),k - R_REIT,k)*T + e_i,k,
+    donde R_REIT = FTSE Nareit All Equity REITs (retorno total mensual compuesto a trimestre),
+    R_tipo(i) = retorno ponderado por capitalización de los DEMÁS elegibles del mismo tipo de
+    propiedad que i (sin i), y T = factor_tipo_propiedad (0 o 1; con T = 0 el término desaparece).
+    (2) Puntaje residual: s_i,t = suma_{k=t-F+1..t} e_i,k / (sigma_e,i * raiz(F)), con sigma_e,i
+    la desviación estándar de los residuos de la ventana (estandarización de Blitz, Huij y Martens
+    y de Gutierrez y Prinsky). Residuos dentro de la ventana, con intercepto: un emisor que le gana
+    al índice de forma constante no suma puntaje (el intercepto absorbe esa tendencia).
+    (3) Escogidos: la fracción q de elegibles con mayor s_i,t (q = fraccion_escogida); emisores
+    sin puntaje (menos de 8 trimestres) no se escogen pero siguen en el universo de referencia.
+    salto = 0: el rezago de ejecución de unos 2 meses ya separa la formación de la compra.
+  inputs:
+    - "retorno (retorno total trimestral del panel, con dividendos y retorno de salida)"
+    - "FTSE Nareit All Equity REITs, retorno total mensual (índices del repo)"
+    - "TB3MS (FRED)"
+    - "capitalizacion, tenedores, precio, de_capital, es_reit (filtro elegibles)"
+    - "tipo de propiedad as-of por emisor (solo para factor_tipo_propiedad = 1)"
+  timing: >
+    Señal con datos conocidos al cierre del trimestre t (precios de fin de trimestre de t,
+    que en vivo se conocen ese mismo día); ejecución al cierre del mes de aportación siguiente
+    (febrero, mayo, agosto, noviembre, unos 2 meses después de t), igual que el calendario de
+    docs/estudios/satelite_preregistro.md. La regresión no usa ningún retorno posterior a t.
+  warmup_bars: 8
+
+entry_rules: >
+  En cada mes de aportación, el 100% de la aportación del trimestre (3,000 USD en la prueba) se
+  compra en los escogidos de la señal del trimestre t, ponderados por capitalización dentro del
+  grupo, con tope de 15% por emisor (lo que exceda el tope se reparte entre los demás a prorrata).
+  Con las aportaciones reales (unos 135 USD por trimestre hoy) se requieren acciones fraccionarias
+  o, si no hay, se compra el escogido de mayor puntaje entre los tres más grandes del grupo y se
+  rota trimestre a trimestre (variante de implementación, no del grid).
+
+exit_rules:
+  primary: >
+    Nunca se vende. Solo sale lo que deja de cotizar (fusión o quiebra) a su precio de salida del
+    panel (retorno de quiebra de -30% según Shumway 1997, sensibilidad con -100%); lo recibido se
+    suma a la aportación siguiente.
+  stop_loss: null
+  take_profit: null
+  time_stop: null
+  intrabar_note: "Sin stops ni targets; no hay ambigüedad de trayectoria intra-barra."
+
+sizing: >
+  Sin apalancamiento, sin cortos, sin vender. Ponderación por capitalización dentro de los
+  escogidos (no partes iguales: el benchmark SCHH pesa por capitalización y pesar igual le costó
+  -137 pb al año al satélite de todos por partes iguales contra el índice que sigue SCHH; ese dato
+  ya está en el ledger y no es retorno de esta señal). Tope de 15% por emisor.
+
+data_required:
+  fields:
+    - cik
+    - fecha
+    - retorno
+    - salida
+    - precio
+    - acciones
+    - capitalizacion
+    - tenedores
+    - de_capital
+    - es_reit
+    - dividendo
+  frequency: trimestral
+  history_years: 15
+  timestamp_convention: bar_close
+  session: rth
+  point_in_time_notes: >
+    Universo point-in-time con vivos y muertos (panel 13F + XBRL, 2008-12 a 2026-06); las
+    carteras empiezan en 2011T1 con mínimo de 8 trimestres de historia por emisor. Retorno total
+    con dividendos de XBRL por fecha de presentación y retorno de salida de los 8-K (quiebras).
+    El índice FTSE Nareit es retorno total. La clasificación por tipo de propiedad debe ser la
+    vigente en cada fecha (las conversiones existen: oficinas a ciencias de la vida, centros
+    comerciales a mixto); NO usar la clasificación actual hacia atrás. Precios 13F a fin de
+    trimestre (97% a menos de 2 puntos de Yahoo). Comparar contra SCHH real y contra el índice
+    que SCHH sigue hoy (FTSE Nareit All Equity menos 0.07%), con la misma máquina
+    (fase6.simular, impuestos del broker de EE. UU. al 35%: dividendo 44%, ganancia 10%, sin
+    comisión).
+  extra_datasets:
+    - "FTSE Nareit All Equity REITs, retorno total mensual desde 1972 (índices del repo)"
+    - "FRED TB3MS"
+    - "Clasificación as-of por tipo de propiedad (a construir con 10-K y nombres; si no se logra, B prueba solo factor_tipo_propiedad = 0, lo declara, y el conteo de trials NO baja)"
+    - "SCHH mensual (Yahoo) y SCHH real con sus índices previos a 2020"
+
+expected_edge:
+  source:
+    - >-
+      Gutierrez, R. C. y Prinsky, C. A. (2007), 'Momentum, reversal, and the trading behaviors of
+      institutions', Journal of Financial Markets 10(1): 48-75 — acciones de EE. UU. 1963-2000: el
+      momentum de retorno relativo revierte (cerca de -40 pb/mes en los meses 13 a 60) y el de
+      retorno anormal propio (residuo de modelo de mercado, 60 meses, estandarizado) sigue (cerca
+      de +20 pb/mes en los meses 13 a 60; diferencia acumulada a 5 años de alrededor de 30%); las
+      instituciones persiguen el relativo e ignoran el anormal. [T: resumen, introducción y
+      método leídos del PDF del autor]
+    - >-
+      Blitz, D., Huij, J. y Martens, M. (2011), 'Residual momentum', Journal of Empirical Finance
+      18(3): 506-521 — momentum de residuos contra Fama-French 3 (36 meses) con ganancias ajustadas
+      por riesgo de cerca del doble que el momentum total y más estables. [R] Ojo: su muestra
+      excluye REITs.
+    - >-
+      Blitz, D., Hanauer, M. X. y Vidojevic, M. (2020), 'The idiosyncratic momentum anomaly',
+      International Review of Economics & Finance 69: 932-957 — EE. UU. 1925-2015: Sharpe mensual
+      0.48 contra 0.25 del momentum convencional; también en desarrollados (1989-2015) y
+      emergentes (1992-2015); desempeño más débil desde inicios de los 2000. [S: resumen de CXO
+      Advisory, mayo 2017; ficha verificada en Crossref]
+    - >-
+      Chui, A. C. W., Titman, S. y Wei, K. C. J. (2003), 'Intra-industry momentum: the case of
+      REITs', Journal of Financial Markets 6(3): 363-387 — momentum fuerte y extendido dentro de
+      los REITs después de 1990, nulo antes. [R]
+    - >-
+      Lantushenko, V. y Nelling, E. (2017), 'Institutional Property-Type Herding in Real Estate
+      Investment Trusts', Journal of Real Estate Finance and Economics 54(4): 459-481 — momentum
+      por tipo de propiedad al estilo Moskowitz y Grinblatt (1999), 7 tipos, 1993-2011: ninguna de
+      16 combinaciones es rentable (diferencias de 0.14 a 0.33%/mes, t de 0.86 a 1.52). [T: tabla 6
+      de la versión AEA 2016] Sustenta quitar el componente de tipo de propiedad.
+    - >-
+      Sammon, M. (2025), 'Passive Ownership and Price Informativeness', Management Science 71(6):
+      4582-4598 — el aumento de la propiedad pasiva redujo cerca de un cuarto la información que
+      entra al precio antes de los resultados. [R] Evans, J. D., Jones, T. A. y Mueller, G. R.
+      (2016, en línea 2019), Journal of Accounting and Finance 16(7): Vanguard con cerca de 20% en
+      casi 80% de los REITs. [R]
+    - >-
+      Tomtosov, A., Rechmedina, S. y Dobrynskaya, V. (2025), 'Momentum Factor or Factor Momentum
+      in REITs Market?', HSE WP — momentum TOTAL 12/12 en REITs: -3.81% anual 1998-2021, caída
+      máxima -78% (evidencia de que la versión total falla en REITs). [T, vía
+      docs/investigacion/literatura.md]
+  sign: positivo
+  magnitude_annual_bps: { low: -10, high: 50, label: estimado }
+  magnitude_note: >
+    Mejora de TIR neta contra SCHH, aportando cada trimestre sin vender, después de costos e
+    impuestos del broker de EE. UU. Heurística propia (estimado): dTIR ~ s*CE/D, con CE = exceso
+    acumulado de cada aportación contra SCHH, s = fracción desviada (aquí 1) y D = duración
+    ponderada por dinero de las aportaciones ~ T/2 ~ 7.5 años para T = 15. Contrastada con la fase 6
+    (informes ya publicados) es solo orden de magnitud: con T corto sobreestima (desarrollo: 4.7% de
+    exceso -> ~190 pb heurísticos contra +86 reportados) y en validación subestima (0.9% -> ~18
+    contra +57). CE: Gutierrez y Prinsky dan ~12% largo-corto el primer año y ~10% en los meses 13 a
+    60 (acciones de EE. UU. 1963-2000); largo contra universo ~1/2 -> ~10%; descuento
+    post-publicación de McLean y Pontiff (2016, -58%) -> ~4%; dispersión idiosincrática baja de
+    REITs y tercil en vez de colas (x0.35 a x0.6) -> CE de 1.5% a 2.5% -> +20 a +33 pb. Costos: sin
+    comisión; diferencial de compra de 5 a 15 pb una sola vez por aportación (-1 a -2 pb/año); sin
+    TER de 7 pb de SCHH (+7). Impuestos: dividendo al 44% en ambos lados; nunca se vende (ganancia
+    diferida); efecto del yield distinto de los escogidos contra SCHH de -10 a +10 pb (signo
+    incierto). Rango: -10 (residuo sin poder en REITs, deriva de tamaño contra SCHH) a +50. El
+    centro (~+20) queda DEBAJO del objetivo de +50 pb: la card solo vale si B encuentra el extremo
+    alto.
+  crowding_decay_risk: >
+    Publicación: Gutierrez y Prinsky (2007) y Blitz, Huij y Martens (2011); casi 20 años de
+    exposición. Decaimiento documentado: según el resumen de Blitz, Hanauer y Vidojevic (2020), el
+    momentum idiosincrático se debilitó desde inicios de los 2000 aunque mantiene mejor Sharpe que
+    el convencional; prior McLean y Pontiff (2016) de -58% post-publicación aplicado en la
+    magnitud. En REITs no encontré ningún estudio de momentum residual (búsqueda de octubre de
+    2026), así que no hay verificación en el activo; el momentum TOTAL en REITs sí se apagó después
+    de 2008 (Tomtosov et al. 2025; fase 6: exceso de -0.2% en 2021-2026) y eso es la amenaza
+    principal: si lo que murió fue el drift de información en REITs y no solo la parte relativa, el
+    residuo también estará muerto. Productos: los ETFs de momentum de mercado amplio usan retorno
+    total (a veces ajustado por volatilidad), no residuos, y no conozco un producto de momentum
+    residual en REITs (crowding bajo a moderado, inferido). Riesgo de cola compartido: los crashes
+    de momentum en rebotes (2009, 2020); el residuo contra el índice REIT los reduce pero no los
+    elimina (Blitz, Hanauer y Vidojevic reportan que absorbe parte del de 2009).
+
+parameters:
+  ventana_estimacion:
+    { min: 12, max: 20, n_grid: 2, unit: "trimestres (36 a 60 meses, como BHM y GP)" }
+  formacion:
+    { min: 2, max: 4, n_grid: 2, unit: "trimestres de residuos sumados (6 o 12 meses)" }
+  fraccion_escogida:
+    { min: 0.20, max: 0.3333, n_grid: 2, unit: "fracción de elegibles con puntaje (quintil o tercil superior)" }
+  factor_tipo_propiedad:
+    { min: 0, max: 1, n_grid: 2, unit: "0 = residuo solo contra índice REIT; 1 = también contra el tipo de propiedad" }
+  salto:
+    { min: 0, max: 0, n_grid: 1, unit: "trimestres (fijo: la ejecución ya va ~2 meses después de t)" }
+  minimo_observaciones:
+    { min: 8, max: 8, n_grid: 1, unit: "trimestres con retorno en la ventana (fijo)" }
+  tope_por_emisor:
+    { min: 0.15, max: 0.15, n_grid: 1, unit: "fracción de la aportación (fijo)" }
+
+kill_criteria:
+  - >-
+    Mecanismo falsado: en la validación de B, si el exceso de las cohortes escogidas contra el
+    universo ponderado por capitalización en los meses 13 a 36 después de la formación es negativo
+    con t < -1 (es decir, revierte como el momentum total), la propiedad de 'sin reversión' no
+    existe en REITs: matar.
+  - >-
+    Redundancia: si la correlación de rangos promedio entre s_i,t y el momentum 12-3 (S1 de la
+    fase 6) supera 0.8, o el puntaje no agrega poder a S1 en una regresión transversal conjunta, la
+    card es la misma regla ya rechazada: matar.
+  - >-
+    Producción: después de 12 aportaciones reales, si la TIR neta de lo comprado con la regla
+    queda 100 pb al año o más abajo de la de las mismas aportaciones en SCHH, o el exceso de las
+    cohortes de 12 meses es negativo en 3 de los últimos 4 años, toda la aportación siguiente va a
+    SCHH (lo ya comprado no se vende).
+  - >-
+    Crowding: si aparece un ETF o mandato de momentum residual o idiosincrático en REITs de EE. UU.
+    con activos de 1% o más de la capitalización del sector, revisar la card antes de seguir
+    aportando con ella.
+
+n_trials:
+  this_card: 16
+  session_total: 40
+  accounting: >
+    Sesión f3 (momentum y reversión), investigador f3. Esta card: 2 ventanas x 2 formaciones x 2
+    fracciones x 2 modelos de residuo = 16 (salto, mínimo de observaciones y tope fijos, n_grid 1).
+    session_total = suma de this_card de las 3 cards emitidas por f3: 16
+    (f3_momentum_residual_sin_reversion) + 8 (f3_cercania_maximo_52s) + 16
+    (f3_rebote_post_recorte_dividendo) = 40, por regla del orquestador. Variantes conceptuales
+    descartadas por razonamiento, SIN mirar datos, que el priorizador debe sumar aparte: momentum
+    por tipo de propiedad (4), PEAD con sorpresa de FFO de XBRL (4), frog-in-the-pan (2), máximo de
+    52 semanas relativo al tipo de propiedad (1) = 11. Observados nuevos en esta sesión: 0 (no se
+    miró ningún retorno). observed_extra = 1: esta card responde explícitamente al fracaso
+    observado de S1 (momentum 12-3: +86/+57/+38 pb en fase 6, -102 pb en el satélite), que ya
+    está en el prior del ledger (>= 39); el priorizador no debe contarlo dos veces entre las cards
+    f3 que lo declaran. ledger_total = 999 es marcador de posición.
+  ledger_total: 999
+  ledger_ref: "REITs_EEUU_capital|trimestral"
+  observed_extra: 1
+
+notes_adversarial: >
+  Steelman preliminar del investigador (el adversario debe reescribirlo). Mejor argumento en
+  contra: en REITs el R2 contra el índice es alto y la dispersión idiosincrática baja, así que el
+  residuo trimestral es en buena parte ruido; con 12 a 20 observaciones el beta es impreciso y el
+  puntaje puede terminar correlacionado más de 0.8 con el 12-3 ya rechazado. La evidencia de
+  no-reversión (Gutierrez y Prinsky 2007) es de 1963-2000, antes de su publicación y del auge
+  pasivo, y la muestra de Blitz, Huij y Martens excluye REITs: no hay ni una prueba en el activo. Además
+  la mitad del exceso de momentum de la fase 6 se concentró en 2011-2015 y desapareció después.
+  Por qué sobrevive: el mecanismo (agencia institucional + propiedad pasiva) es distinto del de S1
+  y predice algo falsable y barato de medir (meses 13 a 36, kill 1); la redundancia con S1 se mide
+  antes de gastar el presupuesto (kill 2); el grid es chico (16) y la ponderación por
+  capitalización evita la desventaja conocida de pesar igual.

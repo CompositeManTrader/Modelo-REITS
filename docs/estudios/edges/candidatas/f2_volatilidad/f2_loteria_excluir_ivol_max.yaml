@@ -135,8 +135,8 @@ data_required:
     nombre); nunca usar el ticker actual hacia atrás. (4) Retorno total: el cierre ajustado diario
     debe cuadrar con el retorno trimestral del panel (umbral de 2 puntos, como la validación 13F
     contra Yahoo); discrepancias se reportan. (5) Capitalización de 13F (precio por acciones) al
-    cierre de t. (6) VNQ siguió el MSCI US REIT hasta 2018 y el MSCI US IMI Real Estate 25/50
-    después; sirve como factor, no como benchmark.
+    cierre de t. (6) VNQ siguió un índice solo de REITs hasta 2018 y el MSCI US IMI Real Estate
+    25/50 desde 2018-03 (docs/estudios/etfs_de_reits.md); sirve como factor, no como benchmark.
   extra_datasets:
     - "Precios diarios ajustados (retorno total) de todos los elegibles no sellados 2008-2026, incluidos fusionados y quebrados (Yahoo para vivos; para deslistados, una fuente que los conserve, p. ej. CRSP/Ziman vía WRDS o un proveedor EOD con históricos de deslistados)"
     - "VNQ y SPY diarios (Yahoo) como factores"

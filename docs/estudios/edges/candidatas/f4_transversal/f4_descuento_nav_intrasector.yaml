@@ -1,0 +1,252 @@
+# Strategy Card v1.1 — familia 4 (cross-sectional / valor relativo), investigador transversal.
+# Descuento contra un NAV estimado con XBRL, comparado SOLO dentro del mismo tipo de propiedad.
+# No se corrió ningún backtest ni se miró el retorno de esta señal en los datos del repo.
+
+card_version: "1.1"
+id: f4_descuento_nav_intrasector
+asset_universe:
+  - "SCHH (benchmark: Dow Jones Equity All REIT Capped desde 2020-07)"
+  - "UNIVERSO_REGLA: REITs de capital de EE. UU. elegibles del panel data/investigacion/emisores/panel.csv.gz (capitalización >= 250 M USD, precio >= 5 USD, >= 20 tenedores en 13F; vivos y muertos), unos 100 a 150 por trimestre, solo emisores abiertos (el tercio sellado ya se abrió en la fase 6 y no se reabre)"
+  - "CLASIFICACION: tipo de propiedad Nareit point-in-time (Office, Industrial, Retail, Residential, Diversified, Lodging/Resorts, Self Storage, Health Care, Timberland, Telecommunications, Data Centers, Specialty)"
+instrument: canasta
+direction: long_only
+
+holding_horizon:
+  min_bars: 4
+  max_bars: 62
+  bar_size: trimestral
+  overnight_allowed: true
+
+economic_rationale:
+  mechanism: >
+    Los REITs de un mismo tipo de propiedad poseen inmuebles casi sustituibles (departamentos,
+    bodegas, centros comerciales) que el mercado privado valúa a cap rates parecidos; por eso la
+    dispersión del cap rate implícito DENTRO del sector es en buena parte ruido de precio del
+    mercado público y no diferencia de activos. Ese ruido se genera porque los flujos entran y
+    salen por nombre y por sector (redenciones de fondos dedicados, ventas por pérdida fiscal,
+    mandatos de ingreso que rotan por yield, salidas de índices), y produce descuentos contra el
+    NAV que se cierran por canales que presionan desde fuera del mercado público: (i) compradores
+    privados y REITs consolidadores adquieren al que cotiza debajo de su NAV (Chacon y Morillon
+    2025: el descontado tiene más probabilidad de ser adquirido y recibe mayor prima sobre el
+    precio); (ii) la administración recompra o vende activos al mercado privado cuando P/NAV < 1
+    y casi solo emite cuando P/NAV > 1 (Gentry y Mayer 2003), lo que se traduce en NAV por acción
+    creciente para el descontado y diluido para el caro; (iii) el activismo. El S5 de la fase 6
+    («rendimiento de la empresa», -172 pb) comparó el cap rate ENTRE sectores, lo que mezcla primas
+    estructurales por tipo de propiedad (Capozza y Lee 1995: comercio con prima, industrial con
+    descuento) con el ruido; el efecto valor es sobre todo intra-industria (Chou, Ho y Ko 2012) y
+    el modelo de NAV de Green Street es explícitamente neutral al mercado y al sector. Esta card
+    aísla el componente intra-sector.
+  who_loses: >
+    El tenedor que vende el REIT descontado por razones no fundamentales (redenciones de fondos
+    dedicados, venta fiscal de diciembre, mandatos de ingreso, salida de índices) y el que compra
+    NAV sobrevaluado en el REIT con prima; también el indexado capitalizado (SCHH), que por
+    construcción pesa más al caro dentro de cada sector. Aceptan pagar porque su restricción es de
+    liquidez, de mandato o fiscal, no de valuación.
+  why_persists: >
+    Cerrar el descuento exige comprar el REIT entero (límites estatutarios de propiedad por
+    accionista, típicamente de 9.8% a 9.9%; prima de control; financiamiento) o sostener una posición larga sin fecha de convergencia y con
+    riesgo de trampa de valor (a veces el descuento anticipa caídas del NAV privado). El NAV no es
+    público (Green Street y S&P lo venden), el NOI no está estandarizado en XBRL y los gestores con
+    benchmark no pueden alejarse mucho del peso capitalizado. Para este inversionista la barrera
+    es propia: no vende, así que solo captura el cierre con dinero nuevo.
+
+signal_definition:
+  formula: |
+    Para cada trimestre t y emisor elegible i del sector s (clasificación Nareit vigente en t):
+      NOI_i  = ingresos_12m - gastos_operativos_propiedad_12m   (XBRL, sin depreciación ni intereses)
+               si faltan los gastos de propiedad: NOI_i = ffo_12m + intereses_12m + gya_12m
+      VE_i   = capitalizacion_i + pasivos_i - efectivo_i
+      ic_i   = NOI_i / VE_i                                      (cap rate implícito)
+      c_s    = mediana de ic_j entre los elegibles j del sector s en t
+    variante_senal = 1 (desapalancada):   d_i = ic_i - c_s
+    variante_senal = 2 (P/NAV apalancado): NAV_i = NOI_i / c_s - pasivos_i + efectivo_i;
+                                           d_i = 1 - capitalizacion_i / NAV_i   (NAV_i <= 0: excluido)
+    variante_senal = 3 (residuo de sentimiento, Letdin, Sirmans y Sirmans 2020):
+                     d_i = residuo de la regresión transversal del trimestre de (ic_i - c_s) sobre
+                           log(capitalizacion_i), pasivos_i / activos_i y crecimiento de NOI_i a 4 trimestres
+    Selección: S_s = los ceil(fraccion_seleccion * n_s) emisores de mayor d_i en el sector s
+               (requiere n_s >= minimo_pares_sector; si no, el sector se compra a peso capitalizado sin señal).
+    Pesos de la aportación del trimestre:
+      W_s = capitalización del sector s / capitalización del universo elegible   (neutral al sector)
+      w_i = W_s * cap_i / suma_{j en S_s} cap_j, con tope tope_por_nombre y el exceso repartido en S_s.
+  inputs:
+    - "precio (13F, fin de trimestre)"
+    - capitalizacion
+    - pasivos
+    - activos
+    - ffo_12m
+    - intereses_12m
+    - ingresos_12m
+    - "gastos_operativos_propiedad_12m (XBRL, por agregar)"
+    - "gya_12m (XBRL GeneralAndAdministrativeExpense, por agregar)"
+    - "efectivo (XBRL CashAndCashEquivalentsAtCarryingValue, por agregar)"
+    - "tipo de propiedad point-in-time (por armar)"
+  timing: >
+    Calculada al cierre del trimestre t con la primera versión publicada de cada estado XBRL cuya
+    fecha de presentación sea <= t y el precio de fin de trimestre; la aportación de t se ejecuta al
+    cierre de t, como en la fase 6. B la repite con un trimestre de retraso (señal de t ejecutada en
+    t+1) como prueba obligatoria.
+  warmup_bars: 4
+
+entry_rules: >
+  Cada trimestre la aportación (3,000 USD teóricos) se reparte con los pesos w_i entre los
+  emisores seleccionados de todos los sectores; nunca se vende. Dividendos netos de 44% y
+  salidas por adquisición se tratan exactamente igual que en el simulador del repo y que en la
+  cuenta de referencia en SCHH.
+
+exit_rules:
+  primary: >
+    Sin salida voluntaria: cada compra se mantiene indefinidamente. Solo sale por adquisición,
+    deslistado o quiebra (regla de retorno de salida del repo: 0% comprado o deslistado, -30% con
+    8-K de quiebra, sensibilidad -100%); el efectivo, neto de 10% sobre la ganancia, se suma a la
+    siguiente aportación.
+  stop_loss: null
+  take_profit: null
+  time_stop: "Fin de la muestra: valuación final con 10% sobre la ganancia latente, igual que la referencia."
+  intrabar_note: "No aplica: sin stops ni targets; frecuencia trimestral."
+
+sizing: >
+  100% de cada aportación a la canasta; sin apalancamiento; pesos capitalizados dentro de la
+  selección y peso de cada sector igual al del universo elegible (sector-neutral); tope por nombre
+  fijo. Con aportaciones reales pequeñas (~800 MXN al mes) exige acciones fraccionarias o
+  concentrar en los nombres de mayor peso; B debe medir la versión con a lo más 15 nombres.
+
+data_required:
+  fields:
+    - fecha
+    - cik
+    - precio
+    - retorno
+    - dividendo
+    - salida
+    - capitalizacion
+    - acciones
+    - pasivos
+    - activos
+    - ffo_12m
+    - intereses_12m
+    - ingresos_12m
+    - gastos_operativos_propiedad_12m
+    - gya_12m
+    - efectivo
+    - tipo_de_propiedad
+  frequency: trimestral
+  history_years: 15
+  timestamp_convention: bar_close
+  session: rth
+  point_in_time_notes: >
+    EN EL REPO, point-in-time: precio 13F de fin de trimestre, retorno total, dividendo, salida,
+    activos, pasivos, FFO de 12 meses armado con XBRL (primera versión publicada, por fecha de
+    presentación), intereses, ingresos y capitalización (panel de 2008-12 a 2026-06; carteras desde
+    2011-03). HAY QUE CONSEGUIR: (1) gastos operativos de propiedad, impuesto predial, G&A y efectivo
+    de los companyfacts de la SEC con el mismo procedimiento de src/investigacion/fundamentales.py
+    (etiquetas us-gaap DirectCostsOfLeasedAndRentedPropertyOrEquipment, CostOfRevenue,
+    OperatingCostsAndExpenses, RealEstateTaxExpense, GeneralAndAdministrativeExpense,
+    CashAndCashEquivalentsAtCarryingValue), primera versión por fecha de presentación; muchos REITs
+    usan etiquetas propias para el gasto de propiedad, así que B debe reportar la cobertura por
+    trimestre y usar el respaldo FFO + intereses + G&A cuando falte. (2) El tipo de propiedad
+    point-in-time, que el panel NO tiene: para los vivos, la clasificación de FTSE Nareit; para los
+    muertos, el sector de los REITWatch mensuales de Nareit archivados o el Item 1 del 10-K de ese
+    año, a mano y con su motivo (como clasificacion_manual.csv). Nunca la clasificación actual
+    aplicada hacia atrás. (3) Pesos sectoriales de SCHH: se aproximan con el peso capitalizado del
+    universo elegible (el índice Dow Jones no se tiene). Riesgo de lookahead: reclasificaciones de
+    sector y re-expresiones de XBRL; usar siempre la primera versión.
+  extra_datasets:
+    - "SEC companyfacts: etiquetas de gasto operativo de propiedad, G&A y efectivo (por bajar)"
+    - "Clasificación por tipo de propiedad point-in-time (REITWatch de Nareit archivados / 10-K)"
+    - "Opcional para c_s exógeno: cap rate implícito sectorial del Nareit REIT Industry Tracker por vintage trimestral (reit.com), verificado descargable con historia desde 2000T1"
+    - "Precios mensuales de SCHH (en el repo, Yahoo)"
+
+expected_edge:
+  source:
+    - "Gentry, Jones y Mayer (2004), 'Do Stock Prices Really Reflect Fundamental Values? The Case of REITs', NBER WP 10850 — 1990-2003, NAV de Green Street: comprar el cuartil de menor P/NAV y vender el de mayor da alfas de 0.9% a 1.8% al mes; el cuartil barato tiene alfa de 0.84% mensual ponderado por valor, y la mayor parte del exceso está en la pata larga"
+    - "Letdin, Sirmans y Sirmans (2020), 'Betting Against the Sentiment in REIT NAV Premiums', ponencia preliminar ASSA/AREUEA 2020 — abril 2001 a abril 2015, NAV de consenso de SNL: la prima cruda solo predice débilmente (significativa al 10% con controles); el componente no explicado por fundamentales es transitorio y su largo-corto da 1.16% mensual (t = 2.99), el componente fundamental va en contra (-0.43% mensual)"
+    - "Green Street Advisors (2014), 'REIT Valuation: The NAV-based Pricing Model', extracto v3.0 alojado en reit.com — modelo relativo a pares del sector, recomendaciones neutrales al mercado y al sector; 1993-2013 anualizado Compra +24.5%, Universo +11.5% (hipotético, igual peso, sin costos, autorreportado); diferencias por año menores desde 2012 (2012 +1.5 pp, 2013 +1.9 pp, 2014 hasta mayo +3.3 pp)"
+    - "Chacon y Morillon (2025), 'NAV Ratios and REIT Takeovers: The Role of Public and Private Deal Premiums', Journal of Real Estate Research 47(3), 356-385 — los REITs con descuento contra NAV tienen más probabilidad de ser adquiridos y reciben primas públicas mayores; el CAR de 3 días es 11 pp mayor con P/NAV < 0.95 que con P/NAV > 1.05"
+    - "Capozza y Lee (1995), 'Property Type, Size, and REIT Value', Journal of Real Estate Research 10(4), 363-380 — primas y descuentos contra NAV varían sistemáticamente por tipo de propiedad y tamaño (por qué comparar dentro del sector)"
+    - "Chou, Ho y Ko (2012), 'Do industries matter in explaining stock returns and asset-pricing anomalies?', Journal of Banking and Finance 36(2), 355-370 — el efecto book-to-market es un fenómeno intra-industria (acciones de EE. UU., no REITs)"
+    - "Gentry y Mayer (2003), 'The Effects of Share Prices Relative to Fundamental Value on Stock Issuances and Repurchases', working paper Columbia/Wharton — los REITs casi no emiten con P/NAV < 1 ni recompran con P/NAV > 1 (canal de cierre por la administración)"
+  sign: positivo
+  magnitude_annual_bps: { low: -60, high: 80, label: estimado }
+  magnitude_derivation: >
+    Neto de costos e impuestos del broker de EE. UU. (dividendo 44%, ganancia 10%, comisión 0),
+    contra SCHH, aportando cada trimestre sin vender. Punto de partida: alfa de la pata larga de
+    ~10% al año en 1990-2003 con NAV de Green Street (Gentry, Jones y Mayer). Descuentos aplicados:
+    decaimiento posterior a la publicación de ~58% (McLean y Pontiff 2016), que Letdin et al.
+    confirman en 2001-2015 para la prima cruda; NAV aproximado con NOI de XBRL de 12 meses en vez
+    del NAV de analista (se supone un tercio de su poder); trimestral con 1 a 2 meses de rezago
+    contra mensual, lo que pierde parte del componente transitorio. Queda un exceso bruto de ~1% a
+    3% al año en la selección mientras sigue barata (1 a 2 años). Con aportaciones sin vender, cada
+    compra gana ese exceso una vez y luego queda neutral: la TIR mejora ~0.15 a 0.3 veces el exceso
+    (la fase 6 dio +86 pb con 4.7% de exceso en momentum), es decir +15 a +60 pb antes de impuestos.
+    Ajustes: +7 pb por no pagar el costo de SCHH; 0 a -3 pb de diferencial de compra; -10 a -30 pb
+    porque el barato paga más dividendo (yield de la cartera +0.3 a +0.9 pp, gravado a 44% en vez de
+    diferido a 10%); sesgo a tamaño chico frente a SCHH de signo incierto (los descontados suelen ser
+    más chicos). Centro ~+10 pb, abajo del criterio de +50; el alto exige que el sustituto de NAV
+    conserve la mitad del poder del NAV de Green Street. El análisis de poder del repo da un mínimo
+    detectable de 59 a 110 pb para selección: aun siendo real, el centro no se distinguiría del cero.
+  crowding_decay_risk: >
+    Publicado desde 2003-2004 (Gentry, Jones y Mayer; Gentry y Mayer) y practicado desde los noventa
+    por Green Street y los gestores dedicados de REITs: es la disciplina de valuación más usada en el
+    sector, así que el crowding entre profesionales es alto. Decaimiento documentado: la prima cruda
+    pasó de alfas de 0.9-1.8% mensual (1990-2003) a una relación apenas significativa en 2001-2015
+    (Letdin, Sirmans y Sirmans 2020); las recomendaciones de Green Street ganaron por márgenes mucho
+    menores en 2012-2014 que en los noventa. Persistencia reciente: el canal de adquisiciones sigue
+    activo (Chacon y Morillon 2025, muestra hasta ~2017 según las láminas de 2021) y Nareit (Pierzak,
+    10-sep-2026) reporta cap rates implícitos de REITs por encima de los de avalúo privado en los
+    cuatro sectores grandes al 2T2026, es decir, descuento agregado vigente. No encontré un ETF que
+    empaquete el descuento intra-sector; la contraparte (flujos de ingreso e indexados) no aprende
+    porque su mandato no es de valuación, lo que frena el decaimiento, pero los profesionales con
+    NAV de analista llegan antes que un sustituto con XBRL trimestral.
+
+parameters:
+  fraccion_seleccion:
+    { min: 0.333, max: 0.5, n_grid: 2, unit: "fracción de cada sector que recibe la aportación" }
+  variante_senal:
+    { min: 1, max: 3, n_grid: 3, unit: "1 = gap desapalancado, 2 = P/NAV apalancado, 3 = residuo de sentimiento" }
+  minimo_pares_sector:
+    { min: 4, max: 4, n_grid: 1, unit: "emisores elegibles por sector (fijo, no optimizable)" }
+  tope_por_nombre:
+    { min: 0.10, max: 0.10, n_grid: 1, unit: "fracción máxima de la aportación en un emisor (fijo)" }
+
+kill_criteria:
+  - "Correlación de rangos promedio entre d_i (dentro del sector) y el retorno de los 4 trimestres siguientes contra su sector <= 0 en dos evaluaciones anuales seguidas con ventana de 12 trimestres."
+  - "Después de 8 aportaciones, la TIR neta va 200 pb o más abajo de la cuenta en SCHH (misma regla de abandono que el satélite en papel)."
+  - "Ruptura del canal de cierre: en 8 trimestres seguidos ningún REIT del tercio más descontado es adquirido o recompra acciones (se mide con 8-K y conteo de acciones), o cambian las reglas que limitan la propiedad o la fiscalidad de los REITs."
+  - "La cobertura de NOI con etiquetas de gasto de propiedad cae abajo de 70% de los elegibles en un trimestre: la señal deja de ser la definida y se suspende hasta revalidar."
+  - "La cartera acumulada supera en más de 1.0 pp el yield de dividendo de SCHH durante 4 trimestres (el lastre fiscal se come el exceso esperado)."
+
+n_trials:
+  this_card: 6
+  session_total: 28
+  accounting: >
+    Sesión f4 (investigador transversal, REITs_EEUU_capital|trimestral). Emitidas: esta card 6
+    (3 variantes de señal x 2 fracciones de selección; mínimo de pares y tope fijos),
+    f4_cap_rate_tipo_propiedad 18 (3 variantes x 3 ventanas x 2 valores de k) y
+    f4_eficiencia_operativa_intrasector 4 (2 variantes x 2 fracciones): session_total = 28, por
+    instrucción solo la suma de this_card. Descartadas por razonamiento, sin mirar datos (17
+    conceptuales que el priorizador debe sumar aparte): ETF por composición 4, emisión neta 4,
+    QMJ compuesto 1, momentum por tipo de propiedad 2, ponderación fundamental entre sectores 2,
+    descuento con catalizador 2, pares fijos long-only 1, spread contra la tasa real 1.
+    Observados en esta sesión: 0 (no se miró ningún retorno; solo encabezados del panel y la
+    cobertura por fechas de las filas del Tracker de Nareit). observed_extra = 2 en esta card: el
+    diseño reacciona a dos cifras ya publicadas en el repo (S5 entre sectores, -172 pb; satélite
+    a partes iguales, -137 pb contra el índice, que motiva pesar por capitalización); ambas ya
+    están en el prior de >= 39 observados del ledger, así que el priorizador no debe contarlas dos
+    veces.
+  ledger_total: 999
+  ledger_ref: "REITs_EEUU_capital|trimestral"
+  observed_extra: 2
+
+notes_adversarial: >
+  Steelman preliminar del investigador (el adversario lo reemplaza). (1) Es S5 con otro corte: si
+  el S5 perdió porque el cap rate alto marca trampas de valor (oficinas y centros comerciales
+  2011-2015) y no por mezclar sectores, la versión intra-sector hereda el mismo problema; Letdin et
+  al. muestran que el componente fundamental del descuento va EN CONTRA del inversionista de valor y
+  la fase 6 encontró que «barato entre los de calidad» fue la peor regla (-211 pb). La variante 3
+  (residuo) es la respuesta, pero es la que más grados de libertad tiene. (2) El NOI de XBRL es un
+  sustituto pobre del NAV: no ve crecimiento de rentas embebido, desarrollo en curso ni terrenos;
+  la dispersión de ic dentro del sector puede ser casi toda calidad de activos. (3) La magnitud
+  central (~+10 pb) está abajo del criterio y del mínimo detectable; sobrevive como card solo
+  porque el rango alto supera +50 y porque el corte intra-sector nunca se probó (la fase 6 lo
+  descartó por falta de sector en los muertos).
