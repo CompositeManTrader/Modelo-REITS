@@ -1,0 +1,233 @@
+# Strategy Card v1.1 — familia 5 (event-driven / fundamental), investigador f5
+# Hipótesis: cuando consejeros y directivos de un REIT compran acciones con su dinero, fuera de su
+# patrón habitual (compra "oportunista"), revelan que el precio está por debajo del valor privado
+# de los inmuebles. Mandar la aportación nueva a esos REITs captura la corrección. Convicción BAJA
+# (estimado): ver expected_edge.
+
+card_version: "1.1"
+id: f5_compras_insiders_oportunistas
+asset_universe:
+  - "SCHH"
+  - "PANEL_REITS_CAPITAL_NO_SELLADOS: emisores de data/investigacion/emisores/universo.csv con clase_final=capital, con_precio=True y sellado=False (186 al manifiesto de 2026-10-06), identificados por CIK (= ISSUERCIK del Form 4), no por ticker"
+instrument: canasta
+direction: long_only
+
+holding_horizon:
+  min_bars: 1
+  max_bars: 70          # nunca vende: cada compra se queda hasta el fin de la muestra (2009T1-2026T2 ≈ 70 trimestres)
+  bar_size: trimestral
+  overnight_allowed: true
+
+economic_rationale:
+  mechanism: >
+    Los consejeros y directivos de un REIT conocen el valor privado de sus inmuebles (avalúos,
+    ofertas recibidas, renovaciones de contratos) antes que el mercado: Damodaran y Liu (1993)
+    muestran que los insiders de REITs compran tras avalúos favorables antes de que se publiquen, y
+    Shen, Hui y Fan (2021) que redujeron sus tenencias desde 2004, antes de la crisis. Cuando el
+    precio cae debajo de ese valor por flujos o sentimiento, el insider que compra con su propio
+    dinero fuera de su patrón de cada año (compra oportunista, Cohen, Malloy y Pomorski 2012) revela
+    un descuento que el mercado subestima, porque el Form 4 es un dato disperso, de montos chicos y
+    poco seguido en REITs medianos. La compra es costosa para el insider (riesgo propio, ventanas de
+    bloqueo, escrutinio de la SEC), lo que la hace creíble; la corrección del descuento hacia el
+    valor de los inmuebles se traduce en un exceso de retorno durante los 6 a 24 meses siguientes, y
+    el inversionista lo captura solo con la aportación nueva, sin vender nada.
+  who_loses: >
+    Quien vende en el descuento y no lee los Form 4: fondos y particulares que salen del REIT por
+    flujos, por un recorte de dividendo o por rotación de tipo de inmueble, sin sensibilidad al valor
+    de los inmuebles. Aceptan pagar porque su restricción es de liquidez, de mandato o de atención;
+    el insider es la contraparte informada de esas ventas.
+  why_persists: >
+    La información del insider es valor privado de inmuebles y no se replica con un modelo; leer y
+    depurar los Form 4 de ~150 REITs (rutinario contra oportunista, planes 10b5-1, compras de 10%
+    owners, asignaciones en ofertas) es trabajo con poca capacidad: las compras son de decenas o
+    cientos de miles de dólares y el exceso, según Lakonishok y Lee (2001), vive en nombres chicos
+    donde el capital institucional no cabe.
+
+signal_definition:
+  formula: >
+    Datos: SEC Insider Transactions Data Sets (Forms 3/4/5 en tablas, un zip por trimestre desde
+    2006T1). Compra calificada = fila de NONDERIV_TRANS con TRANS_CODE='P' y
+    TRANS_ACQUIRED_DISP_CD='A', sobre acciones comunes (SECURITY_TITLE contiene 'Common'),
+    TRANS_PRICEPERSHARE > 0, en un Form 4 (un 4/A solo si su FILING_DATE <= t) con ISSUERCIK = cik
+    del emisor, presentada por un reportante cuya relación (RPTOWNER_RELATIONSHIP) incluye Director
+    u Officer (fuera los que solo son TenPercentOwner), sin marca AFF10B5ONE (existe desde 2023) y
+    fuera de los 5 días hábiles alrededor de una oferta suscrita del mismo emisor (424B), que sería
+    una asignación y no una compra en mercado.
+    Rutinario (Cohen, Malloy y Pomorski 2012): el insider j es rutinario en el año a si operó en el
+    mismo mes calendario en cada uno de los años a-1, a-2 y a-3; si no, es oportunista. Solo se usan
+    operaciones con FILING_DATE <= t para clasificar.
+    Para el emisor i elegible en t (REIT de capital del panel, sellado=False,
+    capitalizacion(i,t-1) >= 250 M USD, salida=False en t):
+    N(i,t) = número de insiders oportunistas distintos (RPTOWNERCIK) con compras calificadas cuya
+    FILING_DATE está en (t - W, t - 5 días hábiles];
+    D(i,t) = suma de TRANS_SHARES x TRANS_PRICEPERSHARE de esas compras, en USD;
+    E(i,t) = 1 si N(i,t) >= k y D(i,t) >= d; si no, 0.
+    S_t = {i : E(i,t) = 1}. Peso dentro de S_t: w_i = (1-p)/|S_t| + p * cap(i,t-1) / suma_{j en S_t} cap(j,t-1).
+  inputs:
+    - "SEC Insider Transactions Data Sets: SUBMISSION (ACCESSION_NUMBER, FILING_DATE, ISSUERCIK, DOCUMENT_TYPE, AFF10B5ONE), REPORTINGOWNER (RPTOWNERCIK, RPTOWNER_RELATIONSHIP), NONDERIV_TRANS (SECURITY_TITLE, TRANS_DATE, TRANS_CODE, TRANS_ACQUIRED_DISP_CD, TRANS_SHARES, TRANS_PRICEPERSHARE)"
+    - "EDGAR: fechas de prospectos 424B de ofertas suscritas por emisor (para excluir asignaciones)"
+    - "panel.cik, panel.fecha, panel.capitalizacion, panel.precio, panel.retorno, panel.dividendo, panel.salida, panel.de_capital"
+    - "universo.cik, universo.sellado, universo.clase_final, universo.con_precio"
+    - "SCHH retorno total (Yahoo, en el repo)"
+  timing: >
+    Calculada al cierre del trimestre t con Form 4 cuya FILING_DATE (no la fecha de la operación)
+    sea <= t - 5 días hábiles; la aportación de t se ejecuta al precio de cierre de t (precio 13F del
+    panel). Es la fecha en que el dato fue público, no la de la compra del insider: medir desde
+    TRANS_DATE sería lookahead de hasta 2 días hábiles (después de 2002) o de semanas (antes).
+  warmup_bars: 12
+
+entry_rules: >
+  Cada trimestre t se aportan 3,000 USD: s*3,000 se reparten en S_t según w_i y (1-s)*3,000 van a
+  SCHH; si S_t está vacío, el 100% va a SCHH. Comisión 0 (broker de EE. UU.) y un costo de spread de
+  10 pb por compra en emisores individuales. Los dividendos netos de impuesto siguen el tratamiento
+  del simulador del repo (src/investigacion/simulacion.py) con el perfil fiscal broker_35 de
+  src/investigacion/diseno.PERFILES (dividendo 44%, ganancia 10%).
+
+exit_rules:
+  primary: >
+    Nunca se vende. Cada compra se conserva hasta el fin de la muestra o hasta la salida del
+    emisor con el retorno de salida del panel (-30% en quiebra, 0% en otras salidas); el efectivo o
+    las acciones recibidas en una fusión se reinvierten en SCHH en el trimestre siguiente.
+  stop_loss: null
+  take_profit: null
+  time_stop: null
+  intrabar_note: "Sin stops ni targets; no hay ambigüedad de trayectoria intrabarra."
+
+sizing: >
+  Solo la aportación nueva: la fracción s (0.5 o 1.0) de cada aportación trimestral va a S_t con
+  pesos w_i (igual peso si p=0, por capitalización si p=1); el resto a SCHH. Sin apalancamiento,
+  sin cortos y sin rebalanceo de lo ya comprado. Con |S_t| = 1 toda la fracción s va a un solo
+  nombre: riesgo de concentración declarado.
+
+data_required:
+  fields:
+    - "Form 4: FILING_DATE, ISSUERCIK, RPTOWNERCIK, RPTOWNER_RELATIONSHIP, TRANS_CODE, TRANS_ACQUIRED_DISP_CD, SECURITY_TITLE, TRANS_SHARES, TRANS_PRICEPERSHARE, AFF10B5ONE"
+    - "cik"
+    - "fecha (fin de trimestre)"
+    - "precio (13F, fin de trimestre)"
+    - "retorno total trimestral y dividendo (panel)"
+    - "capitalizacion"
+    - "salida"
+    - "sellado, clase_final, con_precio (universo.csv)"
+    - "SCHH retorno total"
+  frequency: trimestral
+  history_years: 17
+  timestamp_convention: bar_close
+  session: rth
+  point_in_time_notes: >
+    (1) Los Form 4 NO están en el repo: se bajan de https://www.sec.gov/dera/data/form-345 (un zip
+    por trimestre desde 2006T1) con el User-Agent que ya usa src/investigacion/sec.py; ISSUERCIK se
+    cruza con el cik del panel (10 dígitos). Son datos tal como se presentaron (las enmiendas 4/A
+    son presentaciones aparte), así que son point-in-time por FILING_DATE; la SEC advierte que no
+    garantiza su exactitud: depurar precios cero, unidades y duplicados. (2) Desde agosto de 2002 el
+    Form 4 se presenta en 2 días hábiles; las presentaciones tardías se tratan por su FILING_DATE.
+    (3) La clasificación rutinario/oportunista exige 3 años de historia del reportante: con datos
+    desde 2006T1 la primera señal utilizable es 2009T1, que coincide con el inicio del panel.
+    (4) Las escisiones no se ven en los 13F: el retorno del panel del trimestre de la escisión es
+    falsamente negativo para la matriz (p. ej. O con ONL en 4T2021, WPC con NLOP en 4T2023); B debe
+    corregirlo con la fecha y la razón de distribución del Form 10/8-K. (5) El tercio sellado (81
+    emisores según universo.csv) ya se abrió en la fase 6 y no se reabre: desarrollo y validación en
+    los 186 no sellados; la prueba final necesita datos posteriores a 2026T2 o un pre-registro
+    explícito. (6) SCHH siguió otro índice hasta junio de 2020: reportar también contra FTSE Nareit
+    All Equity menos 7 pb y contra 'todos por partes iguales' y 'todos por capitalización', para
+    separar la señal del sesgo de igual peso y de tamaño (las compras de insiders se concentran en
+    REITs chicos). (7) Precio, no ajustado; el retorno total incluye dividendos y el impuesto se
+    aplica al dividendo.
+  extra_datasets:
+    - "SEC Insider Transactions Data Sets (Forms 3/4/5), https://www.sec.gov/dera/data/form-345, 2006T1 en adelante"
+    - "EDGAR: prospectos 424B (fecha) de ofertas suscritas por emisor, para excluir asignaciones de insiders en ofertas"
+    - "Form 10 / 8-K de escisiones (fecha y razón de distribución) para corregir el retorno de las matrices"
+    - "FTSE Nareit All Equity REITs mensual (en el repo) como segundo benchmark"
+
+expected_edge:
+  source:
+    - "Lakonishok, J. y Lee, I. (2001), 'Are Insider Trades Informative?', RFS 14(1) 79-111 — NYSE/AMEX/Nasdaq 1975-1995: la capacidad predictiva está en las compras, no en las ventas, y viene sobre todo de empresas pequeñas; el precio casi no se mueve cuando el insider opera ni cuando reporta [R]"
+    - "Jeng, L. A., Metrick, A. y Zeckhauser, R. (2003), 'Estimating the Returns to Insider Trading: A Performance-Evaluation Perspective', Review of Economics and Statistics 85(2) 453-471 — las compras de insiders ganan más de 6% al año de retorno anormal (cartera de 6 meses); las ventas no [R]"
+    - "Cohen, L., Malloy, C. y Pomorski, L. (2012), 'Decoding Inside Information', JF 67(3) 1009-1043 — 1986-2007: las operaciones oportunistas dan 82 pb al mes ponderado por valor (180 pb a igual peso) y las rutinarias casi cero [R]"
+    - "Damodaran, A. y Liu, C. H. (1993), 'Insider Trading as a Signal of Private Information', RFS 6(1) 79-119 — en REITs que se reavalúan, los insiders compran tras avalúos favorables y venden tras desfavorables antes de que se publiquen; la compra o venta neta se asocia con retornos anormales (REIT-específico) [R]"
+    - "Shen, J., Hui, E. C. M. y Fan, K. (2021), 'Did Real Estate Professionals Anticipate the 2007-2008 Financial Crisis? Evidence from Insider Trading in the REITs', JREFE (en línea mayo 2020) — 1996-2010: los insiders de REITs redujeron tenencias desde 2004 y vendieron más que los de inmobiliarias y constructoras; apoya la hipótesis de trader informado (REIT-específico, lado venta) [R]"
+    - "DECAIMIENTO: Brochet, F. (2010), 'Information Content of Insider Trades before and after the Sarbanes-Oxley Act', The Accounting Review 85(2) 419-446 — tras SOX (Form 4 en 2 días hábiles) las presentaciones de compras son más informativas: más reacción al presentarse, menos para quien llega tarde [R]"
+    - "DECAIMIENTO: Knewtson, H. y Nofsinger, J. (2012), 'CEOs, CFOs, and COOs: Why Are Certain Insiders' Trades More Informative?', working paper (resumen de CXO Advisory, 11-sep-2012) — 1992-2009: los alfas de las compras de los tres cargos caen sustancialmente después de SOX [S]"
+    - "McLean, R. D. y Pontiff, J. (2016), JF 71(1) 5-32 — las anomalías pierden ~58% después de publicarse: prior por defecto sobre las magnitudes de 1975-2007"
+  sign: positivo
+  magnitude_annual_bps: { low: -40, high: 60, label: estimado }
+  derivacion_neta: >
+    Mejora de TIR neta contra SCHH, aportando 3,000 USD por trimestre 15 años sin vender, con
+    impuestos del perfil broker_35. Aritmética del modelo de aportación (inferido, no son datos):
+    un exceso acumulado de 1% por tramo sube la TIR ~11.8 pb si toda aportación fuera al evento; se
+    necesitan ~4.3% por tramo para +50 pb; un punto más de yield que SCHH en los tramos de evento
+    resta ~47 pb por el 44% al dividendo. Supuestos por tramo: el genérico pre-SOX (3% a 6% en 6-12
+    meses) se reduce a la mitad por SOX y por McLean-Pontiff, y otro tercio a la mitad porque con
+    aportación trimestral se llega en promedio ~6 semanas después de la presentación: 0.5% a 2.5%.
+    El extremo optimista (~5% en 2 años) supone que en REITs la compra del insider anticipa el cierre
+    del descuento a NAV, que es más lento que una noticia de utilidades. Fracción efectiva de
+    aportación al evento 0.5-0.9 (con k=1 casi todos los trimestres tienen algún comprador; con k=3
+    muchos no). Yield de S_t de +0 a +1 punto sobre SCHH (los insiders compran después de caídas).
+    Ahorro del 0.07% de SCHH, ~+5 pb. Resultado: -40 a +60 pb al año; +50 pb solo en el extremo
+    optimista. Una versión mensual (aportación real de ~800 MXN al mes) llegaría antes, pero no está
+    en el grid y su panel de precios no es point-in-time para los emisores muertos.
+  crowding_decay_risk: >
+    Edge viejo y muy publicado (Jaffe 1974; Seyhun 1986; Lakonishok y Lee 2001; Jeng et al. 2003; Cohen et
+    al. 2012), con servicios comerciales que filtran Form 4 en tiempo real. Desde SOX (agosto de
+    2002) el Form 4 sale en 2 días y la reacción se concentra en la presentación (Brochet 2010); los
+    alfas de las compras de directivos caen sustancialmente después de SOX (Knewtson y Nofsinger
+    2012). Decaimiento probable de 50-60% sobre las cifras pre-2003 y más para quien llega con
+    retraso trimestral. No encontré evidencia publicada específica de REITs posterior a 2010 sobre
+    el retorno de seguir compras de insiders: la persistencia reciente es desconocida y B debe
+    medir 2016-2026 por separado. El canal REIT (valor privado de inmuebles) está menos arbitrado
+    porque el NAV no es público, y la contraparte (vendedores por flujos o mandato) no aprende,
+    pero el insider mismo sí puede dejar de dar señal (más planes 10b5-1, más escrutinio).
+
+parameters:
+  ventana_presentacion_W:
+    { min: 3, max: 6, n_grid: 2, unit: "meses hacia atrás desde t para FILING_DATE" }
+  insiders_minimos_k:
+    { min: 1, max: 3, n_grid: 3, unit: "insiders oportunistas distintos (1, 2, 3)" }
+  monto_minimo_d:
+    { min: 50000, max: 250000, n_grid: 2, unit: "USD comprados en la ventana, sumados entre insiders" }
+  fraccion_aportacion_s:
+    { min: 0.5, max: 1.0, n_grid: 2, unit: "fracción de la aportación trimestral al conjunto S_t" }
+  ponderacion_cap_p:
+    { min: 0, max: 1, n_grid: 2, unit: "0 = igual peso, 1 = por capitalización" }
+  anios_historia_rutinario:
+    { min: 3, max: 3, n_grid: 1, unit: "años de historia para clasificar rutinario (definición de Cohen, Malloy y Pomorski 2012)" }
+  capitalizacion_minima:
+    { min: 250, max: 250, n_grid: 1, unit: "M USD (fijada por el encuadre de fase 0)" }
+
+kill_criteria:
+  - "En producción: si durante 12 trimestres seguidos el exceso acumulado de los tramos comprados por la señal (antes de impuestos, contra SCHH en las mismas fechas) es negativo, se apaga y la aportación vuelve 100% a SCHH."
+  - "Si el yield de dividendo ponderado de S_t supera al de SCHH por más de 1 punto durante 4 trimestres seguidos (el castigo fiscal de ~47 pb por punto se come cualquier exceso plausible)."
+  - "Si la SEC cambia el régimen del Form 4 (plazo de presentación, fin de los Insider Transactions Data Sets) o la fracción de compras con marca 10b5-1 supera la mitad de las compras calificadas durante 4 trimestres: la señal deja de medir decisiones discrecionales."
+  - "Si en promedio califican menos de 2 emisores por trimestre durante 8 trimestres seguidos (la señal degenera en apuestas de nombre único)."
+
+n_trials:
+  this_card: 48
+  session_total: 72
+  accounting: >
+    Esta card: W(2) x k(3) x d(2) x s(2) x p(2) = 48; anios_historia_rutinario y
+    capitalizacion_minima fijados (n_grid 1). Sesión del investigador f5: 2 cards emitidas, 24
+    (f5_recompra_neta_descuento_nav) + 48 (esta) = 72. Variantes conceptuales descartadas en la
+    sesión sin mirar retornos (no suman a session_total por instrucción; se reportan al
+    priorizador): 26 = emisión neta/ATM/SEO y adquirentes con acciones 12 + escisiones 4 +
+    inicio/reanudación de dividendo 2 + inclusión en índices 2 + activismo y objetivos de
+    adquisición 2 + de la card de recompras, recompra anunciada 1 y variante sectorialmente neutral
+    1 + de esta card, ejecución mensual 1 e incluir a los 10% owners 1. Observados: 0 (no se miró
+    ningún retorno de señal en los datos del repo).
+  ledger_total: 999
+  ledger_ref: "REITs_EEUU_capital|trimestral"
+  observed_extra: 0
+
+notes_adversarial: >
+  Steelman preliminar del investigador (el adversario debe reescribirlo): (1) los insiders de REITs
+  compran después de caídas, y en este universo lo caído y barato fue trampa (fase 6: yield alto
+  -86 pb, calidad y barato -211); la firma del insider puede no compensarlo. (2) Desde SOX el
+  mercado reacciona a la presentación (Brochet 2010) y el seguidor trimestral llega tarde; Gyamfi-
+  Yeboah, Ling y Naranjo (2012) muestran que los REITs incorporan rápido la información de
+  utilidades, señal de que la asimetría de información en REITs es menor que en el resto. (3) Las
+  compras se concentran en REITs chicos: igual peso arrastra el sesgo de tamaño que costó -137 pb
+  al año contra el índice en el estudio del satélite; con peso por capitalización el conjunto S_t
+  queda dominado por uno o dos nombres. (4) Cada punto de yield extra cuesta ~47 pb con el 44% al
+  dividendo. (5) Son 48 combinaciones para una señal con t-stat esperado chico: el DSR con el ledger
+  completo será exigente. Sobrevive como candidata porque es la señal de evento con más eventos en
+  REITs, tiene la mejor evidencia general (tres papers independientes) y dos estudios REIT de que
+  los insiders sí saben, y porque B la puede probar con datos públicos y point-in-time por FILING_DATE.

@@ -1,0 +1,224 @@
+# Strategy Card v1.1 — familia 5 (event-driven / fundamental), investigador f5
+# Hipótesis: una recompra neta, ejecutada y pagada en efectivo, revela que la administración ve
+# la acción por debajo del valor de sus inmuebles (NAV). Mandar la aportación nueva a esos REITs
+# captura la reversión lenta del descuento. Convicción BAJA (estimado): ver expected_edge.
+
+card_version: "1.1"
+id: f5_recompra_neta_descuento_nav
+asset_universe:
+  - "SCHH"
+  - "PANEL_REITS_CAPITAL_NO_SELLADOS: emisores de data/investigacion/emisores/universo.csv con clase_final=capital, con_precio=True y sellado=False (186 al manifiesto de 2026-10-06), identificados por CIK y no por ticker (los tickers se reciclan)"
+instrument: canasta
+direction: long_only
+
+holding_horizon:
+  min_bars: 1
+  max_bars: 70          # nunca vende: cada compra se queda hasta el fin de la muestra (2009T1-2026T2 ≈ 70 trimestres)
+  bar_size: trimestral
+  overnight_allowed: true
+
+economic_rationale:
+  mechanism: >
+    Un REIT no puede retener utilidades (reparte al menos el 90% de su renta gravable), así que
+    reducir sus acciones en circulación le cuesta capital escaso que necesita para crecer; por eso
+    la administración solo recompra cuando cree que la acción cotiza por debajo del valor de sus
+    inmuebles. Gentry y Mayer (2003), con el NAV de Green Street, muestran que los REITs casi nunca
+    recompran con precio/NAV mayor a 1 y casi nunca emiten con precio/NAV menor a 1: una caída neta
+    del número de acciones, pagada en efectivo, revela con datos públicos de la SEC un descuento a
+    NAV que este inversionista no puede observar porque el NAV es propietario. La parte del
+    descuento que no explican los fundamentales es transitoria y se debe al sentimiento (Letdin,
+    Sirmans y Sirmans 2020; Gentry, Jones y Mayer 2004), porque la generan vendedores que salen por
+    flujos y no por valor. La recompra ejecutada presiona el precio hacia el NAV durante varios
+    trimestres y el cierre del descuento se traduce en un exceso de retorno que tarda años; como el
+    efecto es lento, encaja con quien solo decide a dónde va la aportación y nunca vende.
+  who_loses: >
+    Los vendedores sin sensibilidad al valor que abren el descuento: fondos de REITs con salidas
+    que venden a prorrata, la clientela de ingreso que sale cuando el REIT congela o recorta el
+    dividendo para recomprar, y mandatos sectoriales que reducen un tipo de inmueble castigado
+    (oficinas, centros comerciales). Aceptan pagar porque su restricción es de liquidez o de
+    mandato, no de valuación; la contraparte directa de la recompra es la propia empresa.
+  why_persists: >
+    El descuento de un REIT mediano puede durar años y abrirse más (trampa de valor en un tipo de
+    inmueble en declive), el NAV que lo confirma es de pago (Green Street), las recompras netas de
+    REITs son raras y pequeñas, y el capital que arbitra descuentos (privatizaciones de fondos de
+    capital privado) solo actúa sobre los grandes. Quien solo mueve su aportación no compite por
+    liquidez con nadie y puede esperar sin costo de carry.
+
+signal_definition:
+  formula: >
+    Para cada emisor i elegible en el trimestre t (REIT de capital del panel, sellado=False,
+    capitalizacion(i,t-1) >= 250 M USD, salida=False en t):
+    acc_aj(i,tau) = acciones(i,tau) ajustadas por splits con el factor acumulado de
+    src/investigacion/emisores.splits hasta t-1.
+    NSI(i,t) = ln( acc_aj(i,t-1) / acc_aj(i,t-1-L) ), con la fila t-1 del panel (conteo de la portada
+    dei:EntityCommonStockSharesOutstanding del 10-Q/10-K del trimestre t-1; si ese reporte se
+    presentó después de t, como puede pasar con un 10-K no acelerado, se usa la fila t-2).
+    REC(i,t) = suma de us-gaap:PaymentsForRepurchaseOfCommonStock (primera versión publicada en
+    XBRL companyfacts; respaldo PaymentsForRepurchaseOfEquity) de los L trimestres que terminan en
+    t-1, dividida entre capitalizacion(i,t-1).
+    E(i,t) = 1 si NSI(i,t) <= -theta y REC(i,t) >= theta/2 (la caída de acciones está pagada en
+    efectivo: no es un error de conteo, un split inverso ni una conversión de clase); si no, 0.
+    S_t = {i : E(i,t) = 1}. Peso dentro de S_t: w_i = (1-p)/|S_t| + p * cap(i,t-1) / suma_{j en S_t} cap(j,t-1).
+  inputs:
+    - "panel.cik, panel.fecha, panel.acciones, panel.split, panel.capitalizacion, panel.precio, panel.retorno, panel.dividendo, panel.salida, panel.de_capital"
+    - "universo.cik, universo.sellado, universo.clase_final, universo.con_precio"
+    - "XBRL companyfacts: us-gaap:PaymentsForRepurchaseOfCommonStock y us-gaap:PaymentsForRepurchaseOfEquity (fecha de presentación)"
+    - "SCHH retorno total (Yahoo, en el repo)"
+  timing: >
+    Calculada al cierre del trimestre t usando solo información presentada a la SEC antes de t:
+    la fila t-1 del panel para acciones y capitalización y XBRL con fecha de presentación <= t. La
+    aportación del trimestre t se ejecuta al precio de cierre de t (precio 13F del panel). Nunca usa
+    la fila t de acciones (su portada se presenta después de t).
+  warmup_bars: 9
+
+entry_rules: >
+  Cada trimestre t se aportan 3,000 USD: s*3,000 se reparten en S_t según w_i y (1-s)*3,000 van a
+  SCHH; si S_t está vacío, el 100% va a SCHH. Comisión 0 (broker de EE. UU.) y un costo de spread de
+  10 pb por compra en emisores individuales. Los dividendos netos de impuesto siguen el tratamiento
+  del simulador del repo (src/investigacion/simulacion.py) con el perfil fiscal broker_35 de
+  src/investigacion/diseno.PERFILES (dividendo 44%, ganancia 10%).
+
+exit_rules:
+  primary: >
+    Nunca se vende. Cada compra se conserva hasta el fin de la muestra o hasta la salida del
+    emisor con el retorno de salida del panel (-30% en quiebra, 0% en otras salidas); el efectivo o
+    las acciones recibidas en una fusión se reinvierten en SCHH en el trimestre siguiente.
+  stop_loss: null
+  take_profit: null
+  time_stop: null
+  intrabar_note: "Sin stops ni targets; no hay ambigüedad de trayectoria intrabarra."
+
+sizing: >
+  Solo la aportación nueva: la fracción s (0.5 o 1.0) de cada aportación trimestral va a S_t con
+  pesos w_i (igual peso si p=0, por capitalización si p=1); el resto a SCHH. Sin apalancamiento,
+  sin cortos y sin rebalanceo de lo ya comprado. Con |S_t| = 1 toda la fracción s va a un solo
+  nombre: riesgo de concentración declarado.
+
+data_required:
+  fields:
+    - "cik"
+    - "fecha (fin de trimestre)"
+    - "precio (13F, fin de trimestre)"
+    - "retorno total trimestral y dividendo (panel)"
+    - "acciones (dei:EntityCommonStockSharesOutstanding, primera versión publicada)"
+    - "split (factor del panel)"
+    - "capitalizacion"
+    - "salida"
+    - "recompras en efectivo de 12 meses (XBRL us-gaap:PaymentsForRepurchaseOfCommonStock)"
+    - "sellado, clase_final, con_precio (universo.csv)"
+    - "SCHH retorno total"
+  frequency: trimestral
+  history_years: 17
+  timestamp_convention: bar_close
+  session: rth
+  point_in_time_notes: >
+    (1) Las acciones del panel vienen de la portada del 10-Q/10-K en su primera versión publicada:
+    son point-in-time a la fecha de presentación, por eso la señal usa la fila t-1 (presentada en
+    el trimestre t). (2) Las recompras en efectivo NO están hoy en el panel: se agregan desde XBRL
+    companyfacts de la SEC con la misma lógica de primera versión que usa
+    src/investigacion/fundamentales.py; las cifras de flujo de efectivo son acumuladas en el año
+    fiscal y deben desacumularse por trimestre. (3) Splits e inversos con el factor del panel; una
+    caída de acciones sin recompra en efectivo no cuenta. (4) Las escisiones no se ven en los 13F:
+    el retorno del panel del trimestre de la escisión es falsamente negativo para la matriz (p. ej.
+    O con ONL en 4T2021, WPC con NLOP en 4T2023); B debe corregirlo con la fecha y la razón de
+    distribución del Form 10/8-K antes de medir cualquier tramo. (5) El tercio sellado (81 emisores
+    según universo.csv) ya se abrió en la fase 6 y no se reabre: desarrollo y validación en los 186
+    no sellados; la prueba final necesita datos posteriores a 2026T2 o un pre-registro explícito.
+    (6) SCHH siguió otro índice hasta junio de 2020: reportar también contra el índice que sigue hoy
+    (FTSE Nareit All Equity menos 7 pb), como en docs/estudios/satelite_exploratorio.md, y contra
+    'todos por partes iguales' y 'todos por capitalización' para separar el efecto del evento del
+    sesgo de igual peso (-137 pb al año en el estudio del satélite). (7) Precio, no ajustado; el
+    retorno total incluye dividendos y el impuesto se aplica al dividendo, no al precio.
+  extra_datasets:
+    - "SEC XBRL companyfacts: us-gaap:PaymentsForRepurchaseOfCommonStock y PaymentsForRepurchaseOfEquity, primera versión publicada por periodo (fecha de presentación)"
+    - "Form 10 / 8-K de escisiones (fecha y razón de distribución) para corregir el retorno de las matrices"
+    - "FTSE Nareit All Equity REITs mensual (en el repo) como segundo benchmark"
+    - "Diagnóstico (no decide): tipo de inmueble armado con SIC, nombres o ETFs sectoriales, para reportar la concentración sectorial de S_t"
+
+expected_edge:
+  source:
+    - "Gentry, W. M. y Mayer, C. J. (2003), 'The Effects of Share Prices Relative to Fundamental Value on Stock Issuances and Repurchases', working paper Columbia/Wharton (9-abr-2003) — con NAV de Green Street, el precio/NAV predice fuertemente si un REIT emite o recompra; casi nunca recompra con precio/NAV > 1 [T: resumen e introducción]"
+    - "Gentry, W. M., Jones, C. M. y Mayer, C. J. (2004), 'Do Stock Prices Really Reflect Fundamental Values? The Case of REITs', NBER WP 10850 — largo en descuento y corto en prima a NAV: alfas de 0.9% a 1.8% mensual; el precio/NAV revierte [R, ya en docs/investigacion/literatura.md]"
+    - "Letdin, M., Sirmans, S. y Sirmans, S. (2020), 'Betting Against the Sentiment in REIT NAV Premiums', ponencia ASSA 2020 — 58% de la prima a NAV se explica por fundamentales; la parte de sentimiento es transitoria y predice retornos negativos; largo-corto de casi 14% al año [T: resumen]"
+    - "Ikenberry, D., Lakonishok, J. y Vermaelen, T. (1995), 'Market Underreaction to Open Market Share Repurchases', JFE 39(2-3) 181-208 — exceso de 12.1% a 4 años tras anuncios de 1980-1990; 45.3% en acciones de valor [R]"
+    - "Peyer, U. y Vermaelen, T. (2009), 'The Nature and Persistence of Buyback Anomalies', RFS 22(4) 1693-1745 — la anomalía sigue en 1991-2001: +24.2% acumulado a 48 meses, mayor en perdedores previos y cuando el motivo declarado es la subvaluación [R + resumen CXO del WP de 2007]"
+    - "EN CONTRA: Fu, F. y Huang, S. (2016), 'The Persistence of Long-Run Abnormal Returns Following Stock Repurchases and Offerings', Management Science 62(4) 964-984 — el retorno anormal de largo plazo tras recompras y SEO desaparece en los eventos de 2003-2012 (antes, ~+10% y ~-12% a 3 años) [R]"
+    - "EN CONTRA: Huang, G.-C., Liano, K. y Pan, M.-S. (2019), 'Do Open-Market Stock Repurchases Convey Firm-Specific or Industry-Wide Information? Evidence from REITs', Journal of Economics and Finance 43(2) 382-397 — en REITs la señal refleja valor intrínseco y se incorpora completa en el anuncio; el retorno posterior es sobre todo de industria [R]"
+    - "McLean, R. D. y Pontiff, J. (2016), JF 71(1) 5-32 — las anomalías pierden ~58% después de publicarse: prior por defecto sobre las magnitudes de 1995-2009"
+  sign: positivo
+  magnitude_annual_bps: { low: -60, high: 75, label: estimado }
+  derivacion_neta: >
+    Mejora de TIR neta contra SCHH, aportando 3,000 USD por trimestre 15 años sin vender, con
+    impuestos del perfil broker_35. Aritmética del modelo de aportación (inferido, no son datos):
+    un exceso acumulado de 1% por tramo sube la TIR ~11.8 pb si toda aportación fuera al evento; se
+    necesitan ~4.3% por tramo para +50 pb; un punto más de yield de dividendo que SCHH en los tramos
+    de evento resta ~47 pb por el 44% al dividendo; a 20 años el mismo exceso vale ~25% menos.
+    Supuestos por tramo: de -3% (descuento que no cierra: oficinas 2017-2024, la señal se vuelve
+    apuesta sectorial) a +8% en 3 años (la mitad de lo que dejaba la reversión del P/NAV antes de
+    2003, tras el descuento de McLean-Pontiff). Fracción efectiva de aportación al evento 0.5-0.8
+    (hay trimestres sin recompradores netos, sobre todo 2009-2013, cuando los REITs emitían).
+    Yield de S_t de +0 a +1 punto sobre SCHH. Ahorro del 0.07% de SCHH en lo comprado directo, ~+5 pb.
+    Resultado: -60 a +75 pb al año. El objetivo de +50 pb solo se alcanza en el extremo optimista.
+  crowding_decay_risk: >
+    Publicado desde 1995 (Ikenberry et al.) y empaquetado en ETFs de recompras desde 2006 (p. ej.
+    Invesco BuyBack Achievers, PKW): capacidad institucional desplegada. Peyer y Vermaelen (2009) lo
+    ven vivo hasta 2001, pero Fu y Huang (2016) documentan que desaparece en los eventos de 2003-2012
+    por más institucionales, menores costos y mejor gobierno: es decaimiento, no dormancia. En
+    REITs, Huang, Liano y Pan (2019) encuentran que la señal se incorpora en el anuncio. Lo que no
+    está arbitrado por construcción es el vínculo con el NAV (sin Green Street nadie observa el
+    descuento; el capital privado solo compra descuentos grandes). No encontré evidencia publicada
+    en REITs posterior a 2017: tratarlo como edge histórico con descuento de 50-60% y verificar su
+    persistencia en 2016-2026 por separado. Riesgo de salida masiva: bajo, porque nadie concentra
+    capital en recompradores de REITs pequeños.
+
+parameters:
+  ventana_nsi_L:
+    { min: 4, max: 8, n_grid: 2, unit: "trimestres de cambio de acciones" }
+  umbral_reduccion_theta:
+    { min: 0.01, max: 0.04, n_grid: 3, unit: "caída logarítmica de acciones (1%, 2.5%, 4%)" }
+  fraccion_aportacion_s:
+    { min: 0.5, max: 1.0, n_grid: 2, unit: "fracción de la aportación trimestral al conjunto S_t" }
+  ponderacion_cap_p:
+    { min: 0, max: 1, n_grid: 2, unit: "0 = igual peso, 1 = por capitalización" }
+  capitalizacion_minima:
+    { min: 250, max: 250, n_grid: 1, unit: "M USD (fijada por el encuadre de fase 0)" }
+
+kill_criteria:
+  - "En producción: si durante 12 trimestres seguidos el exceso acumulado de los tramos comprados por la señal (antes de impuestos, contra SCHH en las mismas fechas) es negativo, se apaga y la aportación vuelve 100% a SCHH."
+  - "Si el yield de dividendo ponderado de S_t supera al de SCHH por más de 1 punto durante 4 trimestres seguidos (el castigo fiscal de ~47 pb por punto se come cualquier exceso plausible)."
+  - "Si más de 60% del peso de S_t cae en un solo tipo de inmueble durante 4 trimestres seguidos: la señal dejó de medir descuento revelado y se volvió una apuesta sectorial."
+  - "Si en promedio califican menos de 3 emisores por trimestre durante 8 trimestres seguidos (la señal degenera en apuestas de nombre único)."
+
+n_trials:
+  this_card: 24
+  session_total: 72
+  accounting: >
+    Esta card: L(2) x theta(3) x s(2) x p(2) = 24; capitalizacion_minima fijada (n_grid 1). Sesión
+    del investigador f5: 2 cards emitidas, 24 (esta) + 48 (f5_compras_insiders_oportunistas) = 72.
+    Variantes conceptuales descartadas en la sesión sin mirar retornos (no suman a session_total por
+    instrucción; se reportan al priorizador): 26 = emisión neta/ATM/SEO y adquirentes con acciones
+    12 + escisiones 4 + inicio/reanudación de dividendo 2 + inclusión en índices 2 + activismo y
+    objetivos de adquisición 2 + de esta card, recompra anunciada (8-K) en vez de ejecutada 1 y
+    variante sectorialmente neutral 1 + de la card de insiders, ejecución mensual 1 e incluir a los
+    10% owners 1.
+    Observados: 0 (no se miró ningún retorno de señal en los datos del repo). Parientes ya observados
+    y contados en el prior del ledger (no se suman otra vez): crecimiento de activos bajo (S10 de la
+    fase 6, -6 pb) y lo 'barato' de la fase 6. Posible solapamiento con la card de la familia 4
+    f4_descuento_nav_intrasector (inferido por su nombre; no la leí): mismo descuento, otro proxy.
+  ledger_total: 999
+  ledger_ref: "REITs_EEUU_capital|trimestral"
+  observed_extra: 0
+
+notes_adversarial: >
+  Steelman preliminar del investigador (el adversario debe reescribirlo): (1) en este universo lo
+  barato fue trampa (fase 6: rendimiento FFO -167 pb, cap rate -172, calidad y barato -211) y el
+  recomprador neto es, casi por definición, un REIT barato; la firma de la administración puede no
+  cambiar eso. (2) Fu y Huang (2016) matan el efecto general después de 2003 y Huang, Liano y Pan
+  (2019) dicen que en REITs se incorpora en el anuncio. (3) Las recompras netas de 2017-2024 se
+  concentraron en oficinas, el peor tipo de inmueble del periodo: sin neutralizar por sector, B
+  puede medir una apuesta sectorial y no un descuento revelado. (4) Casi duplica 'crecimiento de
+  activos bajo' (S10), que ya perdió. (5) El yield de los recompradores suele ser mayor que el de
+  SCHH y cada punto cuesta ~47 pb al año con el 44% al dividendo. Sobrevive como candidata porque
+  es la única forma pública de ver el descuento a NAV, que es la señal transversal con mejor
+  evidencia en REITs (Gentry, Jones y Mayer 2004; Letdin et al. 2020), porque su efecto es lento y
+  le sirve a quien nunca vende, y porque B la puede probar barato con el panel más un campo de XBRL.
