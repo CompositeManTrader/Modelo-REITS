@@ -1,0 +1,218 @@
+# Strategy Card v1.1 — familia 2 (volatilidad como factor entre REITs)
+# Investigador: volatilidad / VRP / opciones. No se corrió ningún backtest ni se miró el retorno
+# de esta señal en los datos del repo.
+
+card_version: "1.1"
+id: f2_beta_alta_excluir
+asset_universe:
+  - "SCHH"
+  - "UNIVERSO_DINAMICO: REITs de capital elegibles NO sellados (universo.csv sellado == False) del panel data/investigacion/emisores/panel.csv.gz, con la elegibilidad de fase6_preregistro.md (es_reit, de_capital, capitalizacion >= 250 M USD, precio >= 5 USD, tenedores 13F >= 10 o 20); lista point-in-time por trimestre, sin tickers fijos"
+instrument: canasta
+direction: long_only
+
+holding_horizon:
+  min_bars: 1
+  max_bars: 62
+  bar_size: trimestral
+  overnight_allowed: true
+
+economic_rationale:
+  mechanism: >
+    Los inversionistas que no pueden apalancarse (Frazzini y Pedersen 2014) y los gestores con
+    benchmark y presupuesto de tracking error (Baker, Bradley y Wurgler 2011) buscan retorno
+    esperado alto comprando activos de beta alta en vez de apalancar los de beta baja. Esa demanda
+    presiona al alza el precio de los activos de beta alta y aplana la línea del mercado de
+    valores: por unidad de beta, los de beta alta rinden menos y los de beta baja más. En REITs,
+    Shen, Hui y Fan (2021) documentan la anomalía después de 1993 y la atribuyen a que los
+    institucionales, que tienen cada vez más REITs, prefieren los de beta alta; el efecto persiste
+    controlando por rentabilidad, crecimiento de activos, lotería y sesgo. El que gana en el modelo
+    es quien apalanca la beta baja, cosa que este inversionista no hace; lo que sí puede hacer es no
+    comprar con dinero nuevo el grupo de beta más alta, que según el mecanismo trae alfa negativa,
+    manteniendo la beta de la cartera cerca de 1 porque excluye solo una fracción. DIFERENCIA CON S4
+    Y CON f2_loteria: la señal es beta = correlación x (volatilidad propia / volatilidad del
+    mercado), con la correlación de 5 años de retornos de 3 días y la volatilidad de 1 año de
+    retornos diarios; S4 fue la volatilidad total de 12 retornos trimestrales (sin correlación) y
+    f2_loteria es la parte idiosincrática. El canal es distinto (restricción de apalancamiento,
+    no preferencia por loterías; Asness, Frazzini, Gormsen y Pedersen 2020 separan ambos), y la card
+    exige a B probar si sobrevive al quitar los nombres de IVOL alta (Liu, Stambaugh y Yuan 2018),
+    porque si no sobrevive es la misma apuesta que f2_loteria.
+  who_loses: >
+    Los gestores de fondos de REITs y generalistas con benchmark ponderado por capitalización y
+    límites de tracking error, y los inversionistas sin acceso a apalancamiento, que sobrepagan los
+    REITs de beta alta (cíclicos y apalancados) para subir su retorno esperado. Aceptan pagar porque
+    su mandato les prohíbe apalancarse y castiga desviarse del índice: para ellos la beta alta es la
+    única vía permitida para buscar más retorno.
+  why_persists: >
+    Arbitrarlo exige apalancar la beta baja y vender en corto la alta: el margen y el costo de
+    fondeo lo limitan, y Frazzini y Pedersen (2014) muestran que la prima se pierde justo cuando el
+    fondeo se aprieta. El mandato con benchmark es una restricción institucional que no desaparece
+    con la publicación del paper.
+
+signal_definition:
+  formula: |
+    Para cada trimestre de formación t (último día hábil del trimestre) y cada REIT i elegible y no
+    sellado, con datos que TERMINAN 21 días hábiles antes del cierre de t:
+      m = mercado de referencia: mercado_referencia = 1 -> VNQ (beta sectorial);
+          mercado_referencia = 2 -> SPY (beta al mercado amplio).
+      sigma_i, sigma_m = desv.est. de retornos logarítmicos diarios en 252 días hábiles
+          (ventana_vol_dias; mínimo 120 observaciones).
+      rho_i,m = correlación de retornos logarítmicos de 3 días traslapados en
+          ventana_correlacion_anios x 252 días (mínimo 750 días, como Frazzini y Pedersen 2014).
+      beta_i,t = rho_i,m x sigma_i / sigma_m. (El encogimiento 0.6 beta + 0.4 de Frazzini y Pedersen
+          no cambia el orden y se omite.)
+      Excluidos_t = elegibles con beta_i,t en la fracción superior (fraccion_excluida) por número de
+          emisores con señal; empates hacia arriba.
+      Compra_t = elegibles con señal y no excluidos, más los elegibles sin historia suficiente (no se
+          excluyen; B reporta su peso).
+      w_i,t = cap_i,t ^ exponente_ponderacion / suma_j(cap_j,t ^ exponente_ponderacion), j en Compra_t.
+      Aportación_t = 3,000 USD + dividendos netos de 44% del trimestre + efectivo de salidas; se
+          reparte con w_i,t. Nunca se vende.
+    Control (no es variante ni trial): todo el universo elegible no sellado ponderado por
+    capitalización, sin exclusión. Métrica de decisión: TIR neta de la estrategia menos la del
+    control. Reporte: contra SCHH real y contra el índice que sigue SCHH hoy.
+    Diagnósticos obligatorios, sin elegir con ellos (si B escoge con ellos, suman 2 trials):
+      (a) la misma regla quitando antes los Excluidos de f2_loteria (IVOL, 12 meses, quintil);
+      (b) correlación de rangos de beta_i,t con la volatilidad total trimestral de S4 y con IVOL;
+      (c) beta ex-ante ponderada de la cartera contra VNQ y diferencia de yield de dividendos
+          contra el control.
+  inputs:
+    - "close_ajustado_diario de cada elegible"
+    - "VNQ diario"
+    - "SPY diario"
+    - "capitalizacion, precio, tenedores, es_reit, de_capital (panel trimestral)"
+    - "dividendo, salida, retorno (panel trimestral, para el simulador)"
+  timing: >
+    Beta con datos diarios hasta 21 días hábiles antes del cierre del trimestre t; compra al precio
+    de fin de t del simulador trimestral (13F). Robustez obligatoria: un trimestre de retraso, como
+    en fase 6. Elegibilidad y capitalización con datos conocidos en t.
+  warmup_bars: 12
+
+entry_rules: >
+  Cada trimestre, invertir toda la aportación en Compra_t con pesos w_i,t, con fracciones de
+  acción, sin apalancamiento ni cortos. Lo ya comprado se queda aunque después pase al grupo de
+  beta alta.
+
+exit_rules:
+  primary: >
+    Nunca se vende. Solo hay salida por evento corporativo (fusión en efectivo, quiebra, deslistado):
+    10% sobre la ganancia y el efectivo va a la aportación siguiente con la misma regla.
+  stop_loss: null
+  take_profit: null
+  time_stop: "Fin de la muestra: valuación a mercado con 10% sobre la ganancia latente, como en fase 6."
+  intrabar_note: "No aplica: no hay stops ni objetivos."
+
+sizing: >
+  100% de cada aportación a Compra_t ponderado por capitalización; sin apalancamiento (por eso el
+  inversionista no cobra la prima BAB completa: solo evita la pata de alfa negativa). Con ~800 MXN
+  al mes exige fracciones de acción para 70-120 emisoras.
+
+data_required:
+  fields:
+    - "cik"
+    - "fecha"
+    - "precio"
+    - "capitalizacion"
+    - "tenedores"
+    - "es_reit"
+    - "de_capital"
+    - "retorno"
+    - "dividendo"
+    - "salida"
+    - "close_ajustado_diario"
+  frequency: "diaria para la señal; trimestral para la cartera"
+  history_years: 21
+  timestamp_convention: bar_close
+  session: rth
+  point_in_time_notes: >
+    (1) Universo de fase 6, solo no sellados. (2) Supervivencia: la correlación de 5 años exige
+    historia diaria desde ~2006 para las primeras carteras de 2011; Yahoo pierde a muchos
+    deslistados, y los que mueren suelen ser los de beta alta: B mide la cobertura por número y por
+    capitalización en cada t, vivos contra muertos; con cobertura por capitalización menor a 95% el
+    trimestre se aporta como el control y se reporta. (3) Emisores con menos de 750 días de historia
+    (IPOs, escisiones) quedan sin señal y no se excluyen. (4) Mapa CIK a ticker con fechas de
+    vigencia. (5) VNQ incluye inmobiliarias no REIT desde 2018; como factor sectorial es aceptable,
+    pero B debe reportar también la beta contra el índice Nareit mensual (en el repo) como
+    verificación, sin escoger con ella. (6) Retornos ajustados por dividendos y splits.
+  extra_datasets:
+    - "Precios diarios ajustados (retorno total) de todos los elegibles no sellados 2006-2026, incluidos fusionados y quebrados (Yahoo para vivos; para deslistados, una fuente que los conserve, p. ej. CRSP/Ziman vía WRDS o un proveedor EOD con deslistados)"
+    - "VNQ y SPY diarios (Yahoo)"
+    - "SCHH mensual y FTSE Nareit All Equity mensual (ya en el repo) para el reporte"
+    - "Mapa histórico CIK a ticker con fechas (universo.csv, campo tickers, más EDGAR)"
+
+expected_edge:
+  source:
+    - "Frazzini y Pedersen (2014), 'Betting Against Beta', Journal of Financial Economics 111(1):1-25: las restricciones de apalancamiento aplanan la línea del mercado; el factor BAB tiene alfa positiva en acciones de EE. UU., 20 mercados internacionales, bonos y futuros; su retorno es bajo cuando el fondeo se aprieta [resumen y fuentes secundarias]"
+    - "Shen, Hui y Fan (2021), 'The Beta Anomaly in the REIT Market', JREFE 63(3):414-436: los REITs de beta alta tienen retornos ajustados por riesgo significativamente menores que los de beta baja, solo después de 1993; persiste controlando por rentabilidad, crecimiento de activos, lotería y sesgo; los institucionales prefieren los de beta alta [resumen leído; sin cifras en el resumen]"
+    - "Baker, Bradley y Wurgler (2011), 'Benchmarks as Limits to Arbitrage: Understanding the Low-Volatility Anomaly', Financial Analysts Journal 67(1): el benchmark desalienta comprar beta baja con alfa alta y vender beta alta con alfa baja [resumen leído]"
+    - "Asness, Frazzini, Gormsen y Pedersen (2020), 'Betting Against Correlation: Testing Theories of the Low-Risk Effect', Journal of Financial Economics 135:629-652: el componente de correlación (BAC) funciona en EE. UU. e internacional y se liga a la deuda de margen, distinto del canal de lotería (SMAX), ligado al sentimiento [resumen y fuentes secundarias]"
+    - "EN CONTRA: Liu, Stambaugh y Yuan (2018), 'Absolving beta of volatility's effects', JFE 128(1):1-15: la anomalía de beta solo existe entre sobrevaluados y desaparece al controlar por IVOL o quitar los sobrevaluados de IVOL alta; Novy-Marx y Velikov (2022), 'Betting against betting against beta', Journal of Financial Economics pp. 80-106: el desempeño de BAB viene de una construcción que pesa casi igual (~1.05 USD por dólar en el 1% más chico) y de sesgos en la estimación de beta, y lo neto de costos se explica por rentabilidad e inversión [resúmenes y fuentes secundarias]"
+    - "EN CONTRA en REITs: MacKinnon y Spinney (2017), 'Low Volatility Investing in U.S. Equity REITs', International Real Estate Review 20(1):1-21: ningún diseño de bajo riesgo le ganó al portafolio ponderado por capitalización y el efecto desaparece en el periodo reciente [resumen leído]"
+  sign: positivo
+  magnitude_annual_bps: { low: -40, high: 40, label: estimado }
+  crowding_decay_risk: >
+    Publicado en 2014 (BAB; la idea es de Black 1972) y en REITs en 2021. Prior de McLean y Pontiff
+    (2016): ~58% menos después de publicar. El crowding fuera del sector es alto: AQR publica el
+    factor y los ETFs de mínima volatilidad amplios (USMV, SPLV) concentran capital en beta baja;
+    dentro de REITs no encontré un ETF de beta o volatilidad baja. La contraparte (restringidos y
+    con benchmark) no puede dejar de perder por mandato, lo que frena el decaimiento; pero Novy-Marx
+    y Velikov (2022) atribuyen buena parte del BAB a pesar casi igual y a nombres diminutos, que aquí
+    no existen (piso de 250 M USD y ponderación por capitalización), y Liu, Stambaugh y Yuan (2018)
+    sugieren que es la misma apuesta que IVOL. Para el objetivo de este inversionista (TIR bruta y
+    neta, no Sharpe) el punto débil es otro: con la línea del mercado plana, excluir beta alta deja
+    el retorno bruto casi igual y solo baja el riesgo; gana solo si en REITs la línea está invertida.
+    Aritmética: peso por capitalización del grupo excluido ~15-35% (B lo mide) x subponderación
+    efectiva ~50-80% por aportar sin vender x diferencial de retorno BRUTO de -1% a +3% al año = de
+    -30 a +40 pb, menos el efecto fiscal si la cartera sin beta alta paga más dividendo (cada +0.1
+    pp de yield cuesta ~4 pb al 44%). Rango neto del perfil broker EE. UU. al 35%: de -40 a +40 pb,
+    etiqueta estimado.
+
+parameters:
+  mercado_referencia:
+    { min: 1, max: 2, n_grid: 2, unit: "1 = beta contra VNQ (sectorial); 2 = beta contra SPY (mercado amplio)" }
+  fraccion_excluida:
+    { min: 0.20, max: 0.33, n_grid: 2, unit: "fracción del número de elegibles con señal (quintil o tercio)" }
+  ventana_correlacion_anios:
+    { min: 5, max: 5, n_grid: 1, unit: "años de retornos de 3 días; fijado en el valor de Frazzini y Pedersen (2014), no se optimiza" }
+  ventana_vol_dias:
+    { min: 252, max: 252, n_grid: 1, unit: "días hábiles; fijado en el valor de Frazzini y Pedersen (2014)" }
+  exponente_ponderacion:
+    { min: 1, max: 1, n_grid: 1, unit: "peso proporcional a capitalización^exponente; fijado en 1 para replicar a SCHH" }
+
+kill_criteria:
+  - "Independencia: si en B la mejora contra el control cae más de 70% al quitar primero los excluidos de f2_loteria, la card no es un edge aparte; se fusiona con f2_loteria y no se opera por separado."
+  - "Beta ex-ante ponderada de la cartera contra VNQ menor a 0.85 en vivo: la exclusión ya apuesta contra el sector, no contra la beta relativa; se apaga."
+  - "En vivo: si el grupo excluido rinde igual o más que el resto (exceso de 12 meses >= 0) en 8 de 12 trimestres consecutivos, se apaga."
+  - "Si el yield de dividendos de la cartera supera al del control por más de 0.3 pp durante 4 trimestres (arrastre fiscal de ~13 pb al año al 44%), se revisa."
+  - "Si a 5 años la TIR neta acumulada contra el control queda en -25 pb al año o peor, se apaga."
+
+n_trials:
+  this_card: 4
+  session_total: 12
+  accounting: >
+    Esta card: 2 mercados de referencia (VNQ, SPY) x 2 fracciones (quintil, tercio) x ventanas y
+    ponderación fijas = 4. Sesión de la familia f2_volatilidad: 8 (f2_loteria_excluir_ivol_max) + 4
+    (esta) = 12 trials de grid emitidos. Además, 16 variantes conceptuales descartadas por
+    razonamiento sin mirar datos (lista en el informe del investigador), entre ellas betting
+    against correlation como card aparte, beta a tasas alta y baja, y escoger el tercio de beta
+    más baja. Los diagnósticos (a)-(c) no son trials si no se usan para escoger; si se usan, +2.
+    Observados nuevos: 0. observed_extra = 2: S4 volatilidad baja (-34 pb), que motivó usar beta
+    con correlación y no volatilidad total, y el satélite de igual peso (-137 pb), que motivó
+    ponderar por capitalización; ambos ya están en el prior del ledger (>= 39) y no deben sumarse
+    dos veces al ledger_total. Evidencia observada relacionada que NO motivó el diseño: S2
+    apalancamiento bajo (-136 pb en desarrollo, los REITs de beta alta suelen ser apalancados);
+    el priorizador decide si la suma.
+  ledger_total: 999
+  ledger_ref: "REITs_EEUU_capital|trimestral"
+  observed_extra: 2
+
+notes_adversarial: >
+  Pre-steelman del investigador (el adversario lo reescribe): (1) para un inversionista que no se
+  apalanca y mide TIR bruta, una línea del mercado plana significa que excluir beta alta no sube el
+  retorno, solo baja el riesgo: el edge esperado ronda cero; (2) Liu, Stambaugh y Yuan (2018) dicen
+  que la anomalía de beta es la de IVOL disfrazada, así que puede duplicar a f2_loteria; (3) Novy-Marx
+  y Velikov (2022) atribuyen el BAB a nombres diminutos que el piso de 250 M USD elimina;
+  (4) en este universo, apalancamiento bajo perdió 136 pb en desarrollo: los REITs cíclicos y
+  apalancados, que son los de beta alta, no rindieron menos en 2011-2015; (5) MacKinnon y Spinney
+  (2017) no encuentran ventaja de bajo riesgo en REITs. Sobrevive como candidata porque es la única
+  prueba del canal de apalancamiento en este universo, tiene un perdedor institucional con
+  restricción de mandato, y trae su propia prueba de independencia; su prior debe ser bajo.

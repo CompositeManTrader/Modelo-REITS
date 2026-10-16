@@ -1,0 +1,223 @@
+# Strategy Card v1.1 — familia 2 (volatilidad como factor entre REITs)
+# Investigador: volatilidad / VRP / opciones. No se corrió ningún backtest ni se miró el retorno
+# de esta señal en los datos del repo.
+
+card_version: "1.1"
+id: f2_loteria_excluir_ivol_max
+asset_universe:
+  - "SCHH"
+  - "UNIVERSO_DINAMICO: REITs de capital elegibles NO sellados (universo.csv sellado == False) del panel data/investigacion/emisores/panel.csv.gz, con la elegibilidad de fase6_preregistro.md (es_reit, de_capital, capitalizacion >= 250 M USD, precio >= 5 USD, tenedores 13F >= 10 o 20); lista point-in-time por trimestre, sin tickers fijos"
+instrument: canasta
+direction: long_only
+
+holding_horizon:
+  min_bars: 1
+  max_bars: 62
+  bar_size: trimestral
+  overnight_allowed: true
+
+economic_rationale:
+  mechanism: >
+    Los inversionistas con preferencia por loterías (individuales poco diversificados, Kumar 2009;
+    Bali, Cakici y Whitelaw 2011) demandan los REITs con volatilidad idiosincrática alta o con
+    retornos diarios extremos, porque sobreponderan la probabilidad pequeña de un pago grande. Esa
+    demanda presiona el precio de esos REITs por encima de su valor, y la sobrevaluación no se
+    arbitra porque vender en corto REITs pequeños y volátiles es caro y la propia volatilidad
+    idiosincrática es riesgo de arbitraje (Stambaugh, Yu y Yuan 2015: el efecto negativo vive en los
+    sobrevaluados difíciles de vender en corto). La corrección llega despacio y se traduce en
+    retornos bajos del grupo de lotería mientras siga siéndolo. En REITs, Zhu, Harrison y Seiler
+    (2020) encuentran el efecto MAX más fuerte con baja propiedad institucional, lo que liga el
+    flujo a no institucionales. Un inversionista long-only no puede vender en corto, pero sí puede
+    no comprar: excluir con el dinero nuevo al grupo de mayor IVOL o MAX evita la pata sobrevaluada,
+    que es donde se concentra la anomalía. DIFERENCIA CON S4 (rechazada en fase 6): S4 compró el
+    tercio de menor volatilidad TOTAL de 12 retornos trimestrales y pesó igual; esta card mide
+    volatilidad IDIOSINCRÁTICA diaria (residual contra VNQ y SPY) o MAX, actúa sobre la pata cara
+    (excluye el 10-20% superior en vez de escoger el tercio inferior) y pondera por capitalización
+    como SCHH. Nota: literatura.md definió S4 como IVOL diaria contra el índice REIT, pero el
+    pre-registro de fase 6 la implementó como volatilidad total trimestral; la versión
+    idiosincrática nunca se probó. Como el inversionista nunca vende, solo paga una característica
+    PERSISTENTE (ventanas de 3 a 12 meses), no el MAX de un mes del paper original, que es
+    transitorio.
+  who_loses: >
+    Los compradores de REITs tipo lotería (pequeños, volátiles, de precio bajo, con poca propiedad
+    institucional), sobre todo inversionistas individuales que buscan el pago extremo. Aceptan pagar
+    porque derivan utilidad del sesgo positivo (prospect theory) y no tienen benchmark que los
+    discipline; Kumar (2009) documenta que esa demanda sube en recesiones.
+  why_persists: >
+    Vender en corto REITs pequeños y volátiles es caro y arriesgado (préstamo escaso, squeezes), y
+    la volatilidad idiosincrática encarece la cobertura del arbitrajista. Los institucionales con
+    benchmark no tienen incentivo a pelear nombres con peso de índice minúsculo. La preferencia por
+    loterías es un rasgo estable de una clientela que no aprende fácilmente.
+
+signal_definition:
+  formula: |
+    Para cada trimestre de formación t (último día hábil del trimestre) y cada REIT i elegible y no
+    sellado:
+      r_i,d  = retorno total diario (cierre ajustado por dividendos y splits); rf_d = DTB3/252.
+      Ventana W: ventana_meses x 21 días hábiles que TERMINA 21 días hábiles antes del cierre de t
+      (salta el último mes: evita usar el mismo cierre con que compra el simulador de 13F y aparta
+      la reversión de corto plazo, que no le sirve a quien nunca vende). Mínimo 80% de días con
+      precio dentro de W.
+      proxy_loteria = 1 (IVOL): MCO en W de (r_i,d - rf_d) = a + b1 (r_VNQ,d - rf_d)
+        + b2 (r_SPY,d - rf_d) + e_i,d ; L_i,t = desv.est.(e_i,d) x sqrt(252).
+      proxy_loteria = 2 (MAX5): L_i,t = promedio de los 5 mayores r_i,d en W.
+      Excluidos_t = elegibles con L_i,t en la fracción superior (fraccion_excluida) por número de
+        emisores con señal; empates hacia arriba.
+      Compra_t = elegibles con señal y no excluidos, más los elegibles SIN datos diarios suficientes
+        (no se excluyen: regla conservadora; B reporta su peso en cada t).
+      w_i,t = cap_i,t ^ exponente_ponderacion / suma_j(cap_j,t ^ exponente_ponderacion), j en Compra_t.
+      Aportación_t = 3,000 USD + dividendos netos de 44% cobrados en el trimestre + efectivo de
+        salidas corporativas; se reparte con w_i,t. Nunca se vende.
+    Control (no es variante ni trial): el mismo procedimiento SIN exclusión, es decir todo el
+    universo elegible no sellado ponderado por capitalización. Métrica de decisión: TIR neta de la
+    estrategia menos TIR neta del control (aísla la señal del ruido de replicar a SCHH con 2/3 de
+    los emisores). Métricas de reporte: contra SCHH real y contra el índice que sigue SCHH hoy
+    (FTSE Nareit All Equity menos 7 pb), como en docs/estudios/satelite_exploratorio.md.
+  inputs:
+    - "close_ajustado_diario de cada elegible"
+    - "VNQ diario (factor REIT)"
+    - "SPY diario (factor de mercado)"
+    - "DTB3 diario (FRED, en el repo)"
+    - "capitalizacion, precio, tenedores, es_reit, de_capital (panel trimestral)"
+    - "dividendo, salida, retorno (panel trimestral, para el simulador)"
+  timing: >
+    Señal con datos diarios hasta 21 días hábiles antes del cierre del trimestre t; la compra se
+    hace al precio de fin de t del simulador trimestral (13F). Robustez obligatoria: la variante con
+    un trimestre de retraso, igual que en fase 6. Elegibilidad y capitalización con datos conocidos
+    en t (13F y XBRL por fecha de presentación).
+  warmup_bars: 4
+
+entry_rules: >
+  Cada trimestre, invertir toda la aportación en el conjunto Compra_t con pesos w_i,t, con
+  fracciones de acción, sin apalancamiento ni cortos. La exclusión solo decide a dónde va el dinero
+  nuevo; lo ya comprado se queda aunque después caiga en el grupo excluido.
+
+exit_rules:
+  primary: >
+    Nunca se vende. Una posición solo sale por salida corporativa (fusión en efectivo, quiebra,
+    deslistado): paga 10% sobre la ganancia y el efectivo se suma a la aportación siguiente con la
+    misma regla.
+  stop_loss: null
+  take_profit: null
+  time_stop: "Fin de la muestra: valuación a mercado con 10% sobre la ganancia latente, como en fase 6."
+  intrabar_note: "No aplica: no hay stops ni objetivos."
+
+sizing: >
+  100% de cada aportación a Compra_t ponderado por capitalización; sin apalancamiento. Con el monto
+  real (~800 MXN al mes) exige un broker que venda fracciones de acción para 80-120 emisoras y
+  reporte fiscal de cada una; sin fracciones la card no es implementable a ese tamaño (B debe
+  decirlo, no resolverlo).
+
+data_required:
+  fields:
+    - "cik"
+    - "fecha"
+    - "precio"
+    - "capitalizacion"
+    - "tenedores"
+    - "es_reit"
+    - "de_capital"
+    - "retorno"
+    - "dividendo"
+    - "salida"
+    - "close_ajustado_diario"
+    - "dtb3"
+  frequency: "diaria para la señal; trimestral para la cartera"
+  history_years: 18
+  timestamp_convention: bar_close
+  session: rth
+  point_in_time_notes: >
+    (1) Universo: el de fase 6, solo emisores no sellados; los sellados no se abren. (2) Supervivencia:
+    Yahoo no conserva el histórico de muchos REITs deslistados; B debe medir en cada t la cobertura
+    de datos diarios por número y por capitalización, separando vivos de muertos; si la cobertura
+    por capitalización cae debajo de 95% en un trimestre, ese trimestre se aporta como el control y
+    se reporta. (3) Mapa CIK a ticker con fechas de vigencia (tickers reutilizados y cambios de
+    nombre); nunca usar el ticker actual hacia atrás. (4) Retorno total: el cierre ajustado diario
+    debe cuadrar con el retorno trimestral del panel (umbral de 2 puntos, como la validación 13F
+    contra Yahoo); discrepancias se reportan. (5) Capitalización de 13F (precio por acciones) al
+    cierre de t. (6) VNQ siguió el MSCI US REIT hasta 2018 y el MSCI US IMI Real Estate 25/50
+    después; sirve como factor, no como benchmark.
+  extra_datasets:
+    - "Precios diarios ajustados (retorno total) de todos los elegibles no sellados 2008-2026, incluidos fusionados y quebrados (Yahoo para vivos; para deslistados, una fuente que los conserve, p. ej. CRSP/Ziman vía WRDS o un proveedor EOD con históricos de deslistados)"
+    - "VNQ y SPY diarios (Yahoo) como factores"
+    - "DTB3 diario (FRED, ya en data/investigacion/macro)"
+    - "SCHH mensual y FTSE Nareit All Equity mensual (ya en el repo) para el reporte contra SCHH"
+    - "Mapa histórico CIK a ticker con fechas (universo.csv, campo tickers, más EDGAR)"
+
+expected_edge:
+  source:
+    - "DeLisle, Price y Sirmans (2013), 'Pricing of Volatility Risk in REITs', Journal of Real Estate Research 35(2):223-248: en REITs de capital 1996-2010 la volatilidad idiosincrática (contra Fama-French 3) tiene precio negativo y la sistemática no tiene precio [resumen leído]"
+    - "Cakici, Erol y Tirtiroglu (2014), 'Tracking the Evolution of Idiosyncratic Risk and Cross-Sectional Expected Returns for US REITs', JREFE 48(3):415-440: relación negativa entre IVOL y retorno en REITs 1981-2010, que cambia entre subperiodos [resumen leído]"
+    - "Zhu, Harrison y Seiler (2020), 'Preference for lottery features in real estate investment trusts', International Review of Economics & Finance 69:599-613: efecto MAX intra-industria fuerte en REITs; los de MAX alto son pequeños, de precio bajo y de IVOL alta; el MAX puede explicar el acertijo de IVOL en REITs; más fuerte con baja propiedad institucional; la subejecución persiste en meses posteriores pero solo es significativa en algunos [resumen leído]"
+    - "Simlai (2025), 'Expected idiosyncratic moment risk and the cross-section of REIT returns', Journal of Property Research 42(1):20-45: volatilidad y sesgo idiosincráticos esperados con relación negativa y significativa con el retorno de REITs, aun con controles [resumen leído]"
+    - "Mecanismo fuera de REITs: Ang, Hodrick, Xing y Zhang (2006), Journal of Finance 61(1):259-299; Bali, Cakici y Whitelaw (2011), JFE 99(2):427-446 (más de 1% mensual entre deciles extremos de MAX, 1962-2005; el MAX revierte el signo de la IVOL); Stambaugh, Yu y Yuan (2015), Journal of Finance 70(5):1903-1948; Kumar (2009), Journal of Finance 64(4):1889-1933"
+    - "EN CONTRA en REITs: Ooi, Wang y Webb (2009), JREFE 38(4):420-442, relación POSITIVA con IVOL condicional [vía fuente secundaria]; MacKinnon y Spinney (2017), International Real Estate Review 20(1):1-21, el efecto de volatilidad en REITs de EE. UU. aparece en los primeros diez años de su muestra y desaparece después, y ningún diseño de bajo riesgo le ganó al ponderado por capitalización [resumen leído]"
+    - "DECAIMIENTO: Pyun (2021), Critical Finance Review 10(3):419-427, el efecto de Ang et al. se atenúa o desaparece al final de la muestra en carteras ponderadas por valor; Detzel, Duarte, Kamara, Siegel y Sun (2023), Critical Finance Review 12:9-56, el diferencial de IVOL baja pero sigue significativo fuera de muestra; Bali y Cakici (2008), JFQA 43(1):29-58, no es robusto a la ponderación, los cortes y los filtros de tamaño, precio y liquidez; Gorman, Akhtar, Durand y Gould (2022), Critical Finance Review 11(3-4):647-675, el MAX sería sobrerreacción y no búsqueda de lotería"
+  sign: positivo
+  magnitude_annual_bps: { low: -15, high: 30, label: estimado }
+  crowding_decay_risk: >
+    Publicado en 2006 (IVOL) y 2011 (MAX); en REITs, 2013-2025. Prior de McLean y Pontiff (2016):
+    ~58% menos después de publicar. La evidencia reciente apunta a decaimiento real, no solo prior:
+    Pyun (2021) lo ve atenuarse después de 2000 en carteras ponderadas por valor; Detzel et al.
+    (2023) lo ven más chico fuera de muestra; MacKinnon y Spinney (2017) no lo encuentran en REITs
+    en el periodo reciente. No encontré un ETF de REITs de baja volatilidad o anti-lotería (el
+    crowding vía producto es bajo dentro del sector; los ETFs de baja volatilidad amplios, USMV y
+    SPLV, tienen REITs pero no son esta señal). La contraparte (clientela de lotería) no puede dejar
+    de perder fácilmente, lo que frena el decaimiento, pero la institucionalización de los REITs
+    (sector GICS propio desde 2016) achica esa clientela. Riesgo principal no es el crowding sino
+    la aritmética: con el filtro de 250 M USD y ponderación por capitalización, el grupo excluido
+    pesa ~2-8% del universo (B debe medirlo), y con aportar sin vender la subponderación efectiva es
+    ~50-80% de ese peso; con un diferencial de 0-6% al año tras decaimiento, la ganancia queda entre
+    0 y ~30 pb, debajo del criterio de +50. Efecto fiscal: si los excluidos pagan más dividendo, la
+    exclusión baja el yield de la cartera y ahorra ~0.44 x Δyield (unos pb); B lo mide con el
+    simulador, no se supone. Magnitud neta del perfil broker EE. UU. al 35% (dividendo 44%, ganancia
+    10%, comisión 0) contra el control y contra SCHH: de -15 a +30 pb, etiqueta estimado.
+
+parameters:
+  proxy_loteria:
+    { min: 1, max: 2, n_grid: 2, unit: "1 = IVOL residual contra VNQ y SPY; 2 = MAX5 (promedio de los 5 mayores retornos diarios)" }
+  ventana_meses:
+    { min: 3, max: 12, n_grid: 2, unit: "meses de 21 días hábiles (3 o 12)" }
+  fraccion_excluida:
+    { min: 0.10, max: 0.20, n_grid: 2, unit: "fracción del número de elegibles con señal (decil o quintil)" }
+  exponente_ponderacion:
+    { min: 1, max: 1, n_grid: 1, unit: "peso proporcional a capitalización^exponente; fijado en 1 para replicar la ponderación de SCHH y no mezclar la señal con el sesgo de igual peso" }
+
+kill_criteria:
+  - "En vivo: si el grupo excluido rinde igual o más que el resto del universo (exceso de 12 meses >= 0) en 8 de 12 trimestres consecutivos, la exclusión se apaga y se aporta como el control."
+  - "Si el peso por capitalización del grupo excluido cae debajo de 2% del universo durante 4 trimestres seguidos, se apaga por irrelevante: ya no puede mover la TIR."
+  - "Si la cobertura de datos diarios por capitalización cae debajo de 95% en el trimestre de formación, ese trimestre no se excluye a nadie (la señal está ciega)."
+  - "Si a 5 años la TIR neta acumulada contra el control queda en -25 pb al año o peor, se apaga."
+  - "Cambio estructural: si aparece un ETF o índice de REITs de baja volatilidad o anti-lotería con más de 1,000 M USD de activos, se revalida antes de seguir (compresión probable)."
+
+n_trials:
+  this_card: 8
+  session_total: 12
+  accounting: >
+    Esta card: 2 proxies (IVOL, MAX5) x 2 ventanas (3 y 12 meses) x 2 fracciones (decil, quintil) x
+    1 ponderación fija = 8. Sesión de la familia f2_volatilidad: 8 (esta) + 4 (f2_beta_alta_excluir)
+    = 12 trials de grid emitidos. Además, 16 variantes conceptuales descartadas por razonamiento sin
+    mirar datos (lista en el informe del investigador: 4 de opciones, 3 de señales implícitas de
+    opciones, 1 de aportación gestionada por volatilidad, 8 variantes transversales). Observados
+    nuevos: 0 (no se corrió nada). observed_extra = 3 porque el diseño se condicionó a cifras ya
+    vistas en el repo: S4 volatilidad baja (-34 pb en desarrollo), D1 sin riesgo de recorte (-18 pb,
+    excluir el quintil más riesgoso) y el satélite de igual peso (-137 pb contra el índice de SCHH),
+    que motivó ponderar por capitalización. Los tres ya están en el prior del ledger (>= 39): el
+    priorizador no debe sumarlos dos veces al ledger_total, pero sí contarlos en N_OBSERVADOS del
+    DSR vinculante.
+  ledger_total: 999
+  ledger_ref: "REITs_EEUU_capital|trimestral"
+  observed_extra: 3
+
+notes_adversarial: >
+  Pre-steelman del investigador (el adversario lo reescribe): (1) aritmética: con 250 M USD de
+  piso y ponderación por capitalización, el grupo excluido pesa poco y la mejora esperada queda
+  debajo de +50 pb aun si el efecto existe; (2) en este universo ya se vio que excluir el quintil de
+  más riesgo de recorte costó 18 pb (D1) y que los que recortan rebotan +7.7% al año siguiente (H9):
+  en REITs, los de IVOL alta pueden ser justo los que rebotan, y excluirlos regala el rebote;
+  (3) Ooi, Wang y Webb (2009) encuentran el signo contrario y MacKinnon y Spinney (2017) no ven el
+  efecto en el periodo reciente; (4) el sesgo de supervivencia de Yahoo puede fabricar o borrar el
+  efecto. Sobrevive como candidata porque la versión idiosincrática diaria que pedía la literatura
+  nunca se probó (S4 fue volatilidad total trimestral), el mecanismo nombra al perdedor y su
+  barrera, la exclusión deja la cartera casi igual a SCHH y el costo de probarla es bajo; su prior
+  debe ser bajo.

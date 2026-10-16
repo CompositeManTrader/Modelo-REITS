@@ -1,0 +1,206 @@
+# Strategy Card v1.1 — familia 1 (microestructura y calendario), adaptada a un inversionista
+# que aporta cada trimestre/mes y NUNCA vende. La card solo mueve el DÍA en que se compra la
+# aportación nueva dentro del mes; no toca la riqueza ya invertida.
+# Emitida sin backtest y sin mirar retornos de la señal en los datos del repo.
+
+card_version: "1.1"
+id: f1_fin_de_mes_liquidacion_schh
+asset_universe: ["SCHH"]
+instrument: etf
+direction: long_only
+
+holding_horizon:
+  min_bars: 1
+  max_bars: 5
+  bar_size: 1d
+  overnight_allowed: true
+
+economic_rationale:
+  mechanism: >
+    Fondos mutuos, planes de pensiones y aseguradoras tienen pagos concentrados en el último
+    día hábil del mes (redenciones, pensiones, nóminas, cupones). Como una venta de acciones
+    tarda s días hábiles en liquidarse (T+3 hasta el 4-sep-2017, T+2 hasta el 27-may-2024,
+    T+1 desde el 28-may-2024), quien necesita efectivo el día T está obligado a vender a más
+    tardar s días antes. Esa venta forzada y sincronizada presiona los precios a la baja entre
+    T-8 y T-(s+1). Cuando la presión cesa, y luego entran la nómina, las aportaciones a
+    pensiones y la reinversión del inicio de mes, se genera una reversión al alza de T-s a T+3.
+    Etula, Rinne, Suominen y Vaittinen (2020) lo documentan en el índice ponderado por valor de
+    EE. UU. y muestran causalidad: el día de la reversión se movió cuando varios países europeos
+    pasaron de T+3 a T+2 en octubre de 2014. Los REITs tienen propiedad institucional alta, y en
+    el cambio de mes rinden más que las acciones en general (Akbulut, Chan y Letdin 2015). Además,
+    en fin de trimestre el cierre de T está inflado porque algunos fondos marcan al alza sus
+    posiciones y el precio revierte al día siguiente (Carhart, Kaniel, Musto y Reed 2002). La regla
+    base del repo compra al cierre de fin de trimestre, es decir, después de la reversión y en un
+    cierre inflado. Comprar al cierre de T-(s+1) pone al inversionista como proveedor de liquidez
+    del vendedor forzado. Eso se traduce en una ganancia única por aportación igual al retorno de
+    T-(s+1) a T, que no se pierde después porque la aportación nunca se vende.
+  who_loses: >
+    Las instituciones que venden por necesidad de efectivo de fin de mes. Etula et al. (2020)
+    estiman que las instituciones de la base ANcerno perdieron unos 45.9 mil millones de USD (26 pb
+    de su volumen) en 1999-2013. Aceptan el costo porque el pago tiene fecha fija y guardar un
+    colchón de efectivo les cuesta rendimiento (cash drag) contra su benchmark. En fin de trimestre
+    pierde además quien compra al cierre inflado por el marcado al alza de fondos, que incluye a la
+    regla base de este mismo inversionista.
+  why_persists: >
+    El calendario de pagos lo fijan contratos y regulación (pensiones, nómina, redenciones), y el
+    ciclo de liquidación lo fija la SEC. Arbitrarlo exige comprar el mercado entero unos días cada
+    mes y cargar riesgo sistemático no diversificable (volatilidad diaria de ~1.3% en REITs) por un
+    premio de ~25 pb, con capital que tiene costo de oportunidad. Por eso la capacidad del arbitraje
+    es limitada. Para este inversionista el costo de implementación es cero: no hay comisión, el
+    spread es el mismo que el de la regla base y solo cambia el día de una compra que hará de todos
+    modos.
+
+signal_definition:
+  formula: >
+    T_m = último día hábil NYSE del mes m. s(t) = 3 si t < 2017-09-05; 2 si 2017-09-05 <= t <
+    2024-05-28; 1 si t >= 2024-05-28 (ciclo de liquidación vigente). e_m = T_m - (s(T_m) + 1) + j
+    días hábiles NYSE, con j = desfase_j en {-1, 0, +1}. GUARDA DE DIVIDENDO (no busca ventaja
+    fiscal; solo impide que la regla cambie el derecho al dividendo frente a la base, que es tema
+    de la familia 6): si existe x_m = fecha ex de una distribución de SCHH con e_m < x_m <= T_m,
+    entonces e_m := x_m. Regla: la aportación del mes m se compra al cierre de e_m en vez del
+    cierre de T_m. Beneficio por aportación: delta_m = P(T_m)/P(e_m) - 1 - c_m, con P = cierre
+    SIN ajustar de SCHH (por la guarda no hay fecha ex en (e_m, T_m]) y c_m = DTB3 * (1 - 0.35) *
+    (días naturales de e_m a T_m)/360, el interés neto que la base gana con el efectivo ocioso.
+    Métrica de decisión: dTIR = TIR neta(regla) - TIR neta(base), aportando 3,000 USD por
+    trimestre 2011-2026 con el perfil de broker de EE. UU. (dividendo 44%, intereses 35%,
+    ganancia 10%, comisión 0). Diagnóstico: delta medio por aportación contra una prueba de
+    permutación con días al azar del mismo mes.
+  inputs: ["close_sin_ajustar_SCHH", "fechas_ex_SCHH", "calendario_NYSE", "ciclo_de_liquidacion", "DTB3"]
+  timing: >
+    Todo es calendario conocido de antemano: días hábiles NYSE, la regla de liquidación vigente
+    (publicada por la SEC meses antes de cada cambio) y las fechas ex de SCHH (calendario anual de
+    distribuciones de Schwab). La orden se deja lista antes de e_m y se ejecuta al cierre de e_m
+    (orden al cierre o límite en los últimos minutos). Ningún insumo usa precios de e_m o
+    posteriores. Si B no tiene las fechas ex point-in-time, usa las realizadas y lo declara.
+  warmup_bars: 0
+
+entry_rules: >
+  En cada mes con aportación (aplicación: marzo, junio, septiembre y diciembre para el inversionista
+  trimestral; todos los meses en la variante mensual), comprar SCHH con el 100% de la aportación al
+  cierre de e_m. El efectivo debe estar en la cuenta, ya en USD, antes de e_m. Si no lo está, se
+  compra en el primer cierre posible <= T_m y B lo registra como fallo de ejecución, no como
+  señal.
+
+exit_rules:
+  primary: >
+    Nunca se vende (restricción fiscal del inversionista). La comparación con la base termina en el
+    cierre de T_m, cuando la regla base compra: desde ahí las dos carteras tienen la misma
+    composición y la diferencia de riqueza queda congelada como delta_m sobre esa aportación.
+  stop_loss: null
+  take_profit: null
+  time_stop: "No aplica: la ventana de comparación dura de e_m a T_m (de 1 a 5 días hábiles)."
+  intrabar_note: "Sin stops ni targets; no hay ambigüedad intrabarra. Ejecución al cierre en ambas reglas."
+
+sizing: >
+  100% de cada aportación nueva a SCHH, sin apalancamiento. No mueve la riqueza ya invertida. Con
+  800 MXN/mes (~43 USD) la regla mueve centavos por aportación. Se evalúa por su efecto en la TIR,
+  no por el P&L absoluto.
+
+data_required:
+  fields: ["date", "close_sin_ajustar", "adj_close", "dividendo_por_accion", "fecha_ex", "fecha_pago"]
+  frequency: 1d
+  history_years: 15
+  timestamp_convention: bar_close
+  session: rth
+  point_in_time_notes: >
+    Usar el cierre SIN ajustar más los dividendos por fecha ex, no adj_close de Yahoo, porque
+    adj_close reinvierte el dividendo bruto y el inversionista lo recibe neto al 56%. El ciclo de
+    liquidación se asigna por fecha (T+3 / T+2 / T+1). Los días hábiles salen del calendario NYSE,
+    con medias sesiones y cierres extraordinarios (p. ej., 2012-10-29/30, 2018-12-05, 2025-01-09).
+    SCHH siguió el DJ U.S. Select REIT hasta 2020-06 y desde 2020-07 sigue el DJ Equity All REIT
+    Capped. Para un patrón intramensual el cambio de índice es casi irrelevante, pero B debe
+    reportar las dos etapas por separado. El veredicto se emite sobre SCHH 2011-2026; el empalme con
+    IYR 2000-2010 sirve solo para diagnosticar potencia y no es un activo adicional del grid.
+  extra_datasets:
+    - "Calendario de días hábiles NYSE 2000-2026 (festivos y cierres extraordinarios)"
+    - "Fechas de cambio del ciclo de liquidación de la Regla 15c6-1 de la SEC: T+3 a T+2 el 2017-09-05; T+2 a T+1 el 2024-05-28"
+    - "Fechas ex y de pago de las distribuciones de SCHH (Schwab; aproximadamente 26-mar, 25-jun, 24-sep y 10-dic en 2025)"
+    - "FRED DTB3 diario (costo del efectivo ocioso de la regla base)"
+    - "IYR diario 2000-2010, solo como empalme para diagnosticar potencia"
+
+expected_edge:
+  source:
+    - "Etula, E., Rinne, K., Suominen, M. y Vaittinen, L. (2020), 'Dash for Cash: Monthly Market Impact of Institutional Liquidity Needs', Review of Financial Studies 33(1) — índice VW de CRSP desde 1980: de T-8 a T-4 ~ -37 pb y de T-3 a T-1 ~ +25 pb por mes; las instituciones venden en T-4/T-3 y compran de T a T+3; con T+3 el rendimiento bruto 1995-2013 fue de -17 pb (T-8 a T-4) y +77 pb (T-3 a T+3); el efecto creció en EE. UU. con la propiedad de fondos mutuos; experimento natural: el paso a T+2 en Europa (oct-2014) movió el día de la reversión"
+    - "McConnell, J. J. y Xu, W. (2008), 'Equity Returns at the Turn of the Month', Financial Analysts Journal 64(2):49-64 — 1926-2005: en EE. UU. el premio por riesgo de mercado se concentra en el cambio de mes (último día a tercer día hábil); aparece en 31 de 35 países; los autores NO encuentran más volumen ni más flujo a fondos en esos días (evidencia en contra de un mecanismo de compras de inicio de mes)"
+    - "Lakonishok, J. y Smidt, S. (1988), 'Are Seasonal Anomalies Real? A Ninety-Year Perspective', Review of Financial Studies 1(4):403-425 — en el DJIA desde 1897, el cambio de mes (día -1 a +3) concentra el retorno"
+    - "Akbulut, M., Chan, S. H. y Letdin, M. (2015), 'Calendar Anomalies: Do REITs Behave Like Stocks?', International Real Estate Review 18(2):177-215 — 22 países, 1990-2012: en el cambio de mes los REITs rinden significativamente más que las acciones en general (muestra global y 7 de 22 países), posiblemente por su mayor propiedad institucional"
+    - "Khaled, M. S. y Keef, S. P. (2012), 'Calendar anomalies in REITs: international evidence', Journal of Property Investment & Finance 30(4):375-388 — 14 países: el cambio de mes aparece en REITs y en índices accionarios, sin diferencia significativa de tamaño"
+    - "Carhart, M., Kaniel, R., Musto, D. y Reed, A. (2002), 'Leaning for the Tape: Evidence of Gaming Behavior in Equity Mutual Funds', Journal of Finance 57(2):661-693 — los fondos rinden anormalmente más que el S&P 500 el último día del trimestre (sobre todo el cuarto) y menos al día siguiente; de ~50 pb al año en fondos large-cap a más de 200 pb en small-cap; casi nada en fines de mes que no son fin de trimestre"
+  sign: positivo
+  magnitude_annual_bps: { low: -1, high: 5, label: estimado }
+  crowding_decay_risk: >
+    Efecto muy publicado: Ariel (1987), Lakonishok y Smidt (1988), McConnell y Xu (2008) y Etula et
+    al. (WP desde 2015, RFS 2020). Con el prior de McLean y Pontiff (2016, ~58% menos después de
+    publicarse), los ~25 pb de T-3 a T-1 bajan a ~10 pb. Hay evidencia de decaimiento y de
+    fragilidad. Maberly y Waggoner (2000, FRB Atlanta WP 2000-11) reportan que el efecto desaparece
+    después de 1990 en futuros y spot del S&P 500. Hardin, Liano y Huang (2005, International Real
+    Estate Review 8(1):83-94) encuentran que con un índice REIT ponderado por valor (como SCHH) las
+    anomalías de calendario desaparecen en 1994-2002. Una tesis de maestría de Aalto University
+    (autor y año por verificar; 12 mercados, 2005-2024) encuentra el cambio de mes solo en
+    2005-2009 en ventanas de 5 años, y en EE. UU. el efecto ligado a la propiedad institucional se
+    desvanece en 2015-2024. A favor de la persistencia: Etula et al. muestran que el efecto creció
+    hasta 2013 junto con la propiedad de fondos, y el perdedor está forzado por contrato y por
+    regulación, no por un sesgo que pueda aprender. No hay ETF que empaquete la regla, pero
+    cualquier inversionista puede aplicarla, así que no tiene asiento estructural. Es un edge
+    DORMANTE/condicional: depende del ciclo de liquidación vigente, que cambió dos veces dentro de
+    la muestra y concentra el efecto en menos días. CONVERSIÓN A TIR (aritmética, verificada): una
+    ganancia única delta en cada aportación sube la TIR en ~delta/D, con D la duración de las
+    aportaciones ponderada por dinero (~8.7 años para 15 años de aportaciones trimestrales al 6%).
+    delta = 0.10% da +1.2 pb/año; 0.25% da +3.0 pb/año; 0.50% da +6.1 pb/año (+9.4 a 10 años y +3.4
+    a 25 años). Para +50 pb haría falta delta ~4.3% por aportación, algo imposible para un efecto
+    de días. Rango de la card: delta de -0.1% a +0.45%, es decir de -1 a +5 pb/año de TIR neta
+    contra SCHH, después de costos (comisión 0, spread igual al de la base). NO alcanza el objetivo
+    de +50 pb: en el mejor caso es higiene de ejecución gratuita. Contexto del repo: en la fase 3,
+    un oráculo perfecto del mes siguiente que solo decide la aportación agregó +29 pb.
+
+parameters:
+  desfase_j:
+    { min: -1, max: 1, n_grid: 3, unit: "días hábiles respecto a T-(s+1); s según el ciclo de liquidación vigente" }
+  muestra_de_meses:
+    { min: 1, max: 2, n_grid: 2, unit: "1 = solo fines de trimestre (aplicación al inversionista trimestral); 2 = todos los meses (identificación del mecanismo, variante mensual)" }
+
+kill_criteria:
+  - "Con datos posteriores a la validación, el delta medio por aportación es <= 0 en 24 meses consecutivos bajo el ciclo de liquidación vigente (medido en todos los meses)."
+  - "La prueba de permutación de B no distingue el retorno de e_m a T_m del de días al azar del mismo mes con >= 120 meses (p > 0.10): se archiva como inexistente, no como 'débil'."
+  - "Cambio regulatorio del ciclo de liquidación (p. ej., T+0) o del calendario de pagos de pensiones o de redenciones: la regla se apaga hasta volver a pre-registrar el día, sin reoptimizarlo con datos viejos."
+  - "La guarda de dividendo se activa en más del 50% de los fines de trimestre (Schwab mueve su fecha ex dentro de la ventana): la regla de fin de trimestre pierde su objeto y queda solo la variante mensual."
+
+n_trials:
+  this_card: 6
+  session_total: 10
+  accounting: >
+    Contabilidad local del investigador de la familia 1 (calendario). CARDS EMITIDAS: esta card,
+    3 desfases x 2 muestras = 6; f1_pago_dividendos_reits_schh, 2 ventanas x 2 variantes de flujo
+    = 4. session_total = 6 + 4 = 10, igual a la suma de this_card de mis cards, según la
+    instrucción; el priorizador lo corregirá. VARIANTES CONSIDERADAS SERIAMENTE Y DESCARTADAS POR
+    RAZONAMIENTO, SIN MIRAR DATOS (13 conceptuales): window dressing de fin de trimestre (1);
+    comprar en T+1 por el marcado al alza de Carhart et al. como card aparte (1); concentrar la
+    aportación de T4 a fines de diciembre por el efecto enero en el índice (1); mandar la aportación
+    de diciembre a los perdedores fiscales del año, con dos cortes, decil y quintil (2); evitar
+    las semanas de rebalanceo de índices al comprar el ETF (1); comprar REITs recién eliminados de
+    un índice en su fecha efectiva (1); deriva pre-FOMC (1); semanas pares del ciclo FOMC (1);
+    compra en la quincena por el flujo de nómina (1); prima del mes de dividendo, redirigida a la
+    familia 6 (1); amplificadores de esta card no agregados al grid, viernes de fin de mes y
+    diciembre (2). Total local considerado: 10 + 13 = 23. OBSERVADOS: 0. No se miró ningún retorno
+    de ninguna señal; solo se consultaron fechas ex de SCHH en sitios agregadores para verificar
+    que el dato existe. La cifra del oráculo de la fase 3 (+29 pb) se usa solo como techo de
+    contexto, no motiva la señal.
+  ledger_total: 999
+  ledger_ref: "REITs_EEUU_capital|trimestral"
+  observed_extra: 0
+
+notes_adversarial: >
+  Steelman del propio investigador; el adversario lo reescribirá. (1) McConnell y Xu (2008) no
+  encuentran más volumen ni más flujo a fondos en el cambio de mes, así que el mecanismo de flujos
+  no está cerrado. Responde Etula et al. con trades institucionales directos de ANcerno y con el
+  experimento de liquidación europeo, pero esa evidencia es del mercado amplio hasta 2013, no de
+  REITs. (2) Con un índice REIT ponderado por valor, las anomalías de calendario desaparecen
+  (Hardin et al. 2005), y en REITs de EE. UU. el cambio de mes se desvanece en 2015-2024 (tesis de
+  Aalto). (3) Potencia: con volatilidad diaria de ~1.3%, una ventana de 3 días tiene desviación de
+  ~2.3%. Con 186 meses el error estándar del delta medio es de ~0.17%, y con 62 fines de trimestre
+  de ~0.29%: un efecto real de 0.25% queda en t ~ 0.9 a 1.5. B casi seguro no podrá confirmarlo,
+  y la card debe leerse como 'regla gratuita sin daño esperado', no como edge demostrable. (4)
+  Aunque exista, mueve a lo más ~5 pb/año de TIR: no sirve para el objetivo de +50 pb. Sobrevive
+  como candidata solo porque su costo es cero, su mecanismo tiene un perdedor forzado con evidencia
+  causal y es la única regla de calendario que no exige esperar con el efectivo ocioso: compra
+  ANTES de la fecha base, no después.

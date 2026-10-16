@@ -1,0 +1,185 @@
+# Strategy Card v1.1 — familia 1 (microestructura y calendario), adaptada a un inversionista
+# que aporta cada trimestre/mes y NUNCA vende. Mueve el DÍA de compra de la aportación según el
+# calendario de PAGO (no de fecha ex) de los dividendos de los REITs. La parte fiscal respecto a
+# la fecha ex queda fuera (familia 6); aquí una guarda impide cambiar el derecho al dividendo.
+# Emitida sin backtest y sin mirar retornos de la señal en los datos del repo.
+
+card_version: "1.1"
+id: f1_pago_dividendos_reits_schh
+asset_universe: ["SCHH"]
+instrument: etf
+direction: long_only
+
+holding_horizon:
+  min_bars: 1
+  max_bars: 11
+  bar_size: 1d
+  overnight_allowed: true
+
+economic_rationale:
+  mechanism: >
+    Los REITs reparten ~4% al año, unas tres veces el yield del mercado, en pagos trimestrales con
+    fecha de pago anunciada semanas antes. En la fecha de pago, los fondos indexados, ETFs y fondos
+    mutuos que tienen REITs reciben efectivo y lo reinvierten pronto, porque el mandato los obliga
+    a minimizar el efectivo ocioso (cash drag). Los planes de reinversión de dividendos (DRIPs),
+    muy comunes en REITs, compran acciones por regla ese mismo día. Ese flujo sin información, y
+    predecible en fecha y monto, presiona el precio al alza en los días de pago pesado. Hartzmark
+    y Solomon (2022) lo muestran en el mercado: los días con más pagos de dividendos el retorno ponderado
+    por valor es más alto, sin reversión en el mes siguiente. Berkman y Koch (2017) lo muestran por
+    acción: el alza en la fecha de pago es mayor cuanto más alto es el yield y la participación en
+    DRIP, y revierte en pocos días. Como el flujo de reinversión relativo a la capitalización es
+    mayor en REITs, el efecto debería verse en el sector. Comprar la aportación al cierre PREVIO al
+    día de pago más pesado de la ventana le gana a comprar en el cierre de ese día o después, tanto
+    si el impacto es permanente (se captura el alza j) como si es temporal (se evita pagar el pico;
+    con P0 = P-1*(1+j), la riqueza relativa es 1+j en ambos casos). Eso se traduce en una ganancia
+    única por aportación que no se pierde porque nunca se vende.
+  who_loses: >
+    Los reinversores mecánicos: fondos indexados y ETFs que deben reinvertir el efectivo de
+    dividendos para no desviarse del índice, y los participantes de DRIPs que compran por regla en
+    la fecha de pago sin importar el precio. Aceptan pagar el impacto porque reinvertir es su
+    mandato o una opción automática y sin comisión, y el costo por evento es pequeño para cada uno
+    (Berkman y Koch lo llaman 'drained by DRIPs').
+  why_persists: >
+    Las fechas de pago las fijan las empresas y la reinversión es mecánica. Adelantarse al flujo
+    exige cargar la beta del sector (volatilidad diaria de ~1.3%) por un premio de pocos pb por
+    evento. Hartzmark y Solomon estiman multiplicadores de precio de 1.5 a 2.3 aunque el flujo es
+    predecible, lo que indica que la oferta de liquidez no lo arbitra. Para este inversionista el
+    costo es cero: solo cambia, dentro de una ventana corta, el día de una compra que hará de todos
+    modos.
+
+signal_definition:
+  formula: >
+    U_m = emisores de REIT de capital del panel con capitalización >= 250 M USD al cierre del
+    trimestre anterior (o constituyentes de SCHH según su último N-PORT). Para cada dividendo
+    declarado k del emisor i: dps_k (USD por acción), fecha de declaración a_k, fecha de pago p_k.
+    D_m = T_m - w - 1 días hábiles es el día de decisión. Intensidad de pago del día d: I(d) =
+    SUMA_{k: p_k = d, a_k <= D_m} dps_k * acciones_i / SUMA_{i en U_m} cap_i(D_m), la fracción de
+    la capitalización del sector pagada en d. Si incluir_etfs = 1, se suma además la distribución
+    de SCHH y de VNQ pagada en d por sus acciones en circulación, entre la capitalización del
+    sector (segunda ola: holders de ETFs que reinvierten). d* = argmax_{d en [T_m - w + 1, T_m +
+    1]} I(d); en empate se toma el más tardío. e_m = d* - 1 día hábil; si d* = T_m + 1, e_m =
+    T_m y la regla coincide con la base. GUARDA DE DIVIDENDO (no fiscal): si una fecha ex de SCHH
+    cae en (e_m, T_m], e_m := esa fecha ex. Beneficio por aportación: delta_m = P(T_m)/P(e_m) - 1
+    - c_m, con P = cierre SIN ajustar de SCHH y c_m = DTB3*(1-0.35)*(días naturales de e_m a
+    T_m)/360. Métricas: dTIR neta contra la base (3,000 USD por trimestre 2011-2026, perfil de broker de
+    EE. UU.) y el INCREMENTO delta_m(esta card) - delta_m(f1_fin_de_mes_liquidacion_schh, j=0) en
+    los mismos meses, porque las dos ventanas se traslapan al final del mes.
+  inputs: ["close_sin_ajustar_SCHH", "fechas_ex_SCHH", "declaraciones_de_dividendo_REIT(dps, fecha_declaracion, fecha_pago)", "acciones_en_circulacion", "capitalizacion", "distribuciones_SCHH_VNQ", "DTB3"]
+  timing: >
+    La intensidad I(d) usa solo dividendos declarados a más tardar en D_m = T_m - w - 1, que se
+    conocen semanas antes del pago. La decisión de e_m se toma al cierre de D_m y la compra se
+    ejecuta al cierre de e_m >= T_m - w. Ningún insumo usa precios de e_m o posteriores. Un
+    dividendo declarado después de D_m con pago dentro de la ventana se ignora: no se recalcula.
+  warmup_bars: 0
+
+entry_rules: >
+  En cada mes con aportación (marzo, junio, septiembre y diciembre para el inversionista
+  trimestral; todos los meses en la variante mensual), comprar SCHH con el 100% de la aportación al
+  cierre de e_m. El efectivo debe estar en USD en la cuenta antes de T_m - w. Si no lo está, se
+  compra en el primer cierre posible <= T_m y B lo registra como fallo de ejecución.
+
+exit_rules:
+  primary: >
+    Nunca se vende. La comparación con la base termina en el cierre de T_m, cuando la regla base
+    compra; desde ahí las dos carteras son idénticas y la diferencia queda congelada como delta_m.
+  stop_loss: null
+  take_profit: null
+  time_stop: "No aplica: la ventana de comparación va de e_m a T_m (de 0 a w días hábiles)."
+  intrabar_note: "Sin stops ni targets; ejecución al cierre en ambas reglas."
+
+sizing: >
+  100% de cada aportación nueva a SCHH, sin apalancamiento. No mueve la riqueza ya invertida. Se
+  evalúa por el efecto en la TIR, no por el P&L absoluto, que con 800 MXN/mes son centavos.
+
+data_required:
+  fields: ["date", "close_sin_ajustar", "dividendo_por_accion", "fecha_ex", "fecha_pago"]
+  frequency: 1d
+  history_years: 15
+  timestamp_convention: bar_close
+  session: rth
+  point_in_time_notes: >
+    La fecha de PAGO no está en el panel del repo (el XBRL da montos trimestrales) ni en Yahoo (solo
+    da fechas ex). Hay que armarla con las declaraciones de dividendo de cada REIT: comunicados en
+    8-K de SEC EDGAR, con fecha de declaración (presentación del 8-K), fecha de registro y fecha de
+    pago. Debe incluir a los emisores muertos del panel: si solo se usan los vivos, la intensidad
+    queda subestimada en los primeros años. Si B no logra cubrir >= 80% de la capitalización del
+    sector con fechas de pago point-in-time, la card se BLOQUEA; no se aproxima con fechas ex. Las
+    acciones en circulación y la capitalización se toman del panel trimestral (último dato conocido
+    en D_m). Precio de SCHH sin ajustar más dividendos por fecha ex, por el neto al 56% del
+    inversionista.
+  extra_datasets:
+    - "Declaraciones de dividendo de REITs de capital 2011-2026 con fecha de declaración y fecha de pago (8-K en SEC EDGAR; vivos y muertos)"
+    - "Distribuciones de SCHH y VNQ: fecha ex, fecha de pago, monto y acciones en circulación (sitios del emisor / N-PORT en EDGAR)"
+    - "Calendario de días hábiles NYSE"
+    - "FRED DTB3 diario"
+    - "Constituyentes de SCHH (N-PORT trimestral) si se usa esa definición de universo en lugar del panel"
+
+expected_edge:
+  source:
+    - "Hartzmark, S. M. y Solomon, D. H. (2022), 'Predictable Price Pressure', NBER Working Paper 30688 (borrador de 2021 en SSRN 3853096) — una desviación estándar más de pagos diarios de dividendos se asocia con +3.2 pb de retorno VW ese día (media incondicional de 4.1 pb); +12.8 pb si el pago está en los 5 días más altos de los últimos 250 y +4.8 pb en los 50 más altos; el retorno del quintil más alto de días de pago es cuatro veces el del más bajo; sin efecto en el cuarto trimestre (los fondos distribuyen en diciembre) y máximo en el primero; sin reversión en el mes siguiente; reversión parcial de largo plazo entre industrias (-28 pb/mes, t = 3.38); 58 mercados"
+    - "Berkman, H. y Koch, P. D. (2017), 'DRIPs and the Dividend Pay Date Effect', Journal of Financial and Quantitative Analysis 52(4):1765-1795 — alza temporal del precio en la fecha de pago, concentrada en acciones con DRIP; mayor con yield más alto, más participación en DRIP y más límites al arbitraje; revierte por completo en los días siguientes; se ha fortalecido desde los años 70"
+    - "Fuente por verificar: Huang, S. y coautores (2021), 'Reaching for Dividends, Price Pressure, and the Implications for Corporate Dividend Policy', working paper (solo verifiqué el resumen de un seminario; coautores y cifras sin verificar) — la presión en el día de pago es mayor en acciones con más propiedad de fondos mutuos de cuentas 401(k) y revierte por completo después del pago"
+  sign: positivo
+  magnitude_annual_bps: { low: -1, high: 3, label: estimado }
+  crowding_decay_risk: >
+    El mecanismo es reciente en la literatura de mercado agregado (Hartzmark y Solomon: borrador
+    2021, NBER 2022, difundido en Alpha Architect en 2022). A nivel acción está publicado desde
+    Berkman y Koch (WP 2012, JFQA 2017), que reportan fortalecimiento, no decaimiento, hasta su
+    muestra. Con el prior de McLean y Pontiff (-58% después de publicarse), el impacto de +12.8 pb
+    de un día de pago extremo baja a ~5 pb. No hay producto que lo empaquete. El perdedor está
+    obligado por mandato (fondos indexados) o por inercia (DRIPs), y eso decae lento. No hay
+    evidencia publicada ESPECÍFICA de REITs que haya verificado: la extrapolación al sector por su
+    yield alto es INFERIDA, no verificada. Riesgos concretos: (i) en T4 el efecto de mercado
+    desaparece, justo en la aportación de diciembre; (ii) la versión por acción revierte en días, y
+    entonces solo vale evitar comprar en el pico, no adelantarse mucho; (iii) muchos pagos de REITs
+    caen a fin de mes, así que esta card se traslapa con f1_fin_de_mes_liquidacion_schh y su
+    incremento puede ser ~0. CONVERSIÓN A TIR (aritmética): dTIR ~ delta/D con D ~ 8.7 años
+    (15 años de aportaciones trimestrales). Un delta de -0.1% a +0.25% por aportación da de -1 a
+    +3 pb/año de TIR neta contra SCHH, después de costos (comisión 0, spread igual a la base).
+    Para +50 pb haría falta delta ~4.3% por aportación: imposible. En el mejor caso es un refinamiento
+    gratuito del día de compra, no un edge que acerque al objetivo.
+
+parameters:
+  ventana_w:
+    { min: 5, max: 10, n_grid: 2, unit: "días hábiles hacia atrás desde T_m en que se permite adelantar la compra" }
+  incluir_etfs:
+    { min: 0, max: 1, n_grid: 2, unit: "0 = solo pagos de REITs; 1 = suma las distribuciones de SCHH y VNQ (segunda ola de reinversión)" }
+
+kill_criteria:
+  - "Incremento medio de delta_m sobre f1_fin_de_mes_liquidacion_schh (j=0) <= 0 en la validación de B, o 24 meses consecutivos <= 0 en vivo: se archiva la card (queda solo la regla de fin de mes)."
+  - "Si en el sector REIT el retorno del día de pago más pesado de la ventana no es mayor que el de días al azar de la misma ventana (prueba de permutación, >= 60 ventanas), el mecanismo no opera en REITs y la card muere."
+  - "Cobertura de fechas de pago point-in-time < 80% de la capitalización del sector en cualquier año de la muestra: la card queda bloqueada, no se aproxima."
+  - "Cambio estructural en la reinversión: si los grandes ETFs de REITs pasan a acumular (no distribuir) o se generaliza el pago mensual en el sector, se recalibra antes de seguir."
+
+n_trials:
+  this_card: 4
+  session_total: 10
+  accounting: >
+    Contabilidad local del investigador de la familia 1 (calendario). CARDS EMITIDAS:
+    f1_fin_de_mes_liquidacion_schh, 3 desfases x 2 muestras = 6; esta card, 2 ventanas x 2
+    variantes de flujo = 4. session_total = 6 + 4 = 10, igual a la suma de this_card de mis cards,
+    según la instrucción; el priorizador lo corregirá. VARIANTES CONSIDERADAS SERIAMENTE Y
+    DESCARTADAS POR RAZONAMIENTO, SIN MIRAR DATOS (13 conceptuales): window dressing de fin de
+    trimestre (1); comprar en T+1 por el marcado al alza como card aparte (1); efecto enero en el
+    índice (1); perdedores fiscales de diciembre, decil y quintil (2); rebalanceo de índices al
+    comprar el ETF (1); comprar REITs recién eliminados de un índice (1); deriva pre-FOMC (1);
+    semanas pares del ciclo FOMC (1); compra en la quincena por el flujo de nómina (1); prima del
+    mes de dividendo, redirigida a la familia 6 (1); amplificadores de viernes y diciembre de la
+    card de fin de mes (2). Total local considerado: 10 + 13 = 23. OBSERVADOS: 0. No se miró
+    ningún retorno de ninguna señal.
+  ledger_total: 999
+  ledger_ref: "REITs_EEUU_capital|trimestral"
+  observed_extra: 0
+
+notes_adversarial: >
+  Steelman del propio investigador; el adversario lo reescribirá. (1) La evidencia verificada es
+  del mercado amplio (Hartzmark y Solomon) y de acciones con DRIP (Berkman y Koch), no de REITs:
+  la aplicación al sector es una inferencia por yield. (2) Las dos fuentes discrepan en la
+  persistencia: sin reversión en el mercado durante el mes contra reversión completa por acción en
+  días. La card solo apuesta a la parte en que ambas coinciden (no comprar en el pico), así que la
+  magnitud útil es la menor. (3) El dato que hace falta (fechas de pago point-in-time de vivos y
+  muertos) no existe en el repo y armarlo desde los 8-K es caro; si se arma solo con vivos queda un
+  sesgo de supervivencia en la intensidad. (4) Se traslapa con la card de fin de mes; si el
+  incremento es ~0 no aporta nada. (5) Aun si funciona, mueve <= 3 pb/año de TIR. Sobrevive como
+  candidata secundaria porque el flujo es mecánico y anunciado, el perdedor está obligado por
+  mandato y la regla no cuesta nada ni exige esperar con el efectivo ocioso.
