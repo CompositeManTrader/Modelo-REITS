@@ -409,11 +409,21 @@ NOMBRES = {"todos": "Todos por partes iguales", "momentum": "Momentum (meses 12 
 def lectura_exploratoria(r: Resultado) -> str:
     t = r["exploratoria"]
     s = t[t["referencia"] == "indice"].set_index("satelite")
+    real = t[t["referencia"] == "SCHH"].set_index("satelite")
     mejor = s["mejora_cartera"].idxmax()
-    o = [f"* **Contra el índice que sigue SCHH hoy, ningún satélite cambia mucho la cartera completa:** con "
-         f"{PESO_SATELITE:.0%} en el satélite, la TIR neta de la cartera se mueve entre "
-         f"{_pb(s['mejora_cartera'].min())} y {_pb(s['mejora_cartera'].max())} pb al año. El mejor fue "
-         f"{NOMBRES[mejor].lower()}.\n"]
+    if s["mejora_cartera"].max() < 0:
+        cabeza = (f"* **Contra el índice que sigue SCHH hoy, ningún satélite le ganó:** con {PESO_SATELITE:.0%} en el "
+                  f"satélite, todos le restan a la cartera completa, entre {_pb(s['mejora_cartera'].max())} y "
+                  f"{_pb(s['mejora_cartera'].min())} pb al año de TIR neta. El que menos restó fue "
+                  f"{NOMBRES[mejor].lower()}.\n")
+    else:
+        cabeza = (f"* **Contra el índice que sigue SCHH hoy**, con {PESO_SATELITE:.0%} en el satélite la TIR neta de la "
+                  f"cartera completa se mueve entre {_pb(s['mejora_cartera'].min())} y "
+                  f"{_pb(s['mejora_cartera'].max())} pb al año. El mejor fue {NOMBRES[mejor].lower()}.\n")
+    o = [cabeza,
+         f"* **Contra SCHH real, el satélite solo va de {_pb(real['mejora'].min())} a {_pb(real['mejora'].max())} pb al "
+         "año**, pero casi todo es que SCHH siguió hasta 2020 un índice que rindió 1.45 puntos menos al año; eso ya no "
+         "se repite.\n"]
     for sat, f in s.iterrows():
         o.append(f"* **{NOMBRES[sat]}:** el satélite solo, {_pb(f['mejora'])} pb al año de TIR neta contra el índice; "
                  f"ganó {int(f['anios_ganados'])} de {int(f['anios'])} años; exceso bruto "
@@ -460,6 +470,11 @@ def informe_exploratorio(r: Resultado) -> str:
              "igual, que es lo que mide «todos por partes iguales».\n"
              "* Precios de los 13F (fin de trimestre) y dividendos de XBRL, conocidos a su fecha; los sellados no "
              "entran.\n"
+             "* La TIR con aportaciones pesa mucho el último trimestre (con todo el dinero ya invertido): terminar en "
+             "junio de 2026 en vez de septiembre, que cayó 6%, sube la TIR del índice casi un punto. Satélite y "
+             "referencia terminan en la misma fecha, así que la diferencia entre ellos sí se compara bien.\n"
+             "* El exceso bruto es de cohortes que se rotan cada año; la TIR es de aportar sin vender nunca, que con "
+             "los años se parece cada vez más a tener de todo. Por eso pueden ir en sentidos distintos.\n"
              f"* Bitácora: {len(t)} intentos con la familia `{FAMILIA}` (total de la familia: "
              f"{r.notas.get('intentos_satelite', '—')}), más las aperturas de los datos posteriores a 2016.\n")
     return "".join(o)

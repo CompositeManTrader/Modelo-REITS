@@ -683,6 +683,31 @@ son REITs, −51 pb al año. Los tres pagan cada trimestre y ninguno quita las c
 −68% en 2007-2009). Es descriptivo: no prueba reglas ni suma intentos, y la apertura de los
 datos posteriores a 2016 queda en la bitácora.
 
+## Núcleo y satélite: ¿se le puede ganar a SCHH?
+
+Pre-registro: `docs/estudios/satelite_preregistro.md`, en un commit anterior a cualquier
+corrida. Un núcleo de SCHH y un satélite de REITs escogidos con una regla de la fase 6, en dos
+partes:
+
+```bash
+python scripts/estudio.py satelite explorar               # exploratoria con el panel de la fase 6 (ya visto)
+python scripts/estudio.py satelite elegir --vista-previa  # lo que compraría hoy la regla, sin anotar nada
+python scripts/estudio.py satelite elegir                 # en febrero, mayo, agosto y noviembre: anota la aportación
+python scripts/estudio.py satelite evaluar                # la cuenta en papel contra SCHH (baja de Yahoo)
+```
+
+- **Exploratoria** (`docs/estudios/satelite_exploratorio.md`): cuatro satélites desde 2011.
+  Contra el índice que sigue SCHH hoy, ninguno le ganó. Con 15% en el satélite, todos le
+  restan a la cartera completa entre 3 y 19 pb al año. Momentum solo pierde 102 pb al año de TIR
+  neta, y pesar igual a todos pierde 137. Contra SCHH real algunos parecen ganar, pero es porque
+  SCHH siguió otro índice hasta 2020. No confirma nada: el panel ya se había visto.
+- **En papel** (`docs/estudios/satelite_en_papel.md`): momentum congelado contra SCHH, con
+  aportaciones teóricas de 3,000 dólares cada trimestre de noviembre de 2026 a agosto de 2029.
+  El veredicto es el 30 de noviembre de 2029: éxito solo con +50 pb al año de TIR neta y exceso
+  bruto positivo. Antes de cada `elegir` hay que actualizar el panel con
+  `python scripts/investigacion.py emisores`. La bitácora en papel
+  (`data/estudios/satelite/papel.csv`) se niega a anotar fuera del calendario o dos veces.
+
 ## El semáforo: tres puertas, por separado
 
 No es una caja negra. Cada puerta responde una pregunta distinta y se muestra sola.
