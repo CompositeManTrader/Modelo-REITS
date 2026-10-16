@@ -1,0 +1,225 @@
+# Strategy Card v1.1 — familia 4 (cross-sectional / valor relativo), investigador transversal.
+# Valuación relativa por TIPO DE PROPIEDAD: el cap rate implícito de cada sector contra su propia
+# historia (y dos variantes: contra el privado y ajustado por oferta nueva).
+# No se corrió ningún backtest ni se miró el retorno de esta señal en ningún dato.
+
+card_version: "1.1"
+id: f4_cap_rate_tipo_propiedad
+asset_universe:
+  - "SCHH (benchmark: Dow Jones Equity All REIT Capped desde 2020-07)"
+  - "SECTORES: Office, Industrial, Retail, Residential, Diversified, Lodging/Resorts, Self Storage, Health Care, Timberland, Telecommunications, Data Centers, Specialty (clasificación y series del Nareit REIT Industry Tracker; Gaming queda fuera por historia corta, desde 2021)"
+  - "IMPLEMENTACION: dentro de cada sector elegido, canasta capitalizada de los REITs de capital elegibles del panel de emisores (capitalización >= 250 M USD, precio >= 5 USD), clasificados por tipo de propiedad point-in-time; un ETF sectorial solo si existe para ese sector y B lo valida contra la canasta"
+instrument: canasta
+direction: long_only
+
+holding_horizon:
+  min_bars: 8
+  max_bars: 62
+  bar_size: trimestral
+  overnight_allowed: true
+
+economic_rationale:
+  mechanism: >
+    Cuando un tipo de propiedad cotiza a un cap rate implícito bajo respecto a su propia historia
+    (caro), el valor de mercado de sus inmuebles supera el costo de reposición, lo que induce a
+    desarrolladores y a los propios REITs a construir; esa oferta nueva llega dos a tres años
+    después y presiona rentas y ocupación, de modo que el crecimiento de NOI que el precio
+    extrapolaba no se materializa y el retorno siguiente del sector es bajo. Al revés, el sector
+    barato contra su historia frena la construcción, la oferta se seca y el NOI se recupera. Es el
+    mecanismo de Greenwood y Hanson (2015): los participantes extrapolan la demanda y descuidan la
+    respuesta de inversión de sus competidores, por eso precios altos con inversión alta predicen
+    retornos bajos; Grenadier (1996) lo modela en inmuebles (cascadas de desarrollo y
+    sobreconstrucción) y Plazzi, Torous y Valkanov (2010) muestran que el cap rate se mueve con el
+    retorno esperado de departamentos, comercio e industria (no de oficinas). La variante 3 mide el
+    canal directamente con la cartera de desarrollo de cada sector. Ninguna regla del repo comparó
+    tipos de propiedad: la fase 6 no tuvo sector y el timing fue del sector completo contra efectivo.
+  who_loses: >
+    El inversionista que compra o vende el sector entero por su narrativa (comercio electrónico y
+    bodegas, inteligencia artificial y centros de datos, la «muerte» de oficinas y centros
+    comerciales) y los fondos temáticos o sectoriales que reciben flujos procíclicos y compran más
+    caro; pagan porque su horizonte de evaluación es corto y el canal de oferta tarda años en verse.
+  why_persists: >
+    Ir contra la narrativa de un sector cuesta años de desempeño inferior (riesgo de carrera para
+    el gestor con benchmark); el canal opera con rezagos de dos a cuatro años y es episódico (ciclos
+    de construcción), sin fecha de convergencia; además el momentum por industria (Moskowitz y
+    Grinblatt 1999) empuja en contra a 6-12 meses y castiga al arbitrajista impaciente. Las series
+    sectoriales de cap rate implícito y de desarrollo son públicas pero poco usadas fuera de los
+    gestores dedicados.
+
+signal_definition:
+  formula: |
+    Datos del sector s en el trimestre t: los de la última vintage del Nareit REIT Industry Tracker
+    publicada antes del cierre de t (por el rezago de publicación corresponde al trimestre t-1).
+      ic_s,t  = cap rate implícito de 4 trimestres móviles del sector ('Rolling 4-quarter Cap Rate';
+                fijo, para quitar la estacionalidad de hoteles)
+      pip_s,t = cartera de desarrollo / inmuebles totales a costo no depreciado del sector
+    Con m(x) y sd(x) = media y desviación de x en los W trimestres anteriores a t (W = ventana_historia):
+      variante_senal = 1 (contra su historia):   sig_s,t = (ic_s,t - m(ic_s)) / sd(ic_s)
+      variante_senal = 2 (contra el privado):    g_s,t = ic_s,t - cp_s,t, con cp = cap rate de avalúo
+                                                 del sector (NCREIF ODCE o encuesta de CBRE, la última
+                                                 publicada antes de t); sig_s,t = (g_s,t - m(g_s)) / sd(g_s)
+      variante_senal = 3 (con oferta):           sig_s,t = z(ic_s,t) - z(pip_s,t), ambos z contra sus W trimestres
+    Elegibles: sectores con >= W trimestres de historia y >= 3 REITs elegibles en el panel en t.
+    Aportación: partes iguales entre los k = sectores_elegidos de mayor sig_s,t; dentro de cada
+    sector, por capitalización entre sus REITs elegibles, tope de 25% de la porción del sector por nombre.
+  inputs:
+    - "ic_s: cap rate implícito sectorial (Tracker de Nareit, por vintage)"
+    - "pip_s: cartera de desarrollo e inmuebles totales del sector (Tracker de Nareit)"
+    - "cp_s: cap rate de avalúo privado por sector (solo variante 2; por conseguir)"
+    - "precio, retorno, dividendo, salida y capitalización de cada REIT (panel del repo)"
+    - "tipo de propiedad point-in-time de cada REIT (por armar)"
+  timing: >
+    Señal al cierre del trimestre t con la vintage del Tracker ya publicada en t (datos de t-1;
+    Nareit publica el trimestre unos dos meses después de su cierre) y precios de fin de t; la
+    aportación de t se ejecuta al cierre de t. B repite con un trimestre de retraso adicional.
+  warmup_bars: 28
+
+entry_rules: >
+  Cada trimestre la aportación (3,000 USD teóricos) va completa a los k sectores elegidos, en
+  partes iguales, y dentro de cada uno por capitalización entre sus REITs elegibles; nunca se
+  vende. Dividendos netos de 44% y salidas por adquisición igual que en el simulador del repo y
+  en la cuenta de referencia en SCHH.
+
+exit_rules:
+  primary: >
+    Sin salida voluntaria: cada compra se mantiene indefinidamente aunque su sector deje de ser
+    elegido; la rotación ocurre solo con el dinero nuevo. Sale únicamente por adquisición,
+    deslistado o quiebra con la regla de salida del repo; el efectivo, neto de 10% sobre la
+    ganancia, se suma a la siguiente aportación.
+  stop_loss: null
+  take_profit: null
+  time_stop: "Fin de la muestra: valuación final con 10% sobre la ganancia latente, igual que la referencia."
+  intrabar_note: "No aplica: sin stops ni targets; frecuencia trimestral."
+
+sizing: >
+  100% de cada aportación en k sectores; sin apalancamiento. La concentración es la mayor de las
+  tres cards (2 a 4 sectores por aportación): B debe reportar el peso acumulado máximo por sector
+  y el error de seguimiento contra SCHH. Con ~800 MXN al mes, implementar con acciones
+  fraccionarias o con los 3 a 5 REITs más grandes del sector.
+
+data_required:
+  fields:
+    - fecha
+    - sector
+    - ic_rolling_4q
+    - cartera_de_desarrollo
+    - inmuebles_totales_no_depreciados
+    - cap_rate_privado_sector
+    - cik
+    - precio
+    - retorno
+    - dividendo
+    - salida
+    - capitalizacion
+    - tipo_de_propiedad
+  frequency: trimestral
+  history_years: 25
+  timestamp_convention: bar_close
+  session: rth
+  point_in_time_notes: >
+    EN EL REPO: retornos, dividendos, salidas y capitalización de los REITs (panel 2008-12 a
+    2026-06), SCHH mensual, índices compuestos FTSE Nareit mensuales desde 1972 (el archivo del
+    repo NO trae índices por tipo de propiedad), FRED (DFII10, DGS10). HAY QUE CONSEGUIR: (1) el Nareit
+    REIT Industry Tracker (antes T-Tracker). Verifiqué que la vintage 2T2026 se descarga de reit.com
+    (REIT_Industry_Tracker2026_Q2.xlsx) y trae por sector, trimestral desde 2000T1, el cap rate
+    implícito (y el de 4 trimestres móviles desde 2000T4), la cartera de desarrollo, inmuebles a
+    costo, P/FFO y ocupación; Telecommunications empieza en 2012, Data Centers en 2004T4 y Gaming en
+    2021. La historia de la vintage actual puede estar re-expresada (cambios de constituyentes y
+    revisiones): para point-in-time hay que bajar las vintages trimestrales archivadas en reit.com o
+    en el Wayback Machine y usar en t solo la publicada antes de t; si no existen para años viejos, B
+    debe declarar la diferencia y medir la sensibilidad. (2) Retornos totales mensuales por sector:
+    índices FTSE Nareit por tipo de propiedad (reit.com) o reconstruirlos con el panel clasificado; la
+    prueba de la versión implementable usa el panel desde 2011. (3) Variante 2: cap rates de avalúo
+    NCREIF/ODCE por sector (suscripción) o encuesta semestral de CBRE (PDF públicos): si no se
+    consiguen con fecha de publicación, la variante 2 no se corre y se declara. (4) Tipo de propiedad
+    point-in-time de cada REIT (ver f4_descuento_nav_intrasector).
+  extra_datasets:
+    - "Nareit REIT Industry Tracker, vintages trimestrales (cap rate implícito y cartera de desarrollo por sector)"
+    - "Índices de retorno total FTSE Nareit por tipo de propiedad, mensuales"
+    - "Cap rates de avalúo privado por sector (NCREIF ODCE o CBRE), con fecha de publicación — solo variante 2"
+    - "Clasificación por tipo de propiedad point-in-time de cada REIT"
+
+expected_edge:
+  source:
+    - "Plazzi, Torous y Valkanov (2010), 'Expected Returns and Expected Growth in Rents of Commercial Real Estate', Review of Financial Studies 23(9), 3469-3519 — con transacciones privadas de EE. UU., el cap rate sigue el retorno esperado en departamentos, comercio e industria; en oficinas no predice el retorno"
+    - "Greenwood y Hanson (2015), 'Waves in Ship Prices and Investment', Quarterly Journal of Economics 130(1), 55-109 — precios e inversión altos predicen retornos bajos porque los participantes extrapolan la demanda y descuidan la respuesta de oferta de sus competidores (mecanismo, en barcos, no en REITs)"
+    - "Grenadier (1996), 'The Strategic Exercise of Options: Development Cascades and Overbuilding in Real Estate Markets', Journal of Finance 51(5), 1653-1679 — modelo de cascadas de desarrollo y sobreconstrucción aun con demanda a la baja"
+    - "Pierzak (2026), 'Ostrich effect' (comentario de mercado de Nareit, 10-sep-2026, con datos del REIT Industry Tracker y NCREIF ODCE) — al 2T2026 el cap rate implícito de REITs supera al de avalúo en oficinas por 194 pb, departamentos 172, industrial 117 y comercio 46: la dispersión sectorial de valuación existe hoy"
+    - "En contra: Moskowitz y Grinblatt (1999), 'Do Industries Explain Momentum?', Journal of Finance 54(4), 1249-1290 — el momentum por industria es fuerte hasta 12 meses (el sector barato suele seguir cayendo a corto plazo)"
+    - "En contra: Asness, Chandra, Ilmanen e Israel (2017), 'Contrarian Factor Timing is Deceptively Difficult', Journal of Portfolio Management 43(5), 72-87 — el timing por spread de valuación no da una ventaja robusta"
+    - "En contra (variante 2): Oikarinen, Hoesli y Serrano (2011), 'The Long-Run Dynamics between Direct and Securitized Real Estate', Journal of Real Estate Research 33(1), 73-104 — REITs y mercado privado están cointegrados y es el índice privado el que se ajusta hacia el equilibrio"
+  sign: positivo
+  magnitude_annual_bps: { low: -80, high: 100, label: estimado }
+  magnitude_derivation: >
+    No encontré ninguna prueba publicada de rotación entre tipos de propiedad de REITs por
+    valuación: la magnitud es una inferencia y va como estimado. La dispersión anual de retornos
+    entre sectores de REITs es grande (del orden de 10 a 20 puntos, por medir en B). Con una
+    correlación de rangos supuesta de 0.05 a 0.15 a uno a tres años, los k sectores elegidos ganarían
+    ~1% a 2.5% al año mientras siguen baratos (dos a tres años), 2% a 5% en total por aportación;
+    aportando sin vender, la TIR mejora más o menos esa ganancia dividida entre la duración media
+    de las aportaciones (~7 años en una muestra de 15), +25 a +70 pb antes de impuestos. El signo puede ser el contrario a 6-12 meses por momentum de industria, y la
+    cartera queda concentrada (2 a 4 sectores por aportación): error de seguimiento de varios puntos,
+    así que en 15 años solo se distingue un efecto de más de ~100 pb. Ajustes: +7 pb por no pagar
+    SCHH; -0 a -25 pb de lastre fiscal si los sectores baratos pagan más dividendo que SCHH
+    (variante 1 lo limita, porque compara cada sector con su historia, no con los demás); costos
+    de compra ~0. Rango neto -80 a +100 pb; centro ~+15 pb.
+  crowding_decay_risk: >
+    La asignación por sector es la decisión principal de los gestores dedicados de REITs y hay
+    productos que la venden (Green Street publica una herramienta trimestral de asignación por
+    sector), así que el uso profesional existe; pero no encontré ETF ni índice que rote tipos de
+    propiedad por cap rate contra su historia, ni prueba académica de la regla con REITs, por lo
+    que no hay publicación desde la cual medir decaimiento. El mecanismo de oferta es episódico
+    (ciclos de construcción de varios años): el riesgo es de dormancia, no de decaimiento, y la
+    señal puede pasar años sin pagar. La literatura de timing por valuación muestra que funciona
+    débil y con mucho ruido (Asness et al. 2017), y el repo ya rechazó la valuación del sector
+    completo contra bonos fuera de muestra. Persistencia reciente: la dispersión de valuación entre
+    sectores es amplia en 2026 (Pierzak 2026). La variante 2 tiene un contra-mecanismo documentado:
+    la brecha público-privado se cierra sobre todo del lado privado (Oikarinen et al. 2011).
+
+parameters:
+  ventana_historia:
+    { min: 12, max: 28, n_grid: 3, unit: "trimestres de historia para el z (12, 20, 28)" }
+  sectores_elegidos:
+    { min: 2, max: 4, n_grid: 2, unit: "k sectores que reciben la aportación (2 y 4)" }
+  variante_senal:
+    { min: 1, max: 3, n_grid: 3, unit: "1 = contra su historia, 2 = contra el privado, 3 = ajustada por cartera de desarrollo" }
+
+kill_criteria:
+  - "Correlación de rangos entre sig_s,t y el retorno relativo del sector en los 8 trimestres siguientes <= 0 en la ventana móvil de 20 trimestres, en dos evaluaciones anuales seguidas."
+  - "Después de 8 aportaciones, la TIR neta va 200 pb o más abajo de la cuenta en SCHH."
+  - "Nareit deja de publicar el cap rate implícito o la cartera de desarrollo por sector, o cambia su metodología sin serie empalmada: la señal deja de existir tal como se definió."
+  - "Un solo sector llega a más de 40% de la cartera acumulada: se suspenden aportaciones a ese sector y se revalida (riesgo de concentración no previsto en la hipótesis)."
+  - "La cartera acumulada supera en más de 1.0 pp el yield de dividendo de SCHH durante 4 trimestres."
+
+n_trials:
+  this_card: 18
+  session_total: 28
+  accounting: >
+    Sesión f4 (investigador transversal, REITs_EEUU_capital|trimestral). Emitidas:
+    f4_descuento_nav_intrasector 6, esta card 18 (3 variantes de señal x 3 ventanas x 2 valores
+    de k; el uso del cap rate de 4 trimestres móviles y el tope por nombre son fijos) y
+    f4_eficiencia_operativa_intrasector 4: session_total = 28, por instrucción solo la suma de
+    this_card. Descartadas por razonamiento sin mirar datos (17 conceptuales para el priorizador):
+    ETF por composición 4, emisión neta 4, QMJ compuesto 1, momentum por tipo de propiedad 2,
+    ponderación fundamental entre sectores 2, descuento con catalizador 2, pares fijos long-only 1,
+    y en esta card el spread contra la tasa real (DFII10) 1, descartado porque un choque común de
+    tasas no cambia el orden entre sectores salvo por su duración. Observados en esta sesión: 0
+    (del Tracker solo se leyeron los nombres de las filas y sus fechas de inicio, no sus valores).
+    observed_extra = 1: pesar por capitalización dentro del sector responde al -137 pb ya
+    publicado del satélite a partes iguales (ya en el prior del ledger; no contarlo dos veces).
+  ledger_total: 999
+  ledger_ref: "REITs_EEUU_capital|trimestral"
+  observed_extra: 1
+
+notes_adversarial: >
+  Steelman preliminar del investigador (el adversario lo reemplaza). (1) La única evidencia directa
+  de predicción por cap rate (Plazzi et al.) es del mercado privado y no incluye oficinas; en REITs
+  el sector barato suele seguir cayendo por momentum de industria y por razones estructurales
+  (oficinas y centros comerciales desde 2015): «barato contra su historia» en un sector en declive
+  secular es la trampa de valor del sector. (2) Con 12 sectores y 25 años hay pocas observaciones
+  independientes por sector (un ciclo de construcción dura años): 18 combinaciones sobre tan pocos
+  ciclos es terreno fértil para el sobreajuste, y la variante 2 depende de cap rates privados de
+  avalúo que se suavizan y se publican tarde. (3) La aritmética: aportar sin vender diluye el
+  efecto y la concentración sube el ruido; el centro (~+15 pb) está abajo del criterio. Sobrevive
+  porque el corte por tipo de propiedad nunca se probó en el repo, el dato existe y es público, y
+  el mecanismo de oferta nombra un perdedor y una barrera concretos.

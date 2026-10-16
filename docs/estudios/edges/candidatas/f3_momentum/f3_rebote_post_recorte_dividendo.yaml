@@ -1,0 +1,273 @@
+# Strategy Card v1.1 — familia 3 (momentum y reversión: reversión después de un evento), investigador f3.
+# Emitida sin backtest. OJO: la huella de esta señal YA SE OBSERVÓ en el repo (fase 6, D3:
+# +7.7% en validación 2016-2026, t = 1.3; -0.8% en desarrollo 2011-2015). observed_extra >= 1.
+# El mecanismo de abajo viene de fuentes publicadas antes de la fase 6, no del dato.
+card_version: "1.1"
+id: f3_rebote_post_recorte_dividendo
+asset_universe:
+  - >-
+    UNIVERSO_PIT: REITs de capital de EE. UU. elegibles al cierre de cada trimestre según
+    fase6.elegibles() de src/investigacion/fase6.py (capitalización >= 250 M USD, precio >= 5,
+    de_capital, es_reit, tenedores 13F mínimos), vivos y muertos, solo emisores abiertos de
+    data/investigacion/emisores/panel.csv.gz (el tercio sellado no se reabre).
+  - SCHH
+instrument: canasta
+direction: long_only
+
+holding_horizon:
+  min_bars: 4
+  max_bars: 62
+  bar_size: trimestral
+  overnight_allowed: true
+
+economic_rationale:
+  mechanism: >
+    El dividendo es la razón de ser de buena parte de los accionistas de un REIT: minoristas de
+    edad y bajo ingreso con preferencia por yield (Graham y Kumar 2006), fondos que persiguen
+    distribución (Harris, Hartzmark y Solomon 2015) e inversionistas que tratan el dividendo como
+    un ingreso separado del precio (Hartzmark y Solomon 2019). Cuando un REIT recorta, esa
+    clientela vende por preferencia o por mandato sin evaluar el retorno total, porque el papel
+    dejó de cumplir su función de ingreso; algunos índices de dividendos además sacan al que
+    recorta en su revisión (regla por verificar en cada metodología). Esa venta concentrada
+    presiona el precio por debajo de su valor y la presión se revierte cuando termina y entran
+    compradores de valor. En REITs, además, el recorte suele ser una decisión de asignación de
+    capital más que la revelación de una caída permanente del flujo: el REIT está obligado a
+    repartir 90% de su utilidad FISCAL, no de su FFO, y al bajar el pago hacia ese mínimo retiene
+    efectivo para pagar deuda, lo que reduce el riesgo de default; Case, Hardin y Wu (2012)
+    encuentran retornos anormales positivos después de recortes y suspensiones de REITs en
+    2008-2009 y lo ligan a mitigar el riesgo de continuidad y al catering de dividendos. La
+    combinación (venta forzada de la clientela + menos riesgo de default) se traduce en un rebote
+    en los trimestres siguientes al recorte. Por qué no se espera el drift negativo de Michaely,
+    Thaler y Womack (1995) en acciones generales: allá la omisión revela una caída de utilidades;
+    aquí el pago es mayor que el mínimo fiscal y el recorte ya se anticipaba (el detector de la
+    fase 6 lo ve venir con AUC 0.75), así que el precio ya había caído antes. Mecanismo anterior al
+    dato: todas estas fuentes son previas a la fase 6, y la hipótesis H9/D3 del pre-registro de la
+    fase 6 ya decía que vender después del recorte no ayuda.
+  who_loses: >
+    La clientela de ingreso (minoristas de yield, fondos de distribución, índices de dividendos
+    con regla de exclusión) que vende después del recorte a precio deprimido. Acepta pagar porque
+    su objetivo es el flujo de dividendo y no el retorno total, o porque su mandato o su índice la
+    obligan a salir.
+  why_persists: >
+    Los recortes llegan en racimos durante crisis (2009, 2020), justo cuando el capital de arbitraje
+    se retira y el riesgo de quiebra de quien recorta es real; un gestor profesional no puede cargar
+    emisores en dificultades durante la caída sin riesgo de carrera, y la clientela de ingreso se
+    renueva y tiene preferencias estables. El inversionista de esta card aporta poco frente a la
+    liquidez de esos nombres, nunca vende y no rinde cuentas: puede sostenerlos durante la crisis.
+
+signal_definition:
+  formula: >
+    Para cada emisor i elegible al cierre del trimestre t, con dividendos conocidos a la fecha de
+    ejecución:
+    medida_dividendo = 0 (como D3): D_i,t = dps_12m_total(t) (DPS de 12 meses);
+    medida_dividendo = 1 (tasa corriente): D_i,t = 4 x dividendo trimestral más reciente pagado o
+    declarado al cierre de t.
+    Recorte nuevo: D_i,t < (1 - u) x dps_12m_total(t-4) y el emisor NO estaba marcado como recorte
+    nuevo en t-1 (ventana_recorte_nuevo = 1 trimestre), con u = umbral_recorte. Las suspensiones
+    (D = 0) cuentan como recorte (la presión de clientela es mayor) salvo que excluir_riesgo_default
+    las saque por riesgo. Con excluir_riesgo_default = 1, se quitan los recortes nuevos del quintil
+    con peor distancia al default (fase6.senales, distancia_al_default) entre los elegibles de t.
+    Escogidos de t: los recortes nuevos que queden.
+  inputs:
+    - "dps_12m_total y dividendo del panel (XBRL por fecha de presentación)"
+    - "fechas de declaración del dividendo en 8-K o comunicado (EDGAR), opcional para medida 1"
+    - "distancia_al_default (fase6.senales: capitalización, pasivos, volatilidad, retorno de 12 meses)"
+    - "capitalizacion, tenedores, precio, de_capital, es_reit, salida, retorno"
+  timing: >
+    Señal con datos conocidos al cierre del trimestre t: DPS y dividendos solo si su 10-Q, 10-K u
+    8-K se presentó antes de la fecha de ejecución; precios de t. Ejecución al cierre del mes de
+    aportación siguiente (febrero, mayo, agosto, noviembre, unos 2 meses después de t), como en
+    docs/estudios/satelite_preregistro.md. Con medida 0 la detección llega 1 o 2 trimestres después
+    del anuncio (el DPS de 12 meses baja poco a poco); con medida 1 llega el trimestre del pago.
+  warmup_bars: 5
+
+entry_rules: >
+  En cada mes de aportación: si hay al menos un escogido, la fracción f = fraccion_desviada de la
+  aportación del trimestre (3,000 USD en la prueba) va a los escogidos ponderados por
+  capitalización, con tope de un tercio de lo desviado por emisor; lo que no se pueda asignar por
+  el tope, y el resto (1 - f), va a SCHH. Si no hay escogidos, toda la aportación va a SCHH.
+
+exit_rules:
+  primary: >
+    Nunca se vende. Solo sale lo que deja de cotizar (fusión o quiebra) a su precio de salida del
+    panel (quiebra a -30% según Shumway 1997; sensibilidad con -100%, obligatoria en esta card
+    porque compra emisores en dificultades); lo recibido se suma a la aportación siguiente.
+  stop_loss: null
+  take_profit: null
+  time_stop: null
+  intrabar_note: "Sin stops ni targets; no hay ambigüedad de trayectoria intra-barra."
+
+sizing: >
+  Sin apalancamiento, sin cortos, sin vender. Satélite oportunista: la aportación se desvía solo
+  cuando hay recortes nuevos (racimos en crisis); el resto del tiempo va a SCHH. Ponderación por
+  capitalización entre los escogidos con tope de 1/3 de lo desviado por emisor.
+
+data_required:
+  fields:
+    - cik
+    - fecha
+    - dps_12m_total
+    - dps_12m
+    - dividendo
+    - dividendos_12m
+    - acciones_promedio_12m
+    - retorno
+    - salida
+    - precio
+    - pasivos
+    - activos
+    - capital_total
+    - capitalizacion
+    - tenedores
+    - de_capital
+    - es_reit
+  frequency: trimestral
+  history_years: 15
+  timestamp_convention: bar_close
+  session: rth
+  point_in_time_notes: >
+    DPS y dividendos de XBRL por fecha de PRESENTACIÓN, no de cierre del periodo; dividendos
+    especiales o pagados en acciones (2009) distorsionan el DPS: B debe declarar cómo los trata
+    antes de correr (un pago en acciones no es recorte de valor para el accionista). El universo
+    incluye a los que quebraron después de recortar, con su retorno de salida. CONTAMINACIÓN: la
+    configuración más cercana a D3 (umbral 10%, medida 0, sin filtro, todo a los que recortan) ya se
+    miró en desarrollo y en validación; el tercio sellado no se reabre. La única muestra limpia es
+    hacia adelante (en papel, como satelite_preregistro.md) o la parte 2008-12 a 2010 del panel que
+    la fase 6 no usó para D3 (pocos trimestres; declarar si se usa). Comparar contra SCHH real y
+    contra el índice que SCHH sigue hoy, con fase6.simular e impuestos del broker al 35%.
+  extra_datasets:
+    - "EDGAR: fechas de 8-K o comunicados de declaración de dividendos (para medida 1)"
+    - "SCHH mensual (Yahoo) y FTSE Nareit All Equity REITs mensual (repo)"
+
+expected_edge:
+  source:
+    - >-
+      Case, B., Hardin, W. G. III y Wu, Z. (2012), 'REIT Dividend Policies and Dividend Announcement
+      Effects During the 2008-2009 Liquidity Crisis', Real Estate Economics 40(3): 387-421 — los
+      REITs que recortan o suspenden tienen retornos anormales acumulados POSITIVOS en el periodo
+      posterior al anuncio, controlando por el anuncio de FFO; recortan más los de apalancamiento de
+      mercado alto y market-to-book bajo (mitigar riesgo de continuidad). [R: resumen en Crossref]
+    - >-
+      Pettenuzzo, D., Sabbatucci, R. y Timmermann, A. (2020), 'Dividend Suspensions and Cash Flow
+      Risk during the Covid-19 Pandemic', CEPR DP 14921 — empresas de EE. UU. (no solo REITs):
+      las que REDUJERON el dividendo tuvieron retornos anormales positivos; las que lo SUSPENDIERON,
+      negativos. [R, vía docs/investigacion/literatura.md]
+    - >-
+      Graham, J. R. y Kumar, A. (2006), 'Do Dividend Clienteles Exist? Evidence on Dividend
+      Preferences of Retail Investors', Journal of Finance 61(3): 1305-1336; Hartzmark, S. M. y
+      Solomon, D. H. (2019), 'The Dividend Disconnect', Journal of Finance 74(5): 2153-2199;
+      Harris, L. E., Hartzmark, S. M. y Solomon, D. H. (2015), 'Juicing the dividend yield',
+      Journal of Financial Economics 116(3): 433-451 — existencia de la clientela que trata el
+      dividendo como ingreso separado (mecanismo, no magnitud). [R]
+    - >-
+      EN CONTRA: Michaely, R., Thaler, R. H. y Womack, K. L. (1995), 'Price Reactions to Dividend
+      Initiations and Omissions: Overreaction or Drift?', Journal of Finance 50(2): 573-608 — en
+      acciones generales, drift NEGATIVO tras omisiones (-11.0% ajustado por mercado en los 12
+      meses siguientes, cifra del WP NBER 4778 de 1994) y poca evidencia de cambio de clientela. [R]
+    - >-
+      EN CONTRA (presión de precio comprimida): Greenwood, R. y Sammon, M. (2022), 'The Disappearing
+      Index Effect', NBER WP 30748 — el retorno anormal de salir del S&P 500 pasó de grande en los
+      80 y 90 a -0.6% en 2010-2020: la provisión de liquidez a vendedores forzados se volvió
+      eficiente. [R]
+    - >-
+      OBSERVADO en este universo (ya mirado, contamina): docs/investigacion/fase6_resultados.md
+      (2026), D3 — recortes nuevos de más de 10% del DPS de 12 meses: -0.8% contra el universo en
+      los 12 meses siguientes en desarrollo (2011-2015, 30 recortes, mediana +0.3%) y +7.7% en
+      validación (2016-2026, 126 recortes, mediana +6.3%, t = +1.31).
+  sign: positivo
+  magnitude_annual_bps: { low: -20, high: 55, label: estimado }
+  magnitude_note: >
+    Mejora de TIR neta contra SCHH aportando sin vender, después de costos e impuestos del broker
+    de EE. UU. Heurística dTIR ~ s_ef*CE/D (D ~ 7.5 años; solo orden de magnitud, ver la nota de
+    f3_momentum_residual_sin_reversion). s_ef = fracción de trimestres con al menos un recorte
+    nuevo elegible (~0.4 a 0.7, estimado: 126 recortes nuevos en ~40 trimestres de validación, en
+    racimos) x fraccion_desviada (0.5 o 1) -> 0.2 a 0.7. CE a 12 meses contra SCHH: de 0% (prior
+    de Michaely et al. y Greenwood y Sammon) a 7.7% (D3 observado, contaminado y probablemente
+    inflado por 2020-2021) -> 0 a +72 pb brutos. Impuestos: el yield de quien recortó suele seguir
+    arriba del de SCHH y el dividendo paga 44% contra una ganancia diferida (nunca se vende): un
+    yield 0.5 a 1.5 puntos mayor en la parte desviada cuesta 0.44 x eso x s_ef -> -2 a -45 pb, de
+    -5 a -25 en el caso central (estimado). Sin TER de SCHH en la parte desviada: +1 a +5.
+    Diferencial de compra de nombres en dificultades 10 a 30 pb una vez por aportación: -1 a -3.
+    Rango: -20 a +55. El extremo alto depende de que el +7.7% observado sea real; con el prior
+    general el centro queda cerca de 0 a +20, DEBAJO del objetivo de +50 pb.
+  crowding_decay_risk: >
+    No hay publicación de una estrategia de comprar al REIT que recorta, así que no hay
+    decaimiento post-publicación de la estrategia; sí hay evidencia de que la presión de precio de
+    vendedores forzados se comprimió en general (Greenwood y Sammon 2022) y la evidencia clásica en
+    acciones generales va en contra (Michaely, Thaler y Womack 1995). La evidencia a favor en REITs
+    es de una sola crisis (Case, Hardin y Wu 2012, 2008-09) y en este universo el signo cambió
+    entre desarrollo (-0.8%) y validación (+7.7%), lo que sugiere un edge EPISÓDICO (dormancia,
+    se activa en crisis con recortes en racimo) más que continuo, y posiblemente beta al rebote de
+    2021 (+41% del sector). Crowding: bajo (comprar emisores en dificultades durante la crisis tiene
+    riesgo de carrera y nadie lo empaqueta como producto en REITs, inferido), pero la capacidad de
+    los nombres pequeños que recortan es limitada (irrelevante para aportaciones de este tamaño).
+
+parameters:
+  umbral_recorte:
+    { min: 0.10, max: 0.25, n_grid: 2, unit: "caída mínima del DPS contra el de 12 meses de hace 4 trimestres" }
+  medida_dividendo:
+    { min: 0, max: 1, n_grid: 2, unit: "0 = DPS de 12 meses (como D3); 1 = tasa corriente (último dividendo x 4)" }
+  excluir_riesgo_default:
+    { min: 0, max: 1, n_grid: 2, unit: "0 = no; 1 = fuera el peor quintil de distancia al default" }
+  fraccion_desviada:
+    { min: 0.5, max: 1.0, n_grid: 2, unit: "fracción de la aportación del trimestre que va a los que recortaron" }
+  ventana_recorte_nuevo:
+    { min: 1, max: 1, n_grid: 1, unit: "trimestres desde la primera detección (fijo)" }
+  tope_por_emisor:
+    { min: 0.3333, max: 0.3333, n_grid: 1, unit: "fracción de lo desviado (fijo)" }
+
+kill_criteria:
+  - >-
+    Episodio y no mecanismo: si al quitar las cohortes de 2020 y 2021 el exceso promedio a 12
+    meses de los escogidos contra SCHH es <= 0, el +7.7% observado era el rebote de la pandemia:
+    matar.
+  - >-
+    Beta y no rebote: si el exceso a 12 meses ajustado por beta rodante contra el FTSE Nareit All
+    Equity (beta estimado solo con el pasado) es <= 0, los que recortan solo tenían beta alta en un
+    rally: matar.
+  - >-
+    Trampa de quiebra: si en cualquier ventana de 3 años más de 15% de los escogidos sale por
+    quiebra o con retorno de salida <= -30%, la variante sin filtro de default muere y solo sigue la
+    de excluir_riesgo_default = 1.
+  - >-
+    Reversión del mecanismo: si el exceso de los escogidos en los meses 13 a 36 es negativo con
+    t < -1 (el rebote se deshace), matar: para quien nunca vende, un rebote que revierte no deja
+    nada.
+  - >-
+    Producción (en papel primero, la única muestra limpia): después de 12 aportaciones, si la TIR
+    neta queda 100 pb al año o más abajo de SCHH con las mismas aportaciones, toda la aportación va a
+    SCHH (sin vender lo comprado).
+
+n_trials:
+  this_card: 16
+  session_total: 40
+  accounting: >
+    Sesión f3 (momentum y reversión), investigador f3. Esta card: 2 umbrales x 2 medidas del
+    dividendo x 2 filtros de default x 2 fracciones desviadas = 16 (ventana y tope fijos, n_grid
+    1). session_total = suma de this_card de las 3 cards emitidas por f3: 16 + 8 + 16 = 40, por
+    regla del orquestador. Variantes conceptuales descartadas sin mirar datos, a sumar aparte por el
+    priorizador: momentum por tipo de propiedad (4), PEAD con FFO de XBRL (4), frog-in-the-pan (2),
+    máximo de 52 semanas relativo al tipo de propiedad (1) = 11. Observados nuevos en esta sesión:
+    0. observed_extra = 1: la configuración D3 de la fase 6 (recorte nuevo > 10% del DPS de 12
+    meses, compra de todos, 12 meses), cuyos retornos ya se vieron en desarrollo (-0.8%) y
+    validación (+7.7%); es UNA configuración mirada en dos muestras. Probablemente ya está dentro
+    de los 20 trials de fase 6 del prior del ledger; si no, el priorizador debe sumarla. ledger_total
+    = 999 es marcador de posición.
+  ledger_total: 999
+  ledger_ref: "REITs_EEUU_capital|trimestral"
+  observed_extra: 1
+
+notes_adversarial: >
+  Steelman preliminar del investigador (el adversario debe reescribirlo). Mejor argumento en
+  contra: el +7.7% de validación es beta de rebote: los que recortaron en 2020 (hoteles, centros
+  comerciales, oficinas) tenían beta alta y el sector subió 41% en 2021; en desarrollo el signo
+  fue negativo. La evidencia general (Michaely, Thaler y Womack 1995) es de drift negativo, la
+  presión de precio forzada se comprimió (Greenwood y Sammon 2022), el yield posterior al recorte
+  suele seguir arriba del de SCHH con dividendo al 44%, y la validación ya está contaminada sin
+  sellados para reabrir: la única prueba limpia es hacia adelante, con pocos eventos fuera de
+  crisis. Hay además tensión directa con f3_cercania_maximo_52s (hipótesis rivales sobre la misma
+  región del corte transversal). Por qué sobrevive: es la única señal con huella positiva en este
+  universo, su mecanismo (clientela de ingreso + retención de capital por la regla del 90% fiscal)
+  es anterior al dato y distinto del de las acciones generales, los kills 1 y 2 separan mecanismo
+  de episodio y de beta, y el inversionista tiene un asiento real (nunca vende, sin riesgo de
+  carrera) para cobrar un edge episódico de crisis.

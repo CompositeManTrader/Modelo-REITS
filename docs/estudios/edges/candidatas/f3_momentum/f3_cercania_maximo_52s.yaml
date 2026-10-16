@@ -1,0 +1,230 @@
+# Strategy Card v1.1 — familia 3 (momentum y reversión), investigador f3.
+# Emitida sin backtest y sin mirar retornos de esta señal en los datos del repo.
+# Convicción BAJA: se emite por su costo bajo en trials y porque su propiedad de no-reversión es
+# la que necesita quien aporta y nunca vende. Ver tensión con f3_rebote_post_recorte_dividendo.
+card_version: "1.1"
+id: f3_cercania_maximo_52s
+asset_universe:
+  - >-
+    UNIVERSO_PIT: REITs de capital de EE. UU. elegibles al cierre de cada trimestre según
+    fase6.elegibles() de src/investigacion/fase6.py (capitalización >= 250 M USD, precio >= 5,
+    de_capital, es_reit, tenedores 13F mínimos), vivos y muertos, solo emisores abiertos de
+    data/investigacion/emisores/panel.csv.gz (el tercio sellado no se reabre).
+  - SCHH
+instrument: canasta
+direction: long_only
+
+holding_horizon:
+  min_bars: 4
+  max_bars: 62
+  bar_size: trimestral
+  overnight_allowed: true
+
+economic_rationale:
+  mechanism: >
+    Los inversionistas usan el máximo de 52 semanas como ancla. Cuando una noticia buena acerca el
+    precio a ese máximo, dudan en empujarlo más arriba porque lo ven caro frente al ancla, y venden
+    o dejan de comprar; cuando una noticia mala lo aleja, lo ven barato frente al ancla y compran.
+    Esa resistencia a ajustar desde el ancla induce subreacción en los dos extremos: el que está
+    cerca del máximo sigue subiendo cuando la información termina de entrar al precio y el lejano
+    sigue bajando (George y Hwang 2004). Como lo que se corrige es una subreacción y no una
+    sobrerreacción, la ganancia no se revierte en el largo plazo, que es justo la propiedad que
+    necesita quien aporta y nunca vende y que le faltó al momentum 12-3 de la fase 6. En REITs la
+    señal es además distinta del momentum de retorno total por una razón mecánica: el ancla es el
+    precio NOMINAL de pantalla y los REITs reparten 3% a 5% al año, así que el precio nominal se
+    queda debajo del retorno total y la cercanía al máximo castiga a los de dividendo alto que no
+    suben de precio, lo que genera un orden distinto del de S1 (inferido, no medido). Hipótesis
+    falsable: si el anclaje opera en este universo, el tercil más cercano a su máximo le gana al
+    universo ponderado por capitalización en los 12 meses siguientes sin perderlo en los meses 13 a
+    36.
+  who_loses: >
+    Los inversionistas anclados al máximo: minoristas y gestores de compra en caída que venden al
+    ganador cerca de su máximo creyendo que ya no tiene recorrido y compran al perdedor lejos de su
+    máximo creyendo que está barato. Aceptan pagar porque el ancla es un sesgo cognitivo que no
+    perciben como costo.
+  why_persists: >
+    El anclaje es conductual y se renueva con cada cohorte de inversionistas. Arbitrarlo exige
+    sostener a los cercanos al máximo durante los rebotes del mercado, cuando los lejanos del máximo
+    suben mucho más (Byun y Jeon 2018 ligan a ellos los crashes de momentum), lo que impone riesgo
+    de carrera a quien opera con horizonte corto. Quien nunca vende y no rinde cuentas absorbe ese
+    riesgo sin costo de carrera.
+
+signal_definition:
+  formula: >
+    Para cada emisor i elegible al cierre del trimestre t:
+    N_i,t = P_i,t / H_i,t, con P_i,t = precio de cierre NOMINAL de t ajustado solo por splits (no
+    por dividendos) y H_i,t = máximo del precio nominal ajustado por splits en las 52 semanas que
+    terminan en t. Con fuente_maximo = 0, H sale de los cierres diarios de Yahoo (columna Close, no
+    Adj Close); para emisores sin historia diaria en Yahoo (muertos que Yahoo borró) se usa el
+    respaldo de la fuente 1 y B reporta la cobertura. Con fuente_maximo = 1, H = máximo de los
+    precios 13F de fin de trimestre de t-4 a t (ajustados por split), que subestima el máximo real
+    y sobreestima N. Escogidos: la fracción q de elegibles con mayor N_i,t. Con
+    excluir_objetivos_fusion = 1 se quitan los emisores con un acuerdo de fusión como adquiridos
+    presentado en EDGAR (8-K Item 1.01 con plan de fusión, PREM14A, DEFM14A o S-4 de la
+    adquirente) en los 2 trimestres previos a la ejecución, porque su precio queda pegado a la
+    oferta y N cerca de 1 no significa anclaje.
+  inputs:
+    - "cierre diario nominal ajustado por splits (Yahoo, columna Close)"
+    - "precio 13F de fin de trimestre y bandera split del panel"
+    - "fechas de presentación de 8-K Item 1.01, PREM14A, DEFM14A y S-4 (EDGAR)"
+    - "capitalizacion, tenedores, precio, de_capital, es_reit (filtro elegibles)"
+  timing: >
+    Señal con precios hasta el cierre del trimestre t y presentaciones de EDGAR anteriores a la
+    fecha de ejecución; ejecución al cierre del mes de aportación siguiente (febrero, mayo, agosto,
+    noviembre, unos 2 meses después de t), como en docs/estudios/satelite_preregistro.md.
+  warmup_bars: 5
+
+entry_rules: >
+  En cada mes de aportación, el 100% de la aportación del trimestre (3,000 USD en la prueba) se
+  compra en los escogidos de la señal del trimestre t, ponderados por capitalización dentro del
+  grupo, con tope de 15% por emisor (el exceso se reparte entre los demás a prorrata). Con
+  aportaciones reales chicas: acciones fraccionarias o rotar entre los tres más grandes del grupo.
+
+exit_rules:
+  primary: >
+    Nunca se vende. Solo sale lo que deja de cotizar (fusión o quiebra) a su precio de salida del
+    panel; lo recibido se suma a la aportación siguiente.
+  stop_loss: null
+  take_profit: null
+  time_stop: null
+  intrabar_note: "Sin stops ni targets; no hay ambigüedad de trayectoria intra-barra."
+
+sizing: >
+  Sin apalancamiento, sin cortos, sin vender; ponderación por capitalización dentro de los
+  escogidos con tope de 15% por emisor (pesar igual ya se sabe que cuesta contra SCHH).
+
+data_required:
+  fields:
+    - cik
+    - fecha
+    - precio
+    - split
+    - retorno
+    - salida
+    - acciones
+    - capitalizacion
+    - tenedores
+    - de_capital
+    - es_reit
+  frequency: trimestral
+  history_years: 15
+  timestamp_convention: bar_close
+  session: rth
+  point_in_time_notes: >
+    El precio del ancla es nominal (ajustado solo por splits); el retorno de evaluación es total
+    (con dividendos). Yahoo borra a muchos emisores muertos: usar sus cierres diarios solo donde
+    existan y caer al máximo de los cierres trimestrales 13F donde no, sin sacar a nadie del
+    universo (si se quitan los muertos sin diario, se fabrica sesgo de supervivencia). Fusiones por
+    fecha de PRESENTACIÓN en EDGAR, no por fecha de cierre de la operación (la columna
+    cambio_de_control_8k de universo.csv marca el cierre, no el anuncio). Comparar contra SCHH real
+    y contra el índice que SCHH sigue hoy, con fase6.simular e impuestos del broker al 35%.
+  extra_datasets:
+    - "Yahoo diario (Close nominal ajustado por splits) de los emisores del panel que tenga"
+    - "EDGAR: fechas de 8-K Item 1.01, PREM14A, DEFM14A y S-4 por CIK"
+    - "SCHH mensual (Yahoo) y FTSE Nareit All Equity REITs mensual (repo)"
+
+expected_edge:
+  source:
+    - >-
+      George, T. J. y Hwang, C.-Y. (2004), 'The 52-Week High and Momentum Investing', Journal of
+      Finance 59(5): 2145-2176 — la cercanía al máximo de 52 semanas predice mejor que el momentum
+      de retorno, explica la mayor parte de sus ganancias, y lo que predice no se revierte en el
+      largo plazo (acciones de EE. UU.; periodo exacto de la muestra por verificar). [R]
+    - >-
+      Raju, R. (2023), 'The 52-Week High Effect and Momentum Investing: Evidence from India', SSRN
+      4587697 — India oct-2004 a ago-2023 (muestra independiente y posterior): efecto robusto,
+      alfa más estable que el momentum académico y reversión de largo plazo más débil. [R]
+    - >-
+      Fernandes, J. M. M. M. (2015), 'The 52-Week High and Momentum Investing: Implications for
+      Asset Pricing Models', tesis de maestría, Faculdade de Economia do Porto (dir. J. Lobão) —
+      EN CONTRA: EE. UU. 1980-2014 positivo pero no significativo; 1980-2000 significativo,
+      2001-2014 negativo y no significativo, en parte por el crash de 2009. [T: resumen] Fuente
+      débil (tesis).
+    - >-
+      Byun, S.-J. y Jeon, B. (2018), 'Momentum Crashes and the 52-week High', SSRN 2900073 — los
+      crashes de momentum en los rebotes se deben en parte a especulación en los lejanos del máximo;
+      neutralizar la exposición al máximo atenúa los crashes. [R]
+    - >-
+      Hao, Y., Chou, R. K., Ko, K.-C. y Yang, N.-T. (2018), 'The 52-week high, momentum, and
+      investor sentiment', International Review of Financial Analysis 57: 167-183 — atribuye el
+      efecto al anclaje. [S: resumen de búsqueda; ficha verificada en Crossref]
+  sign: positivo
+  magnitude_annual_bps: { low: -15, high: 40, label: estimado }
+  magnitude_note: >
+    Mejora de TIR neta contra SCHH aportando sin vender, después de costos e impuestos del broker
+    de EE. UU., con la heurística dTIR ~ s*CE/D (s = 1, D ~ 7.5 años; ver la nota de
+    f3_momentum_residual_sin_reversion: solo orden de magnitud). Sin evidencia en REITs y con la
+    evidencia de EE. UU. posterior a 2001 en cero o negativa, el CE creíble del tercil cercano al
+    máximo contra SCHH va de ~0% a ~2.5% -> 0 a +33 pb; sin TER de SCHH +7; diferencial de compra
+    -1 a -2; efecto fiscal de +0 a +10 pb (los cercanos al máximo tienden a tener yield más bajo y
+    el dividendo paga 44%; signo inferido, tamaño estimado); deriva de tamaño o concentración
+    contra SCHH hasta -20. Rango: -15 a +40. El centro (~+10) queda muy por DEBAJO del objetivo de
+    +50 pb.
+  crowding_decay_risk: >
+    Publicado en 2004 y muy conocido: el máximo de 52 semanas está en todas las pantallas y en las
+    alertas de los brokers (crowding alto como señal, bajo como producto). Decaimiento: en EE. UU.
+    el efecto se apagó en 2001-2014 (Fernandes 2015) y comparte la cola de los crashes de momentum
+    (Byun y Jeon 2018); persistencia reciente solo fuera de EE. UU. (India hasta 2023, Raju 2023).
+    No encontré ningún estudio en REITs (búsqueda de octubre de 2026). Prior McLean y Pontiff (2016)
+    de -58% post-publicación ya incluido. En REITs hay un sesgo extra: muchas fusiones, y el
+    objetivo de una fusión queda cerca de su máximo sin anclaje alguno (por eso el parámetro de
+    exclusión).
+
+parameters:
+  fraccion_escogida:
+    { min: 0.20, max: 0.3333, n_grid: 2, unit: "fracción de elegibles (quintil o tercil más cercano al máximo)" }
+  fuente_maximo:
+    { min: 0, max: 1, n_grid: 2, unit: "0 = cierres diarios Yahoo con respaldo 13F; 1 = solo máximo de cierres trimestrales 13F" }
+  excluir_objetivos_fusion:
+    { min: 0, max: 1, n_grid: 2, unit: "0 = no; 1 = quitar adquiridos con acuerdo presentado en los 2 trimestres previos" }
+  ventana_maximo:
+    { min: 52, max: 52, n_grid: 1, unit: "semanas (fijo: es la definición de George y Hwang)" }
+  tope_por_emisor:
+    { min: 0.15, max: 0.15, n_grid: 1, unit: "fracción de la aportación (fijo)" }
+
+kill_criteria:
+  - >-
+    Mecanismo ausente: si en la validación de B el exceso de las cohortes del tercil más cercano al
+    máximo contra el universo ponderado por capitalización a 12 meses es <= 0, o es positivo a 12
+    meses y negativo en los meses 13 a 36 con t < -1 (revierte), matar.
+  - >-
+    Redundancia: si N_i,t no agrega poder al momentum 12-3 (S1) y al puntaje residual de
+    f3_momentum_residual_sin_reversion en una regresión transversal conjunta, matar.
+  - >-
+    Contaminación por fusiones: si con excluir_objetivos_fusion = 0 más de la mitad del exceso
+    viene de adquiridos con acuerdo anunciado, el efecto es arbitraje de fusiones y no anclaje:
+    matar la variante 0 y reevaluar la 1.
+  - >-
+    Producción: después de 12 aportaciones reales, si la TIR neta queda 100 pb al año o más abajo
+    de SCHH con las mismas aportaciones, toda la aportación siguiente va a SCHH (sin vender).
+
+n_trials:
+  this_card: 8
+  session_total: 40
+  accounting: >
+    Sesión f3 (momentum y reversión), investigador f3. Esta card: 2 fracciones x 2 fuentes del
+    máximo x 2 filtros de fusión = 8 (ventana y tope fijos, n_grid 1). session_total = suma de
+    this_card de las 3 cards emitidas por f3: 16 + 8 + 16 = 40, por regla del orquestador.
+    Variantes conceptuales descartadas sin mirar datos, a sumar aparte por el priorizador: momentum
+    por tipo de propiedad (4), PEAD con FFO de XBRL (4), frog-in-the-pan (2), máximo de 52 semanas
+    relativo al tipo de propiedad (1) = 11. Observados nuevos: 0. observed_extra = 1: la elección
+    de una señal de momentum sin reversión responde al fracaso observado de S1 (momentum 12-3) en
+    la fase 6 y el satélite, ya en el prior del ledger (>= 39); es el MISMO observado que declara
+    f3_momentum_residual_sin_reversion y no debe sumarse dos veces. ledger_total = 999 es
+    marcador de posición.
+  ledger_total: 999
+  ledger_ref: "REITs_EEUU_capital|trimestral"
+  observed_extra: 1
+
+notes_adversarial: >
+  Steelman preliminar del investigador (el adversario debe reescribirlo). Mejor argumento en
+  contra: en EE. UU. el efecto se apagó después de su publicación (2001-2014 negativo no
+  significativo, Fernandes 2015), no hay ni una prueba en REITs, y el máximo trimestral 13F es un
+  sustituto grueso del máximo diario que mira el inversionista anclado. Además hay TENSIÓN DIRECTA
+  con f3_rebote_post_recorte_dividendo: esta card compra lo cercano a su máximo y aquella compra a
+  quien recortó el dividendo, que suele estar lejos de su máximo; en la misma región del corte
+  transversal no pueden ser ciertas las dos (anclaje con subreacción contra presión de clientela
+  con sobrerreacción). B debe probarlas como hipótesis rivales, no como complementarias. Por qué
+  sobrevive: cuesta solo 8 trials, su mecanismo es distinto de S1 por el uso del precio nominal en
+  un activo de dividendo alto, y la no-reversión es falsable en los meses 13 a 36. Si el
+  priorizador necesita cortar, esta es la primera de las tres f3 en salir.
