@@ -13,6 +13,10 @@
     python scripts/estudio.py seleccion     # la prueba del universo: ¿la valuación sabe escoger REITs? (PDF)
     python scripts/estudio.py etfs          # USRT, SCHH y VNQ contra el índice de la investigación
     python scripts/estudio.py etfs --sin-descarga   # lo mismo con los datos ya versionados
+    python scripts/estudio.py satelite explorar     # núcleo y satélite contra SCHH con la fase 6 (exploratoria)
+    python scripts/estudio.py satelite elegir       # anota la aportación en papel del mes (feb, may, ago, nov)
+    python scripts/estudio.py satelite elegir --vista-previa   # qué compraría hoy, sin anotar nada
+    python scripts/estudio.py satelite evaluar      # la cuenta en papel contra SCHH (baja de Yahoo)
 
 ``mercado`` y ``tbill`` son lo único que toca la red. Se niega a guardar si la serie no cuadra
 contra el proveedor diario y las anclas NYSE: una historia larga que no coincide
@@ -226,6 +230,57 @@ def cmd_etfs(sin_descarga: bool = False) -> int:
     return 0
 
 
+def cmd_satelite(accion: str, vista_previa: bool = False) -> int:
+    import pandas as pd
+
+    from src.estudio import satelite as sa
+
+    carpeta = RAIZ / "docs" / "estudios"
+    if accion == "explorar":
+        r = sa.correr_exploratoria()
+        print(f"Tablas → {sa.guardar(r, 'exploratoria').relative_to(RAIZ)}")
+        destino = carpeta / "satelite_exploratorio.md"
+        destino.write_text(sa.informe_exploratorio(r), encoding="utf-8")
+        print(f"Informe → {destino.relative_to(RAIZ)}\n")
+        print(sa.lectura_exploratoria(r))
+        return 0
+    if accion == "elegir":
+        from src.investigacion import emisores
+
+        panel, ficha = emisores.cargar()
+        if vista_previa:
+            q = panel["fecha"].max()
+            filas = sa.elegir(panel, ficha, q + pd.DateOffset(months=2) + pd.offsets.MonthEnd(0))
+            esc = filas[filas["cartera"] == "satelite"]
+            print(f"Vista previa, sin anotar: con el panel al {q:%Y-%m-%d} la regla compraría {len(esc)} REITs "
+                  f"({sa.APORTACION / len(esc):,.0f} dólares a cada uno):")
+            print("  " + ", ".join(esc["ticker"]))
+            return 0
+        f = sa.aportacion_que_toca(dt.date.today())
+        if f is None:
+            print("Este mes no toca aportar. Calendario: " + ", ".join(f"{c:%Y-%m-%d}" for c in sa.calendario()))
+            return 1
+        filas = sa.elegir(panel, ficha, f)
+        destino = sa.anotar(filas)
+        esc = filas[filas["cartera"] == "satelite"]
+        print(f"Aportación del {f:%Y-%m-%d} anotada en {destino.relative_to(RAIZ)}: {len(esc)} REITs y SCHH.")
+        if filas.attrs.get("sin_ticker"):
+            print(f"  Sin ticker (no entran): {', '.join(filas.attrs['sin_ticker'])}")
+        return 0
+    papel = sa.leer_papel()
+    retornos = sa.cargar_retornos()
+    if not papel.empty:
+        retornos, fallas = sa.actualizar_retornos(papel)
+        for t, m in fallas:
+            print(f"  Yahoo no tiene {t}: {m}")
+    r = sa.evaluar(papel, retornos)
+    print(f"Tablas → {sa.guardar(r, 'papel').relative_to(RAIZ)}")
+    destino = carpeta / "satelite_en_papel.md"
+    destino.write_text(sa.informe_papel(r), encoding="utf-8")
+    print(f"Informe → {destino.relative_to(RAIZ)}\nEstado: {r.notas['estado']}")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="comando", required=True)
@@ -240,6 +295,9 @@ def main() -> int:
     sub.add_parser("seleccion")
     e = sub.add_parser("etfs")
     e.add_argument("--sin-descarga", action="store_true", help="usa los datos ya versionados")
+    s_ = sub.add_parser("satelite")
+    s_.add_argument("accion", choices=["explorar", "elegir", "evaluar"])
+    s_.add_argument("--vista-previa", action="store_true", help="con elegir: muestra lo que compraría, sin anotar")
     args = p.parse_args()
     if args.comando == "tbill":
         return cmd_tbill()
@@ -255,6 +313,8 @@ def main() -> int:
         return cmd_seleccion()
     if args.comando == "etfs":
         return cmd_etfs(args.sin_descarga)
+    if args.comando == "satelite":
+        return cmd_satelite(args.accion, args.vista_previa)
     ticker = args.ticker.upper()
     if args.comando == "mercado":
         return cmd_mercado(ticker)
