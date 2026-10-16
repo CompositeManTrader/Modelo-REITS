@@ -1,0 +1,156 @@
+# Familia 6 (asiento estructural, fiscal). Card emitida por descubrimiento-edge, 16-oct-2026.
+# Higiene de ejecución: NO compite por el objetivo de +50 pb (la aritmética da de 0 a +6 pb al año).
+# Se emite porque es casi gratis de validar (precios diarios y fechas ex de SCHH) y fija la fecha de
+# aportación; no es alfa y no depende de predecir nada.
+
+card_version: "1.1"
+id: f6_compra_tras_fecha_ex
+asset_universe: ["SCHH"]
+instrument: etf
+direction: long_only
+
+holding_horizon:
+  min_bars: 1260
+  max_bars: 5040
+  bar_size: 1d
+  overnight_allowed: true
+
+economic_rationale:
+  mechanism: >
+    El NAV de SCHH incorpora cada día los dividendos que el fondo cobra de sus REITs y todavía no
+    reparte, y en la fecha ex el precio cae por el monto distribuido. El prospecto de Schwab (2026) lo dice
+    así: quien compra antes de que el fondo declare una distribución "may receive a portion of your
+    investment back as a taxable distribution", porque "the share price is reduced by the amount of the
+    distribution". Quien compra justo antes de la fecha ex paga con su propio dinero el ingreso
+    acumulado y lo recibe de vuelta como dividendo. Para este inversionista ese dividendo paga 44%:
+    10% retenido en EE. UU. (tratado, Art. 10(2)(b) y Protocolo 1 párr. 8(a) para un RIC), acumulación a
+    la marginal de 35% con crédito (Art. 142 fr. V y Art. 5 LISR) y 10% adicional sobre lo distribuido
+    sin la retención. Es devolverse su propio capital pagando impuesto. Comprar justo después de la fecha
+    ex evita ese impuesto, porque el ingreso acumulado antes de la compra lo cobra el vendedor. La pérdida
+    evitable por aportación es 0.44 × f × D_q, con D_q ≈ 0.72% del precio (2.9% al año entre 4) y f la
+    fracción del dividendo trimestral ya acumulada al comprar. Eso se traduce en 0.10-0.32% de cada
+    aportación y, en TIR, en +1 a +6 pb al año. La ganancia de capital que reemplaza al dividendo paga a lo
+    más la tasa de ganancia (10% si aplica el Art. 129; por verificar para SCHH, que no aparece listado en
+    la BMV) y solo si algún día se vende. Esperar en efectivo cuesta la prima de los REITs sobre el efectivo después
+    de impuestos (~0.085% de la aportación por semana), así que solo conviene esperar pocas semanas.
+  who_loses: >
+    El propio inversionista cuando aporta en una fecha ciega respecto de la fecha ex: el fisco le cobra
+    44% sobre capital que él mismo puso. El vendedor que cobra el dividendo no pierde nada. No hay
+    contraparte de mercado.
+  why_persists: >
+    Es aritmética fiscal, no una dislocación de precio: nadie la arbitra porque solo existe para quien
+    paga más impuesto sobre el dividendo que sobre la ganancia diferida. Persiste mientras SCHH reparta
+    cada trimestre y la LISR grave el dividendo extranjero a la marginal más 10%. Lo matan un cambio de
+    SCHH a reparto mensual (el efecto cae a ~1/3), una reforma que iguale ambas tasas, o mover el dinero
+    a un vehículo que no reparte (f6_ucits_acumulacion_irlanda).
+
+signal_definition:
+  formula: >
+    Para cada aportación con fecha de llegada a y monto C: e = primera fecha ex de SCHH posterior a a,
+    conocida en a (ver point_in_time_notes). Si (e - a) ≤ W días naturales: guardar C en efectivo
+    (T-bill o fondo de mercado de dinero; intereses gravados al 35%) y comprar SCHH al cierre del k-ésimo
+    día hábil después de e. Si no: comprar SCHH al cierre de a. W ∈ [7, 35] días naturales, k ∈ [1, 5]
+    días hábiles. Benchmark: comprar siempre al cierre de a (SCHH por broker, mismo calendario de llegada).
+    Se prueban dos calendarios de llegada fijados de antemano: mensual (primer día hábil de cada mes, como
+    hoy con 800 MXN) y trimestral del papel (primer día hábil después del 15 de febrero, mayo, agosto y
+    noviembre, como satelite_preregistro.md; cae ~5 semanas antes de la fecha ex). Aportar a fin de
+    trimestre (el calendario del backtest del repo) ya cae después de la fecha ex. Los dividendos netos
+    se reinvierten con la misma regla. Métrica: TIR money-weighted en USD sin liquidar; liquidar al 10% al
+    final es robustez.
+  inputs: ["SCHH: cierre diario y cierre ajustado", "SCHH: fecha ex y monto de cada distribución",
+           "DTB3 (FRED) para los intereses del efectivo"]
+  timing: >
+    La decisión se toma el día de llegada a, con la fecha ex próxima ya conocida ese día; la compra se
+    ejecuta al cierre de a o al cierre del día e + k. Nunca se usa el monto del dividendo antes de su
+    fecha de declaración.
+  warmup_bars: 0
+
+entry_rules: >
+  Compra a mercado al cierre del día indicado por la regla, con fricción fija de 0.02%; el efectivo en
+  espera gana DTB3 menos 35% de impuesto. Si e + k cae en un día inhábil, el siguiente hábil.
+
+exit_rules:
+  primary: "Nunca se vende (regla del inversionista). TIR sobre el valor final sin liquidar."
+  stop_loss: null
+  take_profit: null
+  time_stop: "La espera en efectivo nunca supera W + k días; luego se compra sin excepción."
+  intrabar_note: "Sin stops ni targets: no hay ambigüedad intrabar."
+
+sizing: >
+  100% de cada aportación a SCHH, en una sola orden; sin apalancamiento. La regla solo mueve la fecha de
+  compra, nunca el monto.
+
+data_required:
+  fields: ["fecha", "cierre", "cierre_ajustado", "dividendo", "fecha_ex", "fecha_declaracion"]
+  frequency: 1d
+  history_years: 15
+  timestamp_convention: bar_close
+  session: rth
+  point_in_time_notes: >
+    La fecha ex debe ser conocida en a. Si no hay calendario anual de distribuciones publicado por Schwab
+    con anticipación (por verificar), B usa una regla de calendario estimada solo con años previos.
+    De 2019 a 2026 la fecha ex cayó el 3er o 4o miércoles de marzo, junio y septiembre y el 2o miércoles
+    de diciembre, salvo una extra el 30-dic-2020. El monto del dividendo se usa solo desde su fecha de
+    declaración. Precios sin ajustar para la caída en la fecha ex; ajustados solo para el retorno total.
+  extra_datasets: ["fechas ex, de declaración y de pago de SCHH (Schwab o Yahoo; data/estudios/etfs/dividendos.csv.gz tiene fecha ex y monto)",
+                   "FRED DTB3"]
+
+expected_edge:
+  source:
+    - "Schwab Strategic Trust (2026), prospecto 485BPOS presentado a la SEC el 26-jun-2026, sección de SCHH: 'purchase shares of the fund before it declares a distribution, you may receive a portion of your investment back as a taxable distribution... the share price is reduced by the amount of the distribution'; las distribuciones se gravan 'even if they are paid from income or gain earned by the fund before a shareholder's investment' (verificado)."
+    - "LISR (DOF 11-12-2013, última reforma DOF 01-04-2024), Art. 142 fr. V y Art. 5: el dividendo de una sociedad extranjera se acumula a la tarifa con crédito por la retención extranjera y paga además 10% definitivo sobre lo distribuido sin la retención; con marginal de 35%, 44% en total (verificado). GBM (2026), FAQ de impuestos de Trading MX: el mismo esquema de 10% en EE. UU., 10% en México y la anual también para emisoras extranjeras del SIC."
+    - "Convenio EE. UU.-México (1992), Art. 10(2)(b), y Protocolo 1 párr. 8(a): 10% sobre dividendos de un RIC (verificado)."
+    - "Datos propios (oct-2026, data/estudios/etfs/dividendos.csv.gz, Yahoo): 31 distribuciones de SCHH de 2019 a 2026, trimestrales, con fecha ex a fin de marzo, junio y septiembre y a mediados de diciembre; la de marzo es la menor (0.10-0.12 USD contra 0.22-0.24 en diciembre), así que el ingreso no se acumula de forma lineal."
+  sign: positivo
+  magnitude_annual_bps: { low: 0, high: 6, label: inferido }
+  crowding_decay_risk: >
+    Sin crowding posible: no hay contraparte ni precio que se mueva por usarla. Aritmética (modelo
+    determinista, yield de SCHH de 2.9% al año, 10-20 años): con f = 0.3, de +0.8 a +1.8 pb al año; con
+    f = 0.5 (comprar a ciegas cada mes), de +1.4 a +3.0; con f = 1 (comprar justo antes de la fecha ex),
+    de +2.8 a +6.1. Con el calendario del backtest del repo (fin de marzo, junio, septiembre y diciembre,
+    días después de cada fecha ex) el efecto es casi cero: ese calendario ya es casi óptimo. El calendario
+    en papel (después del 15 de febrero, mayo, agosto y noviembre) cae unas 5 semanas antes de la fecha ex,
+    donde f es mayor. La magnitud depende del
+    perfil de acumulación del ingreso dentro del trimestre, que B debe medir (caída en la fecha ex contra
+    dividendo) y no suponer lineal. No decae; desaparece si SCHH reparte cada mes o si las tasas se igualan.
+
+parameters:
+  ventana_espera_W:
+    { min: 7, max: 35, n_grid: 3, unit: "días naturales antes de la fecha ex en los que se espera en efectivo" }
+  retraso_k:
+    { min: 1, max: 5, n_grid: 3, unit: "días hábiles después de la fecha ex para comprar" }
+
+kill_criteria:
+  - "La mediana de la caída del precio en la fecha ex, como fracción del dividendo (cierre de e-1 contra apertura de e, sin ajustar), queda fuera de [0.6, 1.4] en los últimos 12 trimestres: el NAV no está devolviendo el ingreso acumulado como se supone."
+  - "SCHH pasa a repartir cada mes, o una reforma iguala la tasa del dividendo extranjero con la de la ganancia: retirar la regla."
+  - "En producción, el costo de la espera en efectivo (prima de SCHH sobre DTB3 neto durante los días de espera) supera al impuesto evitado en 8 trimestres seguidos."
+  - "El dinero de REITs se mueve a un vehículo que no reparte (f6_ucits_acumulacion_irlanda): la regla deja de aplicar."
+
+n_trials:
+  this_card: 18
+  session_total: 22
+  accounting: >
+    Esta card: 3 ventanas W × 3 retrasos k × 2 calendarios de llegada fijados de antemano (mensual y
+    trimestral del papel) = 18. Sesión de la familia 6 (este agente): 18 + 4 de f6_ucits_acumulacion_irlanda = 22.
+    Variante conceptual descartada sin retornos: rotar cada aportación al ETF de REITs que acaba de pasar
+    su fecha ex (VNQ, USRT). Se descarta porque reparten de 8 a 24 puntos más del ingreso del índice que
+    SCHH, lo que cuesta de 10 a 40 pb al año sobre ese tramo. Las demás variantes descartadas de la sesión
+    están en la contabilidad de f6_ucits_acumulacion_irlanda. Solo miré fechas ex y montos de los
+    dividendos (el fenómeno), no el retorno de ninguna regla: observed_extra = 0.
+  ledger_total: 999
+  ledger_ref: "REITs_EEUU_capital|trimestral"
+  observed_extra: 0
+
+notes_adversarial: >
+  Steelman en contra: (1) La caída en la fecha ex podría ser menor que el dividendo (en acciones, Elton y
+  Gruber, 1970, Review of Economics and Statistics, la ligan al impuesto marginal de quien tiene la
+  acción), y entonces comprar antes no devuelve todo el ingreso acumulado. En un ETF el precio
+  está anclado al NAV por la creación y redención, así que la caída debería ser ~1; B lo mide (kill 1).
+  (2) El ingreso de SCHH no se acumula de forma lineal: muchos REITs tienen su fecha ex en el último mes
+  del trimestre, así que casi todo f se concentra en las 3 a 5 semanas antes de la fecha ex de SCHH. Esto
+  ayuda a la regla, porque basta esperar poco, pero hay que medirlo. (3) Esperar en efectivo cuesta
+  ~0.085% por semana en valor esperado, del mismo orden que el impuesto evitado con f alto: con W de 5
+  semanas la regla puede salir neutra. (4) Es tan pequeña que el ruido de la TIR la tapa; B debe medirla
+  como diferencia pareada sobre la misma trayectoria de precios, no como dos TIR independientes.
+  Sobrevive como higiene: la mecánica está verificada en el prospecto y en la LISR, y el costo de
+  validarla es mínimo. No es alfa ni pretende pasar el +50.

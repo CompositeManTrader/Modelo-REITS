@@ -1,0 +1,189 @@
+# Familia 6 (asiento estructural, fiscal y de canal). Card emitida por descubrimiento-edge, 16-oct-2026.
+# NO es alfa de mercado: antes de impuestos mexicanos el vehículo pierde contra SCHH (TER más alto y
+# retención de 15% dentro del fondo). La ventaja existe solo DESPUÉS de impuestos y solo para quien,
+# como este inversionista, nunca vende. Toda regla fiscal marcada "por verificar con contador" es
+# precondición: si el contador la contradice, la card muere antes de backtestear.
+
+card_version: "1.1"
+id: f6_ucits_acumulacion_irlanda
+asset_universe: ["SCHH", "IUSI", "XRES"]
+instrument: etf
+direction: long_only
+
+holding_horizon:
+  min_bars: 20
+  max_bars: 80
+  bar_size: trimestral
+  overnight_allowed: true
+
+economic_rationale:
+  mechanism: >
+    La ley mexicana obliga a este inversionista a pagar 44% sobre cada dividendo de SCHH, porque el
+    Art. 142 fr. V LISR acumula el dividendo de una sociedad extranjera a la tarifa anual (marginal 35%),
+    con crédito por el 10% que retiene EE. UU. con el W-8BEN (Art. 5 LISR; tratado México-EE. UU.,
+    Art. 10(2)(b) y Protocolo 1 párr. 8(a): 10% para dividendos de un RIC), y le suma un ISR adicional
+    definitivo de 10% sobre lo distribuido sin la retención: 10 + 25 + 9 = 44%. SCHH reparte cerca de 76%
+    del ingreso de su índice (inferido: el resto, la devolución de capital y las ganancias que recibe de
+    los REITs, se queda en el NAV porque el fondo reparte su renta gravable), así que el impuesto anual se
+    traduce en 0.44 × 2.8-3.1% ≈ 124-136 pb al año, más 7 pb de TER.
+    Un ETF UCITS irlandés de ACUMULACIÓN sobre REITs de EE. UU. no distribuye nada. El único impuesto
+    que se causa cada año sobre la renta de los REITs es la retención que EE. UU. aplica al fondo:
+    15%, porque la Convención Modificatoria EE. UU.-Irlanda de 1999 (Art. 10(4)) da la tasa de cartera a
+    dividendos de REIT si el beneficiario tiene ≤ 5% de una clase que cotiza. México no grava al
+    inversionista mientras no venda, porque el capítulo de regímenes fiscales preferentes (Art. 176-178
+    LISR, reformado DOF 09-12-2019) solo aplica cuando el contribuyente ejerce control efectivo (> 50%)
+    sobre la entidad extranjera, y un minorista en un fondo de 605 M USD no lo tiene. El costo anual
+    queda en 0.15 × 4.2% + 40 pb ≈ 103 pb (IUSI, físico) o en 0.15 × 3.3% + 14 pb ≈ 64 pb (XRES, sintético
+    con retención efectiva ~15% inferida). La regla de nunca vender del inversionista convierte ese
+    diferimiento en una diferencia permanente de TIR. Además, las acciones de un fondo irlandés no son
+    "stock of corporations organized under U.S. law" y quedan fuera del impuesto sucesorio de EE. UU.
+    para no residentes (umbral de 60 mil USD, hasta 40%; México no tiene tratado sucesorio con EE. UU.).
+    Al vender, IUSI pagaría 10% (Art. 129 fr. I LISR y Criterio 37/ISR/N, porque cotiza en la BMV como
+    IUSIN MM; por verificar con contador, porque el criterio no menciona ETFs); XRES no aparece listado en
+    la BMV y su ganancia se acumularía con el Art. 120.
+  who_loses: >
+    No hay contraparte de mercado. El que "pierde" es el fisco mexicano, que difiere sin límite el ISR
+    sobre el ingreso que el fondo reinvierte, y, en el contrafactual, el propio inversionista que compra
+    SCHH por el broker y paga 44% sobre un flujo que dentro del envoltorio irlandés pagaría 15%. Lo
+    acepta porque compra el vehículo obvio (el ETF de EE. UU. más barato) sin comparar envoltorios
+    después de impuestos.
+  why_persists: >
+    La barrera es la ley, no la capacidad: el Art. 10(4) del tratado EE. UU.-Irlanda (Convención de
+    1999), la exclusión por falta de control efectivo del Art. 176 LISR y la ausencia de un régimen
+    mexicano que grave cada año a los fondos extranjeros de acumulación no controlados. No hay precio que
+    arbitrar, así que el uso no lo agota. Lo matan una reforma (México gravando el ingreso devengado de
+    fondos extranjeros, o el SAT aplicando la presunción de control del Art. 176), un cambio del tratado o
+    de la cláusula de limitación de beneficios, o el cierre de la clase de acumulación (19 M USD).
+
+signal_definition:
+  formula: >
+    Cada trimestre t, con aportación C_t = 3,000 USD (más el dividendo neto de SCHH cobrado en t-1):
+    S_{t-1} = valor de mercado en USD de la posición de SCHH al cierre de t-1 (activo con situs en EE. UU.).
+    destino_t = SCHH si S_{t-1} < U; si no, destino_t = V, con V = IUSI si vehiculo = 0 o XRES si
+    vehiculo = 1. U ∈ {0, 60,000} USD (umbral_situs_usd). Nunca se vende nada. Impuestos:
+    dividendo de SCHH 44% = 0.10 + (m - 0.10) + 0.10 × 0.90 con m = marginal_isr; IUSI y XRES no
+    reparten y no causan ISR mexicano anual; la retención de 15% y el TER ya están en su NAV. Benchmark: la
+    misma secuencia de C_t, 100% a SCHH comprado por el broker. Métrica: TIR money-weighted en USD,
+    sobre el valor final sin liquidar (regla del inversionista); como robustez fija, liquidando al
+    final con 10% para SCHH e IUSI y 27% para XRES (Art. 120, tasa media).
+  inputs: ["SCHH: cierre ajustado y dividendos con fecha ex",
+           "IDUP (clase de distribución del mismo fondo que IUSI): NAV y distribuciones desde 2006",
+           "IUSI: NAV desde 25-jul-2025", "XRES: NAV desde 17-feb-2016",
+           "FTSE Nareit All Equity REITs: retorno total e ingreso"]
+  timing: >
+    El destino se decide con el valor de SCHH al cierre del último día hábil del trimestre t-1 y se
+    ejecuta al cierre del día de aportación del trimestre t (primer día hábil del trimestre siguiente).
+    No usa precios posteriores a la decisión.
+  warmup_bars: 0
+
+entry_rules: >
+  Comprar el destino_t al cierre del día de aportación, con costo de fricción fijo de 0.02% para SCHH
+  y 0.10% para IUSI o XRES (diferencial de compra y venta más comisión mínima en Euronext o LSE); robustez
+  fija con el doble de fricción. Si el monto de la orden es menor que 500 USD, acumular en efectivo
+  hasta superarlo (la comisión mínima por orden en Euronext o LSE haría el costo de 1-5% por orden).
+
+exit_rules:
+  primary: "Nunca se vende (regla del inversionista). La TIR se mide sobre el valor final sin liquidar; la liquidación es robustez."
+  stop_loss: null
+  take_profit: null
+  time_stop: null
+  intrabar_note: "Sin stops ni targets: no hay ambigüedad intrabar."
+
+sizing: >
+  100% de cada aportación al destino_t; sin apalancamiento ni cortos. Una sola posición nueva por
+  trimestre; las posiciones previas se quedan donde están.
+
+data_required:
+  fields: ["fecha", "cierre", "cierre_ajustado", "nav", "dividendo", "fecha_ex"]
+  frequency: mensual (decisión trimestral)
+  history_years: 15
+  timestamp_convention: bar_close
+  session: rth
+  point_in_time_notes: >
+    IUSI solo existe desde 25-jul-2025. Antes, B debe reconstruirlo con la clase de distribución
+    IDUP/IUSP (mismo fondo, IE00B1FZSF77, desde 2006), reinvirtiendo sus distribuciones sin impuesto
+    mexicano: ya vienen netas de la retención del fondo y del TER, igual que el NAV de la clase de
+    acumulación. SCHH siguió otro índice hasta jun-2020 (1.45 puntos al año menos): usar SCHH real y,
+    como robustez fija, el FTSE Nareit All Equity menos 7 pb, igual que satelite_exploratorio.md. El yield
+    de SCHH se mide con dividendos por fecha ex, no por fecha de pago. Ventana común con XRES: 2016-03 en
+    adelante.
+  extra_datasets: ["fechas ex y montos de SCHH (data/estudios/etfs/dividendos.csv.gz)",
+                   "NAV y distribuciones de IDUP/IUSP (BlackRock o Yahoo IDUP.L)",
+                   "NAV de XRES (Invesco o Yahoo XRES.L)",
+                   "tarifa del Art. 152 LISR para la tasa media del Art. 120 (robustez de liquidación de XRES)"]
+
+expected_edge:
+  source:
+    - "Convención Modificatoria del convenio fiscal EE. UU.-Irlanda, firmada en Dublín el 24-sep-1999 (texto en irs.gov): sustituye el Art. 10(4); el dividendo de un REIT conserva la tasa de 15% si el beneficiario tiene ≤ 5% de una clase que cotiza (verificado)."
+    - "Convenio EE. UU.-México (1992), Art. 10(2)(b), y Protocolo 1 párr. 8(a): 10% para dividendos de un RIC como SCHH (verificado)."
+    - "LISR (DOF 11-12-2013, última reforma DOF 01-04-2024), Art. 142 fr. V: el dividendo extranjero se acumula y además paga 10% definitivo sobre lo distribuido sin la retención; Art. 5: acreditamiento solo del impuesto retenido al propio contribuyente (verificado)."
+    - "LISR, Art. 176 (reformado DOF 09-12-2019): el capítulo de REFIPRE 'sólo será aplicable cuando el contribuyente ejerza el control efectivo' (> 50% de votos o valor), con presunción de control salvo prueba en contrario (texto verificado; su aplicación a un ETF de minorista queda por verificar con contador)."
+    - "LISR, Art. 129 fr. I, y SAT, Criterio normativo 37/ISR/N (origen 46/2014/ISR, Boletín 2014): la ganancia de acciones de sociedades extranjeras listadas en el SIC paga 10% aunque se vendan por un intermediario extranjero; el criterio no menciona ETFs (por verificar con contador)."
+    - "BlackRock (2026), ficha de iShares US Property Yield UCITS ETF USD (Acc), IE00BKPT2R27, sep-2026: TER 0.40%, acumulación, Irlanda, 87 emisoras, índice FTSE EPRA Nareit US Dividend+ Net of Tax; cotiza en Euronext Amsterdam (IUSI) y en la Bolsa Mexicana de Valores (IUSIN MM, en MXN)."
+    - "BlackRock (2026), ficha de la clase de distribución (IUSP/IDUP), sep-2026: le ganó a su índice Net of Tax cada año de 2016 a 2025, por 26-54 pb pese al TER de 40 pb (5 años: +30 pb al año). Huella consistente con 15% de retención real contra un índice que supone más (inferido)."
+    - "Invesco (2026), ficha de Invesco Real Estate S&P US Select Sector UCITS ETF Acc (XRES), IE00BYM8JD58, 31-ago-2026: sintético, TER 0.14%; 10 años 78.53% contra 72.79% del índice de retorno neto (≈ +35 pb al año después de TER): retención efectiva ~15%, no 0% (inferido)."
+    - "IRS (2026), 'Some nonresidents with U.S. assets must file estate tax returns' (revisada 27-jun-2026): umbral de 60,000 USD; las acciones de corporaciones de EE. UU. tienen situs en EE. UU. Schwab Strategic Trust (2026), prospecto 485BPOS del 26-jun-2026: 'Foreign shareholders may also be subject to U.S. estate taxes with respect to shares in a fund'."
+    - "Datos propios (oct-2026, data/estudios/etfs y data/investigacion/sector): SCHH repartió 76% del ingreso del FTSE Nareit All Equity en 2021-2025 (74% en 2012-2025); ningún ETF de REITs de EE. UU. de 10 revisados retiene más, neto de comisiones."
+  sign: positivo
+  magnitude_annual_bps: { low: -20, high: 55, label: estimado }
+  crowding_decay_risk: >
+    No hay paper ni AUM que lo persiga como estrategia: es un asiento fiscal de las personas físicas
+    mexicanas sin control del fondo, y nadie lo arbitra porque no es un precio. El riesgo no es
+    decaimiento sino error de regla. Aritmética (modelo determinista, 7% de retorno total, 15-20 años,
+    aportando cada trimestre): IUSI +21 a +25 pb de TIR sin vender (+6 a +11 liquidando al 10%); XRES +57
+    a +59 sin vender (-38 a -53 liquidando con el Art. 120). Se suman de 0 a +8 pb de valor esperado del
+    impuesto sucesorio (saldo de 100-500 mil USD, mortalidad de 0.15-0.4% al año) y se restan de 2 a 5 pb
+    de fricción. La composición distinta del índice domina la varianza: el filtro de yield ≥ 2% de
+    Dividend+ costó cerca de 1 punto al año en 2016-2020 y casi nada en 2021-2025. Si el SAT aplicara
+    REFIPRE (35% anual sobre el ingreso del fondo), la ventaja se vuelve -58 pb: esa es la cola que
+    define el rango bajo de este edge y el primer kill.
+
+parameters:
+  umbral_situs_usd:
+    { min: 0, max: 60000, n_grid: 2, unit: "USD de SCHH antes de mandar dinero nuevo al UCITS (0 = todo al UCITS desde el inicio)" }
+  vehiculo:
+    { min: 0, max: 1, n_grid: 2, unit: "0 = IUSI (iShares, físico, listado en la BMV); 1 = XRES (Invesco, sintético, sin listado conocido en la BMV)" }
+  marginal_isr:
+    { min: 0.35, max: 0.35, n_grid: 1, unit: "tasa marginal fijada en 35%, el caso conservador del repo (config.MARGINAL_DEL_INVERSIONISTA)" }
+
+kill_criteria:
+  - "PRECONDICIÓN: un contador confirma por escrito que (a) un ETF UCITS de minorista no cae en el capítulo de REFIPRE (Art. 176-177 LISR) ni obliga a acumular su ingreso no distribuido, y (b) qué obligación informativa aplica (Art. 178). Si no lo confirma, la card muere sin backtest."
+  - "El informe anual auditado de iShares II plc o de Invesco Markets plc muestra retención de EE. UU. sobre dividendos de REIT ≥ 25% en dos ejercicios, o el fondo queda por debajo de su índice Net of Tax (diferencia después de TER < -10 pb al año en 3 años): se cae el supuesto de 15%."
+  - "Reforma de la LISR o de la RMF que grave cada año a los fondos extranjeros de acumulación, cambio del Art. 10(4) o de la limitación de beneficios del tratado EE. UU.-Irlanda, o IUSI deja de cotizar en la BMV (pierde el 10% del Art. 129): dejar de aportar al UCITS."
+  - "La clase IE00BKPT2R27 baja de 10 M USD de activos dos trimestres seguidos o el emisor anuncia su cierre (forzaría una venta gravada): dejar de aportar."
+  - "En producción, la TIR después de impuestos del tramo UCITS queda más de 75 pb al año por debajo de SCHH por broker en una ventana móvil de 5 años (la composición se comió la ventaja fiscal)."
+
+n_trials:
+  this_card: 4
+  session_total: 22
+  accounting: >
+    Esta card: 2 umbrales de situs × 2 vehículos × 1 tasa marginal fijada = 4. Sesión de la familia 6
+    (este agente): 4 + 18 de f6_compra_tras_fecha_ex = 22. Variantes conceptuales descartadas sin mirar
+    retornos (no entran al grid): canal SIC (2: SCHH por SIC y VNQ/USRT por SIC), porque el Art. 142
+    fr. V acumula el dividendo también por el SIC; ETF de menor reparto (10 alternativas a SCHH), porque
+    con datos de reparto ninguno retiene más que SCHH neto de comisiones; satélite de REITs de bajo yield
+    (1), ya cubierto por la fase 6 con el perfil del broker; clase de distribución IDUP (1), dominada (15% en
+    el fondo + ~45% en México); rotación por fecha ex entre ETFs (1); devolución de capital (1). Son 16
+    conceptuales. observed_extra = 2: comparé con el índice los retornos por año (2016-2025) de las
+    fichas de IUSP/IDUP y de XRES antes de emitir.
+  ledger_total: 999
+  ledger_ref: "REITs_EEUU_capital|trimestral"
+  observed_extra: 2
+
+notes_adversarial: >
+  Steelman en contra: (1) "No hay REFIPRE sin control" es la lectura literal del Art. 176, pero el mismo
+  artículo presume el control salvo prueba en contrario, y el SAT podría exigir la declaración
+  informativa del Art. 178 con multas o tratar el NAV acumulado como dividendo ficto. Si cualquiera de
+  las dos aplica, la ventaja se vuelve negativa (-58 pb). Por eso es precondición, no parámetro.
+  (2) El 15% dentro del fondo depende de que el fondo califique para el tratado (limitación de
+  beneficios) y tenga ≤ 5% de cada REIT; la huella de las fichas lo sugiere, pero es inferencia, no un
+  dato de retención. (3) XRES gana más en la aritmética, pero es sintético: el 15% es contractual (el
+  swap y la regla 871(m); el índice inmobiliario no pasa la prueba de yield ≤ 1.5 veces el del S&P 500
+  del 26 CFR 1.871-15(l)(3)), concentra ~30 emisoras con tope de 19% y, sin listado en la BMV, su
+  ganancia pagaría la tasa del Art. 120. (4) El índice Dividend+ deja fuera los REITs de yield < 2%, una
+  inclinación suave al yield alto que en la fase 6 perdió; en 2016-2020 costó cerca de 1 punto al año.
+  (5) Con 800 MXN al mes la comisión mínima por orden en Euronext o LSE se come la ventaja: por eso
+  existe el umbral de 60 mil USD, que con este saldo deja todo en SCHH durante años. Sobrevive porque
+  la mecánica es ley vigente verificada en el texto primario (tratado de 1999, LISR 142, 176 y 129), la
+  aritmética es positiva bajo la regla de nunca vender, y B puede medirla con NAVs públicos sin minar
+  nada: solo 4 combinaciones. No le gana a SCHH antes de impuestos; si gana, gana después.
