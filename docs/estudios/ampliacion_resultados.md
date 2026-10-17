@@ -12,7 +12,7 @@ Resultado de la prueba fuera de muestra pre-registrada en `docs/estudios/ampliac
 | H3 | El semáforo completo no le gana a aportar siempre. | El semáforo le gana a aportar siempre por +50 pb o más en a lo sumo 1 emisor. | **no se repite** | le gana por +50 pb en 2 de 7: ADC -11 pb, EPRT +67 pb, EXR +19 pb, GNL +515 pb, PLD -536 pb, PSA +4 pb, WELL -257 pb. |
 | H4 | Ningún método solo, usado para decidir cuándo comprar, le gana a aportar siempre. | Con el consenso, la ventaja contra aportar siempre es menor a +50 pb en la mayoría. | **se repite** | menor a +50 pb en 6 de 7: ADC -19 pb, EPRT +0 pb, EXR -57 pb, GNL +55 pb, PLD -36 pb, PSA -9 pb, WELL -2 pb. |
 | H5 | Mandar la aportación al más barato contra su propia historia le ganó a repartir parejo. | Ventaja del consenso ≥ +50 pb, a lo sumo 5% de las elecciones al azar le gana y el espejo (todo al más caro) queda abajo de partes iguales. | **no se repite** | entre ADC, EXR, PLD, PSA, WELL desde 2009-03: ventaja +122 pb; el azar le gana 19% de las veces; el espejo +72 pb; primera mitad (2009-02 a 2017-11): +388 pb; segunda mitad (2017-12 a 2026-09): +62 pb. |
-| H6 | DDM, DCF, crecimiento implícito y NAV no predicen mejor que los métodos simples. | Juntos, ningún modelo de valor tiene ρ a 5 años mayor que la del mejor método simple. | **se repite** | mejor simple: Múltiplo P/FFO ρ = +0.40; modelos de valor: ddm +0.20, dcf +0.24, crecimiento +0.10, nav +nan. |
+| H6 | DDM, DCF, crecimiento implícito y NAV no predicen mejor que los métodos simples. | Juntos, ningún modelo de valor tiene ρ a 5 años mayor que la del mejor método simple. | **se repite** | mejor simple: Múltiplo P/FFO ρ = +0.40; modelos de valor: ddm +0.20, dcf +0.24, crecimiento +0.10, nav sin datos suficientes. |
 | H7 | En los extremos la valuación separa: el 10% más barato rindió mucho más que el 10% más caro. | Juntos, la mediana de muy barato (≥ 90) supera a la de muy caro (< 10). | **se repite** | muy barato 21.5% (11 trimestres) contra muy caro 4.4% (46). |
 
 ## Sensibilidad: los siete con FFO de Nareit, sin excepciones de medida
@@ -25,7 +25,7 @@ Resultado de la prueba fuera de muestra pre-registrada en `docs/estudios/ampliac
 | H3 | **no se repite** | le gana por +50 pb en 2 de 7: ADC -11 pb, EPRT +67 pb, EXR -821 pb, GNL +515 pb, PLD -378 pb, PSA +4 pb, WELL -553 pb. |
 | H4 | **se repite** | menor a +50 pb en 7 de 7: ADC -19 pb, EPRT +0 pb, EXR -54 pb, GNL +30 pb, PLD -36 pb, PSA -9 pb, WELL -6 pb. |
 | H5 | **no se repite** | entre ADC, EXR, PLD, PSA, WELL desde 2009-03: ventaja +93 pb; el azar le gana 21% de las veces; el espejo +50 pb; primera mitad (2009-02 a 2017-11): +411 pb; segunda mitad (2017-12 a 2026-09): -105 pb. |
-| H6 | **se repite** | mejor simple: Prima sobre el Treasury ρ = +0.41; modelos de valor: ddm +0.20, dcf +0.24, crecimiento +0.12, nav +nan. |
+| H6 | **se repite** | mejor simple: Prima sobre el Treasury ρ = +0.41; modelos de valor: ddm +0.20, dcf +0.24, crecimiento +0.12, nav sin datos suficientes. |
 | H7 | **se repite** | muy barato 21.6% (10 trimestres) contra muy caro 5.5% (48). |
 
 ## Control: los tres originales con el mismo código
