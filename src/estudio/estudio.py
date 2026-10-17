@@ -353,6 +353,13 @@ def armar(
                                trimestrales=trimestrales)
     medida = fund.medida_de_valuacion(ticker)
     flujo = affo if medida.concepto == "affo_por_accion" else ffo
+    if medida.encadenada:
+        principal = fund.flujo_conocido(repo, ticker, medida.concepto, asof=asof, primarios=primarios,
+                                        trimestrales=trimestrales)
+        antes = affo if medida.encadena == "affo_por_accion" else ffo
+        flujo = fund.encadenar(antes, principal)
+        # Las puertas de calidad (payout y crecimiento) leen la misma serie con la que se valúa.
+        ffo = flujo
 
     tasa_div = impuesto_dividendo(1.0).tasa_efectiva
     serie = retornos.serie_diaria(

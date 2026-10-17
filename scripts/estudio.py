@@ -51,6 +51,9 @@ def cmd_mercado(ticker: str) -> int:
     precios, dividendos, inicio = mercado.recortar_al_inicio(ticker, precios, dividendos)
     if inicio:
         print(f"\nSe corta al {inicio.fecha}: {inicio.motivo}")
+    # El traslape compara al proveedor contra la base diaria, otro proveedor: va SIN las correcciones,
+    # que no arreglan datos sino cómo se cuenta un pago (p. ej. uno partido en dos, EXR 2023).
+    sin_corregir = dividendos
     dividendos, correcciones = mercado.aplicar_correcciones(ticker, dividendos)
     if correcciones:
         print("\nCorrecciones contra el reporte del emisor:")
@@ -59,7 +62,7 @@ def cmd_mercado(ticker: str) -> int:
 
     validacion = mercado.validar(
         precios,
-        dividendos,
+        sin_corregir,
         crudo_diario=repo.serie_precio(ticker, asof=hoy),
         dividendos_diarios=repo.dividendos(ticker, asof=hoy),
         anclas=mercado.anclas_del_estudio(ticker, repo.anclas(ticker)),

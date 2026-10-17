@@ -80,3 +80,55 @@ def test_los_grupos_del_preregistro():
     assert set(am.ORIGINALES).isdisjoint(am.NUEVOS)
     assert len(am.NUEVOS) == 7
     assert am.MEJORA_MINIMA == 0.005 and am.DIFERENCIA_BARATO_CARO == 0.03 and am.AZAR_MAXIMO == 0.05
+
+
+def test_el_ttm_respeta_la_frecuencia_de_cada_epoca(monkeypatch):
+    import datetime as dt
+
+    from src.estudio import mercado
+
+    mensuales = pd.date_range("2018-01-05", "2019-04-05", freq="MS") + pd.Timedelta(days=4)
+    trimestrales = pd.DatetimeIndex(["2019-07-05", "2019-10-04", "2020-01-06"])
+    d = pd.DataFrame({"fecha_ex": [*mensuales, *trimestrales],
+                      "monto_pagado": [0.1775] * len(mensuales) + [0.5325] * 3, "tipo": "regular"})
+    d["monto_base"] = d["monto_pagado"]
+    monkeypatch.setitem(mercado.FRECUENCIAS_DEL_DIVIDENDO, "XX",
+                        (12, (mercado.CambioDeFrecuencia(dt.date(2019, 6, 1), 4, "prueba"),)))
+    d = mercado.con_frecuencia("XX", d)
+    f = pd.DatetimeIndex(["2019-05-31", "2019-08-31", "2020-01-31"])
+    assert mercado.dividendo_ttm(d, f).round(4).tolist() == [2.13, 2.13, 2.13]
+    assert mercado.dividendo_anualizado(d, f).round(4).tolist() == [2.13, 2.13, 2.13]
+    assert mercado.pagos_por_anio(d) == 4
+    # Sin catálogo, la tabla no cambia: O, NNN y WPC siguen como siempre.
+    assert "pagos_por_anio" not in mercado.con_frecuencia("O", d.drop(columns="pagos_por_anio"))
+
+
+def test_una_correccion_sin_partes_quita_el_registro(monkeypatch):
+    import datetime as dt
+
+    from src.estudio import mercado
+
+    d = pd.DataFrame({"fecha_ex": pd.to_datetime(["2023-07-12", "2023-09-14"]), "monto_pagado": [1.01, 0.61],
+                      "monto_base": [1.01, 0.61], "monto_proveedor": [1.01, 0.61]})
+    monkeypatch.setitem(mercado.CORRECCIONES_DE_DIVIDENDOS, "XX", (
+        mercado.CorreccionDividendo(dt.date(2023, 7, 12), 1.01, ((1.62, "regular"),), "prueba"),
+        mercado.CorreccionDividendo(dt.date(2023, 9, 14), 0.61, (), "prueba"),
+    ))
+    salida, bitacora = mercado.aplicar_correcciones("XX", d)
+    assert salida["monto_pagado"].tolist() == [1.62] and len(bitacora) == 2
+
+
+def test_la_serie_principal_se_encadena_desde_su_primera_publicacion():
+    from src.estudio import fundamentales as fund
+
+    nareit = pd.Series([1.0, 1.1, 1.2], index=pd.to_datetime(["2008-02-20", "2009-02-20", "2010-02-20"]))
+    nareit.attrs["periodo"] = pd.Series(pd.to_datetime(["2007-12-31", "2008-12-31", "2009-12-31"]),
+                                        index=nareit.index)
+    core = pd.Series([1.05, 1.3], index=pd.to_datetime(["2010-02-22", "2011-02-20"]))
+    core.attrs["periodo"] = pd.Series(pd.to_datetime(["2009-12-31", "2010-12-31"]), index=core.index)
+    s = fund.encadenar(nareit, core)
+    assert s.tolist() == [1.0, 1.1, 1.2, 1.05, 1.3]
+    assert len(s.attrs["periodo"]) == 5 and s.attrs["encadenada_desde"] == pd.Timestamp("2010-02-22")
+    with fund.con_medida(fund.FFO):
+        assert fund.medida_de_valuacion("EXR") == fund.FFO
+    assert fund.medida_de_valuacion("EXR").encadenada

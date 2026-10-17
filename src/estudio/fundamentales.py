@@ -28,6 +28,7 @@ escisión no toca esta base porque no cambia el número de acciones.
 from __future__ import annotations
 
 import datetime as dt
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -63,6 +64,13 @@ class MedidaDeValuacion:
     concepto: str
     etiqueta: str
     motivo: str = ""
+    # Una serie «core» o «normalized» que el emisor empezó a publicar después: antes de su primera
+    # cifra publicada se usa esta otra (el FFO de Nareit), encadenada por nivel, sin reescalar.
+    encadena: str | None = None
+
+    @property
+    def encadenada(self) -> bool:
+        return self.encadena is not None
 
 
 FFO = MedidaDeValuacion("ffo_por_accion", "FFO")
@@ -84,7 +92,47 @@ MEDIDAS_DE_VALUACION: dict[str, MedidaDeValuacion] = {
 }
 
 
+# La sensibilidad del pre-registro de la ampliación: todo con el FFO de Nareit, sin excepciones.
+_MEDIDA_FORZADA: list[MedidaDeValuacion] = []
+
+
+@contextmanager
+def con_medida(medida: MedidaDeValuacion):
+    """Arma los estudios con una sola medida para todos (``with con_medida(FFO): ...``)."""
+    _MEDIDA_FORZADA.append(medida)
+    try:
+        yield
+    finally:
+        _MEDIDA_FORZADA.pop()
+
+
+MEDIDAS_DE_VALUACION["EXR"] = MedidaDeValuacion(
+    "core_ffo_por_accion", "Core FFO", encadena="ffo_por_accion",
+    motivo=(
+        "EXR se valúa por Core FFO, la serie que publica como principal: «FFO as adjusted» de 2009 a 2016 y "
+        "«Core FFO» desde 2017, con la misma definición. Su FFO de Nareit carga partidas que no se repiten: "
+        "en 2009, 27.9 millones de ganancia por recomprar con descuento sus notas canjeables (31% del FFO); "
+        "en 2015, 69.4 millones de gastos por la compra de SmartStop (21% del FFO), que dejaron el FFO del "
+        "4T en 0.38 dólares contra 0.87 de Core FFO. Antes de su primera cifra ajustada publicada "
+        "(feb-2010) se usa el FFO de Nareit."
+    ),
+)
+MEDIDAS_DE_VALUACION["GNL"] = MedidaDeValuacion(
+    "affo_por_accion", "AFFO",
+    motivo=(
+        "GNL se valúa por AFFO, la medida con la que reporta desde que cotiza. Su FFO de Nareit carga partidas "
+        "que no se repiten: en 2015, 39 millones de comisiones del listado y gastos de adquisición (44% del "
+        "FFO); en 2023, los costos de la fusión con The Necessity Retail REIT, de la internalización y de la "
+        "liquidación con accionistas activistas, con lo que su FFO por acción fue de 0.37 dólares contra 1.40 "
+        "de AFFO. No publicó el AFFO por acción de 2015 a 2018: esos años se calculan con el AFFO y las "
+        "acciones promedio de su propio comunicado."
+    ),
+)
+
+
 def medida_de_valuacion(ticker: str) -> MedidaDeValuacion:
+    if _MEDIDA_FORZADA:
+        return _MEDIDA_FORZADA[-1]
     return MEDIDAS_DE_VALUACION.get(ticker.upper(), FFO)
 
 CONCEPTOS_ANUALES = (
@@ -554,6 +602,33 @@ def flujo_conocido(
     todo.attrs["periodo"] = periodo
     todo.attrs["versiones"] = completo[completo.index <= pd.Timestamp(asof)]
     return todo
+
+
+def encadenar(antes: pd.Series, despues: pd.Series) -> pd.Series:
+    """La serie ``despues`` desde su primera publicación; ``antes`` hasta entonces (P1: por fecha).
+
+    Conserva lo que el resto del estudio lee de ``attrs``: el periodo que cubre cada cifra y la
+    tabla de versiones, de las dos series, cada una en su tramo.
+    """
+    if despues.empty:
+        return antes
+    corte = despues.index.min()
+    # Sin attrs al concatenar: pandas compara los attrs de las partes y con Series adentro truena.
+    previo, nuevo = antes[antes.index < corte].copy(), despues.copy()
+    previo.attrs, nuevo.attrs = {}, {}
+    s = pd.concat([previo, nuevo]).sort_index(kind="stable")
+    periodo_a = antes.attrs.get("periodo", pd.Series(dtype="datetime64[ns]"))
+    periodo_d = despues.attrs.get("periodo", pd.Series(dtype="datetime64[ns]"))
+    s.attrs["periodo"] = pd.concat([periodo_a[periodo_a.index < corte], periodo_d]).sort_index(kind="stable")
+    versiones = [v for v in (antes.attrs.get("versiones"), despues.attrs.get("versiones")) if v is not None]
+    if versiones:
+        va = versiones[0][versiones[0].index < corte] if len(versiones) == 2 else versiones[0]
+        s.attrs["versiones"] = pd.concat([va, *versiones[1:]]).sort_index(kind="stable")
+    for clave in ("fechas_estimadas", "anios_estimados", "rezago_dias"):
+        s.attrs[clave] = despues.attrs.get(clave, antes.attrs.get(clave))
+    s.attrs["descartadas"] = pd.concat([x.attrs.get("descartadas", pd.DataFrame()) for x in (antes, despues)])
+    s.attrs["encadenada_desde"] = corte
+    return s
 
 
 def _rezago_observado(versiones: pd.DataFrame) -> tuple[int, int] | None:

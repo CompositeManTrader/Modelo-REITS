@@ -1,0 +1,262 @@
+{
+  "ticker": "GNL",
+  "fuente": "MERCADO-YAHOO",
+  "descargado_en": "2026-10-17T06:00:56+00:00",
+  "primera_cotizacion": "2015-06-02",
+  "inicio_verificable": null,
+  "precios": {
+    "n": 2862,
+    "desde": "2015-06-02",
+    "hasta": "2026-10-16"
+  },
+  "dividendos": {
+    "n": 77,
+    "desde": "2015-06-04",
+    "hasta": "2026-10-09"
+  },
+  "eventos": [
+    {
+      "fecha": "2017-03-01",
+      "factor": 0.3333333333333333,
+      "tipo": "split",
+      "descripcion": "Contrasplit 1 por 3 de la acción común (y de las unidades del OP), efectivo a las 17:00 del 28-feb-2017; cotiza ajustado desde el 1-mar-2017.",
+      "fuente": "8-K de Global Net Lease del 28-feb-2017 (Item 1.01 y Ex-99.1: «at a ratio of 1-for-3», acciones de ~199.0 a ~66.3 millones). Factor verificado contra 37 cierres publicados por el emisor (2015-2021), error 0.0000%."
+    }
+  ],
+  "correcciones_de_dividendos": [],
+  "validacion": {
+    "traslape_n": 1255,
+    "traslape_error_max": 0.01287000305097219,
+    "traslape_error_medio": -1.0254352781949007e-05,
+    "anclas": [
+      {
+        "fecha": "2015-06-30",
+        "real": 8.84,
+        "reconstruido": 8.84000015258789,
+        "error": 1.7261073681495986e-08
+      },
+      {
+        "fecha": "2015-09-30",
+        "real": 9.2,
+        "reconstruido": 9.200000127156574,
+        "error": 1.3821366939836821e-08
+      },
+      {
+        "fecha": "2015-12-31",
+        "real": 7.95,
+        "reconstruido": 7.950000127156575,
+        "error": 1.599453769429715e-08
+      },
+      {
+        "fecha": "2016-03-31",
+        "real": 8.56,
+        "reconstruido": 8.56000010172526,
+        "error": 1.1883791950495493e-08
+      },
+      {
+        "fecha": "2016-06-30",
+        "real": 7.95,
+        "reconstruido": 7.950000127156575,
+        "error": 1.599453769429715e-08
+      },
+      {
+        "fecha": "2016-08-05",
+        "real": 8.63,
+        "reconstruido": 8.629999796549479,
+        "error": -2.3574799778991462e-08
+      },
+      {
+        "fecha": "2016-09-30",
+        "real": 8.16,
+        "reconstruido": 8.15999984741211,
+        "error": -1.8699496395768733e-08
+      },
+      {
+        "fecha": "2016-10-19",
+        "real": 7.75,
+        "reconstruido": 7.75,
+        "error": 0.0
+      },
+      {
+        "fecha": "2016-11-10",
+        "real": 7.33,
+        "reconstruido": 7.329999923706055,
+        "error": -1.0408450989984885e-08
+      },
+      {
+        "fecha": "2016-12-12",
+        "real": 7.91,
+        "reconstruido": 7.909999847412109,
+        "error": -1.9290504527091912e-08
+      },
+      {
+        "fecha": "2016-12-30",
+        "real": 7.83,
+        "reconstruido": 7.829999923706055,
+        "error": -9.743798878858456e-09
+      },
+      {
+        "fecha": "2017-03-31",
+        "real": 24.08,
+        "reconstruido": 24.079999923706055,
+        "error": -3.168353135407642e-09
+      },
+      {
+        "fecha": "2017-06-30",
+        "real": 22.24,
+        "reconstruido": 22.239999771118164,
+        "error": -1.0291449359378646e-08
+      },
+      {
+        "fecha": "2017-09-29",
+        "real": 21.89,
+        "reconstruido": 21.889999389648438,
+        "error": -2.788266617592683e-08
+      },
+      {
+        "fecha": "2017-12-29",
+        "real": 20.58,
+        "reconstruido": 20.579999923706055,
+        "error": -3.707188667156913e-09
+      },
+      {
+        "fecha": "2018-03-23",
+        "real": 16.25,
+        "reconstruido": 16.25,
+        "error": 0.0
+      },
+      {
+        "fecha": "2018-03-29",
+        "real": 16.88,
+        "reconstruido": 16.8799991607666,
+        "error": -4.971761835559363e-08
+      },
+      {
+        "fecha": "2018-06-29",
+        "real": 20.43,
+        "reconstruido": 20.43000030517578,
+        "error": 1.4937630021805148e-08
+      },
+      {
+        "fecha": "2018-08-14",
+        "real": 22.08,
+        "reconstruido": 22.079999923706055,
+        "error": -3.455341679448054e-09
+      },
+      {
+        "fecha": "2018-09-28",
+        "real": 20.85,
+        "reconstruido": 20.850000381469727,
+        "error": 1.829591012025844e-08
+      },
+      {
+        "fecha": "2018-11-26",
+        "real": 21.13,
+        "reconstruido": 21.1299991607666,
+        "error": -3.9717624078505764e-08
+      },
+      {
+        "fecha": "2018-12-31",
+        "real": 17.62,
+        "reconstruido": 17.6200008392334,
+        "error": 4.7629591160003315e-08
+      },
+      {
+        "fecha": "2019-02-27",
+        "real": 18.0,
+        "reconstruido": 18.0,
+        "error": 0.0
+      },
+      {
+        "fecha": "2019-03-29",
+        "real": 18.9,
+        "reconstruido": 18.899999618530273,
+        "error": -2.018358336020043e-08
+      },
+      {
+        "fecha": "2019-06-28",
+        "real": 19.62,
+        "reconstruido": 19.6200008392334,
+        "error": 4.277438314659321e-08
+      },
+      {
+        "fecha": "2019-09-30",
+        "real": 19.5,
+        "reconstruido": 19.5,
+        "error": 0.0
+      },
+      {
+        "fecha": "2019-11-11",
+        "real": 19.36,
+        "reconstruido": 19.360000610351562,
+        "error": 3.1526423693861716e-08
+      },
+      {
+        "fecha": "2019-12-12",
+        "real": 19.86,
+        "reconstruido": 19.860000610351562,
+        "error": 3.073270704589959e-08
+      },
+      {
+        "fecha": "2019-12-31",
+        "real": 20.28,
+        "reconstruido": 20.280000686645508,
+        "error": 3.38582597514403e-08
+      },
+      {
+        "fecha": "2020-03-31",
+        "real": 13.37,
+        "reconstruido": 13.369999885559082,
+        "error": -8.559530084717437e-09
+      },
+      {
+        "fecha": "2020-06-30",
+        "real": 16.73,
+        "reconstruido": 16.729999542236328,
+        "error": -2.736184534501973e-08
+      },
+      {
+        "fecha": "2020-09-30",
+        "real": 15.9,
+        "reconstruido": 15.899999618530273,
+        "error": -2.399180676349033e-08
+      },
+      {
+        "fecha": "2020-12-31",
+        "real": 17.14,
+        "reconstruido": 17.139999389648438,
+        "error": -3.560977612782068e-08
+      },
+      {
+        "fecha": "2021-03-31",
+        "real": 18.06,
+        "reconstruido": 18.059999465942383,
+        "error": -2.9571296522590274e-08
+      },
+      {
+        "fecha": "2021-06-17",
+        "real": 19.0,
+        "reconstruido": 19.0,
+        "error": 0.0
+      },
+      {
+        "fecha": "2021-06-30",
+        "real": 18.5,
+        "reconstruido": 18.5,
+        "error": 0.0
+      },
+      {
+        "fecha": "2021-09-30",
+        "real": 16.02,
+        "reconstruido": 16.020000457763672,
+        "error": 2.8574511423684612e-08
+      }
+    ],
+    "dividendos_traslape_n": 20,
+    "dividendos_error_max": 0.0,
+    "rangos_n": 0,
+    "rangos_fuera": [],
+    "rangos_aceptados": [],
+    "anclas_aceptadas": []
+  }
+}

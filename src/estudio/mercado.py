@@ -50,6 +50,7 @@ import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import requests
 
@@ -121,6 +122,20 @@ EVENTOS_DE_CAPITAL: dict[str, tuple[EventoDeCapital, ...]] = {
     # Sin splits, contrasplits ni escisiones: 10-K 2018-2025, y los 27 cierres publicados por el
     # emisor (jun-2018 a sep-2021) cuadran al centavo con el crudo del proveedor.
     "EPRT": (),
+    # Sin splits ni escisiones (10-K 2004-2025; el proveedor no reporta ninguno; 55 cierres del emisor).
+    "EXR": (),
+    "GNL": (
+        EventoDeCapital(
+            fecha=dt.date(2017, 3, 1),
+            factor=1 / 3,
+            tipo="split",
+            descripcion="Contrasplit 1 por 3 de la acción común (y de las unidades del OP), efectivo a las "
+                        "17:00 del 28-feb-2017; cotiza ajustado desde el 1-mar-2017.",
+            fuente="8-K de Global Net Lease del 28-feb-2017 (Item 1.01 y Ex-99.1: «at a ratio of 1-for-3», "
+                   "acciones de ~199.0 a ~66.3 millones). Factor verificado contra 37 cierres publicados por "
+                   "el emisor (2015-2021), error 0.0000%.",
+        ),
+    ),
     "WPC": (
         EventoDeCapital(
             fecha=dt.date(2023, 11, 2),
@@ -196,6 +211,22 @@ CORRECCIONES_DE_DIVIDENDOS: dict[str, tuple[CorreccionDividendo, ...]] = {
     # WPC: el proveedor suma cada distribución especial a la regular del trimestre. Sin
     # separarlas, el yield de 2008, 2010 y 2014 sale inflado un año entero y la serie
     # dibuja «aumentos» de 57% seguidos de «recortes» que nunca ocurrieron.
+    # EXR: el dividendo del 3T-2023 se pagó en dos partes por la fusión con Life Storage. La suma del
+    # año cuadra, pero el TTM por conteo contaría cinco pagos en 2023 y saldría 25% bajo un año entero.
+    "EXR": (
+        CorreccionDividendo(
+            fecha_ex=dt.date(2023, 7, 12), proveedor=1.01,
+            partes=((1.62, "regular"),),
+            fuente="Comunicado del 3T-2023 (8-K del 7-nov-2023): el dividendo del 3T se pagó en dos partes, "
+                   "1.01 (ex 12-jul) y 0.61 (ex 14-sep), «a total dividend of $1.62 per share». Se juntan "
+                   "en un registro; los 0.61 entran dos meses antes de su fecha ex real.",
+        ),
+        CorreccionDividendo(
+            fecha_ex=dt.date(2023, 9, 14), proveedor=0.61,
+            partes=(),
+            fuente="Segunda parte del dividendo del 3T-2023; ya sumada al registro del 12-jul-2023.",
+        ),
+    ),
     "WPC": (
         CorreccionDividendo(
             fecha_ex=dt.date(2007, 12, 27), proveedor=0.747,
@@ -219,6 +250,49 @@ CORRECCIONES_DE_DIVIDENDOS: dict[str, tuple[CorreccionDividendo, ...]] = {
         ),
     ),
 }
+
+@dataclass(frozen=True)
+class CambioDeFrecuencia:
+    """Desde qué fecha ex el dividendo regular se paga con otra frecuencia.
+
+    La frecuencia medida con las últimas brechas sirve para un emisor que siempre pagó igual. Uno
+    que pasó de mensual a trimestral (o al revés) necesita la de cada época: con la de hoy, el
+    dividendo de 12 meses de la época anterior suma un tercio (o el triple) de lo que pagó.
+    """
+
+    desde: dt.date
+    pagos_por_anio: int
+    fuente: str
+
+
+# Emisor → (frecuencia inicial, cambios). Verificado contra los documentos del emisor; un emisor
+# que no está aquí usa la frecuencia medida, como siempre.
+FRECUENCIAS_DEL_DIVIDENDO: dict[str, tuple[int, tuple[CambioDeFrecuencia, ...]]] = {
+    "GNL": (12, (
+        CambioDeFrecuencia(
+            dt.date(2019, 6, 1), 4,
+            "8-K del 8-abr-2019: «the Company anticipates paying future dividends ... on a quarterly basis in "
+            "arrears ... This change will affect the frequency of dividend payments only, and will have no "
+            "impact on the Company's annualized dividend rate on its common stock of $2.13». Último pago "
+            "mensual el 15-abr-2019 (por marzo); primer trimestral el 15-jul-2019.",
+        ),
+    )),
+}
+
+
+def con_frecuencia(ticker: str, dividendos: pd.DataFrame) -> pd.DataFrame:
+    """Agrega a cada dividendo la frecuencia de su época, si el emisor tiene catálogo."""
+    catalogo = FRECUENCIAS_DEL_DIVIDENDO.get(ticker.upper())
+    if catalogo is None:
+        return dividendos
+    inicial, cambios = catalogo
+    d = dividendos.copy()
+    n = pd.Series(inicial, index=d.index)
+    for c in sorted(cambios, key=lambda x: x.desde):
+        n[d["fecha_ex"] >= pd.Timestamp(c.desde)] = c.pagos_por_anio
+    d["pagos_por_anio"] = n.astype(int)
+    return d
+
 
 @dataclass(frozen=True)
 class InicioVerificable:
@@ -377,9 +451,10 @@ def aplicar_correcciones(ticker: str, dividendos: pd.DataFrame) -> tuple[pd.Data
         for monto, tipo in c.partes:
             filas_nuevas.append({"fecha_ex": fila["fecha_ex"], "monto_proveedor": float("nan"),
                                  "monto_pagado": monto, "monto_base": monto * razon, "tipo": tipo})
-        bitacora.append(f"{c.fecha_ex}: {fila['monto_pagado']:.4f} → "
-                        f"{' + '.join(f'{m} ({t})' for m, t in c.partes)}. {c.fuente}")
-    if filas_nuevas:
+        # Sin partes, el registro se quita: su monto ya está en otro (un pago partido en dos).
+        destino = " + ".join(f"{m} ({t})" for m, t in c.partes) or "se quita (ya sumado en otro registro)"
+        bitacora.append(f"{c.fecha_ex}: {fila['monto_pagado']:.4f} → {destino}. {c.fuente}")
+    if quitar:
         d = pd.concat([d.drop(index=quitar), pd.DataFrame(filas_nuevas)], ignore_index=True)
     return d.sort_values(["fecha_ex", "tipo"]).reset_index(drop=True), bitacora
 
@@ -744,7 +819,9 @@ class HistoriaMercado:
 
 
 def pagos_por_anio(dividendos: pd.DataFrame) -> int:
-    """Frecuencia del dividendo regular, medida y no supuesta: 12, 4, 2 o 1."""
+    """Frecuencia del dividendo regular HOY, medida y no supuesta: 12, 4, 2 o 1."""
+    if "pagos_por_anio" in dividendos and len(dividendos):
+        return int(dividendos.sort_values("fecha_ex")["pagos_por_anio"].iloc[-1])
     r = dividendos[dividendos.get("tipo", "regular") == "regular"]["fecha_ex"].sort_values()
     if len(r) < 3:
         return 4
@@ -768,6 +845,8 @@ def dividendo_ttm(
     infla durante un año entero.
     """
     r = dividendos[dividendos["tipo"] == "regular"].sort_values("fecha_ex")
+    if "pagos_por_anio" in r:
+        return _ttm_por_cobertura(r, fechas, columna)
     n = pagos_por_anio(dividendos)
     if len(r) < n:
         return pd.Series(float("nan"), index=fechas)
@@ -783,13 +862,33 @@ def dividendo_ttm(
     return pd.Series(salida, index=fechas)
 
 
+def _ttm_por_cobertura(r: pd.DataFrame, fechas: pd.DatetimeIndex, columna: str) -> pd.Series:
+    """Los pagos regulares más recientes hasta cubrir un año, cada uno con la frecuencia de su época.
+
+    Un pago mensual cubre 1/12 de año y uno trimestral 1/4: al pasar de mensual a trimestral, el
+    dividendo de 12 meses es el primer trimestral más los nueve mensuales anteriores.
+    """
+    montos = r[columna].to_numpy(float)
+    cobertura = 1.0 / r["pagos_por_anio"].to_numpy(float)
+    posiciones = r["fecha_ex"].searchsorted(fechas, side="right") - 1
+    salida = []
+    for pos in posiciones:
+        suma, cubierto, i = 0.0, 0.0, pos
+        while i >= 0 and cubierto < 1 - 1e-9:
+            suma += montos[i]
+            cubierto += cobertura[i]
+            i -= 1
+        salida.append(suma if cubierto >= 1 - 1e-9 else float("nan"))
+    return pd.Series(salida, index=fechas)
+
+
 def dividendo_anualizado(dividendos: pd.DataFrame, fechas: pd.DatetimeIndex, *, columna: str = "monto_base") -> pd.Series:
     """La última mensualidad regular × pagos por año: lo que paga HOY la acción."""
     r = dividendos[dividendos["tipo"] == "regular"].sort_values("fecha_ex")
-    n = pagos_por_anio(dividendos)
+    n = r["pagos_por_anio"].to_numpy(int) if "pagos_por_anio" in r else np.full(len(r), pagos_por_anio(dividendos))
     posiciones = r["fecha_ex"].searchsorted(fechas, side="right") - 1
     valores = r[columna].to_numpy()
-    return pd.Series([float(valores[p]) * n if p >= 0 else float("nan") for p in posiciones], index=fechas)
+    return pd.Series([float(valores[p]) * n[p] if p >= 0 else float("nan") for p in posiciones], index=fechas)
 
 
 def hay_historia(ticker: str, raiz: Path | None = None) -> bool:
@@ -863,7 +962,7 @@ def cargar(
     return HistoriaMercado(
         ticker=ticker.upper(),
         precios=p[["cierre_crudo", "cierre_base"]],
-        dividendos=d[["fecha_ex", "monto_pagado", "monto_base", "tipo"]],
+        dividendos=con_frecuencia(ticker, d[["fecha_ex", "monto_pagado", "monto_base", "tipo"]]),
         eventos=eventos,
         manifiesto=manifiesto,
         dias_empalmados=empalmados,
