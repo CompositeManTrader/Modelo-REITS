@@ -118,6 +118,9 @@ EVENTOS_DE_CAPITAL: dict[str, tuple[EventoDeCapital, ...]] = {
     # Vacío a propósito, y declarado: «sin eventos» es una afirmación verificada, no
     # la ausencia de una. Si el proveedor llega a reportar uno, la descarga se detiene.
     "NNN": (),
+    # Sin splits, contrasplits ni escisiones: 10-K 2018-2025, y los 27 cierres publicados por el
+    # emisor (jun-2018 a sep-2021) cuadran al centavo con el crudo del proveedor.
+    "EPRT": (),
     "WPC": (
         EventoDeCapital(
             fecha=dt.date(2023, 11, 2),

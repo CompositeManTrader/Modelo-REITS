@@ -236,6 +236,10 @@ RECETAS_NOI: dict[str, dict] = {
     "WPC": {"ingresos": ("Revenues",), "gastos_totales": ("CostsAndExpenses", "OperatingExpenses"),
             "depreciacion": ("DepreciationAndAmortization", "DepreciationDepletionAndAmortization"),
             "deterioro": ("ImpairmentOfRealEstate",), "administracion": ("GeneralAndAdministrativeExpense",)},
+    # EPRT: su definición («total revenues less property expenses»); reproduce el NOI de los ocho
+    # cuartos trimestres 2018-2025 al millar. La de totales no sirve: hasta 2020 metía los intereses
+    # en «Total expenses». «Property expenses» va con la etiqueta CostOfPropertyRepairsAndMaintenance.
+    "EPRT": {"ingresos": ("Revenues",), "gastos_inmuebles": ("CostOfPropertyRepairsAndMaintenance",)},
 }
 # Un NOI de hace más de un año no describe el portafolio de hoy.
 ANTIGUEDAD_MAXIMA_NOI = pd.DateOffset(months=12)
@@ -383,7 +387,12 @@ PISO_DEUDA_SOBRE_PASIVO = 0.60
 # (oct-2018) un negocio de administración de fondos cuyas utilidades y participaciones no
 # pasan por los ingresos: antes de 2019 su apalancamiento armado sale 25–35% arriba del
 # que reportó. Se decidió con esa validación, antes de ver retornos.
-NAV_DESDE: dict[str, pd.Timestamp] = {"WPC": pd.Timestamp("2019-03-31")}
+NAV_DESDE: dict[str, pd.Timestamp] = {
+    "WPC": pd.Timestamp("2019-03-31"),
+    # EPRT: hasta el 2T-2020 su deuda garantizada del Master Trust iba con una etiqueta propia y la
+    # deuda armada salía de 6% a 33% corta; desde el 3T-2020 cuadra con la reportada.
+    "EPRT": pd.Timestamp("2020-09-30"),
+}
 DIAS_PORTADA = 150    # la portada del 10-Q/10-K del trimestre sale dentro de ~5 meses
 
 
