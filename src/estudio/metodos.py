@@ -575,6 +575,7 @@ class ResultadoMetodos:
     hasta: pd.Timestamp
     intrinsecos: object = None      # ``intrinsecos.ResultadoIntrinsecos``
     esperado: pd.DataFrame = field(default_factory=pd.DataFrame)   # ``retorno_esperado`` neto del broker
+    asignables: list[str] = field(default_factory=list)            # los que entran a la asignación
 
     def hoy(self) -> pd.DataFrame:
         """Qué dice cada método hoy para cada emisor."""
@@ -594,17 +595,39 @@ class ResultadoMetodos:
         return esperado_hoy(self.paneles, self.esperado)
 
 
+# Pre-registro de la ampliación (docs/estudios/ampliacion_preregistro.md, decisión 3): a la
+# asignación entre emisores entran solo los que tienen percentil del consenso desde 2008 o
+# antes. La asignación usa los meses comunes a todos y uno joven acortaría la ventana de los
+# demás. O, NNN y WPC lo cumplen, así que su resultado no cambia.
+PERCENTIL_DESDE_PARA_ASIGNAR = pd.Timestamp("2008-12-31")
+
+
+def para_asignar(paneles: dict[str, pd.DataFrame]) -> list[str]:
+    """Los emisores que entran a la asignación: con percentil del consenso desde 2008 o antes."""
+    salida = []
+    for t, p in paneles.items():
+        v = p["p_consenso"].dropna()
+        if len(v) and v.index[0] <= PERCENTIL_DESDE_PARA_ASIGNAR:
+            salida.append(t)
+    return sorted(salida)
+
+
 def estudiar(estudios: dict, *, n_azar: int = 200, intrinsecos: bool = True) -> ResultadoMetodos:
     baa, cpi, tbill = macro.cargar("baa"), macro.cargar("cpi"), rg.cargar_tbill()
     paneles = {t: panel(e, baa=baa, cpi=cpi, tbill=tbill) for t, e in estudios.items()}
     evaluaciones = {t: evaluar(p) for t, p in paneles.items()}
     backtests = {t: backtest_metodos(e, paneles[t], tbill) for t, e in estudios.items()}
-    m = mercado_comun(estudios)
+    asignables = para_asignar(paneles)
+    asignaciones = []
+    if len(asignables) >= 2:
+        m = mercado_comun({t: estudios[t] for t in asignables})
+        asignaciones = [asignar(m, paneles, x.clave, n_azar=n_azar) for x in METODOS]
     r = ResultadoMetodos(
         paneles=paneles, evaluaciones=evaluaciones, juntos=evaluar_juntos(paneles), backtests=backtests,
-        asignaciones=[asignar(m, paneles, x.clave, n_azar=n_azar) for x in METODOS],
+        asignaciones=asignaciones,
         nombres={t: (e.narrativa.nombre if e.narrativa else t) for t, e in estudios.items()},
         hasta=max(e.tabla.index[-1] for e in estudios.values()),
+        asignables=asignables,
     )
     r.esperado = retorno_esperado(paneles_netos(estudios, baa=baa, cpi=cpi, tbill=tbill))
     if intrinsecos:

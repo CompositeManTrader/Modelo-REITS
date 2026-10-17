@@ -76,7 +76,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from src.config import PRIMA_RIESGO_POR_SECTOR
+from src.config import EMISOR_POR_TICKER, PRIMA_RIESGO_POR_SECTOR
 from src.estudio.metodos import Metodo
 from src.modelo.valuacion import crecimiento_implicito
 
@@ -98,6 +98,18 @@ class Supuestos:
 
 
 SUPUESTOS = Supuestos()
+
+
+def prima_de(ticker: str, supuestos: Supuestos = SUPUESTOS) -> float:
+    """La prima del sector del emisor (``PRIMA_RIESGO_POR_SECTOR``), la misma de la aplicación.
+
+    Hasta la ampliación a siete emisores más todos eran de arrendamiento neto y la prima era una
+    sola. Fijado en el pre-registro de la ampliación (docs/estudios/ampliacion_preregistro.md,
+    decisión 2) antes de ver retornos: no mueve ninguna cifra de O, NNN ni WPC. Un emisor sin
+    sector conocido usa la de los supuestos.
+    """
+    emisor = EMISOR_POR_TICKER.get(ticker.upper())
+    return PRIMA_RIESGO_POR_SECTOR.get(emisor.sector, supuestos.prima) if emisor else supuestos.prima
 
 NOTAS_DE_METODO: tuple[str, ...] = (
     "Diseño fijado antes de correr, en su propio commit: supuestos, umbrales de la señal absoluta e "
@@ -521,7 +533,7 @@ def agregar(p: pd.DataFrame, e, *, supuestos: Supuestos = SUPUESTOS, crudos: pd.
     g_div = crecimiento_anual(t["dividendo_anualizado"], p.index, s.anios_historia)
     columna = "affo_ttm" if e.medida.concepto == "affo_por_accion" else "ffo_ttm"
     g_flujo = crecimiento_anual(t[columna], p.index, s.anios_historia)
-    base = _valores(p, g_div, g_flujo, s.prima, s)
+    base = _valores(p, g_div, g_flujo, prima_de(e.ticker, s), s)
     for k in ("r", "g_ddm", "g_flujo_5a", "g_implicito", "valor_ddm", "valor_dcf"):
         p[k] = base[k]
     p["g_dividendo_5a"] = g_div
@@ -610,7 +622,7 @@ def estudiar(estudios: dict, paneles_metodos: dict[str, pd.DataFrame], *, n_azar
         sufijo = f"_prima_{round(prima * 1e4)}"
         variantes = tuple(Metodo(f"{m.clave}{sufijo}", m.nombre, "") for m in INTRINSECOS)
         for t, e in estudios.items():
-            b = bt_a[t] if prima == supuestos.prima else mt.backtest_metodos(e, paneles[t], tbill, variantes,
+            b = bt_a[t] if prima == prima_de(t, supuestos) else mt.backtest_metodos(e, paneles[t], tbill, variantes,
                                                                              senal="a_")
             for m, fila in zip(INTRINSECOS, b.itertuples(), strict=True):
                 a = paneles[t][f"a_{m.clave}{sufijo}"]
@@ -619,11 +631,14 @@ def estudiar(estudios: dict, paneles_metodos: dict[str, pd.DataFrame], *, n_azar
                               "fraccion_barato": float((a == "barato").mean()) if len(a) else np.nan,
                               "fraccion_caro": float((a == "caro").mean()) if len(a) else np.nan,
                               "ventaja_tir": fila.ventaja_tir})
-    mercado = mt.mercado_comun(estudios)
+    asignables = mt.para_asignar(paneles_metodos)
+    mercado = mt.mercado_comun({t: estudios[t] for t in asignables}) if len(asignables) >= 2 else None
     comun = {"n_azar": n_azar}
-    asig_p = [_asignar_o_nada(mercado, paneles, m.clave, nombre=m.nombre, **comun) for m in INTRINSECOS]
-    asig_a = [_asignar_o_nada(mercado, paneles, m.clave, prefijo="v_", nombre=m.nombre, **comun)
-              for m in INTRINSECOS]
+    asig_p, asig_a = [], []
+    if mercado is not None:
+        asig_p = [_asignar_o_nada(mercado, paneles, m.clave, nombre=m.nombre, **comun) for m in INTRINSECOS]
+        asig_a = [_asignar_o_nada(mercado, paneles, m.clave, prefijo="v_", nombre=m.nombre, **comun)
+                  for m in INTRINSECOS]
     return ResultadoIntrinsecos(
         paneles=paneles, percentil=percentil, absoluta=absoluta,
         juntos_percentil=mt.evaluar_juntos(paneles, INTRINSECOS),
