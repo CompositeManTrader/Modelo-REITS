@@ -122,6 +122,8 @@ EVENTOS_DE_CAPITAL: dict[str, tuple[EventoDeCapital, ...]] = {
     # Sin splits, contrasplits ni escisiones: 10-K 2018-2025, y los 27 cierres publicados por el
     # emisor (jun-2018 a sep-2021) cuadran al centavo con el crudo del proveedor.
     "EPRT": (),
+    # Sin splits ni escisiones desde la salida a bolsa (1994); 57 cierres del emisor cuadran al centavo.
+    "ADC": (),
     # Sin splits ni escisiones (10-K 2004-2025; el proveedor no reporta ninguno; 55 cierres del emisor).
     "EXR": (),
     "WELL": (
@@ -293,6 +295,15 @@ class CambioDeFrecuencia:
 # Emisor → (frecuencia inicial, cambios). Verificado contra los documentos del emisor; un emisor
 # que no está aquí usa la frecuencia medida, como siempre.
 FRECUENCIAS_DEL_DIVIDENDO: dict[str, tuple[int, tuple[CambioDeFrecuencia, ...]]] = {
+    "ADC": (4, (
+        CambioDeFrecuencia(
+            dt.date(2021, 1, 15), 12,
+            "Comunicado del 4T-2020 (8-K del 18-feb-2021): «In January 2021, the Company announced the "
+            "transition to a monthly cash dividend and declared its inaugural monthly dividend of $0.207 per "
+            "share». El último trimestral (0.620) se pagó el 6-ene-2021; el primer mensual tiene fecha ex del "
+            "28-ene-2021.",
+        ),
+    )),
     "GNL": (12, (
         CambioDeFrecuencia(
             dt.date(2019, 6, 1), 4,
@@ -334,6 +345,16 @@ class InicioVerificable:
 
 
 INICIOS_VERIFICABLES: dict[str, InicioVerificable] = {
+    "ADC": InicioVerificable(
+        fecha=dt.date(1995, 1, 1),
+        motivo=(
+            "ADC cotiza en NYSE desde abril de 1994, pero su primera presentación electrónica en EDGAR es del "
+            "10-may-1996. Sus documentos más antiguos (el 10-K de 1996 y el S-11 de 1997) dan los dividendos "
+            "declarados trimestre por trimestre desde 1995, y coinciden con el proveedor uno por uno. De 1994 "
+            "solo dan el total del periodo desde la salida a bolsa (1.246 dólares), que contradice la suma del "
+            "proveedor (1.35): no hay cómo verificar cada pago de 1994."
+        ),
+    ),
     "WELL": InicioVerificable(
         fecha=dt.date(1990, 1, 1),
         motivo=(

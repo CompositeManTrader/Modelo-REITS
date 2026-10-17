@@ -240,6 +240,11 @@ RECETAS_NOI: dict[str, dict] = {
     # cuartos trimestres 2018-2025 al millar. La de totales no sirve: hasta 2020 metía los intereses
     # en «Total expenses». «Property expenses» va con la etiqueta CostOfPropertyRepairsAndMaintenance.
     "EPRT": {"ingresos": ("Revenues",), "gastos_inmuebles": ("CostOfPropertyRepairsAndMaintenance",)},
+    # ADC: la estructura de NNN y WPC, con las mismas etiquetas de 2009 a 2026.
+    "ADC": {"ingresos": ("Revenues",), "gastos_totales": ("CostsAndExpenses",),
+            "depreciacion": ("DepreciationAndAmortization",),
+            "deterioro": ("ImpairmentOfRealEstate", "ImpairmentOfLongLivedAssetsHeldForUse", "AssetImpairmentCharges"),
+            "administracion": ("GeneralAndAdministrativeExpense",)},
 }
 # Un NOI de hace más de un año no describe el portafolio de hoy.
 ANTIGUEDAD_MAXIMA_NOI = pd.DateOffset(months=12)
@@ -392,6 +397,9 @@ NAV_DESDE: dict[str, pd.Timestamp] = {
     # EPRT: hasta el 2T-2020 su deuda garantizada del Master Trust iba con una etiqueta propia y la
     # deuda armada salía de 6% a 33% corta; desde el 3T-2020 cuadra con la reportada.
     "EPRT": pd.Timestamp("2020-09-30"),
+    # ADC: el XBRL de 2012 trae ingresos trimestrales mal escalados (miles por millones) y en 2019 cambia la
+    # base del NOI (la amortización de rentas sobre y bajo mercado pasa a restarse de los ingresos).
+    "ADC": pd.Timestamp("2019-03-31"),
 }
 DIAS_PORTADA = 150    # la portada del 10-Q/10-K del trimestre sale dentro de ~5 meses
 
