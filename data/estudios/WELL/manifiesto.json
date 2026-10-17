@@ -1,0 +1,388 @@
+{
+  "ticker": "WELL",
+  "fuente": "MERCADO-YAHOO",
+  "descargado_en": "2026-10-17T06:03:47+00:00",
+  "primera_cotizacion": "1980-03-19",
+  "inicio_verificable": {
+    "fecha": "1990-01-01",
+    "motivo": "WELL cotiza desde antes de 1980 (como Health Care REIT, clave HCN), pero el proveedor no trae dividendos antes de 1987 y el primer reporte del emisor en EDGAR es el 10-K de 1994. Su tabla de datos seleccionados da las distribuciones por acción de 1990 a 1994, que coinciden con la suma anual del proveedor al centavo; el Item 5 de los 10-K da los pagos trimestre por trimestre desde 1993, y también coinciden. Los dividendos de 1987-1989 no tienen contra qué verificarse."
+  },
+  "precios": {
+    "n": 9266,
+    "desde": "1990-01-02",
+    "hasta": "2026-10-16"
+  },
+  "dividendos": {
+    "n": 147,
+    "desde": "1990-01-25",
+    "hasta": "2026-08-12"
+  },
+  "eventos": [
+    {
+      "fecha": "1985-09-04",
+      "factor": 1.5,
+      "tipo": "split",
+      "descripcion": "Split 3 por 2 de la acción común de Health Care REIT (según el proveedor).",
+      "fuente": "Solo el proveedor: el primer documento del emisor en EDGAR es de 1994 y no lo menciona. No afecta al estudio: es anterior al inicio verificable (1-ene-1990), así que solo toca precios que la serie corta. Desde 1990 no hubo otro: los dividendos trimestrales de los 10-K de 1993-2000 coinciden uno por uno con el proveedor y 57 cierres NYSE cuadran."
+    }
+  ],
+  "correcciones_de_dividendos": [
+    "2006-12-20: 0.3410 → 0.64 (regular). Comunicado del 4T-2006 (8-K del 26-feb-2007): el dividendo regular del 4T-2006 ($0.64) se pagó en dos partes por la fusión con Windrose, $0.3409 el 28-dic-2006 y $0.2991 el 20-feb-2007. Se juntan para que el TTM y el dividendo vigente no dibujen un recorte falso.",
+    "2007-01-29: 0.2990 → se quita (ya sumado en otro registro). Segunda parte ($0.2991) del dividendo del 4T-2006; ya sumada al registro del 20-dic-2006."
+  ],
+  "validacion": {
+    "traslape_n": 1255,
+    "traslape_error_max": 0.0031820730990299584,
+    "traslape_error_medio": 2.534473191165431e-06,
+    "anclas": [
+      {
+        "fecha": "1996-04-29",
+        "real": 22.75,
+        "reconstruido": 22.75,
+        "error": 0.0
+      },
+      {
+        "fecha": "1996-09-04",
+        "real": 22.5,
+        "reconstruido": 22.375,
+        "error": -0.005555555555555536
+      },
+      {
+        "fecha": "1996-12-12",
+        "real": 23.875,
+        "reconstruido": 23.875,
+        "error": 0.0
+      },
+      {
+        "fecha": "1997-02-13",
+        "real": 25.375,
+        "reconstruido": 25.375,
+        "error": 0.0
+      },
+      {
+        "fecha": "1997-04-16",
+        "real": 23.0,
+        "reconstruido": 23.0,
+        "error": 0.0
+      },
+      {
+        "fecha": "1997-10-23",
+        "real": 26.75,
+        "reconstruido": 26.75,
+        "error": 0.0
+      },
+      {
+        "fecha": "1998-02-24",
+        "real": 26.875,
+        "reconstruido": 26.875,
+        "error": 0.0
+      },
+      {
+        "fecha": "1998-03-25",
+        "real": 27.375,
+        "reconstruido": 27.375,
+        "error": 0.0
+      },
+      {
+        "fecha": "1998-10-06",
+        "real": 23.9375,
+        "reconstruido": 23.9375,
+        "error": 0.0
+      },
+      {
+        "fecha": "1999-03-15",
+        "real": 23.0625,
+        "reconstruido": 23.0625,
+        "error": 0.0
+      },
+      {
+        "fecha": "2001-06-14",
+        "real": 23.81,
+        "reconstruido": 23.809999465942383,
+        "error": -2.2429971213711042e-08
+      },
+      {
+        "fecha": "2001-08-02",
+        "real": 24.8,
+        "reconstruido": 24.799999237060547,
+        "error": -3.076368770837945e-08
+      },
+      {
+        "fecha": "2001-08-07",
+        "real": 24.95,
+        "reconstruido": 24.950000762939453,
+        "error": 3.057873554368484e-08
+      },
+      {
+        "fecha": "2002-02-25",
+        "real": 27.59,
+        "reconstruido": 27.59000015258789,
+        "error": 5.530550684085256e-09
+      },
+      {
+        "fecha": "2002-05-08",
+        "real": 28.48,
+        "reconstruido": 28.479999542236328,
+        "error": -1.6073162689700382e-08
+      },
+      {
+        "fecha": "2002-11-12",
+        "real": 28.1,
+        "reconstruido": 28.100000381469727,
+        "error": 1.357543499835856e-08
+      },
+      {
+        "fecha": "2003-07-09",
+        "real": 31.65,
+        "reconstruido": 31.649999618530273,
+        "error": -1.2052755904434775e-08
+      },
+      {
+        "fecha": "2003-12-01",
+        "real": 35.1,
+        "reconstruido": 35.099998474121094,
+        "error": -4.3472333510763406e-08
+      },
+      {
+        "fecha": "2003-12-02",
+        "real": 34.84,
+        "reconstruido": 34.84000015258789,
+        "error": 4.379675289101215e-09
+      },
+      {
+        "fecha": "2005-11-16",
+        "real": 35.0,
+        "reconstruido": 35.0,
+        "error": 0.0
+      },
+      {
+        "fecha": "2006-04-05",
+        "real": 37.01,
+        "reconstruido": 37.0099983215332,
+        "error": -4.5351710165064674e-08
+      },
+      {
+        "fecha": "2006-11-10",
+        "real": 39.56,
+        "reconstruido": 39.560001373291016,
+        "error": 3.4714130681123834e-08
+      },
+      {
+        "fecha": "2006-11-14",
+        "real": 39.09,
+        "reconstruido": 39.09000015258789,
+        "error": 3.90350174406251e-09
+      },
+      {
+        "fecha": "2007-04-10",
+        "real": 45.49,
+        "reconstruido": 45.4900016784668,
+        "error": 3.689748950819194e-08
+      },
+      {
+        "fecha": "2007-07-13",
+        "real": 41.18,
+        "reconstruido": 41.18000030517578,
+        "error": 7.410776659000362e-09
+      },
+      {
+        "fecha": "2007-12-03",
+        "real": 44.36,
+        "reconstruido": 44.36000061035156,
+        "error": 1.375905234191066e-08
+      },
+      {
+        "fecha": "2008-03-03",
+        "real": 41.52,
+        "reconstruido": 41.52000045776367,
+        "error": 1.10251365814662e-08
+      },
+      {
+        "fecha": "2008-09-02",
+        "real": 51.79,
+        "reconstruido": 51.790000915527344,
+        "error": 1.7677685759664996e-08
+      },
+      {
+        "fecha": "2008-11-05",
+        "real": 40.67,
+        "reconstruido": 40.66999816894531,
+        "error": -4.5022244599124406e-08
+      },
+      {
+        "fecha": "2009-01-28",
+        "real": 41.65,
+        "reconstruido": 41.650001525878906,
+        "error": 3.6635747990843015e-08
+      },
+      {
+        "fecha": "2009-05-06",
+        "real": 34.15,
+        "reconstruido": 34.150001525878906,
+        "error": 4.4681666366841455e-08
+      },
+      {
+        "fecha": "2009-08-31",
+        "real": 42.71,
+        "reconstruido": 42.709999084472656,
+        "error": -2.1435901276234404e-08
+      },
+      {
+        "fecha": "2010-03-09",
+        "real": 43.63,
+        "reconstruido": 43.630001068115234,
+        "error": 2.4481210836313494e-08
+      },
+      {
+        "fecha": "2010-09-20",
+        "real": 48.43,
+        "reconstruido": 48.43000030517578,
+        "error": 6.301378974171712e-09
+      },
+      {
+        "fecha": "2010-11-30",
+        "real": 46.28,
+        "reconstruido": 46.279998779296875,
+        "error": -2.6376472006539586e-08
+      },
+      {
+        "fecha": "2011-02-25",
+        "real": 50.86,
+        "reconstruido": 50.86000061035156,
+        "error": 1.2000620497332193e-08
+      },
+      {
+        "fecha": "2011-08-31",
+        "real": 50.96,
+        "reconstruido": 50.959999084472656,
+        "error": -1.7965607224113e-08
+      },
+      {
+        "fecha": "2011-11-03",
+        "real": 52.99,
+        "reconstruido": 52.9900016784668,
+        "error": 3.167516116064917e-08
+      },
+      {
+        "fecha": "2012-02-17",
+        "real": 55.46,
+        "reconstruido": 55.459999084472656,
+        "error": -1.65078857250478e-08
+      },
+      {
+        "fecha": "2012-08-06",
+        "real": 60.6,
+        "reconstruido": 60.599998474121094,
+        "error": -2.5179519913542947e-08
+      },
+      {
+        "fecha": "2012-11-16",
+        "real": 59.56,
+        "reconstruido": 59.560001373291016,
+        "error": 2.3057270093218563e-08
+      },
+      {
+        "fecha": "2013-05-07",
+        "real": 75.62,
+        "reconstruido": 75.62000274658203,
+        "error": 3.632084144555847e-08
+      },
+      {
+        "fecha": "2013-05-08",
+        "real": 74.15,
+        "reconstruido": 74.1500015258789,
+        "error": 2.057827241941368e-08
+      },
+      {
+        "fecha": "2014-05-23",
+        "real": 64.51,
+        "reconstruido": 64.51000213623047,
+        "error": 3.311471807876387e-08
+      },
+      {
+        "fecha": "2014-09-10",
+        "real": 66.22,
+        "reconstruido": 66.22000122070312,
+        "error": 1.843405517121255e-08
+      },
+      {
+        "fecha": "2014-09-11",
+        "real": 66.49,
+        "reconstruido": 66.48999786376953,
+        "error": -3.212859778223276e-08
+      },
+      {
+        "fecha": "2015-02-20",
+        "real": 78.05,
+        "reconstruido": 78.05000305175781,
+        "error": 3.9100036097750035e-08
+      },
+      {
+        "fecha": "2015-08-04",
+        "real": 69.21,
+        "reconstruido": 69.20999908447266,
+        "error": -1.3228252271346719e-08
+      },
+      {
+        "fecha": "2015-09-24",
+        "real": 67.91,
+        "reconstruido": 67.91000366210938,
+        "error": 5.392592217212666e-08
+      },
+      {
+        "fecha": "2017-02-22",
+        "real": 67.7,
+        "reconstruido": 67.69999694824219,
+        "error": -4.507766349082232e-08
+      },
+      {
+        "fecha": "2017-06-01",
+        "real": 72.96,
+        "reconstruido": 72.95999908447266,
+        "error": -1.254834613995115e-08
+      },
+      {
+        "fecha": "2017-07-28",
+        "real": 73.07,
+        "reconstruido": 73.06999969482422,
+        "error": -4.176485157714183e-09
+      },
+      {
+        "fecha": "2018-05-17",
+        "real": 53.93,
+        "reconstruido": 53.93000030517578,
+        "error": 5.658738810865316e-09
+      },
+      {
+        "fecha": "2018-08-02",
+        "real": 63.17,
+        "reconstruido": 63.16999816894531,
+        "error": -2.8986143596476666e-08
+      },
+      {
+        "fecha": "2019-02-22",
+        "real": 75.44,
+        "reconstruido": 75.44000244140625,
+        "error": 3.2362224899884495e-08
+      },
+      {
+        "fecha": "2021-05-03",
+        "real": 76.49,
+        "reconstruido": 76.48999786376953,
+        "error": -2.7928231949303495e-08
+      },
+      {
+        "fecha": "2021-07-29",
+        "real": 87.73,
+        "reconstruido": 87.7300033569336,
+        "error": 3.826437477982836e-08
+      }
+    ],
+    "dividendos_traslape_n": 20,
+    "dividendos_error_max": 0.0,
+    "rangos_n": 0,
+    "rangos_fuera": [],
+    "rangos_aceptados": [],
+    "anclas_aceptadas": []
+  }
+}

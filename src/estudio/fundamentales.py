@@ -117,6 +117,17 @@ MEDIDAS_DE_VALUACION["EXR"] = MedidaDeValuacion(
         "(feb-2010) se usa el FFO de Nareit."
     ),
 )
+MEDIDAS_DE_VALUACION["WELL"] = MedidaDeValuacion(
+    "normalized_ffo_por_accion", "FFO normalizado", encadena="ffo_por_accion",
+    motivo=(
+        "WELL se valúa por su FFO normalizado («Normalized FFO»), la cifra de los titulares de sus "
+        "comunicados desde 2006 y de su guía desde 2009. Su FFO de Nareit carga partidas que no se repiten: "
+        "extinción de deuda (14% del FFO en 2005, 12% en 2010) y costos de fusiones y compras (17% en 2010, "
+        "13% en 2011, 15% en 2017); en 2025, un plan especial de compensación de 1,497 millones dejó el FFO de "
+        "Nareit en 2.68 dólares por acción contra 5.29 normalizado. Antes de su primera cifra normalizada "
+        "publicada (feb-2007) se usa el FFO de Nareit sin deterioros; antes de 2000 el emisor no publicó FFO."
+    ),
+)
 MEDIDAS_DE_VALUACION["GNL"] = MedidaDeValuacion(
     "affo_por_accion", "AFFO",
     motivo=(

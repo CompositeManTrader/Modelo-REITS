@@ -124,6 +124,16 @@ EVENTOS_DE_CAPITAL: dict[str, tuple[EventoDeCapital, ...]] = {
     "EPRT": (),
     # Sin splits ni escisiones (10-K 2004-2025; el proveedor no reporta ninguno; 55 cierres del emisor).
     "EXR": (),
+    "WELL": (
+        EventoDeCapital(
+            fecha=dt.date(1985, 9, 4), factor=1.5, tipo="split",
+            descripcion="Split 3 por 2 de la acción común de Health Care REIT (según el proveedor).",
+            fuente="Solo el proveedor: el primer documento del emisor en EDGAR es de 1994 y no lo menciona. "
+                   "No afecta al estudio: es anterior al inicio verificable (1-ene-1990), así que solo toca "
+                   "precios que la serie corta. Desde 1990 no hubo otro: los dividendos trimestrales de los "
+                   "10-K de 1993-2000 coinciden uno por uno con el proveedor y 57 cierres NYSE cuadran.",
+        ),
+    ),
     "GNL": (
         EventoDeCapital(
             fecha=dt.date(2017, 3, 1),
@@ -227,6 +237,21 @@ CORRECCIONES_DE_DIVIDENDOS: dict[str, tuple[CorreccionDividendo, ...]] = {
             fuente="Segunda parte del dividendo del 3T-2023; ya sumada al registro del 12-jul-2023.",
         ),
     ),
+    # WELL: el regular del 4T-2006 ($0.64) se pagó en dos partes por la fusión con Windrose.
+    "WELL": (
+        CorreccionDividendo(
+            fecha_ex=dt.date(2006, 12, 20), proveedor=0.341,
+            partes=((0.64, "regular"),),
+            fuente="Comunicado del 4T-2006 (8-K del 26-feb-2007): el dividendo regular del 4T-2006 ($0.64) se "
+                   "pagó en dos partes por la fusión con Windrose, $0.3409 el 28-dic-2006 y $0.2991 el "
+                   "20-feb-2007. Se juntan para que el TTM y el dividendo vigente no dibujen un recorte falso.",
+        ),
+        CorreccionDividendo(
+            fecha_ex=dt.date(2007, 1, 29), proveedor=0.299,
+            partes=(),
+            fuente="Segunda parte ($0.2991) del dividendo del 4T-2006; ya sumada al registro del 20-dic-2006.",
+        ),
+    ),
     "WPC": (
         CorreccionDividendo(
             fecha_ex=dt.date(2007, 12, 27), proveedor=0.747,
@@ -309,6 +334,16 @@ class InicioVerificable:
 
 
 INICIOS_VERIFICABLES: dict[str, InicioVerificable] = {
+    "WELL": InicioVerificable(
+        fecha=dt.date(1990, 1, 1),
+        motivo=(
+            "WELL cotiza desde antes de 1980 (como Health Care REIT, clave HCN), pero el proveedor no trae "
+            "dividendos antes de 1987 y el primer reporte del emisor en EDGAR es el 10-K de 1994. Su tabla de "
+            "datos seleccionados da las distribuciones por acción de 1990 a 1994, que coinciden con la suma "
+            "anual del proveedor al centavo; el Item 5 de los 10-K da los pagos trimestre por trimestre desde "
+            "1993, y también coinciden. Los dividendos de 1987-1989 no tienen contra qué verificarse."
+        ),
+    ),
     "NNN": InicioVerificable(
         fecha=dt.date(1992, 1, 1),
         motivo=(
