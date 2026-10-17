@@ -53,7 +53,10 @@ if len(con_estudio) < 2:
 
 @st.cache_data(show_spinner="Evaluando los métodos trimestre por trimestre…", max_entries=4)
 def _resultado(_repo, tickers: tuple[str, ...], asof, firma: tuple):
-    return metodos.estudiar({t: mod_estudio.armar(_repo, t, asof=asof) for t in tickers})
+    from src.estudio import ampliacion
+
+    return metodos.estudiar({t: mod_estudio.armar(_repo, t, asof=asof) for t in tickers},
+                            asignar_entre=ampliacion.asignar_entre(tickers))
 
 
 r = _resultado(repo, tuple(con_estudio), asof, firma_de_la_base())

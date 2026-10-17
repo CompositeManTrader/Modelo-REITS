@@ -617,12 +617,15 @@ def para_asignar(paneles: dict[str, pd.DataFrame]) -> list[str]:
     return sorted(salida)
 
 
-def estudiar(estudios: dict, *, n_azar: int = 200, intrinsecos: bool = True) -> ResultadoMetodos:
+def estudiar(estudios: dict, *, n_azar: int = 200, intrinsecos: bool = True,
+             asignar_entre: tuple[str, ...] | None = None) -> ResultadoMetodos:
+    """``asignar_entre``: quiénes entran a la asignación; por omisión, la regla de ``para_asignar``."""
     baa, cpi, tbill = macro.cargar("baa"), macro.cargar("cpi"), rg.cargar_tbill()
     paneles = {t: panel(e, baa=baa, cpi=cpi, tbill=tbill) for t, e in estudios.items()}
     evaluaciones = {t: evaluar(p) for t, p in paneles.items()}
     backtests = {t: backtest_metodos(e, paneles[t], tbill) for t, e in estudios.items()}
-    asignables = para_asignar(paneles)
+    asignables = (sorted(t for t in asignar_entre if t in paneles) if asignar_entre is not None
+                  else para_asignar(paneles))
     asignaciones = []
     if len(asignables) >= 2:
         m = mercado_comun({t: estudios[t] for t in asignables})
@@ -638,7 +641,7 @@ def estudiar(estudios: dict, *, n_azar: int = 200, intrinsecos: bool = True) -> 
     if intrinsecos:
         from src.estudio import intrinsecos as it
 
-        r.intrinsecos = it.estudiar(estudios, paneles, n_azar=n_azar, tbill=tbill)
+        r.intrinsecos = it.estudiar(estudios, paneles, n_azar=n_azar, tbill=tbill, asignables=asignables)
     return r
 
 

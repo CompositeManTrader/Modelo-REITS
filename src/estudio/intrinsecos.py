@@ -499,10 +499,12 @@ def validacion_nav(e, d: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame(columns=["emisor", "anio", "armado", "reportado", "diferencia", "se_usa"])
     v, _ = rg._primaria(primarios, "deuda_neta_ebitdare_proforma")
     filas = []
+    # Un emisor sin receta de NOI trae la columna vacía y sin tipo de fecha.
+    anio_nav = pd.to_datetime(d["trimestre_nav"]).dt.year
     for anio, rep in v.dropna().items():
         corte = pd.Timestamp(int(anio), 12, 31)
         # Los meses cuyo NAV sale de algún trimestre de ese año: la mediana de lo armado.
-        del_anio = d["trimestre_nav"].dt.year == int(anio)
+        del_anio = anio_nav == int(anio)
         x = d.loc[del_anio, "deuda_neta_ebitda"].dropna()
         if x.empty:
             continue
@@ -621,7 +623,8 @@ def _asignar_o_nada(m, paneles, clave, **kw):
 
 
 def estudiar(estudios: dict, paneles_metodos: dict[str, pd.DataFrame], *, n_azar: int = 200,
-             supuestos: Supuestos = SUPUESTOS, tbill: pd.Series | None = None) -> ResultadoIntrinsecos:
+             supuestos: Supuestos = SUPUESTOS, tbill: pd.Series | None = None,
+             asignables: list[str] | None = None) -> ResultadoIntrinsecos:
     from src.estudio import metodos as mt
     from src.estudio import reglas as rg
 
@@ -648,7 +651,7 @@ def estudiar(estudios: dict, paneles_metodos: dict[str, pd.DataFrame], *, n_azar
                               "fraccion_barato": float((a == "barato").mean()) if len(a) else np.nan,
                               "fraccion_caro": float((a == "caro").mean()) if len(a) else np.nan,
                               "ventaja_tir": fila.ventaja_tir})
-    asignables = mt.para_asignar(paneles_metodos)
+    asignables = mt.para_asignar(paneles_metodos) if asignables is None else asignables
     mercado = mt.mercado_comun({t: estudios[t] for t in asignables}) if len(asignables) >= 2 else None
     comun = {"n_azar": n_azar}
     asig_p, asig_a = [], []

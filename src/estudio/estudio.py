@@ -147,6 +147,16 @@ def _describir_crecimiento(nombre: str) -> str:
     return f"el {medida} en los últimos {horizonte}" if horizonte else nombre
 
 
+def _parte_del_negocio(total) -> str:
+    """Qué parte del retorno produjo el negocio. Con un retorno cercano a cero la fracción no dice
+    nada (GNL: −0.1% al año daba «−2330%»); entonces se dice en puntos al año."""
+    if abs(total.retorno_total) < 0.02:
+        negocio = (1 + total.ingreso) * (1 + total.crecimiento_dividendo) - 1
+        return (f"El negocio produjo {negocio * 100:+.1f} puntos al año y el cambio de valuación "
+                f"({total.revaluacion * 100:+.1f}) los borró; ")
+    return f"El negocio produjo {(total.ingreso + total.crecimiento_dividendo) / total.retorno_total:.0%} del retorno; "
+
+
 def _conclusiones(e: Estudio) -> list[Conclusion]:
     h, total, ent = e.hoy, e.total, e.entradas
     tk = e.ticker
@@ -167,9 +177,8 @@ def _conclusiones(e: Estudio) -> list[Conclusion]:
         f"{desde_cuando(e)}, {tk} rindió {total.retorno_total:.1%} al año en dólares con los "
         f"dividendos reinvertidos. De eso, {total.ingreso:.1%} fue el dividendo cobrado, "
         f"{total.crecimiento_dividendo:.1%} el crecimiento del dividendo por acción y "
-        f"{total.revaluacion:+.1%} el cambio de valuación. El negocio produjo "
-        f"{(total.ingreso + total.crecimiento_dividendo) / total.retorno_total:.0%} del retorno; "
-        + mercado_txt,
+        f"{total.revaluacion:+.1%} el cambio de valuación. "
+        + _parte_del_negocio(total) + mercado_txt,
         "favorable" if total.retorno_total > 0.08 else "neutral",
     ))
 

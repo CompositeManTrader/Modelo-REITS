@@ -335,7 +335,7 @@ def _valuacion(e, fig) -> str:
         "usa solo lo que se había publicado entonces. La franja es el 60% central de la historia; "
         f"la línea punteada, la mediana.{motivo}</p>"
         + fig("multiplo")
-        + "<div class='bloque'><p><b>Contra el bono.</b> Un REIT de arrendamiento neto compite con "
+        + "<div class='bloque'><p><b>Contra el bono.</b> Un REIT compite con "
         "el Treasury por el mismo ahorrador. Cuando el bono paga más, al REIT le exigen más yield y "
         "su precio baja.</p>" + fig("yield_bono") + "</div>" + fig("spread")
     )

@@ -241,10 +241,26 @@ def por_accion(e, t: Tema = OSCURO) -> go.Figure:
     return fig
 
 
+def _medida_anual(e) -> pd.Series:
+    """La medida de valuación por año. La tabla anual trae FFO y AFFO; una serie core o normalizada
+    sale de las cifras primarias, encadenada con la que la precede en los años en que no existía."""
+    a, m = e.anual, e.medida
+    if m.concepto in a:
+        return a[m.concepto]
+    p = getattr(e, "primarios", None)
+    propia = pd.Series(dtype=float)
+    if p is not None and not p.empty:
+        propia = p[p["concepto"] == m.concepto].groupby("anio")["valor_actual"].last()
+        propia.index = propia.index.astype(int)
+    previa = a[m.encadena] if m.encadena and m.encadena in a else pd.Series(dtype=float)
+    return propia.combine_first(previa).reindex(a.index)
+
+
 def escala_contra_accion(e, t: Tema = OSCURO) -> go.Figure:
     """El negocio creció muchas veces; la acción, bastantes menos. Base 100."""
-    a = e.anual
+    a = e.anual.copy()
     m = e.medida
+    a[m.concepto] = _medida_anual(e)
     base = next((y for y in a.index if pd.notna(a.get("acciones_diluidas", pd.Series()).get(y))
                  and pd.notna(a.get(m.concepto, pd.Series()).get(y))), None)
     fig = go.Figure()

@@ -224,7 +224,7 @@ st.markdown(
 )
 grafica("multiplo")
 st.markdown(
-    "**Contra el bono.** Un REIT de arrendamiento neto compite con el Treasury por el mismo "
+    "**Contra el bono.** Un REIT compite con el Treasury por el mismo "
     "ahorrador: contratos largos, renta que sube poco a poco. Cuando el bono paga más, al "
     "REIT le exigen más yield y su precio baja."
 )

@@ -186,11 +186,12 @@ def cmd_universo() -> int:
 
 
 def cmd_metodos() -> int:
-    from src.estudio import metodos
+    from src.estudio import ampliacion, metodos
     from src.export import excel_metodos
     from src.export.pdf_metodos import generar_pdf
 
-    r = metodos.estudiar({t: _armar(t) for t in mercado.con_estudio()})
+    tickers = mercado.con_estudio()
+    r = metodos.estudiar({t: _armar(t) for t in tickers}, asignar_entre=ampliacion.asignar_entre(tickers))
     for c in metodos.conclusiones(r):
         print(f"\n{c.titulo}\n  {c.texto}")
     carpeta = RAIZ / "docs" / "estudios"

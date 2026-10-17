@@ -30,6 +30,24 @@ from src.estudio import reglas as rg
 
 ORIGINALES = ("NNN", "O", "WPC")
 NUEVOS = ("ADC", "EPRT", "EXR", "GNL", "PLD", "PSA", "WELL")
+# Quiénes entran a la asignación, con nombre, como los fija el pre-registro (decisión 3). EXR tiene
+# percentil desde feb-2009, dos meses después del corte de 2008: «si a alguno le falta percentil en
+# 2008, se reporta con la ventana que haya, sin sustituirlo».
+ASIGNACION = {
+    "originales": ORIGINALES,
+    "siete": ("ADC", "EXR", "PLD", "PSA", "WELL"),
+    "siete_nareit": ("ADC", "EXR", "PLD", "PSA", "WELL"),
+    "diez": ("ADC", "EXR", "NNN", "O", "PLD", "PSA", "WELL", "WPC"),
+}
+
+
+def asignar_entre(tickers) -> tuple[str, ...] | None:
+    """Para el PDF y la página con todos los emisores: los de «los diez» que haya; si solo están los
+    originales, los originales; si no, la regla general de ``metodos.para_asignar``."""
+    t = set(tickers)
+    if t <= set(ORIGINALES):
+        return None
+    return tuple(x for x in ASIGNACION["diez"] if x in t)
 MIN_TRIMESTRES = 40            # 2 ventanas independientes de 5 años (pre-registro, decisión 4)
 MEJORA_MINIMA = 0.005          # +50 pb
 DIFERENCIA_BARATO_CARO = 0.03  # 3 puntos al año
@@ -188,7 +206,7 @@ class Grupo:
 
 
 def evaluar_grupo(nombre: str, estudios: dict, *, n_azar: int = N_AZAR) -> Grupo:
-    r = mt.estudiar(estudios, n_azar=n_azar)
+    r = mt.estudiar(estudios, n_azar=n_azar, asignar_entre=ASIGNACION.get(nombre))
     netos = mt.paneles_netos(estudios)
     reglas = {t: rg.backtest(e) for t, e in estudios.items()}
     a, b = h1(netos)
