@@ -17,6 +17,7 @@
     python scripts/estudio.py satelite elegir       # anota la aportación en papel del mes (feb, may, ago, nov)
     python scripts/estudio.py satelite elegir --vista-previa   # qué compraría hoy, sin anotar nada
     python scripts/estudio.py satelite evaluar      # la cuenta en papel contra SCHH (baja de Yahoo)
+    python scripts/estudio.py ampliacion            # ¿se repiten las conclusiones de O, NNN y WPC en los otros siete?
 
 ``mercado`` y ``tbill`` son lo único que toca la red. Se niega a guardar si la serie no cuadra
 contra el proveedor diario y las anclas NYSE: una historia larga que no coincide
@@ -281,6 +282,19 @@ def cmd_satelite(accion: str, vista_previa: bool = False) -> int:
     return 0
 
 
+def cmd_ampliacion() -> int:
+    from src.estudio import ampliacion
+
+    estudios = {t: _armar(t) for t in mercado.con_estudio() if t in (*ampliacion.ORIGINALES, *ampliacion.NUEVOS)}
+    print(f"Emisores con estudio: {', '.join(sorted(estudios))}")
+    grupos = ampliacion.correr(estudios)
+    destino = ampliacion.guardar(grupos)
+    ampliacion.INFORME.write_text(ampliacion.informe(grupos) + "\n", encoding="utf-8")
+    print(ampliacion.tabla(grupos)[["grupo", "hipotesis", "se_repite", "cifras"]].to_string(index=False))
+    print(f"\nResultados en {destino.relative_to(RAIZ)} y {ampliacion.INFORME.relative_to(RAIZ)}")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="comando", required=True)
@@ -298,7 +312,10 @@ def main() -> int:
     s_ = sub.add_parser("satelite")
     s_.add_argument("accion", choices=["explorar", "elegir", "evaluar"])
     s_.add_argument("--vista-previa", action="store_true", help="con elegir: muestra lo que compraría, sin anotar")
+    sub.add_parser("ampliacion")
     args = p.parse_args()
+    if args.comando == "ampliacion":
+        return cmd_ampliacion()
     if args.comando == "tbill":
         return cmd_tbill()
     if args.comando == "macro":
