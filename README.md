@@ -352,8 +352,11 @@ se sabía ese día— y si lo que paga hoy compensa el riesgo contra el Udibono.
 mismo objeto (`src/estudio/estudio.py`) alimenta la página y el PDF, así que no
 pueden decir cifras distintas.
 
-Hoy hay tres emisores: **O** (desde su listado en 1994), **NNN** (desde 1992) y **WPC**
-(desde su listado en 1998, como Carey Diversified).
+Hoy hay diez emisores. Los tres con los que se hizo el estudio: **O** (desde su listado
+en 1994), **NNN** (desde 1992) y **WPC** (desde su listado en 1998, como Carey
+Diversified). Y los siete con los que se repitió como prueba fuera de muestra (sección
+[Diez emisores](#diez-emisores-se-repiten-las-conclusiones)): **ADC**, **EPRT**, **EXR**,
+**GNL**, **PLD**, **PSA** y **WELL**.
 
 ```bash
 python scripts/estudio.py mercado NNN   # baja, desajusta, valida y versiona precio y dividendos
@@ -363,9 +366,9 @@ python scripts/estudio.py pdf NNN       # genera docs/estudios/estudio_NNN.pdf (
 
 | Qué | Desde | De dónde |
 |---|---|---|
-| Precio y dividendos | O: 1994 · NNN: 1992 · WPC: 1998 | `data/estudios/<TICKER>/`, versionado, con su manifiesto de validación |
-| Cierres NYSE para validar la historia larga | NNN: 1996-2024 · WPC: 1998-2025 | `data/estudios/<TICKER>/anclas.csv`, cada uno con su cita |
-| FFO, AFFO y la operación por año | O: 1996 · NNN: 1992 · WPC: 1998 | 10-K, prospectos y comunicados, cifra por cifra: `anuales_primarios.csv` |
+| Precio y dividendos | PSA y WELL: 1990 · NNN: 1992 · O: 1994 · ADC: 1995 · PLD: 1997 · WPC: 1998 · EXR: 2004 · GNL: 2015 · EPRT: 2018 | `data/estudios/<TICKER>/`, versionado, con su manifiesto de validación |
+| Cierres NYSE para validar la historia larga | entre 27 (EPRT) y 66 (WPC) por emisor, de 1995 a 2025 | `data/estudios/<TICKER>/anclas.csv`, cada uno con su cita |
+| FFO, AFFO y la operación por año | desde la salida a bolsa de cada uno (o el primer 10-K que la publica) | 10-K, prospectos y comunicados, cifra por cifra: `anuales_primarios.csv` |
 | Estados financieros | 2008 | XBRL de la base |
 | FFO y AFFO trimestrales | 2019 | 8-K de la base, solo si no contradicen a lo reportado; WPC: capturados de cada comunicado, `trimestrales_primarios.csv` |
 
@@ -506,7 +509,8 @@ python scripts/estudio.py metodos   # PDF y Excel de todos los emisores con estu
 ```
 
 Siete métodos, cada uno construido para que más alto sea más barato y comparado contra
-**la historia propia del emisor** (P4, P5): múltiplo P/FFO (P/AFFO en WPC), prima sobre el
+**la historia propia del emisor** (P4, P5): múltiplo de la medida de cada emisor (P/FFO,
+o P/AFFO en WPC y GNL; la tabla está en la sección de diez emisores), prima sobre el
 Treasury (la Puerta 2), prima sobre la tasa real, prima sobre bonos Baa, yield de
 dividendo, dividendo sobre el Treasury y múltiplo contra su mediana de 5 años; más el
 **consenso**, el promedio de los siete percentiles. Cada fin de mes con lo publicado a
@@ -519,10 +523,13 @@ años siguientes. Lo que salió:
 - **Esperar no paga**: aun cuando decía caro, el papel le ganó al T-bill en la mayoría de
   los casos. Comprar menos cuando está caro queda cerca de cero o abajo contra aportar
   siempre, con cualquier método. Es la misma razón por la que el semáforo sale mediocre.
-- **Escoger a cuál de los tres sí paga**: mandar toda la aportación del mes al emisor con
-  el percentil más alto contra su propia historia —sin guardar efectivo ni vender— le
-  ganó a partes iguales con los ocho métodos. Controles: el espejo (todo al más caro)
-  pierde, 200 sorteos con las mismas rachas casi nunca lo igualan, y gana en cada mitad.
+- **Escoger a cuál de los tres parecía pagar, pero no se sostuvo**: con O, NNN y WPC,
+  mandar toda la aportación del mes al emisor con el percentil más alto contra su propia
+  historia —sin guardar efectivo ni vender— le ganó a partes iguales con los ocho
+  métodos y pasó sus controles (el espejo perdía, el azar casi nunca lo igualaba, ganaba
+  en cada mitad). Con los diez emisores **no los pasa**: mandarla al más caro también
+  le gana a repartir parejo, así que la ventaja no viene de la valuación. La
+  recomendación se retiró; el PDF lo dice así.
 - **INCONCLUSO** para P7 (decenas de cambios, no cien), con sesgo de supervivencia
   declarado: la regla solo debe repartir entre emisores que pasan la Puerta 1.
 
@@ -566,8 +573,86 @@ Lo que salió, y se había escrito antes de correr:
   yield de dividendo solo; el DCF y el crecimiento implícito no predicen.
 - **El NAV** es el que más correlación muestra, con dos ventanas de 5 años: no alcanza
   para concluir. Para servir necesita el NOI del suplemento y más años.
-- **Ninguno pasa los controles de la asignación**; el consenso de los siete sigue siendo
-  la regla recomendada.
+- **Ninguno pasa los controles de la asignación**, y con diez emisores el consenso de
+  los siete tampoco.
+
+## Diez emisores: ¿se repiten las conclusiones?
+
+Todo lo anterior salió de tres emisores escogidos hoy, y con tres es fácil encontrar
+patrones que no existen. Por eso se repitió el estudio completo con siete más, de
+cuatro sectores: ADC y EPRT (net lease), EXR y PSA (bodegas), PLD (industrial), WELL
+(salud) y GNL (net lease diversificado y muy apalancado). La captura fue la misma que
+con O, NNN y WPC: FFO desde la salida a bolsa leído de cada 10-K, con la cita de cada
+cifra; catálogo de splits, escisiones y dividendos mal registrados; narrativa por eras
+con fuente en cada hito; calificaciones, y NAV donde el NOI se puede reconstruir.
+
+Las reglas se escribieron **antes** de ver un solo dato
+(`docs/estudios/ampliacion_preregistro.md`, en su propio commit): qué medida usar en cada
+emisor, la prima del DDM y el DCF por sector, qué emisores entran a la asignación y, para
+cada una de las ocho conclusiones de O, NNN y WPC, la cifra exacta con la que «se repite».
+
+```bash
+python scripts/estudio.py mercado ADC     # historia de mercado de un emisor nuevo
+python scripts/estudio.py ampliacion      # corre las ocho hipótesis en los cuatro grupos
+python scripts/estudio.py ampliacion-pdf  # docs/estudios/ampliacion_resultados.pdf
+```
+
+**Cada emisor con su medida**, por la regla del pre-registro: FFO de Nareit, salvo que una
+partida de una lista cerrada (gastos de fusión, cambiario de la deuda, extinción de deuda,
+promotes, ganancias por desarrollo) pese más de 10% del FFO y el emisor publique sin
+interrupción una serie que la quite. Antes de la primera publicación de esa serie se
+encadena el FFO de Nareit, y se corre todo otra vez solo con Nareit como sensibilidad.
+
+| Emisor | Medida | Por qué |
+|---|---|---|
+| ADC, EPRT, PSA | FFO de Nareit | ninguna partida de la lista pasa de 10% (la mayor: EPRT 6.3%, PSA 9.98%) |
+| EXR | Core FFO | recompra de notas canjeables con descuento (31% del FFO en 2009) y gastos de la compra de SmartStop (2015) |
+| PLD | Core FFO | ganancias por desarrollo, de 20% a 45% del FFO |
+| WELL | FFO normalizado | extinción de deuda (14% del FFO en 2005) y costos de fusiones y compras (17% en 2010) |
+| GNL | AFFO | comisiones del listado y gastos de adquisición (44% del FFO en 2015); costos de la fusión e internalización de 2023 |
+
+Lo que hubo que agregar para que el código sirviera con cualquier emisor:
+
+- **La frecuencia del dividendo cambia**: ADC pasó de trimestral a mensual en 2021 y GNL
+  de mensual a trimestral en 2019 (`FRECUENCIAS_DEL_DIVIDENDO` en `src/estudio/mercado.py`).
+  El TTM suma pagos hasta cubrir un año, y el anualizado usa la frecuencia de cada pago.
+- **El primer dividendo después de la salida a bolsa es proporcional** (GNL, PLD, EXR):
+  cuenta para el retorno total, pero no para el yield ni para el crecimiento del dividendo.
+- **Una serie encadenada** (`fundamentales.encadenar`) lleva Nareit hasta la primera
+  publicación de la serie del emisor, y la página dice desde cuándo.
+- **La prima del DDM y el DCF es por sector**: 3% net lease, 3.5% bodegas e industrial,
+  4.5% salud (`PRIMA_RIESGO_POR_SECTOR`).
+- **Solo entran a la asignación los que tienen percentil desde 2008**: EPRT y GNL se
+  estudian, pero no reciben aportación en el backtest de «a cuál va».
+
+Lo que salió (`docs/estudios/ampliacion_resultados.pdf`):
+
+| # | Conclusión de O, NNN y WPC | Los siete nuevos | Los diez juntos |
+|---|---|---|---|
+| H1 | Lo barato rinde más que lo caro a 5 años | **se repite**: 18.3% contra 8.4% | **se repite**: 18.2% contra 7.8%, 33 ventanas independientes |
+| H1b | Lo mismo, emisor por emisor | **se repite**: 4 de 5 | **se repite**: 7 de 8 (EXR es la excepción) |
+| H2 | Aun desde caro, el REIT le gana al efectivo | **se repite**: 78% de las veces | **se repite**: 75% |
+| H3 | El semáforo no le gana a aportar siempre | **no se repite**: gana en EPRT (+67 pb) y GNL (+515 pb) | **no se repite** |
+| H4 | Comprar solo cuando está barato no le gana a aportar siempre | **se repite**: 6 de 7 | **se repite**: 9 de 10 |
+| H5 | Mandar la aportación al más barato le gana a repartir parejo | **no se repite**: el azar le gana 19% de las veces y el espejo también gana | **no se repite**: el espejo gana +130 pb |
+| H6 | DDM, DCF y NAV no predicen mejor que los métodos simples | **se repite** | no se repite: el NAV (+0.71) sale con dos ventanas |
+| H7 | En los extremos la valuación separa | **se repite**: 21.5% contra 4.4% | **se repite**: 19.9% contra 4.4% |
+
+Lo que cambia para quien invierte:
+
+- **Sigue en pie**: la valuación dice cuánto esperar (de ~4% al año desde muy caro a
+  ~20% desde muy barato, con los diez), y esperar a que esté barato no paga.
+- **Se retira**: repartir la aportación entre emisores según cuál está más barato. Con
+  tres pasó sus controles; con diez, mandarla al más caro también le gana a partes
+  iguales, así que la ventaja era de los emisores, no de la regla. Los PDF de métodos y el
+  compilado ya lo dicen.
+- **H3 no se repite por una razón concreta**: la puerta de deterioro del semáforo dejó fuera
+  a GNL antes de sus años malos (+515 pb), pero le costó −536 pb en PLD y −257 pb en WELL,
+  que se recuperaron. Es una puerta de calidad que acierta en el emisor débil y estorba en
+  los buenos.
+- **GNL es la trampa de valor del estudio**: estuvo «barato» contra su historia varios
+  trimestres seguidos y en los 5 años siguientes perdió cerca de 10% al año; recortó el
+  dividendo cuatro veces. Lo barato de un emisor que se deteriora no es barato.
 
 ## ¿La valuación sabe escoger REITs? La prueba del universo
 
