@@ -246,7 +246,7 @@ def test_el_pdf_se_arma(r_metodos):
     from src.export.pdf_metodos import html_de_metodos
 
     documento = html_de_metodos(r_metodos, fuentes_css="")
-    for titulo in ("¿Predicen?", "A cuál de los tres va la aportación", "Metodología", "Qué hacer hoy"):
+    for titulo in ("¿Predicen?", "A cuál va la aportación", "Metodología", "Qué hacer hoy"):
         assert titulo in documento
 
 
