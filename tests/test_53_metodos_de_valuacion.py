@@ -186,9 +186,12 @@ def test_las_conclusiones_estan_completas(r_metodos):
     import re
 
     c = metodos.conclusiones(r_metodos)
+    # El título de la asignación dice si la regla se sostuvo o no.
+    asignacion = ("Donde sí sirve: a cuál de los dos va la aportación" if metodos.asignacion_solida(r_metodos)
+                  else "A cuál de los dos va la aportación: no se sostiene")
     assert [x.titulo for x in c] == [
         "¿Los métodos de valuación predicen?", "Entonces, ¿por qué esperar a que esté barato no paga?",
-        "Donde sí sirve: a cuál de los dos va la aportación", "Qué hacer hoy", "Qué tanto se le puede creer"]
+        asignacion, "Qué hacer hoy", "Qué tanto se le puede creer"]
     for x in c:
         # Una cifra faltante se escribe «—» o «nan» donde iba un número.
         assert not re.search(r"\bnan\b|—(?: pb|%| al año)|de — a", x.texto), x.texto

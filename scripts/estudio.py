@@ -18,6 +18,7 @@
     python scripts/estudio.py satelite elegir --vista-previa   # qué compraría hoy, sin anotar nada
     python scripts/estudio.py satelite evaluar      # la cuenta en papel contra SCHH (baja de Yahoo)
     python scripts/estudio.py ampliacion            # ¿se repiten las conclusiones de O, NNN y WPC en los otros siete?
+    python scripts/estudio.py ampliacion-pdf        # el informe de la ampliación en PDF (después de ``ampliacion``)
 
 ``mercado`` y ``tbill`` son lo único que toca la red. Se niega a guardar si la serie no cuadra
 contra el proveedor diario y las anclas NYSE: una historia larga que no coincide
@@ -324,9 +325,16 @@ def main() -> int:
     s_.add_argument("accion", choices=["explorar", "elegir", "evaluar"])
     s_.add_argument("--vista-previa", action="store_true", help="con elegir: muestra lo que compraría, sin anotar")
     sub.add_parser("ampliacion")
+    sub.add_parser("ampliacion-pdf")
     args = p.parse_args()
     if args.comando == "ampliacion":
         return cmd_ampliacion()
+    if args.comando == "ampliacion-pdf":
+        from src.export import pdf_ampliacion
+
+        ruta = pdf_ampliacion.generar()
+        print(f"PDF: {ruta.relative_to(RAIZ)} ({ruta.stat().st_size / 1024:,.0f} KB)")
+        return 0
     if args.comando == "tbill":
         return cmd_tbill()
     if args.comando == "macro":

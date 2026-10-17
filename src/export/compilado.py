@@ -34,17 +34,18 @@ MARCA = "SPREAD TRADING CLUB"
 # Cifras ya reportadas (con su fuente)
 # --------------------------------------------------------------------------------------
 
-# O, NNN y WPC juntos, retorno anual de los 5 años siguientes según el tramo del percentil del
-# consenso, neto con broker de EE. UU. al 35% (metodos.retorno_esperado; página Valuación en el
-# tiempo). La mediana del tramo medio va de 9.7% a 10.0% según el emisor.
+# Los diez emisores con estudio juntos (O, NNN, WPC y los siete de la ampliación), retorno anual de los
+# 5 años siguientes según el tramo del percentil del consenso, neto con broker de EE. UU. al 35%
+# (data/estudios/ampliacion/esperado_diez.csv; página Valuación en el tiempo).
 RETORNO_ESPERADO = [
-    ("Muy caro", "menos de 10%", 0.052, -0.004, 0.147),
-    ("Caro", "10% a 30%", 0.063, -0.024, 0.126),
-    ("Medio", "30% a 70%", 0.097, 0.022, 0.162),
-    ("Barato", "70% a 90%", 0.160, 0.056, 0.236),
-    ("Muy barato", "90% o más", 0.197, 0.125, 0.235),
+    ("Muy caro", "menos de 10%", 0.044, -0.076, 0.112),
+    ("Caro", "10% a 30%", 0.084, -0.022, 0.190),
+    ("Medio", "30% a 70%", 0.105, 0.025, 0.199),
+    ("Barato", "70% a 90%", 0.165, -0.002, 0.262),
+    ("Muy barato", "90% o más", 0.199, 0.120, 0.252),
 ]
-EFECTIVO_5A = 0.014
+# El efectivo de esos mismos años, neto: entre 0.7% y 1.6% según el tramo.
+EFECTIVO_5A = 0.010
 
 # El catálogo de edges (docs/estudios/edges/): veredicto del adversario y puntaje del priorizador.
 EDGES = [
@@ -414,6 +415,9 @@ PREGUNTAS = [
      "comprando más barato la renta porcentual es más alta?", "No: la misma renta alta puede venir de un precio "
      "que bajó con la renta segura (bueno) o de una renta a punto de caerse (trampa). Se distinguen comparando contra "
      "su propia historia y exigiendo calidad.", "05"),
+    ("Valuación", "Quiero que ahora realices los mismos análisis que se han hecho a profundidad con O, NNN y WPC pero "
+     "con muchas otras más.", "Se hicieron con ADC, EPRT, GNL, PSA, EXR, PLD y WELL. 6 de 8 conclusiones se repiten; "
+     "la de repartir según la valuación no.", "01"),
 ]
 
 DOCUMENTOS = [
@@ -469,6 +473,8 @@ def html_mapa(res: dict) -> str:
          "distribuciones."],
         ["Octubre", "Ganarle a SCHH", "Núcleo y satélite (exploratoria y prueba en papel) y la búsqueda de edges en "
          "seis familias."],
+        ["Octubre", "Diez REITs", "El estudio completo de O, NNN y WPC repetido con ADC, EPRT, GNL, PSA, EXR, PLD y "
+         "WELL, y sus conclusiones probadas fuera de muestra."],
     ], ["Cuándo", "Qué", "Para qué"], alinear="lll")
     cuerpo += "<h2 class='salto'>Todas las preguntas, con su respuesta corta</h2>"
     cuerpo += tabla([[_e(t), f"«{_e(q)}»", _e(r), f"<b>{d}</b>"] for t, q, r, d in PREGUNTAS],
@@ -491,11 +497,12 @@ CONCLUSIONES = [
      "por +50 pb. Momentum fue lo más cercano: +38 pb en la prueba final.", "desfavorable"),
     ("Lo barato es trampa si no hay calidad", "El yield alto recortó el dividendo el doble de veces (21% contra 10%) y "
      "perdió 86 pb al año. «Barato entre los de calidad» fue la peor regla: −211 pb.", "desfavorable"),
-    ("La valuación sí dice cuánto esperar ganar", "En O, NNN y WPC, desde «barato» se rindió ~20% al año a 5 años y desde "
-     "«caro» ~8%. En su 10% más barato, 19.4%; en su 10% más caro, 4.7%.", "favorable"),
-    ("La valuación sí ayuda a repartir entre REITs de calidad", "Mandar la aportación del mes al más barato contra su "
-     "propia historia ganó +72 pb al año entre O, NNN y WPC, más que cada una de 500 elecciones al azar. Inconcluso por "
-     "sesgo de supervivencia.", "favorable"),
+    ("La valuación sí dice cuánto esperar ganar", "En diez REITs de cuatro sectores, desde «barato» se rindió 16.5% al "
+     "año a 5 años y desde «caro» 8.4%; en el 10% más barato, 19.9%, y en el 10% más caro, 4.4%. Se repitió fuera de "
+     "muestra en los siete nuevos.", "favorable"),
+    ("Repartir según la valuación no se sostuvo", "Con O, NNN y WPC, mandar la aportación al más barato contra su "
+     "propia historia ganaba +72 pb al año. Con los siete nuevos ganó +122 pb, pero mandarla al MÁS CARO también ganó "
+     "(+72) y 19% de las elecciones al azar le ganan: la ventaja no venía de la valuación.", "desfavorable"),
     ("Con broker de EE. UU. nada cambia", "El dividendo paga 39% a 44% y aportar rinde 145 a 184 pb menos que el SIC "
      "modelado, pero ningún veredicto se mueve. Esa ventaja del SIC probablemente es un error del modelo.", "neutral"),
     ("Un ETF amplio resuelve la diversificación", "SCHH se desvía solo 0.43% al año del índice de la investigación desde "
@@ -555,13 +562,13 @@ def html_plataforma() -> str:
     figs = Figs()
     partes = [descomposicion("O"), descomposicion("NNN")]
     kpis = [("10", "REITs con estados financieros leídos de la SEC"),
-            ("3", "estudios de largo plazo: O, NNN y WPC desde su salida a bolsa"),
+            ("10", "estudios de largo plazo: O, NNN, WPC y siete más, de cuatro sectores"),
             ("7", "métodos de valuación más el consenso, probados en el tiempo"),
-            ("+72 pb", "al año por repartir entre los tres según la valuación (inconcluso)")]
+            ("6 de 8", "conclusiones de los tres primeros que se repiten en los siete nuevos")]
     preguntas = [q for t, q, _, d in PREGUNTAS if d == "01"]
     c = _portada("Compilado · 01", "La plataforma y la valuación",
-                 "Qué construimos para valuar REITs, qué métodos usa, y qué dijeron los estudios de largo plazo de O, "
-                 "NNN y WPC sobre para qué sirve —y para qué no— la valuación.", kpis, preguntas)
+                 "Qué construimos para valuar REITs, qué métodos usa, y qué dijeron los estudios de largo plazo —O, "
+                 "NNN y WPC, y después siete más— sobre para qué sirve y para qué no la valuación.", kpis, preguntas)
     c += "<h2>1. Qué construimos</h2>"
     c += ("<p>Una plataforma que lee los estados financieros de cada REIT directamente de la SEC, los concilia contra lo "
           "que el emisor publica y los convierte en una valuación por FFO/AFFO, con su historia point-in-time (lo que "
@@ -585,7 +592,8 @@ def html_plataforma() -> str:
                 ["NAV aproximado", "NOI × 4 ÷ cap rate de sus compras − deuda neta", "El que más correlación muestra, con "
                  "solo dos ventanas de 5 años: no alcanza para concluir"],
                 ["Simples (yield, P/FFO, primas)", "Contra su propia historia", "Los siete predicen el retorno de 5 años"],
-                ["Consenso de los siete", "El percentil promedio", "La regla recomendada para repartir entre emisores"]],
+                ["Consenso de los siete", "El percentil promedio", "Predice el retorno; para repartir entre emisores "
+                 "dejó de sostenerse con diez"]],
                ["Método", "Cómo", "Qué salió"], alinear="lll")
     c += _pregunta(PREGUNTAS[1][1], "Le «ganan» en lo que importa: predicen cuánto vas a ganar. Lo que no logran es "
                    "superar a aportar siempre cuando se usan para decidir cuándo comprar.")
@@ -596,17 +604,17 @@ def html_plataforma() -> str:
     c += _pregunta(PREGUNTAS[2][1], "Contra aportar lo mismo al mismo papel cada mes, sin reglas, con los mismos "
                    "impuestos y comisiones. Una regla vale si le gana a eso.")
     c += "<h2 class='salto'>3. Para qué sí sirve la valuación</h2>"
-    c += ("<p><b>Para saber cuánto esperar ganar.</b> Con O, NNN y WPC juntos, el retorno de los 5 años siguientes "
-          "dependió mucho de qué tan caro estaba el papel al comprar (neto con broker al 35%):</p>")
-    c += figs(g_retorno_esperado(), pie="Fuente: estudios de O, NNN y WPC (metodos.retorno_esperado), neto con broker "
-              "de EE. UU. al 35%. Las ventanas de 5 años se enciman y los tres emisores sobrevivieron: es una guía, no "
-              "una promesa.", alto=340)
+    c += ("<p><b>Para saber cuánto esperar ganar.</b> Con los diez REITs estudiados juntos, el retorno de los 5 años "
+          "siguientes dependió mucho de qué tan caro estaba el papel al comprar (neto con broker al 35%):</p>")
+    c += figs(g_retorno_esperado(), pie="Fuente: data/estudios/ampliacion/esperado_diez.csv, neto con broker de EE. UU. "
+              "al 35%. Las ventanas de 5 años se enciman y los diez emisores sobrevivieron: es una guía, no una "
+              "promesa.", alto=340)
     c += tabla([[_e(n), _e(r), p(m), f"{p(a)} a {p(b)}"] for n, r, m, a, b in RETORNO_ESPERADO],
                ["Tramo", "Percentil del consenso", "Mediana anual", "Rango 10% a 90%"])
-    c += ("<p><b>Para escoger entre REITs de calidad.</b> Mandar toda la aportación del mes al de percentil más alto contra "
-          "su propia historia le ganó a repartir en partes iguales: +72 pb al año, más que cada una de 500 elecciones al "
-          "azar con las mismas rachas. Sigue <b>inconcluso</b>: son decenas de cambios, no cientos, y los tres "
-          "emisores sobrevivieron.</p>")
+    c += ("<p><b>Para escoger entre REITs: ya no.</b> Con O, NNN y WPC, mandar toda la aportación del mes al de "
+          "percentil más alto contra su propia historia le ganó a repartir en partes iguales (+72 pb al año, más que 500 "
+          "elecciones al azar). Con los siete nuevos esa ventaja no pasó sus controles: mandarla al más caro también "
+          "ganó y una de cada cinco elecciones al azar le ganó. Ver la sección 5.</p>")
     c += "<h3>De dónde sale el rendimiento de un REIT</h3>"
     c += figs(g_descomposicion(partes), pie="Fuente: precios y dividendos versionados de cada emisor "
               "(data/estudios/). (1 + retorno) = (1 + dividendo) × (1 + crecimiento) × (1 + revaluación).", alto=260)
@@ -623,6 +631,15 @@ def html_plataforma() -> str:
           "año), y los baratos concentraron las trampas: 23% recortó el dividendo al año siguiente, contra 12% de todos. "
           "La lección: la valuación sirve para escoger <b>entre</b> REITs que ya pasaron la puerta de calidad, no en "
           "todo el mercado.</p>")
+    c += "<h2 class='salto'>5. Diez REITs: lo mismo con siete más</h2>"
+    c += _pregunta(PREGUNTAS[14][1], "Se repitió el estudio completo con ADC, EPRT, GNL, PSA, EXR, PLD y WELL, y sus "
+                   "conclusiones se probaron fuera de muestra con criterios escritos antes: 6 de 8 se repiten.")
+    c += tabla([[_e(a), _e(b), c_] for a, b, c_ in AMPLIACION],
+               ["Conclusión de O, NNN y WPC", "En los siete nuevos", "¿Se repite?"], alinear="lll")
+    c += ("<p><b>GNL, la trampa con nombre.</b> Fue el único de los siete que pasó varios trimestres «barato» contra su "
+          "historia, y en los 5 años siguientes perdió cerca de 10% al año: barato porque se estaba deteriorando. El "
+          "semáforo lo marcó en deterioro casi todo el tiempo y por eso, en GNL, le ganó a aportar siempre por 515 pb "
+          "al año. La calidad va antes que el precio.</p>")
     c += _anexos(ANEXOS_01)
     return _documento("La plataforma y la valuación", c, figs)
 
@@ -641,9 +658,22 @@ PAGINAS = [
     ("11 · Investigación", "La investigación pre-registrada de cuándo entrar y en cuáles."),
 ]
 
+AMPLIACION = [
+    ("Lo barato rindió más que lo caro a 5 años", "16.6% contra 9.6% al año; ρ = +0.36", "✓"),
+    ("Emisor por emisor", "4 de 5 con correlación positiva (EXR no)", "✓"),
+    ("Aun desde caro, le ganó al efectivo", "78% de los trimestres", "✓"),
+    ("El semáforo no le gana a aportar siempre", "Le ganó en GNL (+515 pb) y EPRT (+67); perdió en PLD (−536) y WELL "
+     "(−257)", "✗"),
+    ("La valuación sola no sirve para decidir cuándo comprar", "Menos de +50 pb en 6 de 7", "✓"),
+    ("Repartir la aportación al más barato gana", "+122 pb, pero el espejo también gana y 19% del azar le gana", "✗"),
+    ("DDM y DCF no predicen mejor que lo simple", "DDM +0.20 y DCF +0.24 contra P/FFO +0.40", "✓"),
+    ("Los extremos separan", "21.5% contra 4.4% al año", "✓"),
+]
+
 ANEXOS_01 = [
-    ("docs/estudios/estudio_O.pdf, estudio_NNN.pdf, estudio_WPC.pdf", "Cada emisor desde su salida a bolsa: historia, "
-     "eras, de dónde salió el retorno, entradas y riesgos."),
+    ("docs/estudios/ampliacion_resultados.pdf", "Los siete nuevos y la prueba fuera de muestra, con su pre-registro."),
+    ("docs/estudios/estudio_<emisor>.pdf (O, NNN, WPC, ADC, EPRT, EXR, GNL, PLD, PSA, WELL)", "Cada emisor desde su "
+     "salida a bolsa: historia, eras, de dónde salió el retorno, entradas y riesgos."),
     ("docs/estudios/metodos_de_valuacion.pdf", "Los siete métodos y el consenso en el tiempo; DDM, DCF y NAV."),
     ("docs/estudios/valuacion_trimestral.xlsx", "Cada trimestre de cada emisor con fórmulas vivas."),
     ("docs/estudios/reglas_de_decision.pdf", "El semáforo puesto a prueba contra aportar siempre."),
@@ -713,7 +743,7 @@ def html_cuando(res: dict) -> str:
     c += "<h3>¿Las pruebas podían ver una ventaja?</h3>" + tabla([
         ["Cuándo entrar", "195 a 432 pb al año", "Una ventaja de 100 pb habría pasado inadvertida entre 45% y 82% de las veces"],
         ["En cuáles REITs", "59 a 110 pb al año", "Momentum se distingue del azar, pero se queda corto"],
-        ["Escoger entre O, NNN y WPC", "54 pb al año", "+72 pb observado, más que 500 elecciones al azar"],
+        ["Escoger entre O, NNN y WPC", "54 pb al año", "+72 pb observado; con los siete nuevos no pasó sus controles"],
     ], ["Pregunta", "Mínimo detectable", "Qué se vio"], alinear="lll")
     c += ("<p>Que no se encontrara una regla de timing no prueba que no exista una ventaja de 1 punto al año; lo que sí "
           "descarta es una ventaja grande y confiable. Además, salirse a ciegas cuesta de 86 a 302 pb al año: cualquier "

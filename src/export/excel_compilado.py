@@ -166,7 +166,7 @@ def _cuando(wb: Workbook, res: dict) -> None:
     _tabla(ws, fila, ["Pregunta", "Mínimo detectable (pb al año)", "Qué se vio"],
            [["Cuándo entrar", "195 a 432", "Una ventaja de 100 pb pasaría inadvertida 45% a 82% de las veces"],
             ["En cuáles REITs", "59 a 110", "Momentum se distingue del azar, pero queda corto"],
-            ["Escoger entre O, NNN y WPC", "54", "+72 pb observado; más que 500 elecciones al azar"],
+            ["Escoger entre O, NNN y WPC", "54", "+72 pb observado; con los siete nuevos no pasó sus controles"],
             ["Salirse a ciegas", "cuesta 86 a 302", "Lo que una regla tiene que ganar solo para empatar"]],
            [None] * 3, seccion="Análisis de poder (docs/investigacion/poder_resultados.md)")
     _anchos(ws, [34, 16, 40, 14, 18, 16, 16, 14, 8])
@@ -199,7 +199,7 @@ def _retorno(wb: Workbook) -> None:
 
     ws = wb.create_sheet("Retorno esperado")
     _titulo(ws, "Cuánto esperar ganar según qué tan caro está",
-            "O, NNN y WPC juntos; retorno anual de los 5 años siguientes, neto con broker de EE. UU. al 35%. Ventanas "
+            "Los diez emisores con estudio juntos; retorno anual de los 5 años siguientes, neto con broker de EE. UU. al 35%. Ventanas "
             "encimadas y emisores que sobrevivieron: guía, no promesa.")
     fila = _tabla(ws, 4, ["Tramo", "Percentil del consenso", "Mediana anual", "Malo (10%)", "Bueno (90%)"],
                   [list(r) for r in RETORNO_ESPERADO] + [["Efectivo (T-bills)", "—", EFECTIVO_5A, None, None]],

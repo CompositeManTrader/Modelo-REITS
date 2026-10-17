@@ -74,7 +74,8 @@ def _portada(r: ResultadoMetodos) -> str:
         <h1>¿Caro o barato? Siete maneras de medirlo, trimestre por trimestre</h1>
         <p style='font-size:12.5pt;max-width:150mm'>Qué decía cada método en cada trimestre con lo que se
         sabía ese día, qué rindió el papel después, y para qué sirve saberlo: para esperar, no; para
-        escoger a cuál de los REITs va la aportación del mes, sí. Al final, los modelos de valor
+        escoger a cuál de los REITs va la aportación del mes, {"sí" if metodos.asignacion_solida(r) else
+        "tampoco: con más emisores no pasó sus controles"}. Al final, los modelos de valor
         —DDM, DCF y NAV— puestos a la misma prueba.</p>
         {tabla(filas, ["Método", "Correlación con los 5 años siguientes", "5 años si decía barato",
                        "5 años si decía caro", "A cuál (pb/año)", "Hoy iría a"], alinear="lrrrrl")}

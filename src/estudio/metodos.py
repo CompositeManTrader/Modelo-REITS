@@ -774,6 +774,17 @@ def _cuantos(n: int) -> str:
             10: "diez"}.get(n, str(n))
 
 
+def asignacion_solida(r: ResultadoMetodos) -> bool:
+    """Si la asignación con el consenso pasa sus controles: le gana a partes iguales, el espejo pierde con
+    los ocho métodos, a lo más 5% del azar la iguala y gana en las dos mitades."""
+    if not r.asignaciones:
+        return False
+    tabla = r.asignacion()
+    ca = tabla.loc["consenso"]
+    return bool((tabla["ventaja_el_mas_caro"] < 0).all() and ca["azar_que_le_gana"] <= 0.05
+                and ca["ventaja_primera_mitad"] > 0 and ca["ventaja_segunda_mitad"] > 0 and ca["ventaja"] > 0)
+
+
 def ventaja_acumulada(a: Asignacion) -> pd.Series:
     """Riqueza con el método entre riqueza con partes iguales, menos uno, cada fin de mes."""
     base = a.riqueza_partes_iguales.resample("ME").last()
@@ -796,9 +807,12 @@ def conclusiones(r: ResultadoMetodos) -> list[rg.Conclusion]:
     c: list[rg.Conclusion] = []
     j = r.juntos
     siete = j.loc[list(SIETE)]
-    # Los que tienen al menos una ventana de 5 años con percentil; uno muy joven no cuenta.
+    # Los que tienen al menos una ventana de 5 años con percentil; uno muy joven no cuenta. Un método
+    # está «a favor» si su correlación es positiva en al menos 3 de cada 4 emisores: con tres
+    # emisores son los tres, como siempre; con nueve, siete.
     n = int(siete["emisores_con_rho_5a"].max()) if "emisores_con_rho_5a" in siete else len(r.paneles)
-    a_favor = int((siete["emisores_con_rho_5a_positiva"] == n).sum())
+    k = int(np.ceil(0.75 * n))
+    a_favor = int((siete["emisores_con_rho_5a_positiva"] >= k).sum())
     cons = j.loc["consenso"]
     orden = (siete["rho_5a"].rank() + siete["r5_barato_menos_caro"].rank()).sort_values(ascending=False)
     mejores, peores = [NOMBRE[x] for x in orden.index[:2]], [NOMBRE[x] for x in orden.index[-2:]]
@@ -810,7 +824,8 @@ def conclusiones(r: ResultadoMetodos) -> list[rg.Conclusion]:
     c.append(rg.Conclusion(
         "¿Los métodos de valuación predicen?",
         f"{arranque} {quienes} correlación positiva entre su percentil y el retorno "
-        f"de los 5 años siguientes en los {_cuantos(n)} emisores. Con el consenso de los siete, los trimestres "
+        f"de los 5 años siguientes en {'los ' + _cuantos(n) if k == n else f'al menos {k} de los {n}'} emisores. "
+        f"Con el consenso de los siete, los trimestres "
         f"en que decía «barato» rindieron después {_pct(cons['r5_barato'])} al año (mediana a 5 años) "
         f"y los que decía «caro», {_pct(cons['r5_caro'])}: {cons['r5_barato_menos_caro'] * 100:.1f} "
         f"puntos al año de diferencia. Los que mejor separan: {mejores[0]} y {mejores[1]}; los más "
@@ -854,7 +869,8 @@ def conclusiones(r: ResultadoMetodos) -> list[rg.Conclusion]:
         f"con las mismas rachas, {azar}; y en cada mitad de la historia la ventaja es "
         f"{_pb(ca['ventaja_primera_mitad'])} y {_pb(ca['ventaja_segunda_mitad'])}")
     c.append(rg.Conclusion(
-        f"Donde sí sirve: a cuál de los {_cuantos(n)} va la aportación",
+        (f"Donde sí sirve: a cuál de los {_cuantos(n)} va la aportación" if solido else
+         f"A cuál de los {_cuantos(n)} va la aportación: no se sostiene"),
         f"Con los {_cuantos(n)} emisores, mandar TODA la aportación del mes al que está más barato contra "
         f"su propia historia —sin guardar efectivo y sin vender— le ganó a repartirla en partes iguales "
         f"{quienes_a} (de {_pb(float(siete_a['ventaja'].min()))} a {_pb(float(siete_a['ventaja'].max()))} "
@@ -875,9 +891,11 @@ def conclusiones(r: ResultadoMetodos) -> list[rg.Conclusion]:
               "es razón para dejar de aportar: el dinero entra completo, solo cambia a cuál.")
     c.append(rg.Conclusion(
         "Qué hacer hoy",
-        f"Con el consenso al {r.hasta:%d-%m-%Y}: {texto_hoy}. La aportación de este mes iría a "
-        f"{ca['eleccion_hoy']} ({votos.get(ca['eleccion_hoy'], 0)} de los ocho métodos coinciden). "
-        f"{cierre}",
+        f"Con el consenso al {r.hasta:%d-%m-%Y}: {texto_hoy}. "
+        + (f"La aportación de este mes iría a {ca['eleccion_hoy']} ({votos.get(ca['eleccion_hoy'], 0)} de los ocho "
+           f"métodos coinciden). {cierre}" if solido else
+           f"Con la regla, la aportación de este mes iría a {ca['eleccion_hoy']}, pero la regla no pasó sus "
+           "controles: repartir parejo —o comprar el ETF— es igual de bueno y más simple."),
         "neutral"))
 
     c.append(rg.Conclusion(

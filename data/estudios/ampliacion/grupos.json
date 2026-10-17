@@ -1,0 +1,74 @@
+{
+ "originales": {
+  "tickers": [
+   "NNN",
+   "O",
+   "WPC"
+  ],
+  "asignables": [
+   "NNN",
+   "O",
+   "WPC"
+  ]
+ },
+ "siete": {
+  "tickers": [
+   "ADC",
+   "EPRT",
+   "EXR",
+   "GNL",
+   "PLD",
+   "PSA",
+   "WELL"
+  ],
+  "asignables": [
+   "ADC",
+   "EXR",
+   "PLD",
+   "PSA",
+   "WELL"
+  ]
+ },
+ "diez": {
+  "tickers": [
+   "ADC",
+   "EPRT",
+   "EXR",
+   "GNL",
+   "NNN",
+   "O",
+   "PLD",
+   "PSA",
+   "WELL",
+   "WPC"
+  ],
+  "asignables": [
+   "ADC",
+   "EXR",
+   "NNN",
+   "O",
+   "PLD",
+   "PSA",
+   "WELL",
+   "WPC"
+  ]
+ },
+ "siete_nareit": {
+  "tickers": [
+   "ADC",
+   "EPRT",
+   "EXR",
+   "GNL",
+   "PLD",
+   "PSA",
+   "WELL"
+  ],
+  "asignables": [
+   "ADC",
+   "EXR",
+   "PLD",
+   "PSA",
+   "WELL"
+  ]
+ }
+}
