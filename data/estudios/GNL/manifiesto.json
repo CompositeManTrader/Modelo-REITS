@@ -1,7 +1,7 @@
 {
   "ticker": "GNL",
   "fuente": "MERCADO-YAHOO",
-  "descargado_en": "2026-10-17T06:00:56+00:00",
+  "descargado_en": "2026-10-17T06:26:43+00:00",
   "primera_cotizacion": "2015-06-02",
   "inicio_verificable": null,
   "precios": {
@@ -23,7 +23,9 @@
       "fuente": "8-K de Global Net Lease del 28-feb-2017 (Item 1.01 y Ex-99.1: «at a ratio of 1-for-3», acciones de ~199.0 a ~66.3 millones). Factor verificado contra 37 cierres publicados por el emisor (2015-2021), error 0.0000%."
     }
   ],
-  "correcciones_de_dividendos": [],
+  "correcciones_de_dividendos": [
+    "2015-06-04: 0.0020 → 0.002 (proporcional). 10-K FY2015, Item 5 («Amounts paid per share»): $0.002 en el 2T-2015, la distribución diaria del 2-jun-2015, día del listado. El primer mensual completo es el de julio."
+  ],
   "validacion": {
     "traslape_n": 1255,
     "traslape_error_max": 0.01287000305097219,

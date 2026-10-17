@@ -1,7 +1,7 @@
 {
   "ticker": "EXR",
   "fuente": "MERCADO-YAHOO",
-  "descargado_en": "2026-10-17T06:01:45+00:00",
+  "descargado_en": "2026-10-17T06:26:46+00:00",
   "primera_cotizacion": "2004-08-16",
   "inicio_verificable": null,
   "precios": {
@@ -16,6 +16,7 @@
   },
   "eventos": [],
   "correcciones_de_dividendos": [
+    "2004-09-13: 0.1110 → 0.111 (proporcional). Primer dividendo después de la salida a bolsa (17-ago-2004): cubre del 17-ago al 30-sep-2004, mes y medio; el primer trimestre completo (0.2275) es el del 4T-2004.",
     "2023-07-12: 1.0100 → 1.62 (regular). Comunicado del 3T-2023 (8-K del 7-nov-2023): el dividendo del 3T se pagó en dos partes, 1.01 (ex 12-jul) y 0.61 (ex 14-sep), «a total dividend of $1.62 per share». Se juntan en un registro; los 0.61 entran dos meses antes de su fecha ex real.",
     "2023-09-14: 0.6100 → se quita (ya sumado en otro registro). Segunda parte del dividendo del 3T-2023; ya sumada al registro del 12-jul-2023."
   ],

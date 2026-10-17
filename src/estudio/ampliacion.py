@@ -244,7 +244,8 @@ def informe(grupos: dict[str, Grupo]) -> str:
         for h in nuevos.hipotesis:
             lineas.append(f"| {h.clave} | {h.conclusion} | {h.criterio} | {_veredicto(h.se_repite)} | {h.cifras} |")
         lineas.append("")
-    for nombre, titulo in (("originales", "Control: los tres originales con el mismo código"),
+    for nombre, titulo in (("siete_nareit", "Sensibilidad: los siete con FFO de Nareit, sin excepciones de medida"),
+                           ("originales", "Control: los tres originales con el mismo código"),
                            ("diez", "Los diez juntos")):
         g = grupos.get(nombre)
         if g is None:

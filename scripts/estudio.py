@@ -291,6 +291,13 @@ def cmd_ampliacion() -> int:
     estudios = {t: _armar(t) for t in mercado.con_estudio() if t in (*ampliacion.ORIGINALES, *ampliacion.NUEVOS)}
     print(f"Emisores con estudio: {', '.join(sorted(estudios))}")
     grupos = ampliacion.correr(estudios)
+    # Sensibilidad obligatoria del pre-registro: los siete con el FFO de Nareit, sin excepciones de medida.
+    from src.estudio import fundamentales
+
+    with fundamentales.con_medida(fundamentales.FFO):
+        nareit = {t: _armar(t) for t in ampliacion.NUEVOS if t in estudios}
+    if nareit:
+        grupos["siete_nareit"] = ampliacion.evaluar_grupo("siete_nareit", nareit)
     destino = ampliacion.guardar(grupos)
     ampliacion.INFORME.write_text(ampliacion.informe(grupos) + "\n", encoding="utf-8")
     print(ampliacion.tabla(grupos)[["grupo", "hipotesis", "se_repite", "cifras"]].to_string(index=False))

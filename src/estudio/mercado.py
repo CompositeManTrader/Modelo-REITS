@@ -190,7 +190,9 @@ class CorreccionDividendo:
 
     fecha_ex: dt.date
     proveedor: float
-    partes: tuple[tuple[float, str], ...]   # (monto pagado, "regular" | "especial")
+    # (monto pagado, tipo). «regular» entra al yield; «especial» y «proporcional» (el primer pago al salir a
+    # bolsa, que cubre solo una fracción del periodo) entran al retorno total pero no al yield.
+    partes: tuple[tuple[float, str], ...]
     fuente: str
 
 
@@ -226,12 +228,15 @@ CORRECCIONES_DE_DIVIDENDOS: dict[str, tuple[CorreccionDividendo, ...]] = {
                    "31-dic-1996, pagada el 15-ene-1997.",
         ),
     ),
-    # WPC: el proveedor suma cada distribución especial a la regular del trimestre. Sin
-    # separarlas, el yield de 2008, 2010 y 2014 sale inflado un año entero y la serie
-    # dibuja «aumentos» de 57% seguidos de «recortes» que nunca ocurrieron.
-    # EXR: el dividendo del 3T-2023 se pagó en dos partes por la fusión con Life Storage. La suma del
-    # año cuadra, pero el TTM por conteo contaría cinco pagos en 2023 y saldría 25% bajo un año entero.
+    # EXR: el primer pago tras la salida a bolsa es proporcional, y el dividendo del 3T-2023 se pagó en
+    # dos partes por la fusión con Life Storage: la suma del año cuadra, pero el TTM por conteo contaría
+    # cinco pagos en 2023 y saldría 25% bajo un año entero.
     "EXR": (
+        CorreccionDividendo(
+            fecha_ex=dt.date(2004, 9, 13), proveedor=0.111, partes=((0.111, "proporcional"),),
+            fuente="Primer dividendo después de la salida a bolsa (17-ago-2004): cubre del 17-ago al 30-sep-2004, "
+                   "mes y medio; el primer trimestre completo (0.2275) es el del 4T-2004.",
+        ),
         CorreccionDividendo(
             fecha_ex=dt.date(2023, 7, 12), proveedor=1.01,
             partes=((1.62, "regular"),),
@@ -245,6 +250,23 @@ CORRECCIONES_DE_DIVIDENDOS: dict[str, tuple[CorreccionDividendo, ...]] = {
             fuente="Segunda parte del dividendo del 3T-2023; ya sumada al registro del 12-jul-2023.",
         ),
     ),
+    # El primer pago después de salir a bolsa cubre solo una fracción del periodo. Como regular, el
+    # dividendo anualizado del arranque salía en una fracción del real (GNL: un día de distribución × 12).
+    "GNL": (
+        CorreccionDividendo(
+            fecha_ex=dt.date(2015, 6, 4), proveedor=0.002, partes=((0.002, "proporcional"),),
+            fuente="10-K FY2015, Item 5 («Amounts paid per share»): $0.002 en el 2T-2015, la distribución diaria "
+                   "del 2-jun-2015, día del listado. El primer mensual completo es el de julio.",
+        ),
+    ),
+    "PLD": (
+        CorreccionDividendo(
+            fecha_ex=dt.date(1997, 12, 16), proveedor=0.134, partes=((0.134, "proporcional"),),
+            fuente="10-K 1997 de AMB: distribución prorrateada por el periodo del 26-nov al 31-dic-1997; el primer "
+                   "trimestre completo (0.342) es el de 1998.",
+        ),
+    ),
+
     # PSA: un dividendo de 1995 mal registrado y cinco especiales que el proveedor suma al regular.
     "PSA": (
         CorreccionDividendo(
@@ -302,6 +324,9 @@ CORRECCIONES_DE_DIVIDENDOS: dict[str, tuple[CorreccionDividendo, ...]] = {
             fuente="Segunda parte ($0.2991) del dividendo del 4T-2006; ya sumada al registro del 20-dic-2006.",
         ),
     ),
+    # WPC: el proveedor suma cada distribución especial a la regular del trimestre. Sin
+    # separarlas, el yield de 2008, 2010 y 2014 sale inflado un año entero y la serie
+    # dibuja «aumentos» de 57% seguidos de «recortes» que nunca ocurrieron.
     "WPC": (
         CorreccionDividendo(
             fecha_ex=dt.date(2007, 12, 27), proveedor=0.747,
