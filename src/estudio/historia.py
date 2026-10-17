@@ -781,3 +781,9 @@ HISTORIA_WPC = HistoriaEmisor(
 )
 
 HISTORIAS: dict[str, HistoriaEmisor] = {"O": HISTORIA_O, "NNN": HISTORIA_NNN, "WPC": HISTORIA_WPC}
+
+# Las de la ampliación viven en su propio módulo (src/estudio/narrativas/). Se importan al final
+# porque usan las clases de arriba.
+from src.estudio import narrativas  # noqa: E402
+
+HISTORIAS.update(narrativas.cargar())
