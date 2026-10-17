@@ -27,6 +27,20 @@ pytest -q                        # las trece obligatorias y el resto
 > Esto es una herramienta de análisis, no asesoría de inversión. Los cálculos
 > fiscales son indicativos: confirma con tu casa de bolsa y con un contador.
 
+**¿Por dónde empezar?** El compilado en `docs/compilado/` junta todo el análisis, ordenado por
+las preguntas que se fueron haciendo. Cada documento cita la pregunta, da la respuesta corta y
+explica el porqué con sus cifras (`python scripts/compilado.py` lo regenera):
+
+| Archivo | Qué responde |
+|---|---|
+| `00_mapa_del_analisis.pdf` | La entrada: todas las preguntas con su respuesta corta, las diez conclusiones, qué hacer y un glosario. |
+| `01_plataforma_y_valuacion.pdf` | Qué construimos, los métodos de valuación (DCF, DDM, NAV y simples), para qué sirven y cuánto esperar ganar según qué tan caro está. |
+| `02_cuando_entrar.pdf` | La investigación de timing: por qué ninguna regla le ganó a aportar siempre, los extremos y qué tan finas eran las pruebas. |
+| `03_en_cuales_reits.pdf` | Selección entre REITs, núcleo y satélite contra SCHH y la búsqueda de estrategias que le ganen. |
+| `04_impuestos_y_canal.pdf` | Broker de EE. UU. contra SIC, el ETF irlandés de acumulación y las preguntas para el contador. |
+| `05_que_comprar_y_cuanto.pdf` | Los ETFs contra el índice, cuánto aportar, la valuación cuando buscas renta y el calendario de la prueba en papel. |
+| `compilado_cifras.xlsx` | Las cifras de cada análisis y la hoja «Mi plan»: una calculadora de la aportación con fórmulas vivas. |
+
 ---
 
 ## Los diez principios, y dónde vive cada uno
