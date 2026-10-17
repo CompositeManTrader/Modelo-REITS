@@ -177,7 +177,8 @@ def h6(r: mt.ResultadoMetodos) -> Hipotesis:
         "Juntos, ningún modelo de valor tiene ρ a 5 años mayor que la del mejor método simple.",
         None if valor.dropna().empty else bool(arriba.empty),
         f"mejor simple: {r.juntos.loc[simples.idxmax(), 'metodo']} ρ = {mejor:+.2f}; modelos de valor: "
-        + ", ".join(f"{k} {v:+.2f}" for k, v in valor.items()) + ".",
+        + ", ".join(f"{k} {v:+.2f}" if pd.notna(v) else f"{k} sin datos suficientes" for k, v in valor.items())
+        + ".",
     )
 
 

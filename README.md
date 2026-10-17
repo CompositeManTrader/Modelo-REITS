@@ -646,10 +646,10 @@ Lo que cambia para quien invierte:
   tres pasó sus controles; con diez, mandarla al más caro también le gana a partes
   iguales, así que la ventaja era de los emisores, no de la regla. Los PDF de métodos y el
   compilado ya lo dicen.
-- **H3 no se repite por una razón concreta**: la puerta de deterioro del semáforo dejó fuera
-  a GNL antes de sus años malos (+515 pb), pero le costó −536 pb en PLD y −257 pb en WELL,
-  que se recuperaron. Es una puerta de calidad que acierta en el emisor débil y estorba en
-  los buenos.
+- **H3 no se repite por una razón concreta**: la puerta de deterioro del semáforo marcó a
+  GNL en 93% de los meses y casi nunca lo compró (+515 pb contra aportar siempre), pero le
+  costó −536 pb en PLD y −257 pb en WELL, que se recuperaron. Como filtro para no entrar a
+  un emisor en deterioro sirve; como regla para todo, no.
 - **GNL es la trampa de valor del estudio**: estuvo «barato» contra su historia varios
   trimestres seguidos y en los 5 años siguientes perdió cerca de 10% al año; recortó el
   dividendo cuatro veces. Lo barato de un emisor que se deteriora no es barato.
