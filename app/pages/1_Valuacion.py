@@ -636,7 +636,7 @@ with tab_evidencia:
         fila = esperado.hoy[esperado.hoy["emisor"] == ticker]
         tarjeta_abre(
             "¿Cuánto esperar ganar?",
-            "Lo que rindieron O, NNN y WPC en 5 años desde un nivel de valuación parecido, neto con broker.",
+            "Lo que rindieron los emisores estudiados en 5 años desde un nivel de valuación parecido, neto con broker.",
         )
         if fila.empty or pd.isna(fila.iloc[0]["mediana"]):
             st.caption("Sin percentil del consenso o sin trimestres suficientes en su tramo.")

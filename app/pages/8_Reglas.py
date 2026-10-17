@@ -79,7 +79,7 @@ st.caption(
     "dividendo y a los intereses, 10% a la ganancia al vender; 0.25% de comisión por operación."
 )
 
-st.header("Los tres emisores")
+st.header("Todos los emisores")
 mostrar_tabla(vistas_reglas.comparativo(list(resultados.values())))
 st.caption(
     "TIR money-weighted de aportar 1,000 dólares al mes, vendiendo todo al final y pagando el impuesto "

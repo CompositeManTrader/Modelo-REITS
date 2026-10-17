@@ -179,9 +179,9 @@ def _hoja_hoy(wb: Workbook, r: ResultadoMetodos) -> None:
 
 def _hoja_asignacion(wb: Workbook, r: ResultadoMetodos) -> None:
     ws = wb.create_sheet("Asignación")
-    tickers = list(r.paneles)
+    tickers = r.en_asignacion
     a = r.asignacion()
-    ws["A1"] = "A cuál de los tres va la aportación del mes: al de percentil más alto contra su propia historia"
+    ws["A1"] = "A cuál va la aportación del mes: al de percentil más alto contra su propia historia"
     ws["A1"].font = FUENTE_TITULO
     cab = ["Método", "Desde", "TIR", "TIR partes iguales", "Ventaja", "Ventaja al más caro",
            "Ventaja 1ª mitad", "Ventaja 2ª mitad", "Azar que la iguala", "Cambios de emisor", "Hoy va a"]
@@ -202,7 +202,7 @@ def _hoja_asignacion(wb: Workbook, r: ResultadoMetodos) -> None:
     inicio = 4 + len(METODOS) + 2
     ws.cell(row=inicio - 1, column=1, value="Cada fin de trimestre, con el consenso de los siete").font = FUENTE_SECCION
     _encabezados(ws, ["Trimestre", *tickers, "La aportación va a"], fila=inicio)
-    pcs = pd.DataFrame({t: trimestral(p)["p_consenso"] for t, p in r.paneles.items()}).dropna(how="all")
+    pcs = pd.DataFrame({t: trimestral(r.paneles[t])["p_consenso"] for t in tickers}).dropna(how="all")
     k = len(tickers)
     ultima = get_column_letter(1 + k)
     for i, (f, fila) in enumerate(pcs.iterrows(), start=inicio + 1):

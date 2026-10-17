@@ -74,10 +74,10 @@ def _portada(r: ResultadoMetodos) -> str:
         <h1>¿Caro o barato? Siete maneras de medirlo, trimestre por trimestre</h1>
         <p style='font-size:12.5pt;max-width:150mm'>Qué decía cada método en cada trimestre con lo que se
         sabía ese día, qué rindió el papel después, y para qué sirve saberlo: para esperar, no; para
-        escoger a cuál de los tres REITs va la aportación del mes, sí. Al final, los modelos de valor
+        escoger a cuál de los REITs va la aportación del mes, sí. Al final, los modelos de valor
         —DDM, DCF y NAV— puestos a la misma prueba.</p>
         {tabla(filas, ["Método", "Correlación con los 5 años siguientes", "5 años si decía barato",
-                       "5 años si decía caro", "A cuál de los tres (pb/año)", "Hoy iría a"], alinear="lrrrrl")}
+                       "5 años si decía caro", "A cuál (pb/año)", "Hoy iría a"], alinear="lrrrrl")}
       </div>
       <div class='gris chico'>Datos al {r.hasta:%d-%m-%Y} · generado el {dt.date.today():%d-%m-%Y}.
       Herramienta de análisis, no asesoría de inversión. Los cálculos fiscales son indicativos.</div>
@@ -110,10 +110,10 @@ def _predicen(r: ResultadoMetodos, fig: Figuras) -> str:
     filas = [[_e(j.loc[m.clave, "metodo"]), _rho(j.loc[m.clave, "rho_1a"]), _rho(j.loc[m.clave, "rho_5a"]),
               pct(j.loc[m.clave, "r5_barato"]), pct(j.loc[m.clave, "r5_caro"]),
               pct(j.loc[m.clave, "r5_barato_menos_caro"]),
-              f"{int(j.loc[m.clave, 'emisores_con_rho_5a_positiva'])} de {len(r.paneles)}",
+              f"{int(j.loc[m.clave, 'emisores_con_rho_5a_positiva'])} de {int(j.loc[m.clave, 'emisores_con_rho_5a'])}",
               num(j.loc[m.clave, "ventanas_5a"], 0)] for m in METODOS]
     return ("<h2 class='salto'>¿Predicen?</h2>"
-            + fig(gm.barato_caro, r, pie="Mediana del retorno anual de los 5 años siguientes, los tres emisores juntos.")
+            + fig(gm.barato_caro, r, pie="Mediana del retorno anual de los 5 años siguientes, los emisores juntos.")
             + tabla(filas, ["Método", "Correlación 1 año", "5 años", "5 años si barato", "Si caro", "Brecha",
                             "Emisores a favor", "Ventanas independientes"], alinear="lrrrrrrr")
             + "<p class='chico gris'>Correlación de rangos (Spearman) entre el percentil y el retorno total neto "
@@ -121,14 +121,14 @@ def _predicen(r: ResultadoMetodos, fig: Figuras) -> str:
 
 
 def _esperado(r: ResultadoMetodos, fig: Figuras) -> str:
-    """La valuación como retorno esperado: el rango de lo que rindieron los tres desde cada tramo."""
+    """La valuación como retorno esperado: el rango de lo que rindieron los emisores desde cada tramo."""
     if r.esperado is None or r.esperado.empty:
         return ""
     hoy = vm.esperado_hoy(r)
     return ("<h2 class='salto'>¿Cuánto esperar ganar según qué tan caro está?</h2>"
             "<p>La valuación no sirve para decidir cuándo entrar, pero sí dice cuánto esperar. Cada fin de trimestre "
             "el consenso de los siete métodos ubica a cada emisor en un tramo contra su propia historia; esto es lo "
-            "que rindieron los tres en los 5 años siguientes desde cada tramo, neto con un broker de EE. UU. "
+            "que rindieron los emisores en los 5 años siguientes desde cada tramo, neto con un broker de EE. UU. "
             "(marginal de 35%: 44% al dividendo y 35% al efectivo). «Caro» quiere decir esperar menos, no "
             "perder.</p>"
             + fig(gm.esperado, r, pie="Caja: del percentil 25 al 75 de los retornos; bigotes: del 10 al 90.")
@@ -169,10 +169,13 @@ def _asignacion(r: ResultadoMetodos, fig: Figuras) -> str:
     q = vm.asignacion_trimestral(r).head(12)
     filas_q = [[_e(f["trimestre"]), *[pct(f[c], 0) for c in q.columns[1:-1]], _e(f["la_aportacion_va_a"])]
                for _, f in q.iterrows()]
-    return ("<h2 class='salto'>A cuál de los tres va la aportación</h2>"
-            "<p>Toda la aportación del mes —más los dividendos netos de los tres— al emisor con el percentil más "
+    fuera = [t for t in r.paneles if t not in r.en_asignacion]
+    nota_fuera = (f" {', '.join(fuera)} no entra{'n' if len(fuera) > 1 else ''}: su percentil del consenso empieza "
+                  "después de 2008 y acortaría la ventana de todos." if fuera else "")
+    return (f"<h2 class='salto'>A cuál va la aportación: {_e(', '.join(r.en_asignacion))}</h2>"
+            "<p>Toda la aportación del mes —más los dividendos netos de todos— al emisor con el percentil más "
             "alto contra su propia historia. Sin guardar efectivo y sin vender: solo cambia a cuál va el dinero. "
-            "El benchmark reparte en tercios y cada emisor reinvierte sus propios dividendos.</p>"
+            f"El benchmark reparte en partes iguales y cada emisor reinvierte sus propios dividendos.{_e(nota_fuera)}</p>"
             + fig(gm.asignacion, r, pie="Cuánta más riqueza tendría quien aportó 1,000 dólares al mes con el "
                   "consenso de los siete que quien repartió en partes iguales, con el mismo dinero aportado.")
             + tabla(filas, ["Método", "Desde", "TIR", "Partes iguales", "Ventaja (pb/año)", "Al más caro",
@@ -181,8 +184,8 @@ def _asignacion(r: ResultadoMetodos, fig: Figuras) -> str:
             + fig(gm.azar, r, pie="200 elecciones al azar con las mismas rachas que el consenso, y dónde caen "
                   "el consenso y su espejo.")
             + "<div class='bloque'><h3>Los últimos 12 trimestres</h3>"
-            + tabla(filas_q, ["Trimestre", *[f"Consenso {t}" for t in r.paneles], "La aportación va a"],
-                    alinear="l" + "r" * len(r.paneles) + "l") + "</div>")
+            + tabla(filas_q, ["Trimestre", *[f"Consenso {t}" for t in r.en_asignacion], "La aportación va a"],
+                    alinear="l" + "r" * len(r.en_asignacion) + "l") + "</div>")
 
 
 def _emisor(r: ResultadoMetodos, t: str, fig: Figuras) -> str:
@@ -255,7 +258,7 @@ def _intrinsecos(r: ResultadoMetodos, fig: Figuras) -> str:
         + "<div class='bloque'><h3>Sensibilidad a la prima de riesgo</h3>"
         + _tabla_vista(se, ["Emisor", "Modelo", "Barato con 2%", "Con 3%", "Con 4%", "pb/año con 2%", "Con 3%",
                             "Con 4%"], [None, None, p0, p0, p0, pb, pb, pb]) + "</div>"
-        + "<div class='bloque'><h3>A cuál de los tres, con los modelos de valor</h3>"
+        + "<div class='bloque'><h3>A cuál, con los modelos de valor</h3>"
         + _tabla_vista(asig, ["Modelo", "Señal", "Desde", "TIR", "Partes iguales", "Ventaja (pb)", "Al más caro",
                               "1ª mitad", "2ª mitad", "Azar que la iguala", "Meses en cada uno"],
                        [None, None, None, p1, p1, pb, pb, pb, pb, p1, None]) + "</div>"

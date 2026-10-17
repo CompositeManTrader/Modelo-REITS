@@ -84,7 +84,7 @@ st.header("¿Cuánto esperar ganar según qué tan caro está?")
 st.markdown(
     "La investigación encontró que la valuación **no sirve para decidir cuándo entrar**, pero sí dice **cuánto "
     "esperar**. Cada fin de trimestre, el consenso de los siete métodos ubica a cada emisor en un tramo contra su "
-    "propia historia; la gráfica muestra lo que de verdad rindieron los tres en los 5 años siguientes desde cada "
+    "propia historia; la gráfica muestra lo que de verdad rindieron los emisores en los 5 años siguientes desde cada "
     "tramo, **neto con un broker de EE. UU.** (marginal de 35%: 44% al dividendo y 35% al efectivo). «Caro» casi "
     "nunca quiso decir perder: quiso decir esperar menos, y aun así casi siempre más que el efectivo."
 )
@@ -103,16 +103,20 @@ st.header("¿Predicen?")
 st.plotly_chart(gm.barato_caro(r, g.OSCURO), width="stretch", config={"displayModeBar": False})
 mostrar_tabla(vistas_metodos.juntos(r))
 st.caption(
-    "Los tres emisores juntos, un renglón por fin de trimestre. La correlación es de rangos (Spearman) "
+    "Los emisores juntos, un renglón por fin de trimestre. La correlación es de rangos (Spearman) "
     "entre el percentil y el retorno total neto de impuesto de los años siguientes. Las ventanas de 5 "
     "años se enciman: las independientes son una por cada 20 trimestres."
 )
 
-st.header("A cuál de los tres va la aportación")
+st.header("A cuál va la aportación")
+_fuera = [t for t in r.paneles if t not in r.en_asignacion]
 st.markdown(
-    "Toda la aportación del mes —más los dividendos netos de los tres— al emisor con el percentil más "
+    "Toda la aportación del mes —más los dividendos netos de todos— al emisor con el percentil más "
     "alto contra su propia historia. Sin guardar efectivo y sin vender: solo cambia a cuál va el dinero. "
-    "El benchmark es repartirla en partes iguales, cada emisor reinvirtiendo sus propios dividendos."
+    "El benchmark es repartirla en partes iguales, cada emisor reinvirtiendo sus propios dividendos. "
+    f"Entran {', '.join(r.en_asignacion)}."
+    + (f" {', '.join(_fuera)} no: su percentil empieza después de 2008 y acortaría la ventana de todos."
+       if _fuera else "")
 )
 grafica("asignacion")
 st.caption("Cuánta más riqueza tendría quien aportó con el consenso que quien repartió en partes iguales, "
@@ -149,8 +153,9 @@ st.subheader("Los valores de cada trimestre")
 mostrar_tabla(vistas_metodos.trimestres(r, ticker), fijar_primera=True, height=420)
 st.caption(
     "Del más reciente al más viejo. El flujo es el FFO por acción de los últimos 12 meses conocido a "
-    "esa fecha (AFFO en WPC); el percentil sale de los fines de mes, con al menos 36 de historia. El "
-    "libro de Excel `docs/estudios/valuacion_trimestral.xlsx` trae esta tabla completa para los tres."
+    "esa fecha (o la medida con que se valúa cada emisor); el percentil sale de los fines de mes, con al "
+    "menos 36 de historia. El libro de Excel `docs/estudios/valuacion_trimestral.xlsx` trae esta tabla "
+    "completa para cada emisor."
 )
 
 ri = r.intrinsecos
@@ -180,7 +185,7 @@ if ri is not None:
 
     st.subheader("¿Predicen?")
     mostrar_tabla(vistas_intrinsecos.evaluacion(ri))
-    st.caption("Los tres emisores juntos, por fin de trimestre. «Absoluta»: la correlación usa el valor contra "
+    st.caption("Los emisores juntos, por fin de trimestre. «Absoluta»: la correlación usa el valor contra "
                "el precio y la señal el margen de 15%. «Contra su historia»: el percentil, como los otros métodos.")
 
     st.subheader("Sensibilidad a la prima de riesgo")
@@ -188,7 +193,7 @@ if ri is not None:
     st.caption("Qué fracción de los meses la señal absoluta dijo «barato» y qué le hizo al backtest de "
                "aportación, con 2%, 3% y 4% sobre el Treasury.")
 
-    st.subheader("A cuál de los tres, con los modelos de valor")
+    st.subheader("A cuál, con los modelos de valor")
     mostrar_tabla(vistas_intrinsecos.asignacion(ri))
 
     st.subheader(f"Backtest de aportación: {ticker}")

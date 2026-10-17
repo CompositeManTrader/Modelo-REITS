@@ -16,12 +16,12 @@ cuando el método decía barato contra cuando decía caro; y el backtest de apor
 ese método (comprar, comprar menos, no comprar, sin vender y con la reinversión en 12
 meses), contra aportar sin reglas al mismo papel (P6).
 
-Hay una cuarta prueba, la que resultó útil: con los tres emisores a la vez, mandar la
+Hay una cuarta prueba, la que resultó útil: con todos los emisores a la vez, mandar la
 aportación del mes al que está más barato contra su propia historia, sin guardar efectivo.
 
-Siete métodos probados sobre tres emisores son 21 intentos: el mejor va a verse bien por
-azar. Por eso cuenta más que un método funcione en los TRES emisores y en las dos mitades
-de la historia que su cifra en uno solo; por eso la regla que se recomienda es el
+Siete métodos probados sobre varios emisores son decenas de intentos: el mejor va a verse
+bien por azar. Por eso cuenta más que un método funcione en TODOS los emisores y en las dos
+mitades de la historia que su cifra en uno solo; por eso la regla que se recomienda es el
 consenso de los siete y no el que mejor salió; y por eso el veredicto formal sigue siendo
 el de P7: con decenas de ventanas independientes, no cientos, INCONCLUSO.
 """
@@ -95,19 +95,20 @@ NOTAS_DE_METODO: tuple[str, ...] = (
     "Backtest por emisor: la regla de «solo compras, reinversión en 12 meses» del estudio de reglas, "
     "con el percentil del método en lugar de la prima del semáforo y sin las puertas de calidad ni de "
     "deterioro: barato compra todo y la reserva, medio la mitad, caro nada; nunca vende.",
-    "Asignación entre emisores: desde el primer mes en que los tres tienen percentil del método; la "
-    "decisión de fin de mes se ejecuta al cierre de la sesión siguiente; 0.25% de comisión, 20% al "
-    "dividendo y 10% a la ganancia al vender todo al final. El benchmark reparte en tercios y cada "
-    "emisor reinvierte sus propios dividendos (P6 llevado a tres papeles).",
+    "Asignación entre emisores: entran los que tienen percentil del consenso desde 2008 o antes (un "
+    "emisor joven acortaría la ventana de todos); desde el primer mes en que todos ellos tienen "
+    "percentil del método; la decisión de fin de mes se ejecuta al cierre de la sesión siguiente; 0.25% "
+    "de comisión, 20% al dividendo y 10% a la ganancia al vender todo al final. El benchmark reparte en "
+    "partes iguales y cada emisor reinvierte sus propios dividendos (P6 llevado a varios papeles).",
     "Controles: el espejo (todo al más caro) y cada mitad del periodo por separado, con su propia TIR, "
     "se fijaron antes de ver el resultado. El azar se endureció después: la primera versión sorteaba "
-    "el emisor cada mes, reparte sola el dinero entre los tres y cualquier método le ganaba; la que "
+    "el emisor cada mes, reparte sola el dinero entre todos y cualquier método le ganaba; la que "
     "queda conserva las rachas del método (200 sorteos, semilla fija, reproducible).",
-    "Pruebas múltiples: siete métodos en tres emisores son 21 intentos. Por eso se recomienda el "
-    "consenso y no el mejor, y por eso se exige que el resultado aparezca en los tres emisores y en "
+    "Pruebas múltiples: siete métodos en cada emisor son decenas de intentos. Por eso se recomienda el "
+    "consenso y no el mejor, y por eso se exige que el resultado aparezca en todos los emisores y en "
     "las dos mitades. El consenso se definió después de ver los siete: no escoge por resultado, pero "
     "tampoco es una prueba a ciegas.",
-    "Sesgo de supervivencia: O, NNN y WPC existen hoy y se escogieron hoy. La reversión a la media que "
+    "Sesgo de supervivencia: todos los emisores estudiados existen hoy y se escogieron hoy. La reversión a la media que "
     "aprovecha la asignación es la de emisores que sobrevivieron; en uno que se está muriendo, "
     "«barato» es una trampa. La regla solo debe repartir entre emisores que pasan la Puerta 1.",
 )
@@ -256,15 +257,13 @@ def evaluar(p: pd.DataFrame, metodos: tuple[Metodo, ...] = METODOS, *, valor: st
 
 def evaluar_juntos(paneles: dict[str, pd.DataFrame], metodos: tuple[Metodo, ...] = METODOS, *,
                    valor: str = "p_", senal: str = "s_") -> pd.DataFrame:
-    """Los tres emisores juntos. Vale porque cada percentil es contra la historia propia (P4)."""
+    """Los emisores juntos. Vale porque cada percentil es contra la historia propia (P4)."""
     todos = pd.concat([trimestral(p).assign(emisor=t) for t, p in paneles.items()])
     filas = []
     for m in metodos:
         pc, s, r5 = todos[f"{valor}{m.clave}"], todos[f"{senal}{m.clave}"], todos["adelante_5a"]
-        emisores_a_favor = sum(
-            1 for t, p in paneles.items()
-            if _spearman(trimestral(p)[f"{valor}{m.clave}"], trimestral(p)["adelante_5a"]) > 0
-        )
+        rhos = [_spearman(trimestral(p)[f"{valor}{m.clave}"], trimestral(p)["adelante_5a"]) for p in paneles.values()]
+        emisores_a_favor = sum(1 for x in rhos if x > 0)
         filas.append({
             "metodo": m.nombre, "clave": m.clave,
             "rho_1a": _spearman(pc, todos["adelante_1a"]),
@@ -272,6 +271,7 @@ def evaluar_juntos(paneles: dict[str, pd.DataFrame], metodos: tuple[Metodo, ...]
             "r5_barato": float(r5[(s == "barato")].median()),
             "r5_caro": float(r5[(s == "caro")].median()),
             "emisores_con_rho_5a_positiva": emisores_a_favor,
+            "emisores_con_rho_5a": sum(1 for x in rhos if not np.isnan(x)),
             "ventanas_5a": round(pd.concat([pc, r5], axis=1).dropna().shape[0] / 20, 1),
         })
     t = pd.DataFrame(filas).set_index("clave")
@@ -333,13 +333,13 @@ def backtest_metodos(e, p: pd.DataFrame, tbill: pd.Series | None = None,
 
 
 # --------------------------------------------------------------------------------------
-# ¿A cuál de los tres? Asignación de la aportación entre emisores
+# ¿A cuál? Asignación de la aportación entre emisores
 # --------------------------------------------------------------------------------------
 
 
 @dataclass
 class Mercado:
-    """Los tres papeles en sesiones comunes, en arreglos, para simular rápido."""
+    """Los papeles en sesiones comunes, en arreglos, para simular rápido."""
 
     tickers: list[str]
     sesiones: pd.DatetimeIndex
@@ -404,7 +404,7 @@ def correr(m: Mercado, meses: np.ndarray, eleccion: np.ndarray, *, fin: int | No
     """Aportación de ``meses`` (posiciones en ``m.fines``) al emisor ``eleccion`` (−1 = partes iguales).
 
     Con ``propio=True`` cada emisor reinvierte sus propios dividendos (el benchmark de P6
-    llevado a tres papeles); si no, los dividendos de los tres se suman al dinero del mes
+    llevado a varios papeles); si no, los dividendos de todos se suman al dinero del mes
     y siguen la misma elección. Nunca se vende antes del final ni se guarda efectivo.
     """
     p = parametros
@@ -505,13 +505,13 @@ def asignar(m: Mercado, paneles: dict[str, pd.DataFrame], clave: str, *, n_azar:
     para ver qué tan raro es el resultado.
     Las elecciones al azar conservan las RACHAS del método (cuántos meses seguidos se
     queda en un emisor y cuántas veces cambia) y solo sortean a cuál: un azar que cambia
-    cada mes reparte solo el dinero entre los tres y es demasiado fácil de vencer.
+    cada mes reparte solo el dinero entre todos y es demasiado fácil de vencer.
     Además se corre por separado en cada mitad del periodo.
     """
     pc = percentiles_en(m, paneles, clave, prefijo)
     meses = np.nonzero(~np.isnan(pc).any(axis=1))[0]
     if len(meses) < 24:
-        raise ValueError(f"{clave}: menos de dos años con percentil en los tres emisores")
+        raise ValueError(f"{clave}: menos de dos años con percentil en todos los emisores")
     pcm = pc[meses]
     barato = np.argmax(pcm, axis=1)
     caro = np.argmin(pcm, axis=1)
@@ -590,6 +590,11 @@ class ResultadoMetodos:
 
     def asignacion(self) -> pd.DataFrame:
         return tabla_asignaciones(self.asignaciones)
+
+    @property
+    def en_asignacion(self) -> list[str]:
+        """Los emisores que entran a la asignación (todos, si no se registró cuáles)."""
+        return list(self.asignables) or list(self.paneles)
 
     def esperado_hoy(self) -> pd.DataFrame:
         return esperado_hoy(self.paneles, self.esperado)
@@ -705,7 +710,7 @@ def retorno_esperado(paneles: dict[str, pd.DataFrame], clave: str = "consenso") 
 
 
 def esperado_hoy(paneles: dict[str, pd.DataFrame], tabla: pd.DataFrame, clave: str = "consenso") -> pd.DataFrame:
-    """Para cada emisor: su percentil de hoy, su tramo y el rango que rindió ese tramo (los tres juntos)."""
+    """Para cada emisor: su percentil de hoy, su tramo y el rango que rindió ese tramo (todos juntos)."""
     filas = []
     juntos = tabla[tabla["alcance"] == "juntos"].set_index("tramo") if len(tabla) else pd.DataFrame()
     for t, p in paneles.items():
@@ -726,7 +731,7 @@ def frase_esperado(f: pd.Series) -> str:
     if f.get("tramo") is None or pd.isna(f.get("mediana", np.nan)):
         return "Sin suficientes trimestres en ese tramo para dar un rango."
     return (f"Hoy está en el tramo «{f['tramo']}» (percentil {f['percentil']:.0%} del consenso contra su propia "
-            f"historia). Desde ese tramo, los tres emisores rindieron en los 5 años siguientes una mediana de "
+            f"historia). Desde ese tramo, los emisores estudiados rindieron en los 5 años siguientes una mediana de "
             f"{f['mediana']:.1%} al año, entre {f['p10']:.1%} y {f['p90']:.1%} en 8 de cada 10 casos, neto con un "
             f"broker de EE. UU. ({int(f['trimestres'])} trimestres, {f['ventanas_independientes']:.1f} ventanas "
             "independientes).")
@@ -762,7 +767,8 @@ def _pb(x: float) -> str:
 
 
 def _cuantos(n: int) -> str:
-    return {2: "dos", 3: "tres", 4: "cuatro", 5: "cinco"}.get(n, str(n))
+    return {2: "dos", 3: "tres", 4: "cuatro", 5: "cinco", 6: "seis", 7: "siete", 8: "ocho", 9: "nueve",
+            10: "diez"}.get(n, str(n))
 
 
 def ventaja_acumulada(a: Asignacion) -> pd.Series:
@@ -787,7 +793,8 @@ def conclusiones(r: ResultadoMetodos) -> list[rg.Conclusion]:
     c: list[rg.Conclusion] = []
     j = r.juntos
     siete = j.loc[list(SIETE)]
-    n = len(r.paneles)
+    # Los que tienen al menos una ventana de 5 años con percentil; uno muy joven no cuenta.
+    n = int(siete["emisores_con_rho_5a"].max()) if "emisores_con_rho_5a" in siete else len(r.paneles)
     a_favor = int((siete["emisores_con_rho_5a_positiva"] == n).sum())
     cons = j.loc["consenso"]
     orden = (siete["rho_5a"].rank() + siete["r5_barato_menos_caro"].rank()).sort_values(ascending=False)
@@ -822,7 +829,10 @@ def conclusiones(r: ResultadoMetodos) -> list[rg.Conclusion]:
         f"el semáforo completo salió mediocre.",
         "desfavorable"))
 
+    if not r.asignaciones:
+        return c
     tabla = r.asignacion()
+    n = len(r.asignables)
     ca = tabla.loc["consenso"]
     siete_a = tabla.loc[list(SIETE)]
     a = next(x for x in r.asignaciones if x.clave == "consenso")
@@ -858,7 +868,7 @@ def conclusiones(r: ResultadoMetodos) -> list[rg.Conclusion]:
     votos = tabla["eleccion_hoy"].value_counts()
     baratos = [t for t in ch.index if ch.loc[t, "senal"] == "barato"]
     cierre = (f"{', '.join(baratos)} está barato contra su historia." if baratos else
-              "Ninguno de los tres está barato contra su historia, pero la evidencia dice que eso no "
+              "Ninguno está barato contra su historia, pero la evidencia dice que eso no "
               "es razón para dejar de aportar: el dinero entra completo, solo cambia a cuál.")
     c.append(rg.Conclusion(
         "Qué hacer hoy",
@@ -871,7 +881,7 @@ def conclusiones(r: ResultadoMetodos) -> list[rg.Conclusion]:
         "Qué tanto se le puede creer",
         f"Son {int(ca['cambios'])} cambios de emisor en {ca['desde']:%Y}–{r.hasta:%Y} y unas "
         f"{float(cons['ventanas_5a']):.0f} ventanas de 5 años independientes: lejos de las 100 apuestas "
-        f"que pide P7, así que el dictamen formal es INCONCLUSO. {_como_llego(a)} Además los tres emisores sobrevivieron "
+        f"que pide P7, así que el dictamen formal es INCONCLUSO. {_como_llego(a)} Además los emisores estudiados sobrevivieron "
         f"y se escogieron hoy: un REIT barato porque se estaba muriendo no está en la muestra, y en ese "
         f"caso comprar lo más barato duele. Por eso la regla solo debe repartir entre emisores que "
         f"pasan la Puerta 1 de calidad.",

@@ -315,7 +315,7 @@ if fila.empty:
     st.caption("Sin percentil del consenso todavía para este emisor.")
 else:
     st.markdown(metodos.frase_esperado(fila.iloc[0]) + " Los escenarios de arriba salen de un modelo (yield más "
-                "crecimiento); este rango sale de lo que de verdad pasó con O, NNN y WPC. El detalle está en la "
+                "crecimiento); este rango sale de lo que de verdad pasó con los emisores estudiados. El detalle está en la "
                 "página **Valuación en el tiempo**.")
     st.plotly_chart(gm.esperado(esperado, t=g.OSCURO), width="stretch", config={"displayModeBar": False})
 

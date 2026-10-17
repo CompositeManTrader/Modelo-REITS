@@ -75,7 +75,8 @@ def juntos(r: ResultadoMetodos) -> pd.DataFrame:
         "correlacion_1_anio": j["rho_1a"].round(2), "correlacion_5_anios": j["rho_5a"].round(2),
         "rendimiento_5a_barato": j["r5_barato"], "rendimiento_5a_caro": j["r5_caro"],
         "brecha_barato_caro": j["r5_barato_menos_caro"],
-        "emisores_a_favor": [f"{int(x)} de {len(r.paneles)}" for x in j["emisores_con_rho_5a_positiva"]],
+        "emisores_a_favor": [f"{int(x)} de {int(n)}" for x, n in
+                             zip(j["emisores_con_rho_5a_positiva"], j["emisores_con_rho_5a"], strict=True)],
         "ventanas_independientes": j["ventanas_5a"],
     }), "juntos")
 
@@ -107,7 +108,7 @@ def esperar(r: ResultadoMetodos, ticker: str) -> pd.DataFrame:
 
 def asignacion(r: ResultadoMetodos) -> pd.DataFrame:
     t = r.asignacion()
-    meses = [" · ".join(f"{k} {int(t.loc[c, f'meses_{k}'])}" for k in r.paneles) for c in t.index]
+    meses = [" · ".join(f"{k} {int(t.loc[c, f'meses_{k}'])}" for k in r.en_asignacion) for c in t.index]
     return _con(pd.DataFrame({
         "metodo": t["metodo"], "desde": [mes(f) for f in t["desde"]],
         "tir_con_el_metodo": t["tir_usd"], "tir_partes_iguales": t["tir_partes_iguales"],
@@ -150,7 +151,7 @@ def trimestres(r: ResultadoMetodos, ticker: str) -> pd.DataFrame:
 
 def asignacion_trimestral(r: ResultadoMetodos) -> pd.DataFrame:
     """Cada fin de trimestre: el consenso de cada emisor y a cuál iría la aportación."""
-    pcs = pd.DataFrame({t: trimestral(p)["p_consenso"] for t, p in r.paneles.items()}).dropna(how="all")
+    pcs = pd.DataFrame({t: trimestral(r.paneles[t])["p_consenso"] for t in r.en_asignacion}).dropna(how="all")
     elegido = pcs.idxmax(axis=1)
     d = pd.DataFrame({"trimestre": [f"{f.year}-T{(f.month - 1) // 3 + 1}" for f in pcs.index]}, index=pcs.index)
     for t in pcs.columns:
@@ -172,7 +173,7 @@ def _ventanas(v) -> str:
 
 
 def esperado(x) -> pd.DataFrame:
-    """Lo que rindieron los tres emisores juntos en los 5 años siguientes, por tramo del consenso."""
+    """Lo que rindieron los emisores juntos en los 5 años siguientes, por tramo del consenso."""
     tabla, _ = _esperado_de(x)
     d = tabla[tabla["alcance"] == "juntos"]
     return _con(pd.DataFrame({

@@ -73,7 +73,7 @@ def evaluacion(ri: ResultadoIntrinsecos) -> pd.DataFrame:
                 "brecha_barato_caro": f["r5_barato_menos_caro"],
                 "fraccion_barato": float(fr["fraccion_barato"].astype(float).mean()),
                 "fraccion_caro": float(fr["fraccion_caro"].astype(float).mean()),
-                "emisores_a_favor": f"{int(f['emisores_con_rho_5a_positiva'])} de {len(ri.paneles)}",
+                "emisores_a_favor": f"{int(f['emisores_con_rho_5a_positiva'])} de {int(f['emisores_con_rho_5a'])}",
                 "ventanas_independientes": f["ventanas_5a"],
             })
     return _con(pd.DataFrame(filas), "evaluacion")
@@ -118,8 +118,8 @@ def asignacion(ri: ResultadoIntrinsecos) -> pd.DataFrame:
             "ventaja_primera_mitad_bps": [_bps(x) for x in t["ventaja_primera_mitad"]],
             "ventaja_segunda_mitad_bps": [_bps(x) for x in t["ventaja_segunda_mitad"]],
             "fraccion_del_azar_que_la_iguala": t["azar_que_le_gana"].to_numpy(),
-            "meses_en_cada_uno": [" · ".join(f"{x} {int(t.loc[c, f'meses_{x}'])}" for x in ri.paneles)
-                                  for c in t.index],
+            "meses_en_cada_uno": [" · ".join(f"{x} {int(t.loc[c, f'meses_{x}'])}" for x in ri.paneles
+                                             if f"meses_{x}" in t.columns) for c in t.index],
         }))
     if not partes:
         return pd.DataFrame(columns=COLUMNAS["asignacion"])
