@@ -1,0 +1,264 @@
+{
+  "ticker": "PSA",
+  "fuente": "MERCADO-YAHOO",
+  "descargado_en": "2026-10-17T06:23:32+00:00",
+  "primera_cotizacion": "1980-11-18",
+  "inicio_verificable": {
+    "fecha": "1990-01-01",
+    "motivo": "PSA cotiza desde los ochenta (como Storage Equities, Inc.), pero el proveedor no trae ningún dividendo antes de feb-1988. El primer reporte del emisor en EDGAR es el 10-K de 1994; su tabla de datos seleccionados da el dividendo por acción de 1990 a 1994 y coincide al centavo con la suma anual del proveedor (0.65, 0.82, 0.84, 0.84, 0.85). Los de 1988-1989 no se pueden contrastar."
+  },
+  "precios": {
+    "n": 9266,
+    "desde": "1990-01-02",
+    "hasta": "2026-10-16"
+  },
+  "dividendos": {
+    "n": 152,
+    "desde": "1990-03-06",
+    "hasta": "2026-09-15"
+  },
+  "eventos": [],
+  "correcciones_de_dividendos": [
+    "1995-12-13: 0.4500 → 0.22 (regular). 10-K 1995 (Item 5): «Distributions paid per share of Common Stock for 1995 amounted to $0.88», cuatro trimestres de $0.22. El 0.45 del proveedor fabricaría un aumento de 105% seguido de un recorte que nunca ocurrió; no hubo especial en 1995.",
+    "1999-11-10: 0.6200 → 0.62 (especial). 10-K 1999: especial declarada el 4-nov-1999, pagada el 14-ene-2000 («either $0.62 per share in cash or $0.65 per share in depositary shares» de Equity Stock, Series A). Los regulares de 1999 fueron 4 × $0.22.",
+    "2000-09-13: 0.8200 → 0.22 (regular) + 0.6 (especial). 10-K 2000: regulares trimestrales de $0.22 y especial en efectivo de $0.60 declarada el 30-ago-2000 y pagada el 30-sep-2000.",
+    "2001-09-17: 0.8000 → 0.45 (regular) + 0.35 (especial). 10-K 2001: el regular sube de $0.22 a $0.45 en el 3T-2001 y el 9-ago-2001 se declara una especial de $0.35 en efectivo, pagada el 30-sep-2001.",
+    "2008-12-11: 1.1500 → 0.55 (regular) + 0.6 (especial). 10-K 2008 (Item 5): «Included in these amounts are $101.0 million or $0.60 per Common Share with respect to a special cash dividend paid in December 2008»; regular de $0.55. La especial vino de la venta del 51% de Shurgard Europe.",
+    "2022-07-29: 13.1500 → 13.15 (especial). 10-K 2022: «On August 4, 2022, we paid a Special Dividend of $13.15 per common share», de la venta de PS Business Parks. El regular siguió en $2.00 trimestrales."
+  ],
+  "validacion": {
+    "traslape_n": 1255,
+    "traslape_error_max": 0.00024283659974155825,
+    "traslape_error_medio": 1.9407817174293541e-07,
+    "anclas": [
+      {
+        "fecha": "1995-02-01",
+        "real": 14.0,
+        "reconstruido": 14.0,
+        "error": 0.0
+      },
+      {
+        "fecha": "1995-02-28",
+        "real": 14.75,
+        "reconstruido": 14.75,
+        "error": 0.0
+      },
+      {
+        "fecha": "1995-05-05",
+        "real": 16.25,
+        "reconstruido": 16.125,
+        "error": -0.007692307692307665
+      },
+      {
+        "fecha": "1995-05-23",
+        "real": 15.875,
+        "reconstruido": 15.875,
+        "error": 0.0
+      },
+      {
+        "fecha": "1995-12-13",
+        "real": 19.375,
+        "reconstruido": 19.375,
+        "error": 0.0
+      },
+      {
+        "fecha": "1996-03-01",
+        "real": 21.5,
+        "reconstruido": 21.5,
+        "error": 0.0
+      },
+      {
+        "fecha": "1996-03-15",
+        "real": 20.875,
+        "reconstruido": 20.875,
+        "error": 0.0
+      },
+      {
+        "fecha": "1996-06-19",
+        "real": 20.5,
+        "reconstruido": 20.5,
+        "error": 0.0
+      },
+      {
+        "fecha": "1996-08-14",
+        "real": 21.75,
+        "reconstruido": 21.75,
+        "error": 0.0
+      },
+      {
+        "fecha": "1996-12-04",
+        "real": 26.0,
+        "reconstruido": 26.0,
+        "error": 0.0
+      },
+      {
+        "fecha": "1997-03-18",
+        "real": 28.375,
+        "reconstruido": 28.375,
+        "error": 0.0
+      },
+      {
+        "fecha": "1997-04-08",
+        "real": 28.0,
+        "reconstruido": 28.125,
+        "error": 0.0044642857142858094
+      },
+      {
+        "fecha": "1998-02-12",
+        "real": 32.4375,
+        "reconstruido": 32.4375,
+        "error": 0.0
+      },
+      {
+        "fecha": "1998-02-27",
+        "real": 30.8125,
+        "reconstruido": 30.8125,
+        "error": 0.0
+      },
+      {
+        "fecha": "1999-03-15",
+        "real": 26.625,
+        "reconstruido": 26.625,
+        "error": 0.0
+      },
+      {
+        "fecha": "2000-03-15",
+        "real": 21.1875,
+        "reconstruido": 21.1875,
+        "error": 0.0
+      },
+      {
+        "fecha": "2001-03-14",
+        "real": 25.85,
+        "reconstruido": 25.850000381469727,
+        "error": 1.4757049360270003e-08
+      },
+      {
+        "fecha": "2002-03-14",
+        "real": 37.36,
+        "reconstruido": 37.36000061035156,
+        "error": 1.633703328174363e-08
+      },
+      {
+        "fecha": "2003-06-30",
+        "real": 33.87,
+        "reconstruido": 33.869998931884766,
+        "error": -3.153573169267787e-08
+      },
+      {
+        "fecha": "2004-06-30",
+        "real": 46.01,
+        "reconstruido": 46.0099983215332,
+        "error": -3.648047808280097e-08
+      },
+      {
+        "fecha": "2005-06-30",
+        "real": 63.25,
+        "reconstruido": 63.25,
+        "error": 0.0
+      },
+      {
+        "fecha": "2005-12-30",
+        "real": 67.72,
+        "reconstruido": 67.72000122070312,
+        "error": 1.8025740233795773e-08
+      },
+      {
+        "fecha": "2006-06-30",
+        "real": 75.9,
+        "reconstruido": 75.9000015258789,
+        "error": 2.0103806397386847e-08
+      },
+      {
+        "fecha": "2007-03-22",
+        "real": 97.28,
+        "reconstruido": 97.27999877929688,
+        "error": -1.2548346250973452e-08
+      },
+      {
+        "fecha": "2008-06-30",
+        "real": 80.79,
+        "reconstruido": 80.79000091552734,
+        "error": 1.1332186300450076e-08
+      },
+      {
+        "fecha": "2009-06-30",
+        "real": 65.48,
+        "reconstruido": 65.4800033569336,
+        "error": 5.126654833986777e-08
+      },
+      {
+        "fecha": "2010-06-30",
+        "real": 87.91,
+        "reconstruido": 87.91000366210938,
+        "error": 4.165748346274256e-08
+      },
+      {
+        "fecha": "2011-06-30",
+        "real": 114.01,
+        "reconstruido": 114.01000213623047,
+        "error": 1.8737219997788657e-08
+      },
+      {
+        "fecha": "2011-07-18",
+        "real": 118.09,
+        "reconstruido": 118.08999633789062,
+        "error": -3.101117262982456e-08
+      },
+      {
+        "fecha": "2012-11-15",
+        "real": 144.25,
+        "reconstruido": 144.25,
+        "error": 0.0
+      },
+      {
+        "fecha": "2012-11-26",
+        "real": 145.3,
+        "reconstruido": 145.3000030517578,
+        "error": 2.1003150774134838e-08
+      },
+      {
+        "fecha": "2014-06-30",
+        "real": 171.35,
+        "reconstruido": 171.35000610351562,
+        "error": 3.5620167038175055e-08
+      },
+      {
+        "fecha": "2015-06-30",
+        "real": 184.37,
+        "reconstruido": 184.3699951171875,
+        "error": -2.6483769066665275e-08
+      },
+      {
+        "fecha": "2016-06-30",
+        "real": 255.59,
+        "reconstruido": 255.58999633789062,
+        "error": -1.4328062070134706e-08
+      },
+      {
+        "fecha": "2017-06-30",
+        "real": 208.53,
+        "reconstruido": 208.52999877929688,
+        "error": -5.853848961123731e-09
+      },
+      {
+        "fecha": "2020-06-30",
+        "real": 191.89,
+        "reconstruido": 191.88999938964844,
+        "error": -3.180736563024311e-09
+      },
+      {
+        "fecha": "2021-06-30",
+        "real": 300.69,
+        "reconstruido": 300.69000244140625,
+        "error": 8.119346306401098e-09
+      }
+    ],
+    "dividendos_traslape_n": 21,
+    "dividendos_error_max": 0.0,
+    "rangos_n": 0,
+    "rangos_fuera": [],
+    "rangos_aceptados": [],
+    "anclas_aceptadas": []
+  }
+}

@@ -128,6 +128,8 @@ EVENTOS_DE_CAPITAL: dict[str, tuple[EventoDeCapital, ...]] = {
     # ProLogis y tomó su nombre y clave. El proveedor trae la historia de AMB: el 28-ene-2011 da 32.93, el
     # cierre de AMB según el proxy de la fusión (ProLogis: 15.21). Sin splits ni escisiones.
     "PLD": (),
+    # Sin splits ni escisiones desde 1990: el proveedor no reporta ninguno y 37 cierres del emisor cuadran.
+    "PSA": (),
     # Sin splits ni escisiones (10-K 2004-2025; el proveedor no reporta ninguno; 55 cierres del emisor).
     "EXR": (),
     "WELL": (
@@ -243,6 +245,48 @@ CORRECCIONES_DE_DIVIDENDOS: dict[str, tuple[CorreccionDividendo, ...]] = {
             fuente="Segunda parte del dividendo del 3T-2023; ya sumada al registro del 12-jul-2023.",
         ),
     ),
+    # PSA: un dividendo de 1995 mal registrado y cinco especiales que el proveedor suma al regular.
+    "PSA": (
+        CorreccionDividendo(
+            fecha_ex=dt.date(1995, 12, 13), proveedor=0.45,
+            partes=((0.22, "regular"),),
+            fuente="10-K 1995 (Item 5): «Distributions paid per share of Common Stock for 1995 amounted to "
+                   "$0.88», cuatro trimestres de $0.22. El 0.45 del proveedor fabricaría un aumento de 105% "
+                   "seguido de un recorte que nunca ocurrió; no hubo especial en 1995.",
+        ),
+        CorreccionDividendo(
+            fecha_ex=dt.date(1999, 11, 10), proveedor=0.62,
+            partes=((0.62, "especial"),),
+            fuente="10-K 1999: especial declarada el 4-nov-1999, pagada el 14-ene-2000 («either $0.62 per share "
+                   "in cash or $0.65 per share in depositary shares» de Equity Stock, Series A). Los regulares "
+                   "de 1999 fueron 4 × $0.22.",
+        ),
+        CorreccionDividendo(
+            fecha_ex=dt.date(2000, 9, 13), proveedor=0.82,
+            partes=((0.22, "regular"), (0.60, "especial")),
+            fuente="10-K 2000: regulares trimestrales de $0.22 y especial en efectivo de $0.60 declarada el "
+                   "30-ago-2000 y pagada el 30-sep-2000.",
+        ),
+        CorreccionDividendo(
+            fecha_ex=dt.date(2001, 9, 17), proveedor=0.80,
+            partes=((0.45, "regular"), (0.35, "especial")),
+            fuente="10-K 2001: el regular sube de $0.22 a $0.45 en el 3T-2001 y el 9-ago-2001 se declara una "
+                   "especial de $0.35 en efectivo, pagada el 30-sep-2001.",
+        ),
+        CorreccionDividendo(
+            fecha_ex=dt.date(2008, 12, 11), proveedor=1.15,
+            partes=((0.55, "regular"), (0.60, "especial")),
+            fuente="10-K 2008 (Item 5): «Included in these amounts are $101.0 million or $0.60 per Common Share "
+                   "with respect to a special cash dividend paid in December 2008»; regular de $0.55. La "
+                   "especial vino de la venta del 51% de Shurgard Europe.",
+        ),
+        CorreccionDividendo(
+            fecha_ex=dt.date(2022, 7, 29), proveedor=13.15,
+            partes=((13.15, "especial"),),
+            fuente="10-K 2022: «On August 4, 2022, we paid a Special Dividend of $13.15 per common share», de "
+                   "la venta de PS Business Parks. El regular siguió en $2.00 trimestrales.",
+        ),
+    ),
     # WELL: el regular del 4T-2006 ($0.64) se pagó en dos partes por la fusión con Windrose.
     "WELL": (
         CorreccionDividendo(
@@ -349,6 +393,15 @@ class InicioVerificable:
 
 
 INICIOS_VERIFICABLES: dict[str, InicioVerificable] = {
+    "PSA": InicioVerificable(
+        fecha=dt.date(1990, 1, 1),
+        motivo=(
+            "PSA cotiza desde los ochenta (como Storage Equities, Inc.), pero el proveedor no trae ningún "
+            "dividendo antes de feb-1988. El primer reporte del emisor en EDGAR es el 10-K de 1994; su tabla "
+            "de datos seleccionados da el dividendo por acción de 1990 a 1994 y coincide al centavo con la "
+            "suma anual del proveedor (0.65, 0.82, 0.84, 0.84, 0.85). Los de 1988-1989 no se pueden contrastar."
+        ),
+    ),
     "ADC": InicioVerificable(
         fecha=dt.date(1995, 1, 1),
         motivo=(
