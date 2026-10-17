@@ -124,6 +124,10 @@ EVENTOS_DE_CAPITAL: dict[str, tuple[EventoDeCapital, ...]] = {
     "EPRT": (),
     # Sin splits ni escisiones desde la salida a bolsa (1994); 57 cierres del emisor cuadran al centavo.
     "ADC": (),
+    # PLD es la entidad legal de AMB Property (salida a bolsa en nov-1997), que en jun-2011 absorbió a
+    # ProLogis y tomó su nombre y clave. El proveedor trae la historia de AMB: el 28-ene-2011 da 32.93, el
+    # cierre de AMB según el proxy de la fusión (ProLogis: 15.21). Sin splits ni escisiones.
+    "PLD": (),
     # Sin splits ni escisiones (10-K 2004-2025; el proveedor no reporta ninguno; 55 cierres del emisor).
     "EXR": (),
     "WELL": (
@@ -452,6 +456,13 @@ _CUADRO_WPC_2000 = (
 )
 EXCEPCIONES_DE_ANCLA: dict[str, dict[str, str]] = {
     "WPC": dict.fromkeys(("2000-03-31", "2000-06-30", "2000-09-29"), _CUADRO_WPC_2000),
+    "PLD": {
+        "1998-06-24": "El 23 7/16 del documento es el cierre del proveedor del 23-jun (desfase de un día del "
+                      "documento; lo repiten el S-11/A del 26-jun y el 424B2 del 29-jun de 1998).",
+        "2009-03-24": "Dos documentos del emisor (424B5 preliminar y final de mar-2009) dicen 13.17; el proveedor "
+                      "pasa de 14.72 a 12.31 y a 14.15 en tres días. Sospechoso del proveedor, sin un segundo "
+                      "documento que lo pruebe; un solo día, en la crisis.",
+    },
 }
 
 

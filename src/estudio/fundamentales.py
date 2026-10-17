@@ -92,6 +92,12 @@ MEDIDAS_DE_VALUACION: dict[str, MedidaDeValuacion] = {
 }
 
 
+# Desde qué año la contabilidad XBRL de la base es la del emisor. PLD: en la fusión de 2011 AMB fue la
+# adquirente legal y ProLogis la contable, así que los 10-K desde 2011 presentan 2010 y antes con las cifras
+# de la antigua ProLogis (activos al 31-dic-2010: 14.90 mil millones contra 7.37 de AMB). Antes del corte
+# solo cuentan las cifras capturadas de los documentos de AMB.
+XBRL_DESDE: dict[str, int] = {"PLD": 2011}
+
 # La sensibilidad del pre-registro de la ampliación: todo con el FFO de Nareit, sin excepciones.
 _MEDIDA_FORZADA: list[MedidaDeValuacion] = []
 
@@ -126,6 +132,16 @@ MEDIDAS_DE_VALUACION["WELL"] = MedidaDeValuacion(
         "13% en 2011, 15% en 2017); en 2025, un plan especial de compensación de 1,497 millones dejó el FFO de "
         "Nareit en 2.68 dólares por acción contra 5.29 normalizado. Antes de su primera cifra normalizada "
         "publicada (feb-2007) se usa el FFO de Nareit sin deterioros; antes de 2000 el emisor no publicó FFO."
+    ),
+)
+MEDIDAS_DE_VALUACION["PLD"] = MedidaDeValuacion(
+    "core_ffo_por_accion", "Core FFO", encadena="ffo_por_accion",
+    motivo=(
+        "PLD se valúa por Core FFO, la medida con la que reporta y da su guía desde la fusión de 2011. Su FFO "
+        "de Nareit carga ganancias de desarrollo y de contribución de inmuebles a sus fondos, que no se "
+        "repiten: en AMB, de 20% a 45% del FFO en 2005-2007 (3.51 dólares de FFO contra 1.93 de Core FFO en "
+        "2007). El Core FFO de esos años solo se publicó después, en 2011: antes de su primera publicación se "
+        "usa el FFO de Nareit de AMB, como fija la regla, aunque traiga esas ganancias."
     ),
 )
 MEDIDAS_DE_VALUACION["GNL"] = MedidaDeValuacion(
@@ -357,6 +373,10 @@ def anual(
     fy = _por_anio(fy) if not fy.empty else pd.DataFrame()
     saldos = repo.panel(ticker, CONCEPTOS_SALDO, asof=asof, periodo_tipo="PUNTUAL")
     saldos = _por_anio(saldos) if not saldos.empty else pd.DataFrame()
+    corte = XBRL_DESDE.get(ticker.upper())
+    if corte is not None:
+        fy = fy[fy.index >= corte] if not fy.empty else fy
+        saldos = saldos[saldos.index >= corte] if not saldos.empty else saldos
     if not saldos.empty:
         deuda = deuda_por_periodo(saldos)
         if deuda is not None:
