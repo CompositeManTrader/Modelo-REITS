@@ -1,33 +1,32 @@
 {
   "version": 1,
-  "actualizado_en": "2026-10-20T16:12:11+00:00",
+  "actualizado_en": "2026-10-21T16:28:13+00:00",
   "emisoras": {
     "ADC": {
       "ticker": "ADC",
       "cik": "0000917251",
       "nombre": "Agree Realty Corporation",
-      "ultimo_accession": "0000917251-26-000063",
+      "ultimo_accession": "0000917251-26-000076",
       "ultimo_formulario": "10-Q",
-      "ultima_fecha_presentacion": "2026-07-30",
-      "descargado_en": "2026-09-07T01:41:02+00:00",
-      "n_hechos_crudos": 22172,
-      "periodos_trimestrales": 25,
+      "ultima_fecha_presentacion": "2026-10-20",
+      "descargado_en": "2026-10-21T16:28:12+00:00",
+      "n_hechos_crudos": 10939,
+      "periodos_trimestrales": 26,
       "periodos_anuales": 7,
-      "lineas_encontradas": 60,
-      "lineas_totales": 75,
+      "lineas_encontradas": 73,
+      "lineas_totales": 94,
       "huellas": {
-        "hechos.csv.gz": "da1c5305026a732f",
-        "estado_resultados_trimestral.csv": "39318c22637c67a3",
-        "estado_resultados_anual.csv": "37da849a7de97c43",
-        "balance.csv": "14c015b89cc46479",
-        "flujo_efectivo_trimestral.csv": "d86d8d7f5eb34813",
+        "hechos.csv.gz": "23e957727b26e4dc",
+        "estado_resultados_trimestral.csv": "4781b27eb9f08074",
+        "estado_resultados_anual.csv": "73dc75ce067efb10",
+        "balance.csv": "be26aaa344a43724",
+        "flujo_efectivo_trimestral.csv": "21ce23261faf4ee2",
         "flujo_efectivo_anual.csv": "b2a8eb488f57e37b",
-        "cobertura.csv": "c08acda1b77ef865"
+        "cobertura.csv": "7b32bddfde1f1455"
       },
       "incidencias": [
         "AVISO ADC · etiqueta_alterna: «Deterioro de activos» se armó con «ImpairmentOfRealEstate», y «AssetImpairmentCharges» cubre 1 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
-        "AVISO ADC · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpense», y «InterestExpenseNonoperating» cubre 9 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
-        "AVISO ADC · etiqueta_alterna: «Ganancia por venta de inmuebles» se armó con «GainsLossesOnSalesOfInvestmentRealEstate», y «GainLossOnDispositionOfAssets1» cubre 1 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
+        "AVISO ADC · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpenseNonoperating», y «InterestExpense» cubre 15 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
       ]
     },
     "EPRT": {

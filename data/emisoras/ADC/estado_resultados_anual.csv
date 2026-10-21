@@ -6,15 +6,16 @@ gasto_predial_seguro,Predial y seguros,RealEstateTaxExpense,False,52231000.0,468
 depreciacion_amortizacion,Depreciación y amortización,DepreciationAndAmortization,False,239308000.0,206987000.0,176277000.0,133570000.0,95729000.0,66758000.0,45703000.0
 gasto_administracion,Gastos generales y de administración,GeneralAndAdministrativeExpense,False,44062000.0,37233000.0,34788000.0,30121000.0,25456000.0,20793000.0,15566000.0
 deterioro,Deterioro de activos,ImpairmentOfRealEstate,False,11872000.0,7224000.0,7175000.0,1015000.0,1919000.0,,
+provision_perdidas_crediticias,Provisión por pérdidas crediticias,ProvisionForDoubtfulAccounts,False,,,,-400000.0,,,
 gastos_totales,Gastos totales,CostsAndExpenses,True,383389000.0,326293000.0,284957000.0,216987000.0,164165000.0,123440000.0,86389000.0
 utilidad_operativa,Utilidad de operación,OperatingIncomeLoss,True,340395000.0,302243000.0,254387000.0,218085000.0,190269000.0,133132000.0,114395000.0
-gasto_intereses,Gasto por intereses,InterestExpense,False,,,81119000.0,63435000.0,50378000.0,40097000.0,33094000.0
+gasto_intereses,Gasto por intereses,InterestExpenseNonoperating,False,134612000.0,108904000.0,81119000.0,63435000.0,,,
 ganancia_venta_inmuebles,Ganancia por venta de inmuebles,GainsLossesOnSalesOfInvestmentRealEstate,False,5416000.0,11508000.0,1849000.0,5300000.0,14900000.0,8000000.0,13300000.0
 otros_no_operativos,Otros resultados no operativos,OtherNonoperatingIncomeExpense,False,941000.0,799000.0,189000.0,1245000.0,0.0,23000.0,0.0
 impuestos,Impuesto a la utilidad,IncomeTaxExpenseBenefit,False,1735000.0,4306000.0,2910000.0,2860000.0,2401000.0,1086000.0,538000.0
 utilidad_neta,Utilidad neta,ProfitLoss,True,204989000.0,189832000.0,170547000.0,153035000.0,122876000.0,91972000.0,80763000.0
 utilidad_minoritarios,Participación no controladora,NetIncomeLossAttributableToNoncontrollingInterest,False,640000.0,635000.0,588000.0,598000.0,603000.0,591000.0,682000.0
-dividendos_preferentes,Dividendos preferentes,DividendsPreferredStock,False,7437000.0,7437000.0,7437000.0,7437000.0,2148000.0,,
+dividendos_preferentes,Dividendos preferentes,PreferredStockDividendsIncomeStatementImpact,False,7437000.0,7437000.0,7437000.0,7437000.0,2148000.0,0.0,0.0
 utilidad_neta_comun,Utilidad neta atribuible a comunes,NetIncomeLoss,True,204349000.0,189197000.0,169959000.0,152437000.0,122273000.0,91381000.0,80081000.0
 utilidad_por_accion_basica,"Utilidad por acción, básica",EarningsPerShareBasic,False,1.77,1.79,1.7,1.84,1.79,1.76,1.96
 utilidad_por_accion_diluida,"Utilidad por acción, diluida",EarningsPerShareDiluted,False,1.77,1.78,1.7,1.83,1.78,1.74,1.93
