@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado_en": "2026-10-21T16:28:13+00:00",
+  "actualizado_en": "2026-10-22T16:28:10+00:00",
   "emisoras": {
     "ADC": {
       "ticker": "ADC",
@@ -33,26 +33,27 @@
       "ticker": "EPRT",
       "cik": "0001728951",
       "nombre": "Essential Properties Realty Trust",
-      "ultimo_accession": "0001728951-26-000052",
+      "ultimo_accession": "0001728951-26-000071",
       "ultimo_formulario": "10-Q",
-      "ultima_fecha_presentacion": "2026-07-22",
-      "descargado_en": "2026-09-07T01:41:05+00:00",
-      "n_hechos_crudos": 13136,
-      "periodos_trimestrales": 29,
+      "ultima_fecha_presentacion": "2026-10-21",
+      "descargado_en": "2026-10-22T16:28:10+00:00",
+      "n_hechos_crudos": 11836,
+      "periodos_trimestrales": 30,
       "periodos_anuales": 7,
-      "lineas_encontradas": 54,
-      "lineas_totales": 75,
+      "lineas_encontradas": 68,
+      "lineas_totales": 94,
       "huellas": {
-        "hechos.csv.gz": "5d3e97ab204d9736",
-        "estado_resultados_trimestral.csv": "67ae746d6cfa8af2",
-        "estado_resultados_anual.csv": "df4ff34e613808ce",
-        "balance.csv": "82395c25d842c30c",
-        "flujo_efectivo_trimestral.csv": "3ccdc619e25cf68d",
+        "hechos.csv.gz": "eed806e0e10af175",
+        "estado_resultados_trimestral.csv": "83d952add0084ee4",
+        "estado_resultados_anual.csv": "9b0e615066a25993",
+        "balance.csv": "5474bce4f9cfe802",
+        "flujo_efectivo_trimestral.csv": "9115b45226ccd39f",
         "flujo_efectivo_anual.csv": "368cc22968823820",
-        "cobertura.csv": "626d579b12324b38"
+        "cobertura.csv": "5c671f6184209362"
       },
       "incidencias": [
-        "AVISO EPRT · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpense», y «InterestExpenseNonoperating» cubre 9 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO EPRT · etiqueta_alterna: «Provisión por pérdidas crediticias» se armó con «FinancingReceivableExcludingAccruedInterestCreditLossExpenseReversal», y «ProvisionForLoanLossesExpensed» cubre 9 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO EPRT · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpenseNonoperating», y «InterestExpenseDebt» cubre 6 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
         "AVISO EPRT · etiqueta_alterna: «Utilidad antes de impuestos» se armó con «IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest», y «IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments» cubre 5 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
       ]
     },

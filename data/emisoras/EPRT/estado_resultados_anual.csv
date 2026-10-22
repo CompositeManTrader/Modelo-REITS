@@ -6,9 +6,10 @@ ingresos_totales,Ingresos totales,Revenues,True,561219000.0,449610000.0,35959500
 depreciacion_amortizacion,Depreciación y amortización,DepreciationAndAmortization,False,153602000.0,122161000.0,102219000.0,88562000.0,69146000.0,59446000.0,42745000.0
 gasto_administracion,Gastos generales y de administración,GeneralAndAdministrativeExpense,False,40864000.0,35161000.0,30678000.0,29464000.0,24329000.0,24444000.0,21745000.0
 deterioro,Deterioro de activos,AssetImpairmentCharges,False,11997000.0,14845000.0,3548000.0,20164000.0,6120000.0,8399000.0,2918000.0
+provision_perdidas_crediticias,Provisión por pérdidas crediticias,FinancingReceivableExcludingAccruedInterestCreditLossExpenseReversal,False,108000.0,230000.0,-99000.0,88000.0,,,
 gastos_totales,Gastos totales,CostsAndExpenses,True,214147000.0,177394000.0,141009000.0,141730000.0,105153000.0,97000000.0,70478000.0
 utilidad_operativa,Utilidad de operación,OperatingIncomeLoss,True,359921000.0,278193000.0,242753000.0,175423000.0,134419000.0,72830000.0,79811000.0
-gasto_intereses,Gasto por intereses,InterestExpense,False,,,52597000.0,40370000.0,33614000.0,29651000.0,27037000.0
+gasto_intereses,Gasto por intereses,InterestExpenseNonoperating,False,108083000.0,78544000.0,52597000.0,40370000.0,,,
 ganancia_venta_inmuebles,Ganancia por venta de inmuebles,GainsLossesOnSalesOfInvestmentRealEstate,False,12849000.0,5977000.0,24167000.0,30647000.0,9338000.0,5821000.0,10932000.0
 utilidad_antes_impuestos,Utilidad antes de impuestos,IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest,True,254375000.0,204266000.0,192051000.0,135740000.0,96438000.0,42740000.0,48328000.0
 impuestos,Impuesto a la utilidad,IncomeTaxExpenseBenefit,False,644000.0,628000.0,636000.0,998000.0,227000.0,212000.0,303000.0
