@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado_en": "2026-10-26T18:05:48+00:00",
+  "actualizado_en": "2026-10-27T17:15:40+00:00",
   "emisoras": {
     "ADC": {
       "ticker": "ADC",
@@ -201,23 +201,23 @@
       "ticker": "PSA",
       "cik": "0001393311",
       "nombre": "Public Storage",
-      "ultimo_accession": "0001628280-26-050612",
+      "ultimo_accession": "0001628280-26-067286",
       "ultimo_formulario": "10-Q",
-      "ultima_fecha_presentacion": "2026-07-29",
-      "descargado_en": "2026-09-07T01:41:08+00:00",
-      "n_hechos_crudos": 21103,
-      "periodos_trimestrales": 24,
+      "ultima_fecha_presentacion": "2026-10-26",
+      "descargado_en": "2026-10-27T17:15:40+00:00",
+      "n_hechos_crudos": 9073,
+      "periodos_trimestrales": 25,
       "periodos_anuales": 7,
-      "lineas_encontradas": 54,
-      "lineas_totales": 75,
+      "lineas_encontradas": 68,
+      "lineas_totales": 94,
       "huellas": {
-        "hechos.csv.gz": "e0d0d2a7fcb8273b",
-        "estado_resultados_trimestral.csv": "5a811987ec6e0b9b",
+        "hechos.csv.gz": "10240de3ef18e1f7",
+        "estado_resultados_trimestral.csv": "51e373cc0d5510eb",
         "estado_resultados_anual.csv": "878feb783d61785e",
-        "balance.csv": "f9038839b47b8307",
-        "flujo_efectivo_trimestral.csv": "33e173e76bb684ad",
+        "balance.csv": "a0c52d607d3d3779",
+        "flujo_efectivo_trimestral.csv": "7d69cc8d2745b1e1",
         "flujo_efectivo_anual.csv": "a8c227ca1d7a7192",
-        "cobertura.csv": "cd39b6946533151a"
+        "cobertura.csv": "8cc0abfa8c513799"
       },
       "incidencias": [
         "AVISO PSA · etiqueta_alterna: «Dividendo declarado por acción» se armó con «CommonStockDividendsPerShareDeclared», y «CommonStockDividendsPerShareCashPaid» cubre 2 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
