@@ -8,13 +8,15 @@ gasto_predial_seguro,Predial y seguros,RealEstateTaxExpense,False,344843000.0,31
 depreciacion_amortizacion,Depreciación y amortización,DepreciationAndAmortization,False,2084868000.0,1632093000.0,1401101000.0,1310368000.0,1037566000.0,1038437000.0,1027073000.0
 gasto_administracion,Gastos generales y de administración,SellingGeneralAndAdministrativeExpense,False,1748435000.0,235491000.0,179091000.0,150390000.0,126727000.0,128394000.0,126549000.0
 deterioro,Deterioro de activos,AssetImpairmentCharges,False,121283000.0,92793000.0,36097000.0,17502000.0,51107000.0,135608000.0,28133000.0
+provision_perdidas_crediticias,Provisión por pérdidas crediticias,ProvisionForLoanLossesExpensed,False,-9416000.0,10125000.0,9809000.0,10320000.0,7270000.0,94436000.0,18690000.0
 gastos_totales,Gastos totales,CostsAndExpenses,True,11318059000.0,7466676000.0,6287948000.0,5687553000.0,4571365000.0,4637519000.0,4578414000.0
-gasto_intereses,Gasto por intereses,InterestExpenseDebt,False,,,607846000.0,529519000.0,489853000.0,514388000.0,555559000.0
+gasto_intereses,Gasto por intereses,InterestExpenseBorrowings,False,651955000.0,574261000.0,607846000.0,529519000.0,,,
 ganancia_venta_inmuebles,Ganancia por venta de inmuebles,GainsLossesOnSalesOfInvestmentRealEstate,False,,,67898000.0,16043000.0,235375000.0,1088455000.0,748041000.0
 resultado_no_consolidadas,Participación en no consolidadas,IncomeLossFromEquityMethodInvestments,False,-14297000.0,-496000.0,-53442000.0,-21290000.0,-22933000.0,-8083000.0,42434000.0
 otros_no_operativos,Otros resultados no operativos,OtherNonoperatingIncomeExpense,False,,,-108341000.0,-101670000.0,-41739000.0,-70335000.0,-52612000.0
 utilidad_antes_impuestos,Utilidad antes de impuestos,IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments,True,,524442000.0,350047000.0,173062000.0,170750000.0,-31552000.0,542892000.0
 impuestos,Impuesto a la utilidad,IncomeTaxExpenseBenefit,False,-7116000.0,2700000.0,6364000.0,7247000.0,8713000.0,9968000.0,2957000.0
+utilidad_operaciones_continuas,Utilidad de operaciones continuas,IncomeLossFromContinuingOperationsIncludingPortionAttributableToNoncontrollingInterest,True,961837000.0,972857000.0,358139000.0,160568000.0,374479000.0,1038852000.0,1330410000.0
 utilidad_neta,Utilidad neta,ProfitLoss,True,961837000.0,972857000.0,358139000.0,160568000.0,374479000.0,1038852000.0,1330410000.0
 utilidad_minoritarios,Participación no controladora,NetIncomeLossAttributableToNoncontrollingInterest,False,24992000.0,21177000.0,18045000.0,19354000.0,38341000.0,60008000.0,97978000.0
 dividendos_preferentes,Dividendos preferentes,DividendsPreferredStock,False,,,,,,0.0,0.0
@@ -24,3 +26,5 @@ utilidad_por_accion_diluida,"Utilidad por acción, diluida",EarningsPerShareDilu
 acciones_basicas,"Acciones promedio, básicas",WeightedAverageNumberOfSharesOutstandingBasic,False,665639000.0,602975000.0,515629000.0,462185000.0,424976000.0,415451000.0,401845000.0
 acciones_diluidas,"Acciones promedio, diluidas",WeightedAverageNumberOfDilutedSharesOutstanding,False,679521000.0,608750000.0,518701000.0,465158000.0,426841000.0,417387000.0,403808000.0
 dividendo_declarado_por_accion,Dividendo declarado por acción,CommonStockDividendsPerShareCashPaid,False,2.82,2.56,2.44,2.44,2.44,2.7,3.48
+utilidad_por_accion_basica_continuas,"Utilidad por acción básica, operaciones continuas",IncomeLossFromContinuingOperationsPerBasicShare,False,1.44,1.61,0.69,0.35,0.88,2.5,3.31
+utilidad_por_accion_diluida_continuas,"Utilidad por acción diluida, operaciones continuas",IncomeLossFromContinuingOperationsPerDilutedShare,False,1.42,1.6,0.69,0.35,0.88,2.49,3.29

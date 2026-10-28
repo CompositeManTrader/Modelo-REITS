@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado_en": "2026-10-27T17:15:40+00:00",
+  "actualizado_en": "2026-10-28T17:47:34+00:00",
   "emisoras": {
     "ADC": {
       "ticker": "ADC",
@@ -228,27 +228,29 @@
       "ticker": "WELL",
       "cik": "0000766704",
       "nombre": "Welltower Inc.",
-      "ultimo_accession": "0000766704-26-000030",
+      "ultimo_accession": "0000766704-26-000046",
       "ultimo_formulario": "10-Q",
-      "ultima_fecha_presentacion": "2026-07-28",
-      "descargado_en": "2026-09-07T01:41:12+00:00",
-      "n_hechos_crudos": 36092,
-      "periodos_trimestrales": 24,
+      "ultima_fecha_presentacion": "2026-10-27",
+      "descargado_en": "2026-10-28T17:47:34+00:00",
+      "n_hechos_crudos": 14072,
+      "periodos_trimestrales": 26,
       "periodos_anuales": 7,
-      "lineas_encontradas": 64,
-      "lineas_totales": 75,
+      "lineas_encontradas": 80,
+      "lineas_totales": 94,
       "huellas": {
-        "hechos.csv.gz": "060967e4f3a71456",
-        "estado_resultados_trimestral.csv": "ccd9cfa33a1d7bba",
-        "estado_resultados_anual.csv": "0042a26e24487342",
-        "balance.csv": "3031edd5939a649f",
-        "flujo_efectivo_trimestral.csv": "3ba252250ed4780f",
+        "hechos.csv.gz": "223936cb38c5e3c9",
+        "estado_resultados_trimestral.csv": "ee69303a7a509ead",
+        "estado_resultados_anual.csv": "3ca032cdcc6ba207",
+        "balance.csv": "21164db07d8da5a7",
+        "flujo_efectivo_trimestral.csv": "eff6f04600da1aee",
         "flujo_efectivo_anual.csv": "79737b5dd10d579b",
-        "cobertura.csv": "489b2c78dac36d94"
+        "cobertura.csv": "2a7c46fd8b95062e"
       },
       "incidencias": [
-        "AVISO WELL · etiqueta_alterna: «Dividendo declarado por acción» se armó con «CommonStockDividendsPerShareCashPaid», y «CommonStockDividendsPerShareDeclared» cubre 4 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
-        "AVISO WELL · etiqueta_alterna: «Adquisición de inmuebles» se armó con «PaymentsToAcquireCommercialRealEstate», y «PaymentsToAcquireRealEstate» cubre 7 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO WELL · etiqueta_alterna: «Depreciación y amortización» se armó con «DepreciationAndAmortization», y «DepreciationDepletionAndAmortization» cubre 2 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO WELL · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpenseBorrowings», y «InterestExpenseDebt» cubre 18 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO WELL · etiqueta_alterna: «Dividendo declarado por acción» se armó con «CommonStockDividendsPerShareCashPaid», y «CommonStockDividendsPerShareDeclared» cubre 6 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO WELL · etiqueta_alterna: «Adquisición de inmuebles» se armó con «PaymentsToAcquireCommercialRealEstate», y «PaymentsToAcquireRealEstate» cubre 9 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
         "AVISO WELL · etiqueta_alterna: «Emisión de acciones» se armó con «ProceedsFromIssuanceOfCommonStock», y «ProceedsFromIssuanceOrSaleOfEquity» cubre 4 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
       ]
     },
