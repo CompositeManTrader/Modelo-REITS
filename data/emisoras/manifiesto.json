@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado_en": "2026-10-28T17:47:34+00:00",
+  "actualizado_en": "2026-10-29T17:55:17+00:00",
   "emisoras": {
     "ADC": {
       "ticker": "ADC",
@@ -175,23 +175,23 @@
       "ticker": "PLD",
       "cik": "0001045609",
       "nombre": "Prologis, Inc.",
-      "ultimo_accession": "0001193125-26-323746",
+      "ultimo_accession": "0001193125-26-436160",
       "ultimo_formulario": "10-Q",
-      "ultima_fecha_presentacion": "2026-07-29",
-      "descargado_en": "2026-09-07T01:41:10+00:00",
-      "n_hechos_crudos": 23586,
+      "ultima_fecha_presentacion": "2026-10-28",
+      "descargado_en": "2026-10-29T17:55:17+00:00",
+      "n_hechos_crudos": 9256,
       "periodos_trimestrales": 29,
       "periodos_anuales": 7,
-      "lineas_encontradas": 56,
-      "lineas_totales": 75,
+      "lineas_encontradas": 66,
+      "lineas_totales": 94,
       "huellas": {
-        "hechos.csv.gz": "353377a16aadb2a9",
-        "estado_resultados_trimestral.csv": "24b4b0a6c609c170",
-        "estado_resultados_anual.csv": "f2e2527df8bd4772",
-        "balance.csv": "83f01249e33c7a27",
-        "flujo_efectivo_trimestral.csv": "819b75b3a26f3e65",
+        "hechos.csv.gz": "862a361e993c7128",
+        "estado_resultados_trimestral.csv": "a61618a6ac0af18a",
+        "estado_resultados_anual.csv": "cb54443235fbf2a2",
+        "balance.csv": "fd33866733dea907",
+        "flujo_efectivo_trimestral.csv": "e6066903ee9c30b7",
         "flujo_efectivo_anual.csv": "dcb0758048803980",
-        "cobertura.csv": "6f0b704dcad75301"
+        "cobertura.csv": "a6a44ee4c8e76b52"
       },
       "incidencias": [
         "AVISO PLD · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpense», y «InterestExpenseNonoperating» cubre 5 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
@@ -258,26 +258,26 @@
       "ticker": "WPC",
       "cik": "0001025378",
       "nombre": "W. P. Carey Inc.",
-      "ultimo_accession": "0001025378-26-000119",
+      "ultimo_accession": "0001025378-26-000132",
       "ultimo_formulario": "10-Q",
-      "ultima_fecha_presentacion": "2026-07-29",
-      "descargado_en": "2026-09-07T01:41:04+00:00",
-      "n_hechos_crudos": 32111,
-      "periodos_trimestrales": 30,
+      "ultima_fecha_presentacion": "2026-10-28",
+      "descargado_en": "2026-10-29T17:55:15+00:00",
+      "n_hechos_crudos": 12106,
+      "periodos_trimestrales": 31,
       "periodos_anuales": 7,
-      "lineas_encontradas": 54,
-      "lineas_totales": 75,
+      "lineas_encontradas": 66,
+      "lineas_totales": 94,
       "huellas": {
-        "hechos.csv.gz": "0113ce4767a76dc3",
-        "estado_resultados_trimestral.csv": "a4dc7542f317df1b",
-        "estado_resultados_anual.csv": "3d43792c517c014e",
-        "balance.csv": "03db99a4f91a06de",
-        "flujo_efectivo_trimestral.csv": "710cd492476073c9",
+        "hechos.csv.gz": "b80695b7a2e37e4e",
+        "estado_resultados_trimestral.csv": "8b00df5b33ed81fe",
+        "estado_resultados_anual.csv": "ce0f783e98bab8d1",
+        "balance.csv": "292687271210f39a",
+        "flujo_efectivo_trimestral.csv": "50a2967be677bdef",
         "flujo_efectivo_anual.csv": "154312311d7e2ec5",
-        "cobertura.csv": "9beb58b09782b377"
+        "cobertura.csv": "98cd0374a831892f"
       },
       "incidencias": [
-        "AVISO WPC · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpense», y «InterestExpenseDebt» cubre 2 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
+        "AVISO WPC · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpenseNonoperating», y «InterestExpenseDebt» cubre 3 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
       ]
     }
   }

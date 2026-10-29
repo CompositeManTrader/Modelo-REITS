@@ -10,6 +10,7 @@ estado_resultados,gasto_predial_seguro,Predial y seguros,False,,False,False
 estado_resultados,depreciacion_amortizacion,Depreciación y amortización,False,DepreciationAndAmortization,True,False
 estado_resultados,gasto_administracion,Gastos generales y de administración,False,GeneralAndAdministrativeExpense,True,False
 estado_resultados,deterioro,Deterioro de activos,False,AssetImpairmentCharges,True,False
+estado_resultados,provision_perdidas_crediticias,Provisión por pérdidas crediticias,False,,False,False
 estado_resultados,gasto_otros,Otros gastos de operación,False,,False,False
 estado_resultados,gastos_totales,Gastos totales,True,CostsAndExpenses,True,False
 estado_resultados,utilidad_operativa,Utilidad de operación,True,,False,False
@@ -20,6 +21,8 @@ estado_resultados,resultado_no_consolidadas,Participación en no consolidadas,Fa
 estado_resultados,otros_no_operativos,Otros resultados no operativos,False,OtherNonoperatingIncomeExpense,True,False
 estado_resultados,utilidad_antes_impuestos,Utilidad antes de impuestos,True,IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest,True,False
 estado_resultados,impuestos,Impuesto a la utilidad,False,IncomeTaxExpenseBenefit,True,False
+estado_resultados,utilidad_operaciones_continuas,Utilidad de operaciones continuas,True,,False,False
+estado_resultados,operaciones_discontinuadas,Operaciones discontinuadas,False,,False,False
 estado_resultados,utilidad_neta,Utilidad neta,True,ProfitLoss,True,False
 estado_resultados,utilidad_minoritarios,Participación no controladora,False,NetIncomeLossAttributableToNoncontrollingInterest,True,False
 estado_resultados,dividendos_preferentes,Dividendos preferentes,False,,False,False
@@ -29,11 +32,16 @@ estado_resultados,utilidad_por_accion_diluida,"Utilidad por acción, diluida",Fa
 estado_resultados,acciones_basicas,"Acciones promedio, básicas",False,WeightedAverageNumberOfSharesOutstandingBasic,True,False
 estado_resultados,acciones_diluidas,"Acciones promedio, diluidas",False,WeightedAverageNumberOfDilutedSharesOutstanding,True,False
 estado_resultados,dividendo_declarado_por_accion,Dividendo declarado por acción,False,CommonStockDividendsPerShareDeclared,True,False
+estado_resultados,utilidad_por_accion_basica_continuas,"Utilidad por acción básica, operaciones continuas",False,IncomeLossFromContinuingOperationsPerBasicShare,True,False
+estado_resultados,utilidad_por_accion_diluida_continuas,"Utilidad por acción diluida, operaciones continuas",False,IncomeLossFromContinuingOperationsPerDilutedShare,True,False
 balance,inmuebles_bruto,"Inmuebles, costo",False,RealEstateInvestmentPropertyAtCost,True,False
+balance,terreno,Terreno,False,,False,False
+balance,edificios,Edificios y mejoras,False,,False,False
+balance,desarrollo_en_proceso,Desarrollo en proceso,False,,False,False
 balance,depreciacion_acumulada,Depreciación acumulada,False,RealEstateInvestmentPropertyAccumulatedDepreciation,True,False
 balance,inmuebles_neto,"Inmuebles, neto",True,RealEstateInvestmentPropertyNet,True,False
 balance,efectivo,Efectivo y equivalentes,False,CashAndCashEquivalentsAtCarryingValue,True,False
-balance,efectivo_restringido,Efectivo restringido,False,,False,False
+balance,efectivo_restringido,Efectivo restringido,False,RestrictedCash,True,False
 balance,cuentas_por_cobrar,Cuentas por cobrar,False,,False,False
 balance,renta_linea_recta_por_cobrar,Rentas por cobrar en línea recta,False,StraightLineRentAdjustments,True,False
 balance,intangibles_arrendamiento,Intangibles de arrendamiento,False,,False,False
@@ -46,9 +54,20 @@ balance,activos_totales,Activos totales,True,Assets,True,False
 balance,deuda_hipotecaria,Deuda hipotecaria,False,SecuredDebt,True,False
 balance,notas_senior,Notas senior no garantizadas,False,UnsecuredDebt,True,False
 balance,linea_de_credito,Línea de crédito revolvente,False,LineOfCredit,True,False
-balance,deuda_total,Deuda total,True,DebtLongtermAndShorttermCombinedAmount,True,False
+balance,deuda_no_garantizada,Deuda no garantizada,False,,False,False
+balance,prestamos_a_plazo,Préstamos a plazo,False,,False,False
+balance,otras_notas_por_pagar,Otras notas por pagar,False,,False,False
+balance,deuda_total,Deuda total,True,DebtLongtermAndShorttermCombinedAmount,True,True
 balance,cuentas_por_pagar,Cuentas por pagar y acumulados,False,AccountsPayableAndAccruedLiabilitiesCurrentAndNoncurrent,True,False
-balance,intangibles_pasivo,"Intangibles de arrendamiento, pasivo",False,,False,False
+balance,intangibles_pasivo,"Intangibles de arrendamiento, pasivo",False,BelowMarketLeaseNet,True,False
+balance,vencimiento_12m,Vencimientos a 12 meses,False,LongTermDebtMaturitiesRepaymentsOfPrincipalInNextTwelveMonths,True,False
+balance,vencimiento_ano_2,Vencimientos al año 2,False,LongTermDebtMaturitiesRepaymentsOfPrincipalInYearTwo,True,False
+balance,vencimiento_ano_3,Vencimientos al año 3,False,LongTermDebtMaturitiesRepaymentsOfPrincipalInYearThree,True,False
+balance,vencimiento_ano_4,Vencimientos al año 4,False,LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFour,True,False
+balance,vencimiento_ano_5,Vencimientos al año 5,False,LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFive,True,False
+balance,vencimiento_despues,Vencimientos posteriores,False,LongTermDebtMaturitiesRepaymentsOfPrincipalAfterYearFive,True,False
+balance,pasivo_arrendamiento,Pasivo por arrendamiento operativo,False,OperatingLeaseLiability,True,False
+balance,activo_arrendamiento,Activo por derecho de uso,False,OperatingLeaseRightOfUseAsset,True,False
 balance,pasivos_otros,Otros pasivos,False,,False,False
 balance,pasivos_totales,Pasivos totales,True,Liabilities,True,False
 balance,capital_preferente,Capital preferente,False,PreferredStockValue,True,False

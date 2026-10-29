@@ -9,11 +9,12 @@ gastos_totales,Gastos totales,OperatingExpenses,True,-2280683000.0,-2104285000.0
 utilidad_operativa,Utilidad de operación,OperatingIncomeLoss,True,4357864000.0,4415920000.0,3707792000.0,3467538000.0,3206996000.0,2118944000.0,1849766000.0
 gasto_intereses,Gasto por intereses,InterestExpense,False,1002344000.0,863932000.0,641332000.0,309037000.0,266228000.0,314507000.0,239953000.0
 resultado_no_consolidadas,Participación en no consolidadas,IncomeLossFromEquityMethodInvestments,False,402531000.0,353623000.0,307227000.0,310872000.0,404255000.0,297370000.0,200178000.0
-otros_no_operativos,Otros resultados no operativos,NonoperatingIncomeExpense,False,-588548000.0,-301042000.0,-243609000.0,223272000.0,115852000.0,-371856000.0,-73403000.0
+otros_no_operativos,Otros resultados no operativos,OtherNonoperatingIncomeExpense,False,,,,,871000.0,1044000.0,24213000.0
 utilidad_antes_impuestos,Utilidad antes de impuestos,IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest,True,3769316000.0,4114878000.0,3464183000.0,3690810000.0,3322848000.0,1747088000.0,1776363000.0
 impuestos,Impuesto a la utilidad,IncomeTaxExpenseBenefit,False,204017000.0,166943000.0,211038000.0,135412000.0,174258000.0,130458000.0,74517000.0
 utilidad_neta,Utilidad neta,ProfitLoss,True,3565299000.0,3947935000.0,3253145000.0,3555398000.0,3148590000.0,1616630000.0,1701846000.0
 utilidad_minoritarios,Participación no controladora,NetIncomeLossAttributableToNoncontrollingInterest,False,237068000.0,216300000.0,193931000.0,190542000.0,208867000.0,134816000.0,128887000.0
+dividendos_preferentes,Dividendos preferentes,PreferredStockDividendsIncomeStatementImpact,False,5882000.0,5881000.0,5841000.0,6060000.0,6152000.0,6345000.0,6009000.0
 utilidad_neta_comun,Utilidad neta atribuible a comunes,NetIncomeLossAvailableToCommonStockholdersBasic,True,3322349000.0,3725754000.0,3053373000.0,3358796000.0,2933571000.0,1473122000.0,1566950000.0
 utilidad_por_accion_basica,"Utilidad por acción, básica",EarningsPerShareBasic,False,3.58,4.02,3.3,4.28,3.97,2.02,2.48
 utilidad_por_accion_diluida,"Utilidad por acción, diluida",EarningsPerShareDiluted,False,3.56,4.01,3.29,4.25,3.94,2.01,2.46

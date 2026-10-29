@@ -6,7 +6,7 @@ depreciacion_amortizacion,Depreciación y amortización,DepreciationAndAmortizat
 gasto_administracion,Gastos generales y de administración,GeneralAndAdministrativeExpense,False,100672000.0,98969000.0,96395000.0,91470000.0,81888000.0,75950000.0,75293000.0
 deterioro,Deterioro de activos,ImpairmentOfRealEstate,False,70367000.0,43595000.0,86411000.0,39119000.0,24246000.0,35830000.0,32539000.0
 gastos_totales,Gastos totales,CostsAndExpenses,True,917052000.0,852157000.0,1018007000.0,866983000.0,726656000.0,691601000.0,731117000.0
-gasto_intereses,Gasto por intereses,InterestExpense,False,,,291852000.0,219160000.0,196831000.0,210087000.0,233325000.0
+gasto_intereses,Gasto por intereses,InterestExpenseNonoperating,False,291256000.0,277367000.0,291852000.0,219160000.0,,,
 ganancia_venta_inmuebles,Ganancia por venta de inmuebles,GainLossOnSaleOfProperties,False,193793000.0,74822000.0,315984000.0,43476000.0,40425000.0,109370000.0,18143000.0
 resultado_no_consolidadas,Participación en no consolidadas,IncomeLossFromEquityMethodInvestments,False,18009000.0,17926000.0,19575000.0,29509000.0,-10829000.0,-18557000.0,23229000.0
 otros_no_operativos,Otros resultados no operativos,OtherNonoperatingIncomeExpense,False,16951000.0,52236000.0,21442000.0,30309000.0,13860000.0,9587000.0,22551000.0
@@ -18,3 +18,5 @@ utilidad_neta_comun,Utilidad neta atribuible a comunes,NetIncomeLoss,True,466359
 acciones_basicas,"Acciones promedio, básicas",WeightedAverageNumberOfSharesOutstandingBasic,False,220501239.0,220168325.0,215369777.0,199633802.0,182486476.0,174504406.0,171001430.0
 acciones_diluidas,"Acciones promedio, diluidas",WeightedAverageNumberOfDilutedSharesOutstanding,False,221112343.0,220520457.0,215760496.0,200427124.0,183127098.0,174839428.0,171299414.0
 dividendo_declarado_por_accion,Dividendo declarado por acción,CommonStockDividendsPerShareDeclared,False,3.62,3.49,4.067,4.242,4.205,4.172,4.14
+utilidad_por_accion_basica_continuas,"Utilidad por acción básica, operaciones continuas",IncomeLossFromContinuingOperationsPerBasicShare,False,2.11,2.09,3.29,3.0,2.25,2.61,1.78
+utilidad_por_accion_diluida_continuas,"Utilidad por acción diluida, operaciones continuas",IncomeLossFromContinuingOperationsPerDilutedShare,False,2.11,2.09,3.28,2.99,2.24,2.6,1.78
