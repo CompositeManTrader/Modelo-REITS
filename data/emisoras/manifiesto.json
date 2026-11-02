@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado_en": "2026-10-30T17:37:35+00:00",
+  "actualizado_en": "2026-11-02T21:17:43+00:00",
   "emisoras": {
     "ADC": {
       "ticker": "ADC",
@@ -61,29 +61,29 @@
       "ticker": "EXR",
       "cik": "0001289490",
       "nombre": "Extra Space Storage Inc.",
-      "ultimo_accession": "0001289490-26-000053",
+      "ultimo_accession": "0001289490-26-000065",
       "ultimo_formulario": "10-Q",
-      "ultima_fecha_presentacion": "2026-07-31",
-      "descargado_en": "2026-09-07T01:41:09+00:00",
-      "n_hechos_crudos": 22827,
-      "periodos_trimestrales": 24,
+      "ultima_fecha_presentacion": "2026-10-30",
+      "descargado_en": "2026-11-02T21:17:43+00:00",
+      "n_hechos_crudos": 10751,
+      "periodos_trimestrales": 25,
       "periodos_anuales": 7,
-      "lineas_encontradas": 55,
-      "lineas_totales": 75,
+      "lineas_encontradas": 63,
+      "lineas_totales": 94,
       "huellas": {
-        "hechos.csv.gz": "3bebdda7045880b5",
-        "estado_resultados_trimestral.csv": "4a21a5a7c26df525",
-        "estado_resultados_anual.csv": "1fb057dc1b024495",
-        "balance.csv": "53dd4380f974626f",
-        "flujo_efectivo_trimestral.csv": "27eb51b4acd19f03",
-        "flujo_efectivo_anual.csv": "83812f021e86fb30",
-        "cobertura.csv": "9ce2c427787c092d"
+        "hechos.csv.gz": "c94c070481b1c726",
+        "estado_resultados_trimestral.csv": "8f775bf3394e08dd",
+        "estado_resultados_anual.csv": "df38bf59e15e3ab2",
+        "balance.csv": "64d12bd70e13d7e4",
+        "flujo_efectivo_trimestral.csv": "ef4f3877460ff0f2",
+        "flujo_efectivo_anual.csv": "095366f8799c586f",
+        "cobertura.csv": "2e9d3409b0ec916f"
       },
       "incidencias": [
         "AVISO EXR · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpense», y «InterestExpenseDebt» cubre 2 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
-        "AVISO EXR · etiqueta_alterna: «Ganancia por venta de inmuebles» se armó con «GainsLossesOnSalesOfInvestmentRealEstate», y «GainLossOnDispositionOfAssets1» cubre 2 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO EXR · etiqueta_alterna: «Ganancia por venta de inmuebles» se armó con «GainLossOnDispositionOfAssets1», y «GainsLossesOnSalesOfInvestmentRealEstate» cubre 8 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
         "AVISO EXR · etiqueta_alterna: «Adquisición de inmuebles» se armó con «PaymentsToAcquireProductiveAssets», y «PaymentsToAcquireRealEstate» cubre 6 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
-        "AVISO EXR · etiqueta_alterna: «Emisión de acciones» se armó con «ProceedsFromIssuanceOfCommonStock», y «ProceedsFromIssuanceOrSaleOfEquity» cubre 11 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
+        "AVISO EXR · etiqueta_alterna: «Emisión de acciones» se armó con «ProceedsFromIssuanceOrSaleOfEquity», y «ProceedsFromIssuanceOfCommonStock» cubre 14 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
       ]
     },
     "GNL": {

@@ -7,7 +7,6 @@ gastos_totales,Gastos totales,CostsAndExpenses,True,1888541000.0,1855873000.0,13
 utilidad_operativa,Utilidad de operación,OperatingIncomeLoss,True,1412691000.0,1323360000.0,1170141000.0,1050402000.0,975953000.0,666140000.0,634958000.0
 gasto_intereses,Gasto por intereses,InterestExpense,False,,,419035000.0,219171000.0,166183000.0,,
 ingreso_intereses,Ingreso por intereses,InvestmentIncomeInterest,False,163202000.0,124422000.0,84857000.0,69422000.0,49703000.0,15192000.0,7467000.0
-ganancia_venta_inmuebles,Ganancia por venta de inmuebles,GainsLossesOnSalesOfInvestmentRealEstate,False,,-33662000.0,,14200000.0,,,
 resultado_no_consolidadas,Participación en no consolidadas,IncomeLossFromEquityMethodInvestments,False,68815000.0,67272000.0,54835000.0,41428000.0,32358000.0,,11274000.0
 utilidad_antes_impuestos,Utilidad antes de impuestos,IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments,True,940761000.0,852708000.0,817177000.0,900653000.0,859473000.0,509031000.0,451157000.0
 impuestos,Impuesto a la utilidad,IncomeTaxExpenseBenefit,False,41559000.0,33478000.0,21559000.0,20925000.0,20324000.0,13810000.0,11308000.0
