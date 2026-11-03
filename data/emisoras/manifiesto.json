@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado_en": "2026-11-02T21:17:43+00:00",
+  "actualizado_en": "2026-11-03T18:57:06+00:00",
   "emisoras": {
     "ADC": {
       "ticker": "ADC",
@@ -146,27 +146,29 @@
       "ticker": "O",
       "cik": "0000726728",
       "nombre": "Realty Income Corporation",
-      "ultimo_accession": "0000726728-26-000048",
+      "ultimo_accession": "0000726728-26-000059",
       "ultimo_formulario": "10-Q",
-      "ultima_fecha_presentacion": "2026-08-06",
-      "descargado_en": "2026-09-07T01:41:00+00:00",
-      "n_hechos_crudos": 21724,
-      "periodos_trimestrales": 25,
+      "ultima_fecha_presentacion": "2026-11-03",
+      "descargado_en": "2026-11-03T18:57:04+00:00",
+      "n_hechos_crudos": 10875,
+      "periodos_trimestrales": 26,
       "periodos_anuales": 7,
-      "lineas_encontradas": 60,
-      "lineas_totales": 75,
+      "lineas_encontradas": 69,
+      "lineas_totales": 94,
       "huellas": {
-        "hechos.csv.gz": "50c2fbacdc36e5f3",
-        "estado_resultados_trimestral.csv": "c3b4e2e1f4cd69ee",
-        "estado_resultados_anual.csv": "c4822c89b1b511c0",
-        "balance.csv": "35b94be6456714f5",
-        "flujo_efectivo_trimestral.csv": "5f51b90aaed2daa8",
+        "hechos.csv.gz": "64a09a1b08ab9b28",
+        "estado_resultados_trimestral.csv": "56a92e101b291af3",
+        "estado_resultados_anual.csv": "d6d358b59c39a8d5",
+        "balance.csv": "3db62d8523a30561",
+        "flujo_efectivo_trimestral.csv": "ff1f6cbbda4ba45b",
         "flujo_efectivo_anual.csv": "1136190be725affe",
-        "cobertura.csv": "45852331a367d695"
+        "cobertura.csv": "bab0b24f27ab8ee0"
       },
       "incidencias": [
-        "AVISO O · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpense», y «InterestExpenseOperating» cubre 7 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
-        "AVISO O · etiqueta_alterna: «Utilidad neta atribuible a comunes» se armó con «NetIncomeLoss», y «NetIncomeLossAvailableToCommonStockholdersBasic» cubre 2 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO O [2026-09-30] · descomposicion_incompleta: activos 77,950,414,000 contra pasivos 35,276,018,000 + capital 42,602,651,000 (+ temporal) = 77,878,669,000 (diferencia 71,745,000); el total que declara la emisora sí cuadra, así que falta un renglón intermedio y no está mal leído el balance",
+        "AVISO O · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpenseOperating», y «InterestExpense» cubre 18 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO O · etiqueta_alterna: «Dividendos preferentes» se armó con «PreferredStockDividendsIncomeStatementImpact», y «PreferredStockDividendsAndOtherAdjustments» cubre 2 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO O · etiqueta_alterna: «Utilidad neta atribuible a comunes» se armó con «NetIncomeLoss», y «NetIncomeLossAvailableToCommonStockholdersBasic» cubre 3 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
         "AVISO O · etiqueta_alterna: «Utilidad por acción, básica» se armó con «EarningsPerShareBasic», y «EarningsPerShareBasicAndDiluted» cubre 2 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
         "AVISO O · etiqueta_alterna: «Utilidad por acción, diluida» se armó con «EarningsPerShareDiluted», y «EarningsPerShareBasicAndDiluted» cubre 2 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
       ]
