@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado_en": "2026-11-03T18:57:06+00:00",
+  "actualizado_en": "2026-11-04T19:14:53+00:00",
   "emisoras": {
     "ADC": {
       "ticker": "ADC",
@@ -120,26 +120,26 @@
       "ticker": "NNN",
       "cik": "0000751364",
       "nombre": "NNN REIT, Inc.",
-      "ultimo_accession": "0001193125-26-333967",
+      "ultimo_accession": "0001193125-26-446273",
       "ultimo_formulario": "10-Q",
-      "ultima_fecha_presentacion": "2026-08-05",
-      "descargado_en": "2026-09-07T01:41:01+00:00",
-      "n_hechos_crudos": 23186,
-      "periodos_trimestrales": 23,
+      "ultima_fecha_presentacion": "2026-11-04",
+      "descargado_en": "2026-11-04T19:14:52+00:00",
+      "n_hechos_crudos": 9141,
+      "periodos_trimestrales": 24,
       "periodos_anuales": 7,
-      "lineas_encontradas": 51,
-      "lineas_totales": 75,
+      "lineas_encontradas": 59,
+      "lineas_totales": 94,
       "huellas": {
-        "hechos.csv.gz": "24e602cb48cfab06",
-        "estado_resultados_trimestral.csv": "37d9c3fbe6a18633",
-        "estado_resultados_anual.csv": "6c5528d02cf33d2b",
-        "balance.csv": "93779633cf443ae8",
-        "flujo_efectivo_trimestral.csv": "56efb72ec891ec6a",
+        "hechos.csv.gz": "bd8c0db4390661b1",
+        "estado_resultados_trimestral.csv": "a02ab6a15cac58f6",
+        "estado_resultados_anual.csv": "10e095ad3f33570f",
+        "balance.csv": "7d059a1dd67656a0",
+        "flujo_efectivo_trimestral.csv": "ac51b99504042d8c",
         "flujo_efectivo_anual.csv": "99af8d6c9c4e9f1c",
-        "cobertura.csv": "32aaf7cf842b513a"
+        "cobertura.csv": "8cbd309791a0ac92"
       },
       "incidencias": [
-        "AVISO NNN · etiqueta_alterna: «Amortización de deuda» se armó con «RepaymentsOfNotesPayable», y «RepaymentsOfLongTermDebt» cubre 1 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
+        "AVISO NNN · etiqueta_alterna: «Amortización de deuda» se armó con «RepaymentsOfNotesPayable», y «RepaymentsOfLongTermDebt» cubre 2 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
       ]
     },
     "O": {

@@ -1,9 +1,11 @@
 linea,etiqueta,tag_gaap,subtotal,2025-12-31,2024-12-31,2023-12-31,2022-12-31,2021-12-31,2020-12-31,2019-12-31
 ingreso_rentas,Ingresos por arrendamiento,LeaseIncome,False,924380000.0,867468000.0,826090000.0,771618000.0,723859000.0,658793000.0,669009000.0
+ingreso_renta_variable,Renta variable sobre ventas,VariableLeaseIncome,False,1549000.0,1536000.0,1631000.0,1541000.0,706000.0,842000.0,1310000.0
 ingresos_totales,Ingresos totales,Revenues,True,926213000.0,869266000.0,828111000.0,773053000.0,726407000.0,660681000.0,670487000.0
 depreciacion_amortizacion,Depreciación y amortización,DepreciationAndAmortization,False,268439000.0,249681000.0,238625000.0,223834000.0,205220000.0,196623000.0,188871000.0
 gasto_administracion,Gastos generales y de administración,GeneralAndAdministrativeExpense,False,46923000.0,44287000.0,43746000.0,41695000.0,44640000.0,38161000.0,37651000.0
 deterioro,Deterioro de activos,ImpairmentOfRealEstate,False,28602000.0,6632000.0,5990000.0,8309000.0,21957000.0,37442000.0,31992000.0
+provision_perdidas_crediticias,Provisión por pérdidas crediticias,ProvisionForDoubtfulAccounts,False,2630000.0,763000.0,204000000.0,0.0,0.0,21792000.0,
 gastos_totales,Gastos totales,OperatingExpenses,True,384947000.0,333684000.0,320492000.0,307959000.0,300405000.0,302430000.0,286431000.0
 utilidad_operativa,Utilidad de operación,OperatingIncomeLoss,True,589486000.0,577872000.0,555104000.0,482537000.0,449096000.0,374489000.0,416519000.0
 gasto_intereses,Gasto por intereses,InterestExpense,False,203955000.0,184017000.0,163898000.0,148065000.0,137874000.0,129431000.0,120023000.0
