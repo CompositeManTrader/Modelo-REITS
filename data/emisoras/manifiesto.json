@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado_en": "2026-11-04T19:14:53+00:00",
+  "actualizado_en": "2026-11-05T19:22:02+00:00",
   "emisoras": {
     "ADC": {
       "ticker": "ADC",
@@ -90,27 +90,26 @@
       "ticker": "GNL",
       "cik": "0001526113",
       "nombre": "Global Net Lease, Inc.",
-      "ultimo_accession": "0001628280-26-053396",
+      "ultimo_accession": "0001628280-26-070177",
       "ultimo_formulario": "10-Q",
-      "ultima_fecha_presentacion": "2026-08-05",
-      "descargado_en": "2026-09-07T01:41:06+00:00",
-      "n_hechos_crudos": 19681,
-      "periodos_trimestrales": 30,
+      "ultima_fecha_presentacion": "2026-11-04",
+      "descargado_en": "2026-11-05T19:22:02+00:00",
+      "n_hechos_crudos": 10432,
+      "periodos_trimestrales": 31,
       "periodos_anuales": 7,
-      "lineas_encontradas": 56,
-      "lineas_totales": 75,
+      "lineas_encontradas": 67,
+      "lineas_totales": 94,
       "huellas": {
-        "hechos.csv.gz": "467e776b8a45f0ad",
-        "estado_resultados_trimestral.csv": "af6f6674caca766d",
-        "estado_resultados_anual.csv": "5fa6b1983e50ee60",
-        "balance.csv": "dd012c7692065e54",
-        "flujo_efectivo_trimestral.csv": "769ea9d71db9929b",
+        "hechos.csv.gz": "8a56ed9467489cc5",
+        "estado_resultados_trimestral.csv": "27c437d89a6d9e6a",
+        "estado_resultados_anual.csv": "c949d8ad01d54893",
+        "balance.csv": "d96f159ed444011b",
+        "flujo_efectivo_trimestral.csv": "f17f1ff92001a3a4",
         "flujo_efectivo_anual.csv": "476454b8d17fa105",
-        "cobertura.csv": "32b1507ba1021c93"
+        "cobertura.csv": "55e012baee62b713"
       },
       "incidencias": [
-        "AVISO GNL · etiqueta_alterna: «Gastos totales» se armó con «CostsAndExpenses», y «OperatingExpenses» cubre 1 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
-        "AVISO GNL · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpense», y «InterestExpenseNonoperating» cubre 9 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
+        "AVISO GNL · etiqueta_alterna: «Gasto por intereses» se armó con «InterestExpenseNonoperating», y «InterestExpense» cubre 15 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
         "AVISO GNL · etiqueta_alterna: «Utilidad por acción, básica» se armó con «EarningsPerShareBasic», y «EarningsPerShareBasicAndDiluted» cubre 3 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
         "AVISO GNL · etiqueta_alterna: «Utilidad por acción, diluida» se armó con «EarningsPerShareDiluted», y «EarningsPerShareBasicAndDiluted» cubre 3 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta.",
         "AVISO GNL · etiqueta_alterna: «Adquisición de inmuebles» se armó con «PaymentsToAcquireCommercialRealEstate», y «PaymentsToAcquireRealEstate» cubre 1 periodo(s) que esa no tiene. Empalmarlas produciría un salto que parece del negocio y es de etiqueta."
