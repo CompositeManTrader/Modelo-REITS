@@ -94,7 +94,9 @@ def armar_y_verificar(ticker: str, crudos: pd.DataFrame, *, asof: dt.date):
     El Q4 se deriva antes de armar nada, porque en Estados Unidos no existe un
     10-Q del cuarto trimestre y sin él la serie trimestral tiene un hueco anual.
     """
-    tags = elegir_tags(crudos, ticker)
+    # Al corte, como los estados (P1). Con el corte de hoy es lo mismo que elegir
+    # con todo el crudo; con uno anterior, no.
+    tags = elegir_tags(crudos, ticker, asof=asof)
     # Antes de armar nada: fuera los saldos cuya fecha el propio XBRL del emisor
     # equivocó. Es lo primero porque un activo total mal fechado envenena todo lo
     # que se derive de él —el balance, su cuadre, y cualquier razón que lo use—.

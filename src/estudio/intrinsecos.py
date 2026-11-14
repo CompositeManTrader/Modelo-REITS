@@ -254,10 +254,12 @@ OPCIONALES = ("deterioro", "gastos_inmuebles")
 COMPONENTES_DEUDA = ("deuda_hipotecaria", "notas_senior", "linea_de_credito", "prestamos_a_plazo",
                      "otras_notas_por_pagar")
 # Etiquetas fijas por renglón del balance, en orden de preferencia: en cada fecha gana la
-# primera que traiga dato. No se usa la elección de etiquetas del módulo de estados, que
-# se hace con TODA la historia a la vista: con los datos de hoy escoge para la línea de
-# crédito de NNN una etiqueta que en 2012 no existía y el NAV de 2012 cambiaba según lo
-# que se publicó después (P1).
+# primera que traiga dato. Se escribieron porque la elección de etiquetas del módulo de
+# estados se hacía con TODA la historia a la vista: con los datos de hoy escogía para la
+# línea de crédito de NNN una etiqueta que en 2012 no existía y el NAV de 2012 cambiaba
+# según lo que se publicó después (P1). Ese módulo ya elige al corte
+# (``elegir_cadenas(asof=…)``, prueba 81), pero el NAV se queda con esta cadena: es parte
+# de la construcción fijada antes de ver retornos.
 ETIQUETAS_BALANCE: dict[str, tuple[str, ...]] = {
     "deuda_total": ("DebtLongtermAndShorttermCombinedAmount", "LongTermDebt"),
     "deuda_hipotecaria": ("SecuredDebt", "SecuredLongTermDebt"),
