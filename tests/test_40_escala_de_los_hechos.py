@@ -320,12 +320,27 @@ def test_la_celda_cae_a_la_version_anterior_cuando_existe(repo):
     assert valor == pytest.approx(9_209_438.0), valor
 
 
-def test_y_queda_vacia_cuando_no_la_hay(repo):
-    """El cuarto trimestre de 2011 solo se publicó mal. Un hueco es lo correcto."""
+def test_y_cuando_solo_se_publico_mal_cae_a_lo_que_se_pudo_deducir(repo):
+    """El cuarto trimestre de 2011 solo se PUBLICÓ mal: 7,743 dólares en el 10-K de 2013.
+
+    Pero se pudo DEDUCIR antes, y bien: en noviembre de 2012, con el ejercicio y
+    los nueve meses reexpresados juntos, es 34.1 − 23.9 = 10.19 millones. Antes no
+    se derivaba nada porque el algoritmo sabía que en 2013 aparecería un trimestre
+    publicado —eso era mirar al futuro—, y la celda quedaba en blanco. Ahora el
+    trimestre derivado lleva la versión que tenía en cada fecha (prueba 56), y al
+    marcar la de 2013 la celda cae a la de 2012, que es una deducción co-vintage de
+    cifras publicadas y no un número inventado.
+
+    Lo que esta prueba cuida no cambia: el dato mal escalado nunca llega a la
+    pantalla.
+    """
     serie = repo.serie("ADC", "ingresos_totales", asof=HOY, periodo_tipo="Q")
-    assert pd.Timestamp("2011-12-31") not in serie.index or pd.isna(
-        serie.get(pd.Timestamp("2011-12-31"))
-    )
+    valor = serie.get(pd.Timestamp("2011-12-31"))
+    assert valor != pytest.approx(7_743.0), "el dato fuera de escala llegó a la serie"
+    assert valor == pytest.approx(10_190_178.0), valor
+    # Y antes de que existiera, no existía.
+    antes = repo.serie("ADC", "ingresos_totales", asof=dt.date(2012, 3, 1), periodo_tipo="Q")
+    assert pd.Timestamp("2011-12-31") not in antes.index
 
 
 def test_ningun_ratio_de_la_vista_propia_es_absurdo(repo):

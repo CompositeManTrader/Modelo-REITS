@@ -136,6 +136,11 @@ def test_cuando_las_dos_partes_se_reexpresan_juntas_gana_la_version_nueva():
 
     Es el caso sano —el emisor reexpresa el acumulado Y el tramo en el mismo
     ciclo— y ahí no hay razón para quedarse con la versión vieja.
+
+    Pero la nueva no BORRA a la vieja: el trimestre se deriva versión por versión
+    (prueba 56), así que lo que se sabía en 2020 sigue fechado en 2020. Antes solo
+    existía la versión de 2021, y entre agosto de 2020 y agosto de 2021 el
+    trimestre —que ya era deducible— no se sabía.
     """
     filas = [
         {"fecha_inicio": "2020-01-01", "fecha_dato": "2020-06-30", "periodo_tipo": "H1",
@@ -148,9 +153,14 @@ def test_cuando_las_dos_partes_se_reexpresan_juntas_gana_la_version_nueva():
          "fecha_publicacion": "2021-05-04", "valor": 55.0},
     ]
     salida = derivar_trimestres_faltantes(_crudos(filas), {"ingresos_totales": "Revenues"})
-    fila = salida[salida["formulario"] == "DERIVADO"].iloc[0]
-    assert float(fila["valor"]) == pytest.approx(75.0), "no tomó la pareja de 2021"
-    assert pd.Timestamp(fila["fecha_publicacion"]).date() == dt.date(2021, 8, 3)
+    derivados = salida[salida["formulario"] == "DERIVADO"].sort_values("fecha_publicacion")
+    vigente = derivados.iloc[-1]
+    assert float(vigente["valor"]) == pytest.approx(75.0), "no tomó la pareja de 2021"
+    assert pd.Timestamp(vigente["fecha_publicacion"]).date() == dt.date(2021, 8, 3)
+    original = derivados.iloc[0]
+    assert len(derivados) == 2
+    assert float(original["valor"]) == pytest.approx(60.0)
+    assert pd.Timestamp(original["fecha_publicacion"]).date() == dt.date(2020, 8, 3)
 
 
 def test_con_una_sola_version_de_cada_lado_no_cambia_nada():
