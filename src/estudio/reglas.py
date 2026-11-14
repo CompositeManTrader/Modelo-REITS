@@ -963,8 +963,19 @@ class Conclusion:
     tono: str = "neutral"   # "favorable" | "desfavorable" | "neutral"
 
 
-def _pb(x: float) -> str:
-    return f"{x * 1e4:+,.0f} puntos base"
+# Una cifra que falta se escribe «—», como en los PDF (``pdf_estudio.pct``). La TIR en
+# pesos llega en ``None`` cuando la base no tiene el tipo de cambio: sin USDMXN, los
+# flujos en pesos son todos NaN y ``tir`` no tiene qué resolver.
+def _pb(x: float | None) -> str:
+    return "—" if x is None or pd.isna(x) else f"{x * 1e4:+,.0f} puntos base"
+
+
+def _pct(x: float | None, decimales: int = 1, *, signo: bool = False) -> str:
+    return "—" if x is None or pd.isna(x) else f"{x:{'+' if signo else ''}.{decimales}%}"
+
+
+def _veces(x: float | None, decimales: int = 2) -> str:
+    return "—" if x is None or pd.isna(x) else f"{x:.{decimales}f}"
 
 
 def conclusiones(r: ResultadoReglas) -> list[Conclusion]:
@@ -977,9 +988,9 @@ def conclusiones(r: ResultadoReglas) -> list[Conclusion]:
     c.append(Conclusion(
         "Qué hubiera pasado",
         f"Aportando {r.parametros.aportacion:,.0f} dólares cada mes desde {r.desde:%m-%Y}, el modelo "
-        f"termina con una TIR de {mod['tir_usd']:.1%} en dólares ({mod['tir_mxn']:.1%} en pesos), "
-        f"contra {ben['tir_usd']:.1%} de aportar lo mismo sin reglas: {_pb(ventaja)} al año. Lo "
-        f"aportado se multiplicó {mod['multiplo']:.1f} veces, contra {ben['multiplo']:.1f}, ya con "
+        f"termina con una TIR de {_pct(mod['tir_usd'])} en dólares ({_pct(mod['tir_mxn'])} en pesos), "
+        f"contra {_pct(ben['tir_usd'])} de aportar lo mismo sin reglas: {_pb(ventaja)} al año. Lo "
+        f"aportado se multiplicó {_veces(mod['multiplo'], 1)} veces, contra {_veces(ben['multiplo'], 1)}, ya con "
         "impuestos y comisiones y vendiendo todo al final.",
         "favorable" if ventaja > 0.001 else ("desfavorable" if ventaja < -0.001 else "neutral"),
     ))
@@ -1059,10 +1070,12 @@ def resumen_en_texto(r: ResultadoReglas) -> str:
     lineas = [f"{r.ticker}: {r.desde:%Y-%m} a {r.hasta:%Y-%m}, prima sobre {r.medida}"]
     t = r.tabla
     for v, fila in t.iterrows():
+        ventaja = "—" if pd.isna(fila["ventaja_tir_usd"]) else f"{fila['ventaja_tir_usd'] * 1e4:+.0f} pb"
         lineas.append(
-            f"  {v:32s} TIR USD {fila['tir_usd']:.2%}  MXN {fila['tir_mxn']:.2%}  múltiplo {fila['multiplo']:.2f}x  "
-            f"exposición {fila['exposicion_promedio']:.0%}  caída máx {fila['caida_maxima']:.0%}  "
-            f"ventas {fila['ventas']}  vs benchmark {fila['ventaja_tir_usd'] * 1e4:+.0f} pb")
+            f"  {v:32s} TIR USD {_pct(fila['tir_usd'], 2)}  MXN {_pct(fila['tir_mxn'], 2)}  "
+            f"múltiplo {_veces(fila['multiplo'])}x  "
+            f"exposición {_pct(fila['exposicion_promedio'], 0)}  caída máx {_pct(fila['caida_maxima'], 0)}  "
+            f"ventas {fila['ventas']}  vs benchmark {ventaja}")
     lineas.append("  tiempo por decisión: " + ", ".join(f"{d} {f:.0%}" for d, f in r.tiempo_en_decision["fraccion"].items()))
     lineas.append(f"  {r.apuestas.como_texto()}")
     if r.neutralizacion is not None:
@@ -1074,7 +1087,7 @@ def resumen_en_texto(r: ResultadoReglas) -> str:
             regreso = (f"lo vendido vuelve {v['reinversion']:%Y-%m} a {v['precio_reinversion']:.2f}"
                        if pd.notna(v.get("reinversion")) else "lo vendido no ha vuelto")
             lineas.append(f"    {v['fecha']:%Y-%m-%d} a {v['precio']:.2f}: {v['disparadores']}; "
-                          f"papel a 1 año {v.get('papel_1a', np.nan):+.1%}; {regreso}")
+                          f"papel a 1 año {_pct(v.get('papel_1a'), signo=True)}; {regreso}")
     for c in conclusiones(r):
         lineas.append(f"  [{c.tono}] {c.titulo}: {c.texto}")
     for a in r.avisos:

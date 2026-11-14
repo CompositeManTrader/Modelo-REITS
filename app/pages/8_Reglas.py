@@ -22,6 +22,7 @@ from comun import (  # noqa: E402
     exigir_base,
     firma_de_la_base,
     mostrar_tabla,
+    pct,
     selector_de_corte,
     suficiencia,
 )
@@ -98,8 +99,9 @@ st.header(f"{r.nombre} ({ticker})")
 mod = r.tabla.loc[reglas.Variante.MODELO.value]
 ben = r.tabla.loc[reglas.Variante.BENCHMARK.value]
 k1, k2, k3, k4 = st.columns(4)
-k1.metric("TIR del modelo, USD", f"{mod['tir_usd']:.2%}", help=f"En pesos: {mod['tir_mxn']:.2%}.")
-k2.metric("Sin reglas, USD", f"{ben['tir_usd']:.2%}", help=f"En pesos: {ben['tir_mxn']:.2%}.")
+# Sin tipo de cambio en la base la TIR en pesos llega en None: se escribe «—».
+k1.metric("TIR del modelo, USD", pct(mod["tir_usd"]), help=f"En pesos: {pct(mod['tir_mxn'])}.")
+k2.metric("Sin reglas, USD", pct(ben["tir_usd"]), help=f"En pesos: {pct(ben['tir_mxn'])}.")
 k3.metric("Ventaja al año", f"{mod['ventaja_tir_usd'] * 1e4:+,.0f} pb")
 k4.metric("Hoy", r.decision_hoy["decision"], help=f"Semáforo: {r.decision_hoy['accion']}.")
 

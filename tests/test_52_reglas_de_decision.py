@@ -281,6 +281,28 @@ def test_las_vistas_ponen_cada_fraccion_en_porcentaje(estudio_o):
     assert not problemas, "\n".join(problemas)
 
 
+def test_sin_tipo_de_cambio_la_tir_en_pesos_se_escribe_con_guion(estudio_o):
+    """En un contenedor nuevo la base no tiene USDMXN: ``repo.tasa`` sale vacía, la columna
+    ``usdmxn`` queda en NaN y la TIR en pesos en ``None``. ``reglas O`` tronaba al formatearla
+    con ``:.2%``; ahora escribe «—», como los PDF."""
+    from src.export.pdf_reglas import Figuras, _emisor
+
+    estudio_o.tabla["usdmxn"] = np.nan
+    r = reglas.backtest(estudio_o, calificaciones=pd.DataFrame())
+    assert r.tabla["tir_mxn"].isna().all()
+    assert r.tabla["tir_usd"].notna().all(), "la TIR en dólares no depende del tipo de cambio"
+
+    texto = reglas.resumen_en_texto(r)
+    renglones = [x for x in texto.splitlines() if "TIR USD" in x]
+    assert len(renglones) == len(Variante)
+    assert all("MXN —" in x for x in renglones), "\n".join(renglones)
+    assert "(— en pesos)" in texto, "la conclusión «Qué hubiera pasado» también lo escribe"
+
+    # El PDF de reglas arma su sección por emisor con las mismas conclusiones.
+    html = _emisor(r, Figuras())
+    assert "(— en pesos)" in html
+
+
 def test_calificaciones_versionadas():
     """WPC no tenía grado de inversión en 2012 (8-K del 4-ene-2012) y lo obtuvo en enero de
     2014; O desde dic-1996 y NNN desde 1998. Ninguno lo perdió."""
